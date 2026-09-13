@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BiletFlow</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <p class="kicker">test variant</p>
+      <h1>BiletFlow</h1>
+      <pre id="health">loading /api/v1/health…</pre>
+    </main>
+    <script>
+      fetch("/api/v1/health")
+        .then((r) => r.json())
+        .then((data) => {
+          document.getElementById("health").textContent = JSON.stringify(data, null, 2);
+        })
+        .catch((err) => {
+          document.getElementById("health").textContent = String(err);
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    hostname: db
+    environment:
+      POSTGRES_USER: biletflow
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: biletflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U biletflow -d biletflow"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    hostname: api
+    environment:
+      DATABASE_URL: postgresql://biletflow:devpass@db:5432/biletflow
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    hostname: web
+
+  proxy:
+    image: caddy:2-alpine
+    hostname: proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - web
+
+volumes:
+  pgdata:

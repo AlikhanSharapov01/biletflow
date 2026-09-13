@@ -1,0 +1,29 @@
+body {
+  margin: 0;
+  background: #f3efe6;
+  color: #1c1917;
+  font: 16px/1.5 Palatino, "Iowan Old Style", serif;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  font: 12px/1.4 ui-monospace, Menlo, monospace;
+  text-transform: uppercase;
+  color: #1d4e4a;
+}
+
+h1 {
+  margin: 0 0 12px;
+}
+
+pre {
+  padding: 12px;
+  background: #efeae0;
+  font: 13px/1.45 ui-monospace, Menlo, monospace;
+}
