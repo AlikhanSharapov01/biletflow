@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-09-24T09:37:20.818037+00:00",
+  "database": {
+    "migration": "0002_event_setup",
+    "tables": 27,
+    "identity_rows_preserved": true
+  },
+  "checks": [
+    "two_accounts_verified_via_local_smtp",
+    "owner_configured_and_published_free_assigned_event",
+    "anonymous_discovery_detail_and_seats",
+    "invitation_delivered_over_local_smtp_and_accepted",
+    "scanner_edit_denied_and_assignment_revocation_effective",
+    "demo_sessions_revoked_after_smoke"
+  ],
+  "all_passed": true,
+  "fixture_event_id": "1162adfb-d24b-4924-a5a8-42bef3389290",
+  "external_email_sent": false,
+  "payments_or_tickets_created": false
+}

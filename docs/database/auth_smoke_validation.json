@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "checks": [
+    "live readiness",
+    "registration using restricted database role",
+    "durable worker and real local SMTP delivery",
+    "single-use email verification",
+    "password sign-in",
+    "authenticated profile",
+    "refresh rotation",
+    "logout invalidates access JWT"
+  ],
+  "external_email_sent": false,
+  "google_live_test": "not run: credentials not configured"
+}

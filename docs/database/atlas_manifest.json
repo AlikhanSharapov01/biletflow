@@ -1,0 +1,326 @@
+[
+  {
+    "id": "bf-page-01",
+    "name": "00 Start here",
+    "width": 1520,
+    "height": 1500
+  },
+  {
+    "id": "bf-page-02",
+    "name": "01 Identity",
+    "width": 1520,
+    "height": 1354
+  },
+  {
+    "id": "bf-page-03",
+    "name": "02 Organizations",
+    "width": 1520,
+    "height": 1840
+  },
+  {
+    "id": "bf-page-04",
+    "name": "03 Events",
+    "width": 1520,
+    "height": 2095
+  },
+  {
+    "id": "bf-page-05",
+    "name": "04 Venues",
+    "width": 1520,
+    "height": 1631
+  },
+  {
+    "id": "bf-page-06",
+    "name": "05 Inventory",
+    "width": 1520,
+    "height": 1563
+  },
+  {
+    "id": "bf-page-07",
+    "name": "06 Orders",
+    "width": 1520,
+    "height": 1305
+  },
+  {
+    "id": "bf-page-08",
+    "name": "07 Payments",
+    "width": 1520,
+    "height": 1639
+  },
+  {
+    "id": "bf-page-09",
+    "name": "08 Activation",
+    "width": 1520,
+    "height": 1791
+  },
+  {
+    "id": "bf-page-10",
+    "name": "09 Campaigns",
+    "width": 1520,
+    "height": 2011
+  },
+  {
+    "id": "bf-page-11",
+    "name": "10 Tickets",
+    "width": 1520,
+    "height": 1601
+  },
+  {
+    "id": "bf-page-12",
+    "name": "11 Admission",
+    "width": 1520,
+    "height": 1202
+  },
+  {
+    "id": "bf-page-13",
+    "name": "12 Refunds and finance",
+    "width": 1520,
+    "height": 1696
+  },
+  {
+    "id": "bf-page-14",
+    "name": "13 Offline synchronization",
+    "width": 1520,
+    "height": 1525
+  },
+  {
+    "id": "bf-page-15",
+    "name": "14 Files and support",
+    "width": 1520,
+    "height": 1897
+  },
+  {
+    "id": "bf-page-16",
+    "name": "15 Delivery and audit",
+    "width": 1520,
+    "height": 2201
+  },
+  {
+    "id": "bf-page-17",
+    "name": "16 Administration and analytics",
+    "width": 1520,
+    "height": 2049
+  },
+  {
+    "id": "bf-page-18",
+    "name": "17 Core relationships",
+    "width": 1520,
+    "height": 1690
+  },
+  {
+    "id": "bf-page-19",
+    "name": "Relations 01",
+    "width": 1860,
+    "height": 818
+  },
+  {
+    "id": "bf-page-20",
+    "name": "Relations 02",
+    "width": 1860,
+    "height": 1505
+  },
+  {
+    "id": "bf-page-21",
+    "name": "Relations 03",
+    "width": 1860,
+    "height": 1190
+  },
+  {
+    "id": "bf-page-22",
+    "name": "Relations 04",
+    "width": 1860,
+    "height": 933
+  },
+  {
+    "id": "bf-page-23",
+    "name": "Relations 05",
+    "width": 1860,
+    "height": 1218
+  },
+  {
+    "id": "bf-page-24",
+    "name": "Relations 06",
+    "width": 1860,
+    "height": 785
+  },
+  {
+    "id": "bf-page-25",
+    "name": "Relations 07",
+    "width": 1860,
+    "height": 920
+  },
+  {
+    "id": "bf-page-26",
+    "name": "Relations 08",
+    "width": 1860,
+    "height": 1332
+  },
+  {
+    "id": "bf-page-27",
+    "name": "Relations 09",
+    "width": 1860,
+    "height": 1276
+  },
+  {
+    "id": "bf-page-28",
+    "name": "Relations 10",
+    "width": 1860,
+    "height": 989
+  },
+  {
+    "id": "bf-page-29",
+    "name": "Relations 11",
+    "width": 1860,
+    "height": 932
+  },
+  {
+    "id": "bf-page-30",
+    "name": "Relations 12",
+    "width": 1860,
+    "height": 1218
+  },
+  {
+    "id": "bf-page-31",
+    "name": "Relations 13",
+    "width": 1860,
+    "height": 1460
+  },
+  {
+    "id": "bf-page-32",
+    "name": "Relations 14",
+    "width": 1860,
+    "height": 1504
+  },
+  {
+    "id": "bf-page-33",
+    "name": "Relations 15",
+    "width": 1860,
+    "height": 1219
+  },
+  {
+    "id": "bf-page-34",
+    "name": "Relations 16",
+    "width": 1860,
+    "height": 1733
+  },
+  {
+    "id": "bf-page-35",
+    "name": "Rules 01-06",
+    "width": 1520,
+    "height": 834
+  },
+  {
+    "id": "bf-page-36",
+    "name": "Rules 07-12",
+    "width": 1520,
+    "height": 815
+  },
+  {
+    "id": "bf-page-37",
+    "name": "Rules 13-18",
+    "width": 1520,
+    "height": 853
+  },
+  {
+    "id": "bf-page-38",
+    "name": "Rules 19-24",
+    "width": 1520,
+    "height": 853
+  },
+  {
+    "id": "bf-page-39",
+    "name": "Rules 25-28",
+    "width": 1520,
+    "height": 639
+  },
+  {
+    "id": "bf-page-40",
+    "name": "Checkout activity",
+    "width": 1400,
+    "height": 1310
+  },
+  {
+    "id": "bf-page-41",
+    "name": "Refund activity",
+    "width": 1400,
+    "height": 1310
+  },
+  {
+    "id": "bf-page-42",
+    "name": "Admission activity",
+    "width": 1400,
+    "height": 1310
+  },
+  {
+    "id": "bf-page-43",
+    "name": "Offline activity",
+    "width": 1400,
+    "height": 1310
+  },
+  {
+    "id": "bf-page-44",
+    "name": "Outbox activity",
+    "width": 1400,
+    "height": 1310
+  },
+  {
+    "id": "bf-page-45",
+    "name": "Operations 01-04",
+    "width": 1520,
+    "height": 1209
+  },
+  {
+    "id": "bf-page-46",
+    "name": "Operations 05-08",
+    "width": 1520,
+    "height": 1266
+  },
+  {
+    "id": "bf-page-47",
+    "name": "Operations 09-12",
+    "width": 1520,
+    "height": 1228
+  },
+  {
+    "id": "bf-page-48",
+    "name": "Operations 13-16",
+    "width": 1520,
+    "height": 1266
+  },
+  {
+    "id": "bf-page-49",
+    "name": "Operations 17-20",
+    "width": 1520,
+    "height": 1285
+  },
+  {
+    "id": "bf-page-50",
+    "name": "Operations 21-24",
+    "width": 1520,
+    "height": 1209
+  },
+  {
+    "id": "bf-page-51",
+    "name": "Operations 25-26",
+    "width": 1520,
+    "height": 710
+  },
+  {
+    "id": "bf-page-52",
+    "name": "States 01-04",
+    "width": 1520,
+    "height": 668
+  },
+  {
+    "id": "bf-page-53",
+    "name": "States 05-08",
+    "width": 1520,
+    "height": 687
+  },
+  {
+    "id": "bf-page-54",
+    "name": "States 09-10",
+    "width": 1520,
+    "height": 449
+  }
+]

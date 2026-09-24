@@ -1,0 +1,48 @@
+name: biletflow-auth
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: biletflow
+      POSTGRES_USER: biletflow_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U biletflow_owner -d biletflow"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://biletflow_owner:${POSTGRES_PASSWORD}@db:5432/biletflow
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    command: [".venv/bin/python", "-m", "app.bootstrap"]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
+      SMTP_HOST: mailpit
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
+      SMTP_HOST: mailpit
+    command: [".venv/bin/python", "-m", "app.worker"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      mailpit: {condition: service_started}
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports: ["127.0.0.1:8025:8025", "127.0.0.1:1025:1025"]
+volumes:
+  postgres_data:

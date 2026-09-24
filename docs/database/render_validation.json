@@ -1,0 +1,384 @@
+{
+  "renderer": "Official draw.io viewer-static.min.js in local headless Microsoft Edge",
+  "pages": [
+    {
+      "page": 1,
+      "name": "00 Start here",
+      "width": 1481,
+      "height": 1133,
+      "textNodes": 10
+    },
+    {
+      "page": 2,
+      "name": "01 Identity",
+      "width": 1481,
+      "height": 1281,
+      "textNodes": 10
+    },
+    {
+      "page": 3,
+      "name": "02 Organizations",
+      "width": 1481,
+      "height": 1767,
+      "textNodes": 14
+    },
+    {
+      "page": 4,
+      "name": "03 Events",
+      "width": 1481,
+      "height": 2022,
+      "textNodes": 10
+    },
+    {
+      "page": 5,
+      "name": "04 Venues",
+      "width": 1481,
+      "height": 1558,
+      "textNodes": 12
+    },
+    {
+      "page": 6,
+      "name": "05 Inventory",
+      "width": 1481,
+      "height": 1490,
+      "textNodes": 10
+    },
+    {
+      "page": 7,
+      "name": "06 Orders",
+      "width": 1481,
+      "height": 1232,
+      "textNodes": 6
+    },
+    {
+      "page": 8,
+      "name": "07 Payments",
+      "width": 1481,
+      "height": 1566,
+      "textNodes": 8
+    },
+    {
+      "page": 9,
+      "name": "08 Activation",
+      "width": 1481,
+      "height": 1718,
+      "textNodes": 10
+    },
+    {
+      "page": 10,
+      "name": "09 Campaigns",
+      "width": 1481,
+      "height": 1938,
+      "textNodes": 12
+    },
+    {
+      "page": 11,
+      "name": "10 Tickets",
+      "width": 1481,
+      "height": 1528,
+      "textNodes": 8
+    },
+    {
+      "page": 12,
+      "name": "11 Admission",
+      "width": 1481,
+      "height": 1129,
+      "textNodes": 8
+    },
+    {
+      "page": 13,
+      "name": "12 Refunds and finance",
+      "width": 1481,
+      "height": 1623,
+      "textNodes": 10
+    },
+    {
+      "page": 14,
+      "name": "13 Offline synchronization",
+      "width": 1481,
+      "height": 1452,
+      "textNodes": 8
+    },
+    {
+      "page": 15,
+      "name": "14 Files and support",
+      "width": 1481,
+      "height": 1824,
+      "textNodes": 12
+    },
+    {
+      "page": 16,
+      "name": "15 Delivery and audit",
+      "width": 1481,
+      "height": 2128,
+      "textNodes": 12
+    },
+    {
+      "page": 17,
+      "name": "16 Administration and analytics",
+      "width": 1481,
+      "height": 1976,
+      "textNodes": 14
+    },
+    {
+      "page": 18,
+      "name": "17 Core relationships",
+      "width": 1521,
+      "height": 1548,
+      "textNodes": 48
+    },
+    {
+      "page": 19,
+      "name": "Relations 01",
+      "width": 1821,
+      "height": 736,
+      "textNodes": 10
+    },
+    {
+      "page": 20,
+      "name": "Relations 02",
+      "width": 1821,
+      "height": 1423,
+      "textNodes": 24
+    },
+    {
+      "page": 21,
+      "name": "Relations 03",
+      "width": 1821,
+      "height": 1126,
+      "textNodes": 22
+    },
+    {
+      "page": 22,
+      "name": "Relations 04",
+      "width": 1821,
+      "height": 851,
+      "textNodes": 18
+    },
+    {
+      "page": 23,
+      "name": "Relations 05",
+      "width": 1821,
+      "height": 1136,
+      "textNodes": 22
+    },
+    {
+      "page": 24,
+      "name": "Relations 06",
+      "width": 1821,
+      "height": 721,
+      "textNodes": 14
+    },
+    {
+      "page": 25,
+      "name": "Relations 07",
+      "width": 1821,
+      "height": 856,
+      "textNodes": 18
+    },
+    {
+      "page": 26,
+      "name": "Relations 08",
+      "width": 1821,
+      "height": 1250,
+      "textNodes": 24
+    },
+    {
+      "page": 27,
+      "name": "Relations 09",
+      "width": 1821,
+      "height": 1200,
+      "textNodes": 26
+    },
+    {
+      "page": 28,
+      "name": "Relations 10",
+      "width": 1821,
+      "height": 911,
+      "textNodes": 18
+    },
+    {
+      "page": 29,
+      "name": "Relations 11",
+      "width": 1821,
+      "height": 866,
+      "textNodes": 18
+    },
+    {
+      "page": 30,
+      "name": "Relations 12",
+      "width": 1821,
+      "height": 1136,
+      "textNodes": 22
+    },
+    {
+      "page": 31,
+      "name": "Relations 13",
+      "width": 1821,
+      "height": 1396,
+      "textNodes": 26
+    },
+    {
+      "page": 32,
+      "name": "Relations 14",
+      "width": 1821,
+      "height": 1422,
+      "textNodes": 26
+    },
+    {
+      "page": 33,
+      "name": "Relations 15",
+      "width": 1821,
+      "height": 1137,
+      "textNodes": 18
+    },
+    {
+      "page": 34,
+      "name": "Relations 16",
+      "width": 1821,
+      "height": 1651,
+      "textNodes": 28
+    },
+    {
+      "page": 35,
+      "name": "Rules 01-06",
+      "width": 1481,
+      "height": 767,
+      "textNodes": 14
+    },
+    {
+      "page": 36,
+      "name": "Rules 07-12",
+      "width": 1481,
+      "height": 748,
+      "textNodes": 14
+    },
+    {
+      "page": 37,
+      "name": "Rules 13-18",
+      "width": 1481,
+      "height": 786,
+      "textNodes": 14
+    },
+    {
+      "page": 38,
+      "name": "Rules 19-24",
+      "width": 1481,
+      "height": 786,
+      "textNodes": 14
+    },
+    {
+      "page": 39,
+      "name": "Rules 25-28",
+      "width": 1481,
+      "height": 572,
+      "textNodes": 10
+    },
+    {
+      "page": 40,
+      "name": "Checkout activity",
+      "width": 1360,
+      "height": 1218,
+      "textNodes": 14
+    },
+    {
+      "page": 41,
+      "name": "Refund activity",
+      "width": 1360,
+      "height": 1218,
+      "textNodes": 14
+    },
+    {
+      "page": 42,
+      "name": "Admission activity",
+      "width": 1360,
+      "height": 1218,
+      "textNodes": 14
+    },
+    {
+      "page": 43,
+      "name": "Offline activity",
+      "width": 1360,
+      "height": 1218,
+      "textNodes": 14
+    },
+    {
+      "page": 44,
+      "name": "Outbox activity",
+      "width": 1360,
+      "height": 1218,
+      "textNodes": 14
+    },
+    {
+      "page": 45,
+      "name": "Operations 01-04",
+      "width": 1481,
+      "height": 1142,
+      "textNodes": 10
+    },
+    {
+      "page": 46,
+      "name": "Operations 05-08",
+      "width": 1481,
+      "height": 1199,
+      "textNodes": 10
+    },
+    {
+      "page": 47,
+      "name": "Operations 09-12",
+      "width": 1481,
+      "height": 1161,
+      "textNodes": 10
+    },
+    {
+      "page": 48,
+      "name": "Operations 13-16",
+      "width": 1481,
+      "height": 1199,
+      "textNodes": 10
+    },
+    {
+      "page": 49,
+      "name": "Operations 17-20",
+      "width": 1481,
+      "height": 1218,
+      "textNodes": 10
+    },
+    {
+      "page": 50,
+      "name": "Operations 21-24",
+      "width": 1481,
+      "height": 1142,
+      "textNodes": 10
+    },
+    {
+      "page": 51,
+      "name": "Operations 25-26",
+      "width": 1481,
+      "height": 643,
+      "textNodes": 6
+    },
+    {
+      "page": 52,
+      "name": "States 01-04",
+      "width": 1481,
+      "height": 596,
+      "textNodes": 10
+    },
+    {
+      "page": 53,
+      "name": "States 05-08",
+      "width": 1481,
+      "height": 615,
+      "textNodes": 10
+    },
+    {
+      "page": 54,
+      "name": "States 09-10",
+      "width": 1481,
+      "height": 377,
+      "textNodes": 6
+    }
+  ],
+  "errors": []
+}

@@ -4,4 +4,20 @@ __pycache__/
 *.pyc
 .DS_Store
 node_modules/
-docs/
+
+# Backend local configuration, tooling and test output
+.env
+.env.*
+!.env.example
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+.coverage
+htmlcov/
+test-results.xml
+tmp/
+.agents/
+.codex/
+node_modules/

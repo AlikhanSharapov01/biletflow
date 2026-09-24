@@ -1,0 +1,113 @@
+{
+  "runtime": "PGlite 0.5.8",
+  "database": "Disposable in-memory PostgreSQL; not project/application database",
+  "results": [
+    {
+      "name": "Complete reference DDL loads in disposable PostgreSQL",
+      "status": "PASS"
+    },
+    {
+      "name": "All 66 physical tables created",
+      "status": "PASS"
+    },
+    {
+      "name": "Duplicate normalized account email rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Cross-organization event staff assignment rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Negative ticket price rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Same physical seat can belong to a different event",
+      "status": "PASS"
+    },
+    {
+      "name": "Seat cannot map to another event ticket type",
+      "status": "PASS"
+    },
+    {
+      "name": "Second live seat allocation rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Refund-quarantined seat remains unavailable",
+      "status": "PASS"
+    },
+    {
+      "name": "Released seat permits a new allocation while preserving old row",
+      "status": "PASS"
+    },
+    {
+      "name": "Order arithmetic mismatch rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Duplicate canonical ticket per unit rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Entry confirmation cannot use different recipient",
+      "status": "PASS"
+    },
+    {
+      "name": "Duplicate current admission rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "A new admission after reversal preserves first check-in",
+      "status": "PASS"
+    },
+    {
+      "name": "Extra successful external charge can be retained for compensation",
+      "status": "PASS"
+    },
+    {
+      "name": "Second logical refund for same charge rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Audit updates rejected by append-only trigger",
+      "status": "PASS"
+    },
+    {
+      "name": "Audit deletion rejected by append-only trigger",
+      "status": "PASS"
+    },
+    {
+      "name": "Deleting event with dependent records is restricted",
+      "status": "PASS"
+    }
+  ],
+  "catalog": [
+    {
+      "contype": "c",
+      "n": 156
+    },
+    {
+      "contype": "f",
+      "n": 129
+    },
+    {
+      "contype": "n",
+      "n": 500
+    },
+    {
+      "contype": "p",
+      "n": 66
+    },
+    {
+      "contype": "u",
+      "n": 102
+    }
+  ],
+  "limitations": [
+    "These are structural DDL checks, not tests of unimplemented FastAPI TX contracts.",
+    "No multi-connection concurrency benchmark was run.",
+    "Fixtures directly manipulate state to test indexes; application guards remain required as documented."
+  ]
+}
