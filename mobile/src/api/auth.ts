@@ -2,10 +2,16 @@
 // (backend/app/main.py, security.py, schemas.py, tests/test_auth.py) — not the
 // earlier assumed spec. Field names below are exactly what the API sends/expects.
 
-// `localhost` resolves to the device itself, not your dev machine, on a physical
-// phone or an Android emulator. Override with EXPO_PUBLIC_API_URL when needed:
-// Android emulator -> http://10.0.2.2:8000, physical device -> your machine's LAN IP.
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+// Base already includes /api/v1 — matches the root README's documented
+// convention for configuring the mobile client (see "Work on the mobile
+// client"), e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:8080/api/v1 to go
+// through the Caddy proxy from a physical device on the same network.
+// `localhost` resolves to the device itself, not your dev machine, on a
+// physical phone or an Android emulator — override accordingly:
+// Android emulator -> http://10.0.2.2:8000/api/v1, physical device -> your
+// machine's LAN IP, ideally through Caddy on :8080 rather than the API's
+// direct :8000 (matches how the web client reaches it too).
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 export type TokenPair = {
   access_token: string;
@@ -56,7 +62,7 @@ async function friendlyError(response: Response): Promise<Error> {
 export async function login(email: string, password: string): Promise<TokenPair> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/v1/auth/login`, {
+    response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, client_kind: "scanner" }),
@@ -77,7 +83,7 @@ export async function login(email: string, password: string): Promise<TokenPair>
 export async function getProfile(accessToken: string): Promise<Profile> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/v1/me`, {
+    response = await fetch(`${API_URL}/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch {
@@ -98,7 +104,7 @@ export async function getProfile(accessToken: string): Promise<Profile> {
 export async function refresh(refreshToken: string): Promise<TokenPair> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+    response = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -117,7 +123,7 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
 export async function logout(accessToken: string): Promise<void> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}/api/v1/auth/logout`, {
+    response = await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
