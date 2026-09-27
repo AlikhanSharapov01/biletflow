@@ -501,9 +501,11 @@ def create_app(settings: Settings | None = None):
             session, raw = new_session(db, settings, user, "web")
         return pair(response, session, raw)
 
+    from .checkout_api import router as checkout_router
     from .event_api import router as event_router
     from .organization_api import router as organization_router
 
     app.include_router(organization_router(factory, settings, principal))
     app.include_router(event_router(factory, settings, principal))
+    app.include_router(checkout_router(factory, settings, principal))
     return app

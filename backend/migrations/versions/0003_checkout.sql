@@ -104,3 +104,10 @@ CREATE TABLE biletflow.ticket (
 
 ALTER TABLE biletflow.ticket ADD CONSTRAINT fk_ticket_041 FOREIGN KEY (order_item_id, event_id) REFERENCES biletflow.order_item (id, event_id) ON DELETE RESTRICT ON UPDATE RESTRICT;
 ALTER TABLE biletflow.ticket ADD CONSTRAINT fk_ticket_101 FOREIGN KEY (recipient_user_id) REFERENCES biletflow.app_user (id) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+-- FK lookups on hold_id, allocation_id and order_item_id reuse their unique constraints.
+CREATE INDEX ix_buyer_orders ON biletflow.ticket_order (buyer_user_id, created_at);
+CREATE INDEX ix_event_sales ON biletflow.ticket_order (event_id, confirmed_at) WHERE confirmed_at IS NOT NULL;
+CREATE INDEX ix_ticket_recipient ON biletflow.ticket (recipient_user_id);
+CREATE INDEX ix_issued_ticket_event ON biletflow.ticket (event_id, issued_at);
+CREATE INDEX ix_order_item_recipient ON biletflow.order_item (recipient_email);
