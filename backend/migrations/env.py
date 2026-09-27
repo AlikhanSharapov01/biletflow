@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from app import catalog_models  # noqa: F401 — register the new module's tables
 from app.config import Settings
 from app.models import Base
+from app import checkout_models
 
 settings = Settings()
 url = settings.database_url.get_secret_value()
