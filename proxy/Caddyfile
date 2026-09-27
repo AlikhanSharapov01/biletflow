@@ -1,17 +1,14 @@
 :80 {
-	handle /api/* {
+	encode zstd gzip
+
+	@backend path /api/* /docs /docs/* /redoc /redoc/* /openapi.json /health/*
+	handle @backend {
 		reverse_proxy api:8000
 	}
-	handle /docs* {
-		reverse_proxy api:8000
-	}
-	handle /openapi.json {
-		reverse_proxy api:8000
-	}
-	handle /redoc* {
-		reverse_proxy api:8000
-	}
+
 	handle {
-		reverse_proxy web:80
+		root * /srv
+		try_files {path} /index.html
+		file_server
 	}
 }

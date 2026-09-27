@@ -10,10 +10,10 @@
     <main>
       <p class="kicker">test variant</p>
       <h1>BiletFlow</h1>
-      <pre id="health">loading /api/v1/health…</pre>
+      <pre id="health">loading /health/ready…</pre>
     </main>
     <script>
-      fetch("/api/v1/health")
+      fetch("/health/ready")
         .then((r) => r.json())
         .then((data) => {
           document.getElementById("health").textContent = JSON.stringify(data, null, 2);

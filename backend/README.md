@@ -8,26 +8,48 @@ FastAPI + PostgreSQL implementation of authentication and Stage B event setup. R
 
 ## Run with Docker
 
-1. Copy `.env.example` to `.env` in this directory. Set two different random signing/challenge secrets and two database passwords. Use URL-safe random values, for example `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Never commit `.env`.
-2. Run `docker compose up --build -d` from this directory.
-3. Open [API documentation](http://localhost:8000/docs) and [local email inbox](http://localhost:8025).
+Docker orchestration is owned by the repository root. From the repository root, copy the root
+environment example and start the backend services:
 
-Compose starts PostgreSQL 17, applies migrations and the fictional venue/category seed as `biletflow_owner`, provisions the restricted `biletflow_app` role, and starts the API, email worker and Mailpit. PostgreSQL data is kept in a named volume. `docker compose down` stops the services while retaining that volume. All published ports bind to localhost.
+```text
+cp .env.example .env
+docker compose up --build -d db migrate api worker mailpit
+```
+
+Open [API documentation](http://localhost:8000/docs) and the [local email inbox](http://localhost:8025).
+To run the complete application through Caddy, use `docker compose up --build` from the root
+and open [Swagger through the proxy](http://localhost:8080/docs).
+
+The root Compose stack starts PostgreSQL 17, applies migrations and the fictional
+venue/category seed as `biletflow_owner`, provisions the restricted `biletflow_app` role, and
+starts the API, email worker and Mailpit. PostgreSQL data is kept in a named volume.
+`docker compose down` from the root stops the services while retaining that volume.
 
 Database migrations are explicit; API startup never creates or drops tables. Re-running the migration is safe. The first migration requires a fresh `biletflow` schema: do not run it over the earlier 66-table reference DDL. Database history has no destructive downgrade command; use a reviewed backup/restore or a new development database.
 
 ## Run without Docker
 
-Install Python 3.12+ and PostgreSQL 17. From `backend`, run `uv sync --frozen`. Create an empty database and set `DATABASE_URL` to an owner connection temporarily, plus `APP_DB_PASSWORD`, `JWT_SECRET`, and `CHALLENGE_SECRET`. Run:
+Install Python 3.12+ and `uv`. Start PostgreSQL, migrations and Mailpit from the repository
+root:
 
 ```text
-uv run python -m app.bootstrap
+docker compose up -d db migrate mailpit
 ```
 
-Then set `DATABASE_URL` to the `biletflow_app` connection and start these in separate terminals:
+Then prepare the native backend environment. Keep `APP_DB_PASSWORD` in `backend/.env`
+aligned with the root `.env`:
 
 ```text
-uv run uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
+cd backend
+cp .env.example .env
+uv sync --frozen
+```
+
+Migrations have already been applied by the root `migrate` service, so start the API and
+worker in separate terminals from `backend/`:
+
+```text
+uv run uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000 --no-access-log
 uv run python -m app.worker
 ```
 

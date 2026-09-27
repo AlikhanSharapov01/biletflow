@@ -15,8 +15,12 @@ class Settings(BaseSettings):
     access_minutes: int = Field(10, ge=1, le=30)
     session_days: int = Field(30, ge=1, le=90)
     environment: Literal["development", "test", "production"] = "development"
-    allowed_origins: list[str] = ["http://localhost:8000", "http://localhost:3000"]
-    frontend_url: str = "http://localhost:3000"
+    allowed_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8080",
+    ]
+    frontend_url: str = "http://localhost:5173"
     cookie_secure: bool = True
     google_client_id: str = ""
     google_client_secret: SecretStr = SecretStr("")

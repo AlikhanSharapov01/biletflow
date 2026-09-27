@@ -1,0 +1,12 @@
+.git
+.env
+**/.env
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+api
+backend
+docs
+mobile
+tools
