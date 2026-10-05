@@ -23,4 +23,5 @@ tmp/
 .agents/
 .codex/
 node_modules/
+.idea/
 *.pdf

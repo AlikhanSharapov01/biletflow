@@ -1,8 +1,10 @@
 # BiletFlow backend
 
-FastAPI + PostgreSQL implementation of authentication and Stage B event setup. Registration, Google sign-in, revocable sessions, organizer workspaces/invitations, scoped staff permissions, event discovery/publication, ticket-type configuration and predefined seating are implemented. Checkout, payments, refunds and admission remain upcoming.
+FastAPI + PostgreSQL implementation of authentication and Stage B event setup. Registration, Google sign-in, revocable sessions, organizer workspaces/invitations, scoped staff permissions, event discovery/publication, ticket-type configuration, predefined seating and free checkout with QR tickets are implemented. Paid checkout, payments, refunds and admission remain upcoming.
 
 [Organizer/event API guide](CATALOG_API.md) describes the new endpoints, permissions, flows, migration and remaining scope.
+
+[Free checkout and ticket guide](CHECKOUT_API.md) describes holds, orders, ticket claims and the QR payload.
 
 [Validation results and current local services](VALIDATION.md) records real PostgreSQL tests and running-API/local-SMTP checks.
 
@@ -107,7 +109,7 @@ References: [Google OpenID Connect](https://developers.google.com/identity/openi
 
 ## Database relations and transactions
 
-The `biletflow` schema now has 27 tables across `0001_identity` and `0002_event_setup`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 additional tables.
+The `biletflow` schema now has 30 tables across `0001_identity`, `0002_event_setup` and `0003_checkout`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables and the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables.
 
 | Table | Purpose and relationships |
 |---|---|
@@ -139,7 +141,7 @@ The original draw.io atlas remains the full-product design baseline. This implem
 
 ## Tests
 
-Create a **separate empty PostgreSQL database whose name ends in `_test`**, owned by a test role with migration/role-creation rights. Set `TEST_DATABASE_URL` to its `postgresql+psycopg://...` URL. The suite refuses other database names and truncates all 27 implemented tables. Never point it at a shared or valuable database.
+Create a **separate empty PostgreSQL database whose name ends in `_test`**, owned by a test role with migration/role-creation rights. Set `TEST_DATABASE_URL` to its `postgresql+psycopg://...` URL. The suite refuses other database names and truncates all 30 implemented tables. On Windows use `127.0.0.1` rather than `localhost` in the URL; Docker publishes PostgreSQL on IPv4 only and each `localhost` connection otherwise waits for an IPv6 timeout. Never point it at a shared or valuable database.
 
 ```text
 uv sync --frozen
@@ -154,6 +156,6 @@ When using the generated local `.env`, load its test URL for the run:
 uv run python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise SystemExit(pytest.main(['-q']))"
 ```
 
-Tests cover the full account flow, SQL relationships and audit immutability, token forgery/expiry/purpose, cookie CSRF protections, replay, session ownership, email retries/leases, shared rate limits, restricted-role permissions, rollback, concurrent registration/verification/refresh, reset-versus-refresh, and Google cryptographic validation/account linking. They use independent real PostgreSQL connections; no SQLite substitute. The suite also covers organizer isolation, invitation acceptance/replay, delegation limits, private/unlisted discovery, event lifecycle, seating, allocation capacity guards and transaction rollback. CI is configured to repeat these checks on PostgreSQL 17.
+Tests cover the full account flow, SQL relationships and audit immutability, token forgery/expiry/purpose, cookie CSRF protections, replay, session ownership, email retries/leases, shared rate limits, restricted-role permissions, rollback, concurrent registration/verification/refresh, reset-versus-refresh, and Google cryptographic validation/account linking. They use independent real PostgreSQL connections; no SQLite substitute. The suite also covers organizer isolation, invitation acceptance/replay, delegation limits, private/unlisted discovery, event lifecycle, seating, allocation capacity guards and transaction rollback. Checkout tests cover free registration, repeated confirmation, recipient claims, ticket emails, the attendee list, limits, expiry, private events and concurrent holds on one seat. CI is configured to repeat these checks on PostgreSQL 17.
 
 Deploy behind HTTPS, preserve secret-free logging, and configure trusted proxy handling explicitly if needed. The default rate limiter uses the connection peer IP, not untrusted forwarded headers. Audit/outbox/auth history is retained in this academic implementation; retention cleanup remains an explicit future policy. Platform-admin endpoints remain planned. Organizer/event endpoints and their limitations are documented in [CATALOG_API.md](CATALOG_API.md).

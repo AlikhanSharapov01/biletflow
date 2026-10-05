@@ -1,19 +1,57 @@
-"""Durable auth email delivery. Run with python -m app.worker."""
+"""Durable email delivery. Run with python -m app.worker."""
 
 import smtplib
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, or_, select
 
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
+from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
 from .security import challenge_value, now
+
+
+def ticket_message(db, settings, identifier, ticket_id):
+    ticket = db.get(Ticket, ticket_id)
+    if not ticket or ticket.status != "valid":
+        return None
+    item = db.get(OrderItem, ticket.order_item_id)
+    event = db.get(TicketOrder, item.order_id).event_snapshot
+    zone = ZoneInfo(event["time_zone"])
+    starts = datetime.fromisoformat(event["starts_at"]).astimezone(zone)
+    seat = item.seat_snapshot
+    lines = [
+        f"Hello {item.recipient_name},",
+        "",
+        f"Your ticket for {event['title']} is confirmed.",
+        f"When: {starts:%d.%m.%Y %H:%M} ({event['time_zone']})",
+        f"Venue: {event['venue_name']}, {event['venue_city']}",
+        f"Ticket type: {item.ticket_type_name}",
+    ]
+    if seat:
+        lines.append(
+            f"Seat: section {seat['section_label']}, row {seat['row_label']}, seat {seat['seat_label']}"
+        )
+    # The QR stays behind sign-in: admission requires the recipient's verified account.
+    lines += [
+        f"Ticket ID: {ticket.id}",
+        "",
+        f"Sign in with {item.recipient_email} to view your QR code:",
+        f"{settings.frontend_url.rstrip('/')}/tickets/{ticket.id}",
+    ]
+    message = EmailMessage()
+    message["From"], message["To"] = settings.email_from, item.recipient_email
+    message["Subject"] = f"Your BiletFlow ticket: {event['title']}"
+    message["Message-ID"] = f"<{identifier}@biletflow.local>"
+    message.set_content("\n".join(lines))
+    return message
 
 
 def deliver_once(factory, settings, send=None):
@@ -21,7 +59,7 @@ def deliver_once(factory, settings, send=None):
         job = db.scalar(
             select(OutboxJob)
             .where(
-                OutboxJob.kind.in_(["auth_email", "staff_invite_email"]),
+                OutboxJob.kind.in_(["auth_email", "staff_invite_email", "ticket_delivery_email"]),
                 or_(
                     and_(OutboxJob.status == "pending", OutboxJob.available_at <= now()),
                     and_(OutboxJob.status == "leased", OutboxJob.lease_until <= now()),
@@ -99,6 +137,8 @@ def deliver_once(factory, settings, send=None):
                         message.set_content(
                             f"You are invited to join {org.name}. Sign in with this email to accept.\n\n{link}\n\nExpires: {invitation.expires_at.isoformat()}"
                         )
+            if kind == "ticket_delivery_email":
+                message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]))
         if message:
             if send:
                 send(message)

@@ -3,6 +3,69 @@
 BiletFlow is an academic event-ticketing platform with a FastAPI backend, PostgreSQL,
 a Vite-built web client, a mobile client, and Caddy as the single public entry point.
 
+## Branch `yeroaha-backend`: free checkout and QR tickets
+
+> **Author:** Yerassyl Umbetov · **Branched from:** `dauka-backend` at `f3940b5`
+> (authentication, organizer/event APIs and the Docker stack) · **Status:** ready for review
+
+This branch keeps all of `dauka-backend` and adds the next step of the backend plan:
+**free registration with QR-code ticket issuance** (SRS 4.4 and 4.7, backend plan BF-05, BF-07,
+BF-10). Paid checkout builds on it later.
+
+### What was added
+
+| Area | Change |
+|---|---|
+| Database | Migration `0003_checkout` with `ticket_order`, `order_item` and `ticket` tables |
+| Checkout | Ten-minute inventory holds, capacity/limit/seat checks, zero-total order confirmation |
+| Tickets | One ticket per order item with a signed, tamper-resistant QR payload |
+| Recipients | Buyer names a recipient for each place; recipients claim tickets sent to their email |
+| Organizers | Attendee list for users with the `attendees` event permission |
+| Email | Worker sends a ticket delivery email through Mailpit |
+| Tests | `tests/test_checkout.py`; the full suite passes (96 tests) |
+
+### New endpoints
+
+All under `/api/v1` and require a verified signed-in account.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/events/{event_id}/holds` | Reserve tickets or seats for 10 minutes |
+| `GET` / `DELETE` | `/holds/{hold_id}` | Read or release own hold |
+| `POST` | `/holds/{hold_id}/confirm` | Confirm a free order and issue tickets |
+| `GET` | `/orders`, `/orders/{order_id}` | Buyer's orders |
+| `POST` | `/tickets/claim` | Link tickets addressed to the caller's email |
+| `GET` | `/tickets`, `/tickets/{ticket_id}` | Caller's tickets with QR payload |
+| `GET` | `/events/{event_id}/attendees` | Organizer attendee list |
+
+Request bodies, error codes and server rules are in [`backend/CHECKOUT_API.md`](backend/CHECKOUT_API.md).
+
+### QR codes: note for web and mobile
+
+- The API returns the QR as **text** in `qr_payload` (`biletflow:ticket:<id>.<signature>`),
+  not as an image. Clients render it, for example with `qrcode.react` or
+  `react-native-qrcode-svg`.
+- Only the ticket's recipient sees `qr_payload`, after signing in. Emails contain a link to the
+  ticket, never the QR itself.
+- Call `POST /api/v1/tickets/claim` after sign-in so tickets bought for this user by someone else
+  appear in `/tickets`.
+- The server verifies a QR by its hash, so an edited payload is rejected. A PNG endpoint can be
+  added when PDF tickets need one.
+
+### Try it
+
+```sh
+docker compose up --build -d db migrate api worker mailpit
+```
+
+Open Swagger at <http://localhost:8000/docs> (section **checkout**) and delivered emails at
+<http://localhost:8025>. Tests are described in [`backend/README.md`](backend/README.md#tests).
+
+### Next steps
+
+Background release of expired holds, retry-safe hold creation, organizer cancellation of free
+registrations, then paid-sales activation and simulated paid checkout.
+
 ## Architecture
 
 ```text
@@ -208,15 +271,18 @@ Implemented now:
 - Organizer workspaces, invitations and scoped permissions
 - Event drafts, publication, visibility and duplication
 - Ticket-type and predefined assigned-seat configuration
+- Free checkout: inventory holds, zero-total orders, QR tickets, recipient claims, ticket
+  delivery email and organizer attendee list
 - Audit history and durable email delivery
 
-Checkout, paid-sales activation, orders, payments, refunds, issued ticket PDFs, admission,
+Paid checkout, paid-sales activation, payments, refunds, issued ticket PDFs, admission,
 support, analytics and platform administration remain future backend work.
 
 Detailed references:
 
 - `backend/README.md` - backend behavior and native setup
 - `backend/CATALOG_API.md` - organizer and event API contract
+- `backend/CHECKOUT_API.md` - free checkout, orders and ticket API contract
 - `backend/VALIDATION.md` - existing backend validation evidence
 - `docs/BiletFlow_Backend_Requirements.md` - shared backend plan
 - `docs/database/` - target database design; its 66-table reference SQL is not an application migration

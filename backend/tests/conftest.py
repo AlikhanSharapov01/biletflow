@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -11,7 +12,10 @@ from sqlalchemy.engine import make_url
 from app.config import Settings
 from app.main import create_app
 from app.models import AccountToken, Base, User
-from app.security import challenge_value
+from app.security import challenge_value, now
+from app.seed import seed_catalog, seed_id
+
+API = "/api/v1"
 
 
 @pytest.fixture(scope="session")
@@ -100,5 +104,63 @@ def account(client, factory, settings):
         assert result.status_code == 200, result.text
         tokens = result.json()
         return email, tokens, {"Authorization": "Bearer " + tokens["access_token"]}
+
+    return create
+
+
+@pytest.fixture
+def setup(client, account, factory):
+    seed_catalog(factory)
+
+    def create(visibility="public", assigned=False, headers=None):
+        headers = headers or account()[2]
+        org = client.post(
+            API + "/organizations",
+            headers=headers,
+            json={"name": "Demo Organizer", "contact_email": "organizer@example.com"},
+        )
+        assert org.status_code == 201, org.text
+        data = {
+            "category_id": str(seed_id("category-community")),
+            "venue_id": str(seed_id("venue-campus")),
+            "title": "Campus Concert",
+            "description": "Demo event",
+            "capacity": 12,
+            "visibility": visibility,
+            "starts_at": (now() + timedelta(days=10)).isoformat(),
+            "ends_at": (now() + timedelta(days=10, hours=2)).isoformat(),
+            "registration_opens_at": (now() - timedelta(days=1)).isoformat(),
+            "registration_closes_at": (now() + timedelta(days=9)).isoformat(),
+            "admission_opens_at": (now() + timedelta(days=10, minutes=-30)).isoformat(),
+            "admission_closes_at": (now() + timedelta(days=10, hours=1)).isoformat(),
+            "refund_cutoff_at": (now() + timedelta(days=8)).isoformat(),
+        }
+        if assigned:
+            data.update(seating_mode="assigned", venue_layout_id=str(seed_id("layout-campus")))
+        event = client.post(
+            API + f"/organizations/{org.json()['id']}/events", headers=headers, json=data
+        )
+        assert event.status_code == 201, event.text
+        ticket_data = {
+            "name": "General admission",
+            "kind": "free",
+            "price_minor": 0,
+            "quantity_limit": 12,
+            "per_order_limit": 5,
+            "sales_open_at": data["registration_opens_at"],
+            "sales_close_at": data["registration_closes_at"],
+        }
+        ticket = client.post(
+            API + f"/events/{event.json()['id']}/ticket-types", headers=headers, json=ticket_data
+        )
+        assert ticket.status_code == 201, ticket.text
+        return {
+            "headers": headers,
+            "org": org.json(),
+            "event": event.json(),
+            "data": data,
+            "ticket": ticket.json(),
+            "ticket_data": ticket_data,
+        }
 
     return create
