@@ -1,26 +1,16 @@
-<!DOCTYPE html>
-<html lang="ru">
+<!doctype html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>BiletFlow</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f5f0" />
+    <title>BiletFlow — make room for what matters</title>
+    <link rel="preconnect" href="https://images.unsplash.com" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main>
-      <p class="kicker">test variant</p>
-      <h1>BiletFlow</h1>
-      <pre id="health">loading /health/ready…</pre>
-    </main>
-    <script>
-      fetch("/health/ready")
-        .then((r) => r.json())
-        .then((data) => {
-          document.getElementById("health").textContent = JSON.stringify(data, null, 2);
-        })
-        .catch((err) => {
-          document.getElementById("health").textContent = String(err);
-        });
-    </script>
+    <div id="app"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

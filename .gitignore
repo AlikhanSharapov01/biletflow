@@ -24,3 +24,4 @@ tmp/
 .codex/
 node_modules/
 .idea/
+*.pdf
