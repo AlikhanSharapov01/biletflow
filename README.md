@@ -145,6 +145,18 @@ Open <http://localhost:5173>. The Vite development server forwards `/api/*` and 
 to `http://localhost:8000`, so frontend code uses relative API URLs in development and in the
 final Caddy deployment.
 
+The current browser experience includes email/password sign-in, account registration, and a
+password-reset request, backed by the existing `/api/v1/auth/*` endpoints. After sign-in, the
+client loads the account profile from `/api/v1/me` and opens the attendee workspace. Registration
+requires email verification before sign-in.
+
+The sign-in screen also provides sample-data previews for four BiletFlow roles: Attendee,
+Organizer, Event Admin, and Platform Admin. These pages are frontend previews, not role-based
+access: switching workspaces does not change account permissions, and the event, sales,
+check-in, and moderation examples are not persisted. The role-specific backend authorization
+and production workflows remain to be integrated. Password-reset requests are wired to the
+API; completing a reset from a reset link is not yet part of the browser UI.
+
 Build the same production files that Caddy receives:
 
 ```sh
