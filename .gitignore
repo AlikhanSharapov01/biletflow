@@ -6,6 +6,8 @@ __pycache__/
 node_modules/
 dist/
 *.swp
+AGENTS.md
+SKILLS.md
 
 # Backend local configuration, tooling and test output
 .env
@@ -22,6 +24,7 @@ test-results.xml
 tmp/
 .agents/
 .codex/
+mobile/.expo/
 node_modules/
 .idea/
 *.pdf
