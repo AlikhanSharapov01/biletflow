@@ -2,16 +2,7 @@
 // (backend/app/main.py, security.py, schemas.py, tests/test_auth.py) — not the
 // earlier assumed spec. Field names below are exactly what the API sends/expects.
 
-// Base already includes /api/v1 — matches the root README's documented
-// convention for configuring the mobile client (see "Work on the mobile
-// client"), e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:8080/api/v1 to go
-// through the Caddy proxy from a physical device on the same network.
-// `localhost` resolves to the device itself, not your dev machine, on a
-// physical phone or an Android emulator — override accordingly:
-// Android emulator -> http://10.0.2.2:8000/api/v1, physical device -> your
-// machine's LAN IP, ideally through Caddy on :8080 rather than the API's
-// direct :8000 (matches how the web client reaches it too).
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+import { API_URL, friendlyError as baseFriendlyError, networkError } from "@/api/client";
 
 export type TokenPair = {
   access_token: string;
@@ -29,31 +20,13 @@ export type Profile = {
   analytics_consent: boolean;
 };
 
-type ErrorBody = {
-  detail?: {
-    code?: string;
-    fields?: unknown[];
-  };
-};
-
-const ERROR_MESSAGES: Record<string, string> = {
+const AUTH_MESSAGES: Record<string, string> = {
   invalid_credentials: "Incorrect email or password.",
   invalid_input: "Please check your email and password and try again.",
-  rate_limited: "Too many attempts. Please wait a moment and try again.",
 };
 
-async function friendlyError(response: Response): Promise<Error> {
-  let body: ErrorBody | undefined;
-  try {
-    body = await response.json();
-  } catch {
-    body = undefined;
-  }
-  const code = body?.detail?.code;
-  const message =
-    (code && ERROR_MESSAGES[code]) ??
-    `Something went wrong (${response.status}). Please try again.`;
-  return new Error(message);
+function friendlyError(response: Response): Promise<Error> {
+  return baseFriendlyError(response, AUTH_MESSAGES);
 }
 
 // The mobile ticket-verification app is always a "scanner" client: it gets its
@@ -68,7 +41,7 @@ export async function login(email: string, password: string): Promise<TokenPair>
       body: JSON.stringify({ email, password, client_kind: "scanner" }),
     });
   } catch {
-    throw new Error("Couldn't reach the server. Check your connection and try again.");
+    throw networkError();
   }
 
   if (!response.ok) {
@@ -87,7 +60,7 @@ export async function getProfile(accessToken: string): Promise<Profile> {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch {
-    throw new Error("Couldn't reach the server. Check your connection and try again.");
+    throw networkError();
   }
 
   if (!response.ok) {
@@ -110,7 +83,7 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
   } catch {
-    throw new Error("Couldn't reach the server. Check your connection and try again.");
+    throw networkError();
   }
 
   if (!response.ok) {
@@ -128,7 +101,7 @@ export async function logout(accessToken: string): Promise<void> {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch {
-    throw new Error("Couldn't reach the server. Check your connection and try again.");
+    throw networkError();
   }
 
   if (!response.ok) {

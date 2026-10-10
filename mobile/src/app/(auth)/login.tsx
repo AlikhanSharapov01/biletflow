@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  View,
 } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
@@ -15,6 +16,7 @@ export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,15 +54,27 @@ export default function Login() {
         onChangeText={setEmail}
         editable={!submitting}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        textContentType="password"
-        value={password}
-        onChangeText={setPassword}
-        editable={!submitting}
-      />
+      <View style={[styles.input, styles.passwordRow]}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Password"
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="password"
+          value={password}
+          onChangeText={setPassword}
+          editable={!submitting}
+        />
+        <Pressable
+          onPress={() => setShowPassword((shown) => !shown)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+        >
+          <Text style={styles.toggle}>{showPassword ? "Hide" : "Show"}</Text>
+        </Pressable>
+      </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -105,6 +119,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
+  },
+  // The bordered box is the row; the TextInput inside is borderless so the
+  // Show/Hide button sits inside the field.
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 0,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  toggle: {
+    color: "#208AEF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   button: {
     width: "100%",
