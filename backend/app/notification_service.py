@@ -29,13 +29,14 @@ MAX_ATTEMPTS = 5
 LEASE_SECONDS = 120
 
 # kind -> channels. ticket_delivered is in-app only: the ticket email is sent by the existing
-# ticket_delivery_email job and must not be duplicated.
+# ticket_delivery_email job and must not be duplicated. The support kinds are in-app only for
+# the same reason: the support worker already emails a link (support_email).
 CHANNELS = {
     "event_updated": ("in_app", "email"),
     "event_cancelled": ("in_app", "email"),
     "ticket_delivered": ("in_app",),
-    "support_reply": ("in_app", "email"),
-    "support_status": ("in_app", "email"),
+    "support_reply": ("in_app",),
+    "support_status": ("in_app",),
 }
 
 TEMPLATES = {

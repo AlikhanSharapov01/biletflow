@@ -120,7 +120,7 @@ def consume_confirmation(db, settings, ticket, token, code, *, captured_at=None)
         try:
             identifier = UUID(claims["cid"])
             bound = (UUID(claims["tid"]), UUID(claims["eid"]))
-        except (KeyError, ValueError, TypeError):
+        except (KeyError, ValueError, TypeError, AttributeError):
             fail("invalid_confirmation", 422)
         if bound != (ticket.id, ticket.event_id):
             fail("invalid_confirmation", 409)

@@ -4,7 +4,7 @@ Stage D (SRS 4.8, backend plan BF-11 and BF-12): online admission, signed-in att
 confirmation, manual attendee search, scanner devices, offline verification packages and batch
 synchronization. See [Not yet implemented](#not-yet-implemented) for what is still open.
 
-All endpoints are under `/api/v1/scanner`, need a verified signed-in account
+Scanner endpoints are under `/api/v1/scanner`; entry confirmations are `/api/v1/tickets/{id}/entry-confirmations`, and organizer review endpoints are `/api/v1/events/{id}/sync-conflicts`, `/api/v1/events/{id}/offline-operations` and `/api/v1/sync-conflicts/{id}/resolve`. These endpoints need a verified signed-in account
 (`Authorization: Bearer`) and return errors as `{"detail": {"code": "..."}}`.
 Field names match `mobile/src/api/scanner.ts`, so the scanner app can switch off its mocks with
 `EXPO_PUBLIC_SCANNER_MOCKS=false`.

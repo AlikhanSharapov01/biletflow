@@ -24,8 +24,8 @@ suspension or a platform-admin revocation removes access at once, including for 
 live WebSocket subscriptions. A requester who is only a requester receives `403 permission_denied`
 for staff actions. Responses show `display_name`/`id` of people, never email addresses.
 
-`platform_admin` follows the reference DDL. There is no endpoint to grant it yet (BF-21 owns
-platform administration); rows are created by operators or by tests.
+`platform_admin` is created by migration `0006_admin_moderation` (BF-21). Grants are made with
+`python -m app.admin_cli grant EMAIL`; there is deliberately no HTTP grant endpoint.
 
 ## Opening a case
 
@@ -165,7 +165,6 @@ BF-15 and are not created here.
 
 | Table | Purpose |
 |---|---|
-| `platform_admin` | Revocable internal-staff grant |
 | `support_case` | One thread: requester, organization/event/order/ticket context (composite foreign keys keep them consistent), kind, category, status, assignee, escalation, `last_seq` |
 | `support_message` | Append-only; unique `(case_id, author_user_id, client_message_id)` and `(case_id, seq)` |
 | `case_change` | Append-only status/assignment/escalation history with `seq` |
@@ -178,5 +177,5 @@ Differences from the reference DDL: status value is `waiting_for_customer`; `seq
 - **Attachments** (`stored_file`, `support_attachment`, upload limits, content validation,
   quarantine/malware handling, short-lived authorized downloads) are explicitly later. No
   attachment endpoint, table or storage dependency exists.
-- In-app notification inbox (BF-15) and an endpoint for granting `platform_admin` (BF-21).
+- Email-channel notifications through the BF-15 fan-out: support events create in-app inbox entries (`support_reply`, `support_status`) while the email link is sent by the support worker (`support_email`).
 - Locale-specific email text (support emails are English).

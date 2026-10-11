@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, or_, select
 
+from . import all_models  # noqa: F401
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
@@ -81,7 +82,7 @@ def support_message(db, settings, identifier, payload):
     message["Subject"] = f"BiletFlow: {subject}"
     message["Message-ID"] = f"<{identifier}@biletflow.local>"
     message.set_content(
-        f"{subject}.\n\nSign in to read it:\n{settings.frontend_url.rstrip('/')}/support/{case.id}"
+        f"{subject}.\n\nSign in to read it:\n{settings.frontend_url.rstrip('/')}/support/cases/{case.id}"
     )
     return message
 

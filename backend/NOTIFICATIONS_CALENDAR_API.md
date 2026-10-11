@@ -76,7 +76,7 @@ goes through that record's own endpoint and permission check.
 | `event_updated` | `PUT /events/{id}` when title, description, start, end, time zone or venue changed | in-app, email |
 | `event_cancelled` | `POST /events/{id}/cancel` | in-app, email |
 | `ticket_delivered` | free-checkout confirmation (claimed recipient) and `POST /tickets/claim` | in-app only: the ticket email already comes from `ticket_delivery_email` |
-| `support_reply`, `support_status` | the support module, through the hook below | in-app, email |
+| `support_reply`, `support_status` | the support module, through the hook below (called from `support_service.notify`) | in-app only: the support worker already emails a link (`support_email`) |
 
 Audience for event notices: accounts that are the recipient of a ticket of the event, plus buyers
 of its confirmed orders (updates: valid or checked-in tickets only; cancellations also include

@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
+from . import all_models  # noqa: F401
 from .admin_models import PlatformAdmin
 from .config import Settings
 from .db import database

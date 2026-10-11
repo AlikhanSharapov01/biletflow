@@ -619,3 +619,26 @@ def test_event_and_ticket_export_columns_exclude_secrets(client, admin, setup, a
     assert ticket["id"] in body
     assert "qr" not in body.lower().split("\r\n")[0] and "token" not in body.split("\r\n")[0]
     assert ticket["qr_payload"] not in body
+
+
+def test_admin_cli_runs_in_a_fresh_interpreter(settings, account, factory):
+    """Operator entry point must register every model itself (no create_app import)."""
+    import os
+    import subprocess
+    import sys
+
+    email, _, _ = account()
+    env = {
+        **os.environ,
+        "DATABASE_URL": settings.database_url.get_secret_value(),
+        "JWT_SECRET": settings.jwt_secret.get_secret_value(),
+        "CHALLENGE_SECRET": settings.challenge_secret.get_secret_value(),
+    }
+    done = subprocess.run(
+        [sys.executable, "-m", "app.admin_cli", "grant", email],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=os.path.dirname(os.path.dirname(__file__)),
+    )
+    assert done.returncode == 0, done.stderr
