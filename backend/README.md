@@ -7,6 +7,7 @@ FastAPI + PostgreSQL implementation of authentication and Stage B event setup. R
 [Free checkout and ticket guide](CHECKOUT_API.md) describes holds, orders, ticket claims and the QR payload.
 
 [Online admission guide](ADMISSION_API.md) describes the scanner endpoints and the check-in contract.
+[Platform administration guide](ADMIN_API.md) describes the admin role, moderation, reports, settings and CSV export.
 
 [Ticket PDF and delivery guide](TICKET_PDF_API.md) describes the ticket PDF download, delivery status and resend.
 
@@ -115,7 +116,7 @@ References: [Google OpenID Connect](https://developers.google.com/identity/openi
 
 ## Database relations and transactions
 
-The `biletflow` schema now has 32 tables across `0001_identity`, `0002_event_setup`, `0003_checkout` and `0004_admission`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables and the [admission guide](ADMISSION_API.md#tables-0004_admission) the two check-in tables.
+The `biletflow` schema now has 38 tables across `0001_identity`, `0002_event_setup`, `0003_checkout`, `0004_admission`, `0005_notifications_calendar` and `0006_admin_moderation`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables and the [admission guide](ADMISSION_API.md#tables-0004_admission) the two check-in tables.
 
 | Table | Purpose and relationships |
 |---|---|
