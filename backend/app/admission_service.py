@@ -105,7 +105,8 @@ def current_check_in(db, ticket_id):
 
 
 def check_in(db, user, session_id, event_id, data):
-    event = scanner_event(db, user, event_id)
+    # Authorized scanners of an unpublished or cancelled event get admission_closed, not 404.
+    event = event_guard(db, user, event_id, "scan")
     admission_open(event)
     ticket = payload_ticket(db, data.qr_payload)
     if ticket.event_id != event.id:
@@ -118,7 +119,8 @@ def check_in(db, user, session_id, event_id, data):
         )
         if earlier:
             # A retried request returns its original outcome; reusing the key elsewhere fails.
-            if earlier.ticket_id != ticket.id:
+            # A key whose admission was reversed is spent: it must not report "admitted" again.
+            if earlier.ticket_id != ticket.id or earlier.reversed_at is not None:
                 fail("operation_conflict", 409)
             return result_view(db, earlier, replayed=True)
     if ticket.recipient_user_id is None:
@@ -163,15 +165,23 @@ def check_in(db, user, session_id, event_id, data):
 
 
 def reverse(db, user, check_in_id, data):
+    row = db.get(CheckIn, check_in_id)
+    if not row:
+        fail("check_in_not_found", 404)
+    try:
+        event = event_guard(db, user, row.event_id, "reverse_checkin")
+    except HTTPException as error:
+        # Outsiders must not learn that a check-in id exists.
+        if error.status_code == 404:
+            fail("check_in_not_found", 404)
+        raise
+    # Lock only after authorization so outsiders cannot block scanners on this row.
     row = db.scalar(
         select(CheckIn)
         .where(CheckIn.id == check_in_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if not row:
-        fail("check_in_not_found", 404)
-    event = event_guard(db, user, row.event_id, "reverse_checkin")
     if row.reversed_at is not None:
         fail("already_reversed", 409)
     row.reversed_at = now()
