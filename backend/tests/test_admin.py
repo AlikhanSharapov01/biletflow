@@ -230,6 +230,7 @@ def test_admins_cannot_be_suspended_and_suspended_admin_loses_access(
     assert client.get(ADMIN + "/me", headers=other).status_code == 401
 
 
+@pytest.mark.usefixtures("no_entry_confirmation")
 def test_suspended_event_blocks_holds_checkout_admission_but_stays_readable(
     client, admin, setup, account, factory, settings
 ):

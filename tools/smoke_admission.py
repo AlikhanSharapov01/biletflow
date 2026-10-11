@@ -188,14 +188,27 @@ assert [e["id"] for e in events] == [event["id"]], events
 print(
     f"      assigned: {events[0]['title']} @ {events[0]['venue']['name']} ({events[0]['time_status']})"
 )
-scan = lambda h, p: c.post(
-    f"{API}/scanner/events/{event['id']}/check-ins", headers=h, json={"qr_payload": p}
+scan = lambda h, p, **extra: c.post(
+    f"{API}/scanner/events/{event['id']}/check-ins",
+    headers=h,
+    json={"qr_payload": p, **extra},
 )
-admitted = step("scan ticket -> admitted", scan(scanner, payload), 200)
+step("scan without attendee confirmation -> rejected", scan(scanner, payload), 409)
+proof = step(
+    "attendee requests entry confirmation",
+    c.post(f"{API}/tickets/{ticket['id']}/entry-confirmations", headers=buyer),
+    201,
+)
+print(f"      code for printed tickets: {proof['code']} (expires in {proof['expires_in_seconds']}s)")
+admitted = step(
+    "scan ticket + confirmation -> admitted",
+    scan(scanner, payload, entry_confirmation=proof["token"]),
+    200,
+)
 print(
     f"      {admitted['result']}: {admitted['attendee_name']}, {admitted['ticket_type_name']}"
 )
-step("scan again -> rejected", scan(scanner, payload), 409)
+step("scan again -> rejected", scan(scanner, payload, entry_confirmation=proof["token"]), 409)
 _, stranger = account("stranger")
 step("unassigned account -> rejected", scan(stranger, payload), 404)
 step("forged QR -> rejected", scan(scanner, payload[:-4] + "abcd"), 404)

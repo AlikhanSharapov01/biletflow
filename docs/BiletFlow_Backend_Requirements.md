@@ -1,6 +1,6 @@
 # BiletFlow: complete backend requirements and delivery plan
 
-Status: shared requirements baseline; BF-01 authentication and the Stage B organizer/event setup increment are implemented in `../backend` on 24 September 2026. The latter covers workspaces/invitations, scoped permissions, event discovery/lifecycle, ticket-type configuration and predefined seating; see [API scope and remaining work](../backend/CATALOG_API.md). Free checkout, online admission and BF-10 ticket PDF/delivery presentation are implemented; payment/refund processing and later modules remain planned. Event images and downstream event notifications also remain. Live Google consent requires OAuth credentials; client UI integration remains separate.  
+Status: shared requirements baseline; BF-01 authentication and the Stage B organizer/event setup increment are implemented in `../backend` on 24 September 2026. The latter covers workspaces/invitations, scoped permissions, event discovery/lifecycle, ticket-type configuration and predefined seating; see [API scope and remaining work](../backend/CATALOG_API.md). Free checkout, online admission, BF-11 entry confirmation, BF-12 offline sync ([admission API](../backend/ADMISSION_API.md)), BF-10 ticket PDF/delivery presentation, BF-15 notifications, BF-17 calendar and BF-21 platform admin are implemented in part or in full (see each BF section); payment/refund processing and later modules remain planned. Event images and downstream event notifications also remain. Live Google consent requires OAuth credentials; client UI integration remains separate.  
 Stack: FastAPI + PostgreSQL.  
 Scope: backend services and contracts used by attendee/organizer web, platform-admin web, and the iOS/Android scanner app.  
 Source: `BiletFlow_SRS_Initial_Draft.pdf`, version 0.3, supplemented by the user's confirmed decisions.  
@@ -287,6 +287,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 ### BF-11. Online scanner verification and signed-in attendee admission
 
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** online scan/manual check-in, one-time admission under races, reversal with reason and history, counts, minimal manual attendee search, and signed-in attendee entry confirmation (short-lived, signed, single-use, ticket- and event-bound, with an 8-digit code for printed tickets; consumed atomically with the check-in; switchable by `ADMISSION_REQUIRE_ENTRY_CONFIRMATION`, default on). Refund interaction awaits BF-13.
+
 **Purpose:** admit the correct registered attendee exactly once through an authorized scanner.
 
 **Requirements**
@@ -306,6 +308,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Completion checks:** two online scanners racing on one ticket yield one admission; anonymous requests cannot create entry confirmation; campaign QR is rejected; refund initiation and check-in racing cannot both treat a ticket as valid; unauthorized reversal fails.
 
 ### BF-12. Offline verification and synchronization
+
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** device registration, expiring event-specific signed verification package with snapshot version and revocations, idempotent batch sync with per-operation outcomes (accepted, duplicate, conflict, rejected), separate device and server times, and organizer review of stored conflicts. Mobile queue/storage/verification UI and refund-driven revocations (BF-13) are outside this increment.
 
 **Purpose:** demonstrate controlled disconnected operation and reconciliation, without claiming impossible real-time guarantees.
 
