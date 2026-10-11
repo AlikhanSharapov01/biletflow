@@ -56,7 +56,7 @@ Request:
 | `409` | `ticket_unclaimed` | Ticket was bought for someone who has not linked it to an account |
 | `409` | `wrong_event` | Genuine ticket for a different event |
 | `409` | `admission_not_open` / `admission_closed` | Outside the admission window, or the event is not live |
-| `409` | `operation_conflict` | `operation_id` was already used for a different ticket |
+| `409` | `operation_conflict` | `operation_id` was already used for a different ticket, or for an admission that was since reversed |
 | `404` | `ticket_not_found` | Forged or edited QR |
 | `422` | `not_a_ticket_qr` | Not a ticket QR at all, for example a campaign QR |
 | `404` / `403` | `event_not_found` / `permission_denied` | Caller is not an authorized scanner for this event |
