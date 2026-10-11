@@ -10,6 +10,8 @@ FastAPI + PostgreSQL implementation of authentication and Stage B event setup. R
 
 [Ticket PDF and delivery guide](TICKET_PDF_API.md) describes the ticket PDF download, delivery status and resend.
 
+[Notifications and calendar guide](NOTIFICATIONS_CALENDAR_API.md) describes the in-app inbox, the notification outbox fan-out (worker), `.ics` export and add-to-calendar links (migration `0005_notifications_calendar`, two tables).
+
 [Validation results and current local services](VALIDATION.md) records real PostgreSQL tests and running-API/local-SMTP checks.
 
 ## Run with Docker

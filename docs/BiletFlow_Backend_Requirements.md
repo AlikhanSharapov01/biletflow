@@ -380,6 +380,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** business transaction creates notification intent -> worker renders correct template -> sends email/in-app record -> marks outcome -> retries temporary failure -> authorized user may resend appropriate delivery.
 
+**Implementation status (partial):** in-app inbox (read/unread, pagination), event updated/cancelled, ticket delivered and support reply/status fan-out through the outbox, per-recipient locale with `ru` fallback, deduplication keys and bounded email retries are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md). Payment, refund, payout and purchase-confirmation notices, resend, and the admin failure view remain with their owning modules.
+
 **Completion checks:** worker outage does not lose notifications; replayed payment callbacks do not create extra delivery intents; notification links enforce target-record permissions.
 
 ### BF-16. Support cases, messages, attachments, and real-time updates
@@ -415,6 +417,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 - A downloaded/imported file does not guarantee automatic updates in every external calendar client; provide updated downloads and notifications.
 
 **Flow:** event/order/ticket viewer selects calendar -> backend checks access -> returns file or service link -> external client imports -> changed/cancelled event produces updated export with stable identity.
+
+**Implementation status (done for events):** `.ics` export (stable UID, SEQUENCE, TZID, cancelled status), Google/Outlook links, tokenless URL for public events only, and private/unlisted/draft/ticket-holder checks are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md).
 
 **Completion checks:** event times survive timezone conversion; cancelled export has appropriate cancellation status; repeated exports keep the event UID; private event details are not public through export URLs.
 

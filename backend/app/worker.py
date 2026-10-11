@@ -15,6 +15,7 @@ from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
+from .notification_service import deliver_notifications_once
 from .security import challenge_value, now
 
 
@@ -174,7 +175,8 @@ def main():
     engine, factory = database(settings.database_url.get_secret_value())
     try:
         while True:
-            if not deliver_once(factory, settings):
+            worked = deliver_once(factory, settings)
+            if not (deliver_notifications_once(factory, settings) or worked):
                 time.sleep(2)
     finally:
         engine.dispose()
