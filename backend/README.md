@@ -8,6 +8,8 @@ FastAPI + PostgreSQL implementation of authentication and Stage B event setup. R
 
 [Online admission guide](ADMISSION_API.md) describes the scanner endpoints and the check-in contract.
 
+[Ticket PDF and delivery guide](TICKET_PDF_API.md) describes the ticket PDF download, delivery status and resend.
+
 [Validation results and current local services](VALIDATION.md) records real PostgreSQL tests and running-API/local-SMTP checks.
 
 ## Run with Docker

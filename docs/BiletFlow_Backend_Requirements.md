@@ -1,6 +1,6 @@
 # BiletFlow: complete backend requirements and delivery plan
 
-Status: shared requirements baseline; BF-01 authentication and the Stage B organizer/event setup increment are implemented in `../backend` on 24 September 2026. The latter covers workspaces/invitations, scoped permissions, event discovery/lifecycle, ticket-type configuration and predefined seating; see [API scope and remaining work](../backend/CATALOG_API.md). Checkout, payment/refund processing, admission and later modules remain planned. Event images and downstream event notifications also remain. Live Google consent requires OAuth credentials; client UI integration remains separate.  
+Status: shared requirements baseline; BF-01 authentication and the Stage B organizer/event setup increment are implemented in `../backend` on 24 September 2026. The latter covers workspaces/invitations, scoped permissions, event discovery/lifecycle, ticket-type configuration and predefined seating; see [API scope and remaining work](../backend/CATALOG_API.md). Free checkout, online admission and BF-10 ticket PDF/delivery presentation are implemented; payment/refund processing and later modules remain planned. Event images and downstream event notifications also remain. Live Google consent requires OAuth credentials; client UI integration remains separate.  
 Stack: FastAPI + PostgreSQL.  
 Scope: backend services and contracts used by attendee/organizer web, platform-admin web, and the iOS/Android scanner app.  
 Source: `BiletFlow_SRS_Initial_Draft.pdf`, version 0.3, supplemented by the user's confirmed decisions.  
@@ -280,6 +280,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 - Resending delivery does not rotate or duplicate a ticket by default. Refunded tickets remain in history but cannot regain validity through an old PDF.
 
 **Flow:** order fulfills -> canonical ticket records created -> recipients are linked/invited -> delivery/PDF jobs run -> attendee signs in to view/download -> attendee prepares entry confirmation for BF-11.
+
+**Current implementation (11 October 2026):** free-order tickets, claim and email delivery exist (see the checkout guide). Presentation is added in [Ticket PDF and delivery API](../backend/TICKET_PDF_API.md): recipient-only A4 grayscale PDF whose vector QR encodes exactly the canonical `qr_payload` and which holds no payment data; refunded/cancelled/refund-pending tickets refuse download (`409 ticket_not_valid`); buyer/recipient delivery status; and a rate-limited, audited resend that queues an outbox job without rotating the token. Stored PDF files and PDF email attachments remain open; paid-order issuance and refund transitions belong to the commerce modules.
 
 **Completion checks:** one order item quantity maps to exactly that many tickets; PDF QR matches the canonical ticket; unauthorized downloads fail; old copies of refunded tickets are rejected online; a delivery failure does not cancel a successful order.
 
