@@ -17,6 +17,8 @@ from .db import database
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .security import challenge_value, now
+from .support_models import SupportCase
+from .support_service import case_roles
 
 
 def ticket_message(db, settings, identifier, ticket_id):
@@ -55,12 +57,48 @@ def ticket_message(db, settings, identifier, ticket_id):
     return message
 
 
+SUPPORT_SUBJECTS = {
+    "case_opened": "New support case",
+    "message": "New message on a support case",
+    "status": "Support case status changed",
+    "assignment": "Support case assignment changed",
+    "escalation": "Support case escalated to the platform",
+}
+
+
+def support_message(db, settings, identifier, payload):
+    # Sent only while the recipient still has a relationship to the case; no message text or
+    # subject leaves the system by email.
+    user = db.get(User, UUID(payload["recipient_user_id"]))
+    case = db.get(SupportCase, UUID(payload["case_id"]))
+    if not user or not case or user.status != "active" or user.email_verified_at is None:
+        return None
+    if not case_roles(db, user, case):
+        return None
+    subject = SUPPORT_SUBJECTS.get(payload["reason"], "Support case update")
+    message = EmailMessage()
+    message["From"], message["To"] = settings.email_from, user.email
+    message["Subject"] = f"BiletFlow: {subject}"
+    message["Message-ID"] = f"<{identifier}@biletflow.local>"
+    message.set_content(
+        f"{subject}.\n\nSign in to read it:\n{settings.frontend_url.rstrip('/')}/support/{case.id}"
+    )
+    return message
+
+
 def deliver_once(factory, settings, send=None):
     with factory.begin() as db:
         job = db.scalar(
             select(OutboxJob)
             .where(
-                OutboxJob.kind.in_(["auth_email", "staff_invite_email", "ticket_delivery_email"]),
+                OutboxJob.kind.in_(
+                    [
+                        "auth_email",
+                        "staff_invite_email",
+                        "ticket_delivery_email",
+                        "support_email",
+                    ]
+                ),
                 or_(
                     and_(OutboxJob.status == "pending", OutboxJob.available_at <= now()),
                     and_(OutboxJob.status == "leased", OutboxJob.lease_until <= now()),
@@ -138,6 +176,8 @@ def deliver_once(factory, settings, send=None):
                         message.set_content(
                             f"You are invited to join {org.name}. Sign in with this email to accept.\n\n{link}\n\nExpires: {invitation.expires_at.isoformat()}"
                         )
+            if kind == "support_email":
+                message = support_message(db, settings, identifier, payload)
             if kind == "ticket_delivery_email":
                 message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]))
         if message:
