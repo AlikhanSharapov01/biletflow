@@ -24,16 +24,30 @@ Open <http://localhost:5173>. Vite proxies `/api/*` and `/health/*` to the backe
 
 ## Browser experience
 
-The current UI provides email/password sign-in, account registration, and password-reset
-requests through `/api/v1/auth/login`, `/api/v1/auth/register`, and
-`/api/v1/auth/password/forgot`. A successful sign-in loads `/api/v1/me` and opens the attendee
-workspace. New accounts must verify their email before signing in.
+The browser supports email/password and Google sign-in, account registration, and password-reset
+requests. Successful sign-in loads the profile from `/api/v1/me`; the access token stays in
+memory, while the HttpOnly refresh cookie restores the session after a reload. **Profile &
+sessions** shows active and past sessions, supports revoking another session, and can sign out
+everywhere. Access tokens are refreshed when needed.
 
-From the sign-in screen, use **Open a role workspace without an account** to preview the
-Attendee, Organizer, Event Admin, and Platform Admin pages. These workspaces use sample data;
-their role switcher is for UI review only and does not grant or validate backend permissions.
-Most event, analytics, check-in, and moderation actions are presentation-only. The frontend
-does not yet provide a complete password-reset-link flow.
+**Discover events** loads published public events from the API and supports title/category
+filters and event details. **Organizer** loads the signed-in user’s workspaces, supports creating
+a workspace, creating event drafts with a free RSVP ticket, and publishing or unpublishing
+events. The API remains authoritative for permissions and publication rules.
+
+Google sign-in requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the backend environment.
+Register the web app root as the Google OAuth redirect URI and set the exact same value for
+`GOOGLE_REDIRECT_URI`: `http://localhost:5173/` with Vite or `http://localhost:8080/` with the
+full Caddy stack. Google returns `code` and `state` to the browser, which immediately removes
+them from the address bar and completes the existing backend callback through the same-origin
+`/api` proxy. Keep the browser and API on the same `localhost` host so the OAuth binding and
+refresh cookies work. See the backend README’s **Enable Google sign-in** section for provider
+setup.
+
+From the sign-in screen, **Open a role workspace without an account** still previews the
+Attendee, Organizer, Event Admin, and Platform Admin pages with sample data; these previews do
+not grant backend permissions. Analytics, check-in, and moderation previews remain demo-only.
+The complete password-reset-link flow is not yet provided by the frontend.
 
 Production build:
 

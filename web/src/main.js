@@ -1,3 +1,5 @@
+import { createLiveExperience } from "./live.js";
+
 const roles = [
   { id: "attendee", label: "Attendee", glyph: "A", dot: "" },
   { id: "organizer", label: "Organizer", glyph: "O", dot: "organizer" },
@@ -16,7 +18,7 @@ const moderation = [
   { title: "Founders' Table: Almaty", organizer: "Common Ground KZ", reason: "Payout details need review", age: "Submitted 1 hr ago" },
 ];
 
-const state = { screen: "auth", mode: "login", role: "attendee", profile: null, accessToken: "", toastTimer: 0 };
+const state = { screen: "auth", mode: "login", role: "attendee", profile: null, accessToken: "", authMessage: "", toastTimer: 0 };
 const root = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 
@@ -27,11 +29,30 @@ function notify(message) {
   state.toastTimer = setTimeout(() => toast.classList.remove("visible"), 2600);
 }
 
+function signOutLocally(message = "") {
+  state.accessToken = "";
+  state.profile = null;
+  state.screen = "auth";
+  state.mode = "login";
+  state.authMessage = message;
+  render();
+}
+
+const liveExperience = createLiveExperience({
+  root,
+  getSession: () => ({ profile: state.profile, accessToken: state.accessToken }),
+  onSignOut: signOutLocally,
+  onSessionExpired: () => signOutLocally("Your session expired. Sign in again to continue."),
+  onAccessToken: (token) => { state.accessToken = token; },
+  onProfileLoaded: (profile) => { state.profile = profile; },
+  notify,
+});
+
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 
-function authMarkup(message = "", success = false) {
+function authMarkup(message = state.authMessage, success = false) {
   const registering = state.mode === "register";
   const title = registering ? "Create your account" : "Good to see you";
   return `
@@ -63,6 +84,7 @@ function authMarkup(message = "", success = false) {
             <button class="primary-button full" id="submit-auth" type="submit">${registering ? "Create account" : "Sign in"}<span aria-hidden="true">→</span></button>
             <p class="auth-message ${success ? "success" : ""}" id="auth-message" role="status">${escapeHtml(message)}</p>
           </form>
+          ${!registering ? `<button class="google-button" data-action="google-signin" type="button"><span class="google-mark" aria-hidden="true">G</span>Continue with Google</button>` : ""}
           <div class="divider">OR EXPLORE A PREVIEW</div>
           <p class="demo-title">Open a role workspace without an account</p>
           <div class="demo-grid">${roles.map((role) => `<button class="demo-role" data-preview="${role.id}"><span class="role-dot ${role.dot}"></span>${role.label}</button>`).join("")}</div>
@@ -126,7 +148,11 @@ function adminPage() {
 
 function render() {
   if (state.screen === "auth") {
-    root.innerHTML = authMarkup(state.message || "", state.messageSuccess || false);
+    root.innerHTML = authMarkup(state.authMessage, false);
+    return;
+  }
+  if (state.profile) {
+    liveExperience.render();
     return;
   }
   const pages = { attendee: attendeePage, organizer: organizerPage, staff: staffPage, admin: adminPage };
@@ -137,6 +163,7 @@ function showDashboard(role, profile = null) {
   state.screen = "dashboard";
   state.role = role;
   state.profile = profile;
+  state.authMessage = "";
   render();
 }
 
@@ -150,6 +177,15 @@ async function parseResponse(response) {
       invalid_input: "Check your details and try again.",
       rate_limited: "Too many attempts. Please wait a moment and try again.",
       database_unavailable: "The service is temporarily unavailable. Please try again shortly.",
+      google_not_configured: "Google sign-in is not configured for this environment.",
+      google_unavailable: "Google sign-in is temporarily unavailable. Please try again.",
+      google_exchange_failed: "Google could not complete sign-in. Please try again.",
+      account_link_required: "This Google account matches an existing account. Sign in with your password first.",
+      google_authorization_denied: "Google sign-in was cancelled. You can try again whenever you’re ready.",
+      invalid_oauth_state: "This Google sign-in expired or could not be verified. Please start again.",
+      invalid_google_identity: "Google did not return a verified account. Try a different Google account.",
+      google_identity_already_linked: "That Google account is linked to a different BiletFlow account.",
+      suspended_account: "This account is unavailable. Contact support if you think this is a mistake.",
     };
     throw new Error(messages[code] || "Something went wrong. Please check your details and try again.");
   }
@@ -186,7 +222,10 @@ async function submitAuth(form) {
       showDashboard("attendee", profile);
     }
   } catch (error) {
-    message.textContent = error.message;
+    if (!registering) state.accessToken = "";
+    message.textContent = error instanceof TypeError
+      ? "Can’t reach BiletFlow right now. Check that the API is running and try again."
+      : error.message;
   } finally {
     if (document.body.contains(button)) {
       button.disabled = false;
@@ -195,13 +234,156 @@ async function submitAuth(form) {
   }
 }
 
+async function beginGoogleSignIn(button) {
+  const message = root.querySelector("#auth-message");
+  button.disabled = true;
+  message.textContent = "Connecting to Google…";
+  message.classList.remove("success");
+  try {
+    const result = await parseResponse(await fetch("/api/v1/auth/google/start", {
+      method: "POST",
+      credentials: "include",
+    }));
+    window.location.assign(result.authorization_url);
+  } catch (error) {
+    message.textContent = error instanceof TypeError
+      ? "Can’t reach BiletFlow right now. Check that the API is running and try again."
+      : error.message;
+    button.disabled = false;
+  }
+}
+
+async function restoreSession() {
+  const url = new URL(window.location.href);
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  const callbackToken = fragment.get("access_token");
+  const callbackError = url.searchParams.get("google_error");
+  const googleCode = url.searchParams.get("code");
+  const googleState = url.searchParams.get("state");
+  const providerError = url.searchParams.get("error");
+  if (url.hash) url.hash = "";
+  if (callbackError) url.searchParams.delete("google_error");
+  if (googleCode || googleState || providerError) {
+    ["code", "state", "error", "scope", "authuser", "prompt"].forEach((key) => url.searchParams.delete(key));
+  }
+  if (callbackToken || callbackError || googleCode || googleState || providerError) {
+    history.replaceState(null, "", `${url.pathname}${url.search}`);
+  }
+
+  if (providerError) {
+    let message = providerError === "access_denied"
+      ? "Google sign-in was cancelled. You can try again whenever you’re ready."
+      : "Google could not complete sign-in. Please try again.";
+    if (googleState) {
+      try {
+        const params = new URLSearchParams({ state: googleState, error: providerError });
+        await parseResponse(await fetch(`/api/v1/auth/google/callback?${params}`, {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        }));
+      } catch (error) {
+        message = error instanceof TypeError
+          ? "Can’t reach BiletFlow right now. Check that the API is running and try again."
+          : error.message;
+      }
+    }
+    state.authMessage = message;
+    render();
+    return;
+  }
+
+  if (googleCode || googleState) {
+    if (!googleCode || !googleState) {
+      state.authMessage = "Google returned an incomplete sign-in response. Please try again.";
+      render();
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ code: googleCode, state: googleState });
+      const tokens = await parseResponse(await fetch(`/api/v1/auth/google/callback?${params}`, {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      }));
+      state.accessToken = tokens.access_token;
+      const profile = await parseResponse(await fetch("/api/v1/me", {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${state.accessToken}` },
+      }));
+      showDashboard("attendee", profile);
+    } catch (error) {
+      state.accessToken = "";
+      state.authMessage = error instanceof TypeError
+        ? "Can’t reach BiletFlow right now. Check that the API is running and try again."
+        : error.message || "Google sign-in could not be completed. Please try again.";
+      render();
+    }
+    return;
+  }
+
+  if (callbackError) {
+    state.authMessage = googleErrorMessage(callbackError);
+    render();
+    return;
+  }
+
+  try {
+    let accessToken = callbackToken;
+    if (!accessToken) {
+      const response = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (response.status === 401) {
+        state.authMessage = "";
+        render();
+        return;
+      }
+      const tokens = await parseResponse(response);
+      accessToken = tokens.access_token;
+    }
+    state.accessToken = accessToken;
+    const profile = await parseResponse(await fetch("/api/v1/me", {
+      credentials: "include",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }));
+    showDashboard("attendee", profile);
+  } catch (error) {
+    state.accessToken = "";
+    state.authMessage = error instanceof TypeError
+      ? "Can’t reach BiletFlow right now. Check that the API is running and try again."
+      : error.message || "We couldn’t restore your sign-in. Please try again.";
+    render();
+  }
+}
+
+function googleErrorMessage(code) {
+  const messages = {
+    account_link_required: "This Google account matches an existing BiletFlow account. Sign in with your password first, then link Google from your account.",
+    google_authorization_denied: "Google sign-in was cancelled. You can try again whenever you’re ready.",
+    google_identity_already_linked: "That Google account is linked to a different BiletFlow account.",
+    google_not_configured: "Google sign-in is not configured for this environment.",
+    google_unavailable: "Google sign-in is temporarily unavailable. Please try again.",
+    invalid_oauth_state: "This Google sign-in expired or could not be verified. Please start again.",
+    google_exchange_failed: "Google could not complete sign-in. Please try again.",
+    invalid_google_identity: "Google did not return a verified account. Try a different Google account.",
+    suspended_account: "This account is unavailable. Contact support if you think this is a mistake.",
+  };
+  return messages[code] || "Google sign-in could not be completed. Please try again.";
+}
+
 root.addEventListener("click", async (event) => {
   const target = event.target.closest("button, a");
   if (!target) return;
+  if (state.profile && await liveExperience.handleClick(target)) return;
   if (target.matches("[data-mode]")) {
     state.mode = target.dataset.mode;
     state.message = "";
+    state.authMessage = "";
     render();
+  } else if (target.matches("[data-action='google-signin']")) {
+    await beginGoogleSignIn(target);
   } else if (target.matches("[data-preview]")) {
     state.profile = null;
     state.accessToken = "";
@@ -253,11 +435,18 @@ root.addEventListener("click", async (event) => {
   }
 });
 
-root.addEventListener("submit", (event) => {
-  if (event.target.id === "auth-form") {
+root.addEventListener("submit", async (event) => {
+  if (event.target.id === "auth-form" || (state.profile && event.target.matches("[data-live-form]"))) {
     event.preventDefault();
+  }
+  if (state.profile && await liveExperience.handleSubmit(event.target)) return;
+  if (event.target.id === "auth-form") {
     submitAuth(event.target);
   }
+});
+
+root.addEventListener("change", (event) => {
+  if (state.profile) liveExperience.handleChange(event.target);
 });
 
 root.addEventListener("input", (event) => {
@@ -275,4 +464,6 @@ root.addEventListener("input", (event) => {
   }
 });
 
+state.authMessage = "Checking for an active session…";
 render();
+void restoreSession();
