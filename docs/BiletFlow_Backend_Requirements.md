@@ -494,6 +494,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** ordinary organizer cannot call admin functions; suspended event cannot accept payment fulfillment/admission unnoticed; changed fees do not rewrite past financial records; exports do not leak unrelated private data.
 
+**Current implementation (partial, 11 October 2026):** `backend/` provides the platform-admin role (database grant managed only by an operator CLI), paginated user/event/order/ticket search, user and event suspension/reinstatement with immutable moderation records and same-transaction audit (user suspension revokes sessions; event suspension is honoured by holds, free-checkout confirmation and admission), deduplicated and rate-limited event reports with an admin review queue, versioned prospective platform settings (hold minutes, demo activation fee, processing rate, upload limit) and formula-safe CSV export. See [platform administration API](../backend/ADMIN_API.md). Still open: paid-sales suspension, payment/refund/dispute/campaign/job/offline-conflict inspection, support-case search, user notices, and wiring the settings into commerce code (the free checkout still uses a fixed ten-minute hold).
+
 ### BF-22. Deployment, operations, security, and integration readiness
 
 **Purpose:** make the backend reproducible and usable by the other three developers.
