@@ -273,16 +273,20 @@ Implemented now:
 - Ticket-type and predefined assigned-seat configuration
 - Free checkout: inventory holds, zero-total orders, QR tickets, recipient claims, ticket
   delivery email and organizer attendee list
+- Online admission: assigned-scanner events, one-time atomic QR check-in, reversal and
+  registered/admitted counts
 - Audit history and durable email delivery
 
-Paid checkout, paid-sales activation, payments, refunds, issued ticket PDFs, admission,
-support, analytics and platform administration remain future backend work.
+Paid checkout, paid-sales activation, payments, refunds, issued ticket PDFs, signed-in attendee
+entry confirmation, offline scanning, support, analytics and platform administration remain
+future backend work.
 
 Detailed references:
 
 - `backend/README.md` - backend behavior and native setup
 - `backend/CATALOG_API.md` - organizer and event API contract
 - `backend/CHECKOUT_API.md` - free checkout, orders and ticket API contract
+- `backend/ADMISSION_API.md` - scanner and check-in API contract
 - `backend/VALIDATION.md` - existing backend validation evidence
 - `docs/BiletFlow_Backend_Requirements.md` - shared backend plan
 - `docs/database/` - target database design; its 66-table reference SQL is not an application migration
