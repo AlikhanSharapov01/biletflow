@@ -30,3 +30,29 @@ export function formatEventWindow(startsAt: string, endsAt: string, timeZone: st
     return `${startsAt} – ${endsAt}`;
   }
 }
+
+// A single moment, e.g. "19:42" today or "Sat 10 Oct, 19:42" on another day,
+// in the event's time zone.
+export function formatEventMoment(at: string, timeZone: string): string {
+  try {
+    const moment = new Date(at);
+    const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone, dateStyle: "short" });
+    const time = new Intl.DateTimeFormat(undefined, {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(moment);
+    if (dayKey.format(moment) === dayKey.format(new Date())) {
+      return time;
+    }
+    const day = new Intl.DateTimeFormat(undefined, {
+      timeZone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(moment);
+    return `${day}, ${time}`;
+  } catch {
+    return at;
+  }
+}

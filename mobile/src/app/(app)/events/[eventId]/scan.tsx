@@ -1,12 +1,46 @@
 import { CameraView, type BarcodeScanningResult } from "expo-camera";
+import { randomUUID } from "expo-crypto";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getAssignedEvent, type AssignedEvent } from "@/api/scanner";
+import {
+  checkIn,
+  getAdmissionCounts,
+  getAssignedEvent,
+  type AdmissionCounts,
+  type AssignedEvent,
+} from "@/api/scanner";
+import { SessionExpiredError } from "@/api/session";
 import { CameraPermissionGate } from "@/components/CameraPermissionGate";
+import { describeOutcome, type OutcomeView, type Tone } from "@/scanner/outcomes";
 import { formatEventWindow } from "@/utils/eventTime";
+
+// One physical scan. Kept so "Retry" can resend the same operation_id, which
+// makes the server return the original admission instead of "already used".
+type PendingScan = {
+  payload: string;
+  operationId: string;
+  capturedAt: string;
+};
+
+type Phase =
+  | { name: "scanning" }
+  | { name: "checking" }
+  | { name: "result"; view: OutcomeView; retryable: boolean };
+
+function feedback(tone: Tone) {
+  if (Platform.OS === "web") return;
+  const type =
+    tone === "admitted"
+      ? Haptics.NotificationFeedbackType.Success
+      : tone === "warning"
+        ? Haptics.NotificationFeedbackType.Warning
+        : Haptics.NotificationFeedbackType.Error;
+  Haptics.notificationAsync(type).catch(() => {});
+}
 
 export default function Scan() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -14,10 +48,18 @@ export default function Scan() {
   // undefined = still loading, null = not found / not assigned.
   const [event, setEvent] = useState<AssignedEvent | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [scanned, setScanned] = useState<string | null>(null);
+  const [counts, setCounts] = useState<AdmissionCounts | null>(null);
+  const [phase, setPhase] = useState<Phase>({ name: "scanning" });
   // The camera fires onBarcodeScanned for every frame the code is in view;
   // a ref (not state) blocks repeats synchronously until "Scan next".
   const locked = useRef(false);
+  const pending = useRef<PendingScan | null>(null);
+
+  const refreshCounts = useCallback(() => {
+    getAdmissionCounts(eventId).then(setCounts, () => {
+      // Counts are informational; keep showing the last known values.
+    });
+  }, [eventId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,10 +71,11 @@ export default function Scan() {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Something went wrong.");
       }
     );
+    refreshCounts();
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, refreshCounts]);
 
   function goBack() {
     if (router.canGoBack()) {
@@ -42,17 +85,45 @@ export default function Scan() {
     }
   }
 
+  async function submit(scan: PendingScan, timeZone: string) {
+    setPhase({ name: "checking" });
+    let outcome;
+    try {
+      // The payload goes to the server untouched: deciding whether it's a
+      // ticket, a campaign QR or a forgery is the server's job (BF-11).
+      outcome = await checkIn(eventId, scan.payload, scan.operationId, scan.capturedAt);
+    } catch (err) {
+      // Session couldn't be renewed: AuthContext is already redirecting to login.
+      if (err instanceof SessionExpiredError) return;
+      outcome = { kind: "network" as const };
+    }
+    const view = describeOutcome(outcome, timeZone);
+    if (outcome.kind === "admitted" && outcome.replayed) {
+      view.lines.push("Confirmed after retry.");
+    }
+    feedback(view.tone);
+    setPhase({ name: "result", view, retryable: outcome.kind === "network" });
+    if (outcome.kind === "admitted") refreshCounts();
+  }
+
   function handleScanned({ data }: BarcodeScanningResult) {
-    if (locked.current) return;
+    if (locked.current || !event) return;
     locked.current = true;
-    // The payload is passed on untouched: deciding whether it's a ticket, a
-    // campaign QR or an entry confirmation is the server's job (requirements
-    // doc §2.2 rule 10, BF-11).
-    setScanned(data);
+    pending.current = {
+      payload: data,
+      operationId: randomUUID(),
+      capturedAt: new Date().toISOString(),
+    };
+    submit(pending.current, event.time_zone);
+  }
+
+  function retry() {
+    if (pending.current && event) submit(pending.current, event.time_zone);
   }
 
   function scanNext() {
-    setScanned(null);
+    pending.current = null;
+    setPhase({ name: "scanning" });
     locked.current = false;
   }
 
@@ -87,6 +158,11 @@ export default function Scan() {
         <Text style={styles.subtitle} numberOfLines={1}>
           {event.venue.name} · {formatEventWindow(event.starts_at, event.ends_at, event.time_zone)}
         </Text>
+        {counts ? (
+          <Text style={styles.counts}>
+            Admitted {counts.admitted} of {counts.registered}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.cameraArea}>
@@ -99,22 +175,43 @@ export default function Scan() {
               onBarcodeScanned={handleScanned}
             />
           </View>
-          {scanned === null ? (
+
+          {phase.name === "scanning" ? (
             <View style={styles.hint} pointerEvents="none">
               <Text style={styles.hintText}>Point the camera at a ticket QR code</Text>
             </View>
-          ) : (
-            <View style={styles.result}>
-              <Text style={styles.resultHeading}>Scanned</Text>
-              <Text style={styles.payload} numberOfLines={3} selectable>
-                {scanned}
-              </Text>
-              <Text style={styles.resultNote}>Admission check isn&apos;t connected yet.</Text>
-              <Pressable style={styles.button} onPress={scanNext}>
-                <Text style={styles.buttonText}>Scan next</Text>
-              </Pressable>
+          ) : null}
+
+          {phase.name === "checking" ? (
+            <View style={[styles.panel, styles.panelChecking]}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.panelTitle}>Checking…</Text>
             </View>
-          )}
+          ) : null}
+
+          {phase.name === "result" ? (
+            <View style={[styles.panel, styles[`panel_${phase.view.tone}`]]}>
+              <View style={styles.panelHeader}>
+                <Text style={styles.panelIcon}>{phase.view.icon}</Text>
+                <Text style={styles.panelTitle}>{phase.view.title}</Text>
+              </View>
+              {phase.view.lines.map((line, index) => (
+                <Text key={index} style={styles.panelLine}>
+                  {line}
+                </Text>
+              ))}
+              <View style={styles.panelActions}>
+                {phase.retryable ? (
+                  <Pressable style={[styles.panelButton, styles.panelButtonSecondary]} onPress={retry}>
+                    <Text style={styles.panelButtonText}>Retry</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable style={styles.panelButton} onPress={scanNext}>
+                  <Text style={styles.panelButtonText}>Scan next</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
         </CameraPermissionGate>
       </View>
     </SafeAreaView>
@@ -156,6 +253,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#666",
   },
+  counts: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 4,
+  },
   cameraArea: {
     flex: 1,
   },
@@ -180,28 +282,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     overflow: "hidden",
   },
-  result: {
+  // Result panels sit over the bottom of the camera, full width, with white
+  // text on a strong colour so the outcome reads from a distance.
+  panel: {
     position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 24,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    left: 12,
+    right: 12,
+    bottom: 16,
+    borderRadius: 16,
+    padding: 20,
     gap: 6,
   },
-  resultHeading: {
-    fontSize: 18,
+  panelChecking: {
+    backgroundColor: "#333",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  panel_admitted: {
+    backgroundColor: "#1E7B34",
+  },
+  panel_warning: {
+    backgroundColor: "#B45309",
+  },
+  panel_rejected: {
+    backgroundColor: "#B91C1C",
+  },
+  panel_offline: {
+    backgroundColor: "#4B5563",
+  },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  panelIcon: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "700",
+    width: 32,
+    textAlign: "center",
+  },
+  panelTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  panelLine: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  panelActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 10,
+  },
+  panelButton: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  panelButtonSecondary: {
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  panelButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600",
-  },
-  payload: {
-    fontFamily: "monospace",
-    fontSize: 13,
-    color: "#333",
-  },
-  resultNote: {
-    fontSize: 13,
-    color: "#666",
   },
   button: {
     backgroundColor: "#208AEF",

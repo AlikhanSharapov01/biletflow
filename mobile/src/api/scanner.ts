@@ -1,14 +1,8 @@
-// Client for the scanner API family proposed in
-// docs/BiletFlow_Backend_Requirements.md (BF-11, §8 "/scanner": assigned
-// events, attendee lookup, admission, reversal, counts). The backend hasn't
-// built it yet, so everything here runs on mock data unless
-// EXPO_PUBLIC_SCANNER_MOCKS=false. Field names reuse the backend's existing
-// EventView/VenueView (backend/app/catalog_schemas.py) so the real endpoint
-// should drop in without reshaping; re-check against OpenAPI when it lands.
+// Client for the online admission API — backend/ADMISSION_API.md, routes in
+// backend/app/admission_api.py, types mirroring backend/app/admission_schemas.py.
 
-import { API_URL, friendlyError, networkError } from "@/api/client";
-import { mockAssignedEvents } from "@/api/scannerMocks";
-import { getTokens } from "@/api/tokenStorage";
+import { friendlyError } from "@/api/client";
+import { authedFetch, SessionExpiredError } from "@/api/session";
 
 export type AssignedEvent = {
   id: string;
@@ -26,29 +20,52 @@ export type AssignedEvent = {
   time_status: "upcoming" | "active" | "completed";
 };
 
-export const USE_SCANNER_MOCKS = process.env.EXPO_PUBLIC_SCANNER_MOCKS !== "false";
-
-// An authenticated endpoint answers an expired/revoked session with the
-// backend's generic 401 code (security.fail() default).
-const SCANNER_MESSAGES: Record<string, string> = {
-  invalid_credentials: "Your session has expired. Please sign in again.",
+export type AdmissionCounts = {
+  event_id: string;
+  registered: number;
+  admitted: number;
 };
 
-function mockDelay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), 300));
-}
+export type Seat = {
+  section_label: string;
+  row_label: string;
+  seat_label: string;
+};
 
-async function authedGet<T>(path: string): Promise<T | null> {
-  const { accessToken } = await getTokens();
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    });
-  } catch {
-    throw networkError();
-  }
+export type CheckInResult = {
+  result: string;
+  check_in_id: string;
+  ticket_id: string;
+  event_id: string;
+  attendee_name: string;
+  ticket_type_name: string;
+  seat: Seat | null;
+  checked_in_at: string;
+  // true when this was a retry of an operation the server already admitted.
+  replayed: boolean;
+};
 
+// A scan always ends in one of these; business rejections are results, not
+// exceptions, so the scan screen can show each one.
+export type CheckInOutcome =
+  | ({ kind: "admitted" } & CheckInResult)
+  | {
+      kind: "rejected";
+      code: string;
+      // already_checked_in: when the earlier admission happened.
+      checkedInAt?: string;
+      // ticket_not_valid: cancelled / refunded / refund_pending.
+      ticketStatus?: string;
+    }
+  | { kind: "network" };
+
+const SCANNER_MESSAGES: Record<string, string> = {
+  event_not_found: "You're not assigned to scan this event.",
+  permission_denied: "You don't have permission to scan this event.",
+};
+
+async function getJson<T>(path: string): Promise<T | null> {
+  const response = await authedFetch(path);
   if (response.status === 404) {
     return null;
   }
@@ -58,24 +75,61 @@ async function authedGet<T>(path: string): Promise<T | null> {
   return response.json() as Promise<T>;
 }
 
-// Events this account is assigned to scan. Like the backend's other list
-// endpoints, assumed to return a plain array.
+// Published events this account may scan, ordered by start time.
 export async function listAssignedEvents(): Promise<AssignedEvent[]> {
-  if (USE_SCANNER_MOCKS) {
-    return mockDelay(mockAssignedEvents());
-  }
-  const events = await authedGet<AssignedEvent[]>("/scanner/events");
-  if (events === null) {
-    throw new Error("The scanner service isn't available yet.");
-  }
-  return events;
+  return (await getJson<AssignedEvent[]>("/scanner/events")) ?? [];
 }
 
-// null when the event doesn't exist or isn't assigned to this account — the
-// backend returns 404 for inaccessible scoped resources (CATALOG_API.md).
-export async function getAssignedEvent(id: string): Promise<AssignedEvent | null> {
-  if (USE_SCANNER_MOCKS) {
-    return mockDelay(mockAssignedEvents().find((event) => event.id === id) ?? null);
+// null when the event doesn't exist or isn't assigned to this account.
+export function getAssignedEvent(id: string): Promise<AssignedEvent | null> {
+  return getJson<AssignedEvent>(`/scanner/events/${encodeURIComponent(id)}`);
+}
+
+export async function getAdmissionCounts(eventId: string): Promise<AdmissionCounts | null> {
+  return getJson<AdmissionCounts>(`/scanner/events/${encodeURIComponent(eventId)}/counts`);
+}
+
+// The QR payload goes to the server untouched — it alone decides what the
+// code is (ticket, campaign QR, forgery). Reuse operationId when retrying the
+// same scan: the server then returns the original admission (replayed)
+// instead of a false "already used".
+export async function checkIn(
+  eventId: string,
+  qrPayload: string,
+  operationId: string,
+  capturedAt: string
+): Promise<CheckInOutcome> {
+  let response: Response;
+  try {
+    response = await authedFetch(`/scanner/events/${encodeURIComponent(eventId)}/check-ins`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        qr_payload: qrPayload,
+        operation_id: operationId,
+        captured_at: capturedAt,
+      }),
+    });
+  } catch (err) {
+    // An expired session has already signed the user out; let that surface.
+    if (err instanceof SessionExpiredError) throw err;
+    return { kind: "network" };
   }
-  return authedGet<AssignedEvent>(`/scanner/events/${encodeURIComponent(id)}`);
+
+  if (response.ok) {
+    return { kind: "admitted", ...((await response.json()) as CheckInResult) };
+  }
+
+  let detail: { code?: string; checked_in_at?: string | null; status?: string } = {};
+  try {
+    detail = ((await response.json()) as { detail?: typeof detail }).detail ?? {};
+  } catch {
+    // Non-JSON error body (e.g. a proxy page) — falls through to "unknown".
+  }
+  return {
+    kind: "rejected",
+    code: detail.code ?? `http_${response.status}`,
+    checkedInAt: detail.checked_in_at ?? undefined,
+    ticketStatus: detail.status,
+  };
 }
