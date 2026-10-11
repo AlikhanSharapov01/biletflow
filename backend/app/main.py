@@ -509,6 +509,7 @@ def create_app(settings: Settings | None = None):
     from .notification_api import router as notification_router
     from .offline_api import router as offline_router
     from .organization_api import router as organization_router
+    from .support_api import router as support_router
     from .ticket_document_api import router as ticket_document_router
 
     app.include_router(organization_router(factory, settings, principal))
@@ -520,4 +521,5 @@ def create_app(settings: Settings | None = None):
     app.include_router(notification_router(factory, settings, principal))
     app.include_router(admin_router(factory, settings, principal))
     app.include_router(offline_router(factory, settings, principal))
+    app.include_router(support_router(factory, settings, principal))
     return app

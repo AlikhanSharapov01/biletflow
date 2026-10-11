@@ -9,6 +9,7 @@ from app import (  # noqa: F401
     checkout_models,
     notification_models,
     offline_models,
+    support_models,
 )
 from app.config import Settings
 from app.models import Base

@@ -408,6 +408,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** unrelated users cannot read thread, attachment, or WebSocket events; reconnect recovers missed messages; revoked staff lose live access; invalid uploads never become available for download.
 
+**Implementation status (BF-16):** implemented except attachments. Cases from an event, own order or assigned ticket, organizer-to-platform cases, categories, statuses with requester-reply reopening, assignment, escalation, idempotent persisted messages, `seq` cursor polling and an authenticated WebSocket (`/api/v1/support/ws`) with per-delivery authorization are in `../backend`; audit and notification outbox rows are written in the business transaction. Protected attachments (upload limits, validation, quarantine, short-lived downloads) remain later work. See [the support API guide](../backend/SUPPORT_API.md).
+
 ### BF-17. Calendar exports and links
 
 **Purpose:** let an authorized viewer add event details to an external calendar.
