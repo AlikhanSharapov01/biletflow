@@ -502,8 +502,10 @@ def create_app(settings: Settings | None = None):
         return pair(response, session, raw)
 
     from .admission_api import router as admission_router
+    from .calendar_api import router as calendar_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
+    from .notification_api import router as notification_router
     from .organization_api import router as organization_router
     from .ticket_document_api import router as ticket_document_router
 
@@ -512,4 +514,6 @@ def create_app(settings: Settings | None = None):
     app.include_router(checkout_router(factory, settings, principal))
     app.include_router(ticket_document_router(factory, settings, principal))
     app.include_router(admission_router(factory, settings, principal))
+    app.include_router(calendar_router(factory, settings, principal))
+    app.include_router(notification_router(factory, settings, principal))
     return app

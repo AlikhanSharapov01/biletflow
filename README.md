@@ -287,6 +287,7 @@ Detailed references:
 - `backend/CATALOG_API.md` - organizer and event API contract
 - `backend/CHECKOUT_API.md` - free checkout, orders and ticket API contract
 - `backend/ADMISSION_API.md` - scanner and check-in API contract
+- `backend/NOTIFICATIONS_CALENDAR_API.md` - in-app notifications and calendar export contract
 - `backend/VALIDATION.md` - existing backend validation evidence
 - `docs/BiletFlow_Backend_Requirements.md` - shared backend plan
 - `docs/database/` - target database design; its 66-table reference SQL is not an application migration

@@ -9,6 +9,7 @@ from .catalog_service import active_allocations, catalog_audit, changed, event_g
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .checkout_schemas import HOLD_MINUTES, MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
 from .models import OutboxJob
+from .notification_service import enqueue_ticket_delivered
 from .security import challenge_value, digest, fail, now
 
 
@@ -346,6 +347,8 @@ def confirm_free(db, settings, user, hold_id, data):
                 payload={"version": 1, "ticket_id": str(ticket_id), "order_id": str(order.id)},
             )
         )
+        if claimed:
+            enqueue_ticket_delivered(db, ticket_id, event.id)
         allocation.state = "sold"
     hold.status = "consumed"
     hold.closed_at = confirmed
@@ -403,6 +406,7 @@ def claim_tickets(db, user):
     )
     for ticket in claimed:
         ticket.recipient_user_id, ticket.claimed_at = user.id, current
+        enqueue_ticket_delivered(db, ticket.id, ticket.event_id)
     return len(claimed)
 
 

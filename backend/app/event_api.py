@@ -37,8 +37,12 @@ from .catalog_service import (
     set_capabilities,
 )
 from .models import AuditLog, User
+from .notification_service import enqueue_event_notice
 from .security import decode_access, fail, now
 from .service import valid_session
+
+# Attendee-visible fields: a change to any of them notifies ticket holders.
+NOTIFY_FIELDS = ("title", "description", "starts_at", "ends_at", "time_zone", "venue_id")
 
 
 def router(factory, settings, principal):
@@ -321,6 +325,7 @@ def router(factory, settings, principal):
                 or db.scalar(select(EventSeat.id).where(EventSeat.event_id == event.id).limit(1))
             ):
                 fail("layout_already_in_use", 409)
+            before = [getattr(event, key) for key in NOTIFY_FIELDS]
             for key, value in data.model_dump().items():
                 setattr(event, key, value)
             tickets_fit(db, event)
@@ -329,6 +334,8 @@ def router(factory, settings, principal):
                 publishable(db, event)
             event.calendar_sequence += 1
             changed(event)
+            if before != [getattr(event, key) for key in NOTIFY_FIELDS]:
+                enqueue_event_notice(db, event, "updated")
             catalog_audit(
                 db, user, "event.updated", db.get(Organization, event.organization_id), event
             )
@@ -402,6 +409,7 @@ def router(factory, settings, principal):
                 event.publication_state = "cancelled"
                 event.calendar_sequence += 1
                 changed(event)
+                enqueue_event_notice(db, event, "cancelled")
                 catalog_audit(
                     db, user, "event.cancelled", db.get(Organization, event.organization_id), event
                 )
