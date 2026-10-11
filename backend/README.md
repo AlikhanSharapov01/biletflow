@@ -116,7 +116,7 @@ References: [Google OpenID Connect](https://developers.google.com/identity/openi
 
 ## Database relations and transactions
 
-The `biletflow` schema now has 38 tables across `0001_identity`, `0002_event_setup`, `0003_checkout`, `0004_admission`, `0005_notifications_calendar` and `0006_admin_moderation`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables and the [admission guide](ADMISSION_API.md#tables-0004_admission) the two check-in tables.
+The `biletflow` schema now has 43 tables across `0001_identity`, `0002_event_setup`, `0003_checkout`, `0004_admission`, `0005_notifications_calendar`, `0006_admin_moderation` and `0007_entry_offline`. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables and the [admission guide](ADMISSION_API.md#tables-0004_admission) the two check-in tables.
 
 | Table | Purpose and relationships |
 |---|---|

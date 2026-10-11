@@ -42,7 +42,7 @@ def router(factory, settings, principal):
     def admit(event_id: UUID, data: s.CheckInInput, ids=Depends(principal)):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
-            return check_in(db, user, ids[1], event_id, data)
+            return check_in(db, settings, user, ids[1], event_id, data)
 
     @routes.post("/check-ins/{check_in_id}/reverse", response_model=s.ReversalResult)
     def undo(check_in_id: UUID, data: s.ReversalInput, ids=Depends(principal)):

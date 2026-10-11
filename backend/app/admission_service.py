@@ -8,6 +8,8 @@ from .catalog_models import Event, EventStaff, Member, Organization, StaffPermis
 from .catalog_service import catalog_audit, event_guard, event_record
 from .checkout_models import OrderItem, Ticket
 from .checkout_schemas import QR_PREFIX
+from .entry_service import consume_confirmation
+from .offline_models import ScannerDevice
 from .security import digest, fail, now
 
 
@@ -104,13 +106,39 @@ def current_check_in(db, ticket_id):
     )
 
 
-def check_in(db, user, session_id, event_id, data):
+def ticket_by_id(db, event, ticket_id):
+    # Manual check-in picks a ticket found by attendee search; the same rules apply afterwards.
+    ticket = db.scalar(select(Ticket).where(Ticket.id == ticket_id, Ticket.event_id == event.id))
+    if not ticket:
+        fail("ticket_not_found", 404)
+    return ticket
+
+
+def scanner_device(db, user, device_id):
+    device = db.scalar(
+        select(ScannerDevice).where(
+            ScannerDevice.id == device_id, ScannerDevice.owner_user_id == user.id
+        )
+    )
+    if not device:
+        fail("device_not_found", 404)
+    if device.revoked_at is not None:
+        fail("device_revoked", 403)
+    return device
+
+
+def check_in(db, settings, user, session_id, event_id, data):
     # Authorized scanners of an unpublished or cancelled event get admission_closed, not 404.
     event = event_guard(db, user, event_id, "scan")
     admission_open(event)
-    ticket = payload_ticket(db, data.qr_payload)
+    ticket = (
+        payload_ticket(db, data.qr_payload)
+        if data.qr_payload
+        else ticket_by_id(db, event, data.ticket_id)
+    )
     if ticket.event_id != event.id:
         fail("wrong_event", 409)
+    device = scanner_device(db, user, data.device_id) if data.device_id else None
     if data.operation_id:
         earlier = db.scalar(
             select(CheckIn).where(
@@ -123,6 +151,45 @@ def check_in(db, user, session_id, event_id, data):
             if earlier.ticket_id != ticket.id or earlier.reversed_at is not None:
                 fail("operation_conflict", 409)
             return result_view(db, earlier, replayed=True)
+    current = now()
+    row = admit(
+        db,
+        settings,
+        user,
+        session_id,
+        event,
+        ticket,
+        operation_id=data.operation_id or uuid4(),
+        captured_at=data.captured_at or current,
+        source="online",
+        device_id=device.id if device else None,
+        token=data.entry_confirmation,
+        code=data.entry_code,
+    )
+    return result_view(db, row)
+
+
+def admit(
+    db,
+    settings,
+    user,
+    session_id,
+    event,
+    ticket,
+    *,
+    operation_id,
+    captured_at,
+    source,
+    device_id=None,
+    token=None,
+    code=None,
+    offline_capture=None,
+):
+    """Admit one ticket: the shared decision for online check-in and offline sync.
+
+    Raises HTTPException with a stable code when the ticket cannot be admitted. The caller's
+    transaction (or savepoint) then rolls back every write made here.
+    """
     if ticket.recipient_user_id is None:
         fail("ticket_unclaimed", 409)
     # One conditional update is the whole admission decision: of two racing scanners,
@@ -146,22 +213,29 @@ def check_in(db, user, session_id, event_id, data):
                 },
             )
         raise HTTPException(409, detail={"code": "ticket_not_valid", "status": ticket.status})
-    current = now()
+    # Consumed in this same transaction: a rejected confirmation undoes the admission above.
+    confirmation = None
+    if settings.admission_require_entry_confirmation:
+        confirmation = consume_confirmation(
+            db, settings, ticket, token, code, captured_at=offline_capture
+        )
     row = CheckIn(
         ticket_id=ticket.id,
         event_id=event.id,
+        entry_confirmation_id=confirmation.id if confirmation else None,
         scanner_user_id=user.id,
         scanner_session_id=session_id,
-        operation_id=data.operation_id or uuid4(),
-        source="online",
-        accepted_at=current,
-        captured_at=data.captured_at or current,
+        device_id=device_id,
+        operation_id=operation_id,
+        source=source,
+        accepted_at=now(),
+        captured_at=captured_at,
     )
     db.add(row)
     db.flush()
     org = db.get(Organization, event.organization_id)
     catalog_audit(db, user, "admission.checked_in", org, event, row)
-    return result_view(db, row)
+    return row
 
 
 def reverse(db, user, check_in_id, data):
@@ -175,6 +249,10 @@ def reverse(db, user, check_in_id, data):
         if error.status_code == 404:
             fail("check_in_not_found", 404)
         raise
+    return apply_reversal(db, user, event, check_in_id, data.reason.strip())
+
+
+def apply_reversal(db, user, event, check_in_id, reason):
     # Lock only after authorization so outsiders cannot block scanners on this row.
     row = db.scalar(
         select(CheckIn)
@@ -185,7 +263,6 @@ def reverse(db, user, check_in_id, data):
     if row.reversed_at is not None:
         fail("already_reversed", 409)
     row.reversed_at = now()
-    reason = data.reason.strip()
     db.add(CheckInReversal(check_in_id=row.id, actor_user_id=user.id, reason=reason))
     # A ticket refunded or cancelled after entry keeps that status; only checked_in reopens.
     db.execute(

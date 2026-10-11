@@ -1,8 +1,8 @@
 """Stage D tables: online admission (check-in) and its reversal.
 
 Follows check_in / check_in_reversal from docs/database. entry_confirmation_id and
-device_id stay nullable without foreign keys until signed-in attendee confirmation
-and scanner device registration land; operation_id is deduplicated per scanner.
+device_id are nullable (set when a confirmation or registered device was used) and, from
+0007_entry_offline, reference those tables; operation_id is deduplicated per scanner.
 """
 
 from sqlalchemy import (
@@ -18,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
+from . import offline_models  # noqa: F401  (registers tables referenced by foreign keys)
 from .models import Base
 
 
@@ -30,10 +31,10 @@ class CheckIn(Base):
         ),
         Column("ticket_id", PGUUID, nullable=False),
         Column("event_id", PGUUID, nullable=False),
-        Column("entry_confirmation_id", PGUUID, nullable=True),  # FK when entry confirmation exists
+        Column("entry_confirmation_id", PGUUID, nullable=True),
         Column("scanner_user_id", PGUUID, nullable=False),
         Column("scanner_session_id", PGUUID, nullable=False),
-        Column("device_id", PGUUID, nullable=True),  # FK when scanner devices exist
+        Column("device_id", PGUUID, nullable=True),
         Column("operation_id", PGUUID, nullable=False),
         Column("source", Text, nullable=False, server_default=text("'online'")),
         Column(
@@ -65,6 +66,24 @@ class CheckIn(Base):
             ["scanner_user_id"],
             ["biletflow.app_user.id"],
             name="fk_check_in_scanner",
+            ondelete="RESTRICT",
+            onupdate="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["entry_confirmation_id", "ticket_id", "event_id"],
+            [
+                "biletflow.entry_confirmation.id",
+                "biletflow.entry_confirmation.ticket_id",
+                "biletflow.entry_confirmation.event_id",
+            ],
+            name="fk_check_in_confirmation",
+            ondelete="RESTRICT",
+            onupdate="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["device_id", "scanner_user_id"],
+            ["biletflow.scanner_device.id", "biletflow.scanner_device.owner_user_id"],
+            name="fk_check_in_device",
             ondelete="RESTRICT",
             onupdate="RESTRICT",
         ),

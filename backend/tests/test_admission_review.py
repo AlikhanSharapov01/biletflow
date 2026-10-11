@@ -1,10 +1,13 @@
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy import func, select, update
 
 from app.admission_models import CheckIn
 from app.catalog_models import Event
 from tests.test_admission import API, free_ticket, published, scan, staff
+
+pytestmark = pytest.mark.usefixtures("no_entry_confirmation")
 
 
 def set_event(factory, f, **values):
