@@ -277,9 +277,13 @@ Implemented now:
   registered/admitted counts
 - Audit history and durable email delivery
 
-Paid checkout, paid-sales activation, payments, refunds, issued ticket PDFs, signed-in attendee
-entry confirmation, offline scanning, support, analytics and platform administration remain
-future backend work.
+- Ticket PDFs and delivery status/resend, signed-in attendee entry confirmation, scanner
+  manual search and offline package/sync
+- In-app notifications, `.ics` calendar export, support cases (REST + WebSocket) and platform
+  administration (moderation, reports, settings, CSV export)
+
+Paid checkout, paid-sales activation, payments, refunds, payouts, promo campaigns and analytics
+remain future backend work.
 
 Detailed references:
 

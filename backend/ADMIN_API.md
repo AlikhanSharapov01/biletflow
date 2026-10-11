@@ -135,6 +135,6 @@ earlier migrations.
 
 - Paid-sales suspension/reinstatement, activation inspection, payment, refund, dispute, campaign,
   job/notification and offline-conflict views (the underlying tables do not exist yet).
-- Support-case search and escalation (BF-16).
+- Admin search/inspection of support cases (escalation itself exists: `POST /support/cases/{id}/escalation`).
 - User-facing notices to affected users (BF-15); the audit trail already records each decision.
 - Public platform settings endpoint for clients.

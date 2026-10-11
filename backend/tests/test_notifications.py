@@ -396,7 +396,7 @@ def test_support_hook_creates_deduplicated_notifications(client, account, factor
     status = next(n for n in items if n["kind"] == "support_status")
     assert status["payload"] == {"version": 1, "case_id": str(case_id), "status": "resolved"}
     assert status["target"] == {"type": "support_case", "id": str(case_id)}
-    assert len(sent) == 2
+    assert sent == []  # support kinds are in-app only; the support worker sends the email
     with pytest.raises(ValueError):
         with factory.begin() as db:
             enqueue_support_notice(

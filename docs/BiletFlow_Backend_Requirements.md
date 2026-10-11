@@ -384,7 +384,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** business transaction creates notification intent -> worker renders correct template -> sends email/in-app record -> marks outcome -> retries temporary failure -> authorized user may resend appropriate delivery.
 
-**Implementation status (partial):** in-app inbox (read/unread, pagination), event updated/cancelled, ticket delivered and support reply/status fan-out through the outbox, per-recipient locale with `ru` fallback, deduplication keys and bounded email retries are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md). Payment, refund, payout and purchase-confirmation notices, resend, and the admin failure view remain with their owning modules.
+**Implementation status (partial):** in-app inbox (read/unread, pagination), event updated/cancelled, ticket delivered and support reply/status in-app notices (email for support comes from the support worker) through the outbox, per-recipient locale with `ru` fallback, deduplication keys and bounded email retries are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md). Payment, refund, payout and purchase-confirmation notices, resend, and the admin failure view remain with their owning modules.
 
 **Completion checks:** worker outage does not lose notifications; replayed payment callbacks do not create extra delivery intents; notification links enforce target-record permissions.
 

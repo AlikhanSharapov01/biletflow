@@ -150,7 +150,7 @@ The original draw.io atlas remains the full-product design baseline. This implem
 
 ## Tests
 
-Create a **separate empty PostgreSQL database whose name ends in `_test`**, owned by a test role with migration/role-creation rights. Set `TEST_DATABASE_URL` to its `postgresql+psycopg://...` URL. The suite refuses other database names and truncates all 32 implemented tables. On Windows use `127.0.0.1` rather than `localhost` in the URL; Docker publishes PostgreSQL on IPv4 only and each `localhost` connection otherwise waits for an IPv6 timeout. Never point it at a shared or valuable database.
+Create a **separate empty PostgreSQL database whose name ends in `_test`**, owned by a test role with migration/role-creation rights. Set `TEST_DATABASE_URL` to its `postgresql+psycopg://...` URL. The suite refuses other database names and truncates every implemented table. On Windows use `127.0.0.1` rather than `localhost` in the URL; Docker publishes PostgreSQL on IPv4 only and each `localhost` connection otherwise waits for an IPv6 timeout. Never point it at a shared or valuable database.
 
 ```text
 uv sync --frozen

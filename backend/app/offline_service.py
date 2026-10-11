@@ -1,7 +1,7 @@
 """BF-12: scanner devices, offline verification packages and idempotent batch sync."""
 
 import hashlib
-from datetime import timedelta
+from datetime import UTC, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -247,7 +247,7 @@ def payload_hash(package_id, op):
                 "package_id": str(package_id),
                 "sequence_number": op.sequence_number,
                 "kind": op.kind,
-                "captured_at": op.captured_at.isoformat(),
+                "captured_at": op.captured_at.astimezone(UTC).isoformat(),
                 "qr_payload": op.qr_payload,
                 "entry_confirmation": op.entry_confirmation,
                 "entry_code": op.entry_code,
@@ -271,7 +271,7 @@ def claimed_ids(op):
         try:
             claims = unverified_claims(op.entry_confirmation)
             confirmation_id = UUID(claims["cid"])
-        except (KeyError, ValueError, TypeError):
+        except (KeyError, ValueError, TypeError, AttributeError):
             pass
     return ticket_id, confirmation_id
 

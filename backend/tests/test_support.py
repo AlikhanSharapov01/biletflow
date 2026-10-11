@@ -634,3 +634,28 @@ def test_case_view_exposes_no_contact_data(client, world):
     case_id = open_case(client, w["buyer"], w["f"]).json()["case"]["id"]
     body = client.get(SUPPORT + f"/cases/{case_id}", headers=w["support"]).json()
     assert set(body["requester"]) == {"id", "display_name"}
+
+
+def test_support_reply_and_status_reach_the_in_app_inbox(client, world, factory, settings):
+    from app.notification_service import deliver_notifications_once
+
+    case_id = open_case(client, world["buyer"], world["f"]).json()["case"]["id"]
+    assert say(client, world["support"], case_id, "we are on it").status_code in (200, 201)
+    r = client.post(
+        SUPPORT + f"/cases/{case_id}/status",
+        headers=world["support"],
+        json={"status": "resolved", "reason": "done"},
+    )
+    assert r.status_code == 200, r.text
+    sent = []
+    while deliver_notifications_once(factory, settings, sent.append):
+        pass
+    items = client.get(API + "/notifications", headers=world["buyer"]).json()
+    kinds = {n["kind"] for n in items}
+    assert {"support_reply", "support_status"} <= kinds
+    support_items = [n for n in items if n["kind"].startswith("support_")]
+    assert all(n["target"] == {"type": "support_case", "id": case_id} for n in support_items)
+    assert sent == []  # in-app only: the support worker emails the link
+    # The requester's own actions never notify the requester.
+    staff_items = client.get(API + "/notifications", headers=world["support"]).json()
+    assert "support_reply" not in {n["kind"] for n in staff_items}

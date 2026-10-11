@@ -20,6 +20,7 @@ from .catalog_models import (
 from .catalog_service import event_caps, event_guard, organization_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .models import AuditLog, OutboxJob, User
+from .notification_service import enqueue_support_notice
 from .security import fail, now
 from .support_models import CaseChange, SupportCase, SupportMessage
 
@@ -179,6 +180,16 @@ def support_audit(db, user, action, case, **change):
 def notify(db, case, actor, recipients, reason, ref_id):
     """Notification intent in the business transaction; the worker emails after commit."""
     for recipient in sorted(set(recipients) - {actor.id}, key=str)[:MAX_RECIPIENTS]:
+        # In-app inbox entry (BF-15); the email below stays with the support worker.
+        enqueue_support_notice(
+            db,
+            recipient_user_id=recipient,
+            case_id=case.id,
+            change="reply" if reason == "message" else "status",
+            change_id=ref_id,
+            event_id=case.event_id,
+            status=case.status,
+        )
         db.add(
             OutboxJob(
                 event_id=case.event_id,
