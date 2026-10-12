@@ -15,6 +15,7 @@ import {
   refresh as apiRefresh,
   type Profile,
 } from "@/api/auth";
+import { setSessionExpiredHandler } from "@/api/session";
 import { clearTokens, getTokens, saveTokens } from "@/api/tokenStorage";
 
 type Status = "loading" | "signedIn" | "signedOut";
@@ -60,6 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus("signedOut");
       }
     })();
+  }, []);
+
+  // authedFetch couldn't renew the session (refresh token expired or
+  // revoked): drop to signed-out and let the (app) layout redirect to login.
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setProfile(null);
+      setStatus("signedOut");
+    });
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

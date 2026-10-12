@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { listAssignedEvents, USE_SCANNER_MOCKS, type AssignedEvent } from "@/api/scanner";
+import { listAssignedEvents, type AssignedEvent } from "@/api/scanner";
 import { useAuth } from "@/context/AuthContext";
 import { formatEventWindow } from "@/utils/eventTime";
 
@@ -74,11 +74,6 @@ export default function SelectEvent() {
           )}
         </Pressable>
       </View>
-      {USE_SCANNER_MOCKS ? (
-        <Text style={styles.demoBanner}>
-          Demo data: the scanner service isn&apos;t live yet.
-        </Text>
-      ) : null}
       <Text style={styles.heading}>Choose an event to scan</Text>
     </View>
   );
@@ -174,14 +169,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#208AEF",
-  },
-  demoBanner: {
-    backgroundColor: "#FFF4D6",
-    color: "#7A5A00",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    fontSize: 13,
   },
   heading: {
     fontSize: 24,
