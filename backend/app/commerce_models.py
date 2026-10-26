@@ -346,8 +346,78 @@ class ProviderEvent(Base):
             "status <> 'processed' OR processed_at IS NOT NULL", name="provider_event_ck5"
         ),
         _fk(["payment_attempt_id"], ["biletflow.payment_attempt.id"], "fk_provider_event_payment"),
+        _fk(
+            ["refund_attempt_id"],
+            ["biletflow.refund_attempt.id"],
+            "fk_provider_event_refund",
+            use_alter=True,
+        ),
+    )
+
+
+class Refund(Base):
+    # One logical full refund per captured charge (database specification C11).
+    __table__ = Table(
+        "refund",
+        Base.metadata,
+        _id(),
+        Column("payment_attempt_id", PGUUID, nullable=False),
+        Column("event_id", PGUUID, nullable=False),
+        Column("reason", Text, nullable=False),
+        Column("status", Text, nullable=False, server_default=text("'requested'")),
+        Column("amount_minor", BigInteger, nullable=False),
+        Column("requested_by_user_id", PGUUID, nullable=True),
+        Column("approved_by_user_id", PGUUID, nullable=True),
+        Column("succeeded_at", DateTime(timezone=True), nullable=True),
+        _created(),
+        UniqueConstraint("payment_attempt_id", name="refund_uq1"),
+        UniqueConstraint("id", "event_id", name="refund_uq2"),
+        CheckConstraint(
+            "reason IN ('voluntary','event_cancelled','late_payment','duplicate_charge',"
+            "'blocked_fulfillment')",
+            name="refund_ck1",
+        ),
+        CheckConstraint(
+            "status IN ('requested','pending','failed','succeeded')", name="refund_ck2"
+        ),
+        CheckConstraint("amount_minor > 0", name="refund_ck3"),
+        CheckConstraint("(status = 'succeeded') = (succeeded_at IS NOT NULL)", name="refund_ck4"),
+        _fk(
+            ["payment_attempt_id", "event_id"],
+            ["biletflow.payment_attempt.id", "biletflow.payment_attempt.event_id"],
+            "fk_refund_payment",
+        ),
+        _fk(["requested_by_user_id"], ["biletflow.app_user.id"], "fk_refund_requested_by"),
+        _fk(["approved_by_user_id"], ["biletflow.app_user.id"], "fk_refund_approved_by"),
+    )
+
+
+class RefundAttempt(Base):
+    __table__ = Table(
+        "refund_attempt",
+        Base.metadata,
+        _id(),
+        Column("refund_id", PGUUID, nullable=False),
+        Column("attempt_number", Integer, nullable=False),
+        Column("provider_refund_id", Text, nullable=True),
+        Column("provider_request_key", Text, nullable=False),
+        Column("status", Text, nullable=False, server_default=text("'pending'")),
+        Column("sent_at", DateTime(timezone=True), nullable=True),
+        Column("resolved_at", DateTime(timezone=True), nullable=True),
+        Column("safe_result", JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+        _created(),
+        UniqueConstraint("refund_id", "attempt_number", name="refund_attempt_uq1"),
+        UniqueConstraint("provider_request_key", name="refund_attempt_uq2"),
+        CheckConstraint("attempt_number > 0", name="refund_attempt_ck1"),
+        CheckConstraint(
+            "status IN ('pending','succeeded','failed','unknown')", name="refund_attempt_ck2"
+        ),
+        CheckConstraint("jsonb_typeof(safe_result) = 'object'", name="refund_attempt_ck3"),
+        _fk(["refund_id"], ["biletflow.refund.id"], "fk_refund_attempt_refund"),
     )
 
 
 Index("ix_payment_attempt_intent", PaymentAttempt.intent_id, PaymentAttempt.created_at)
 Index("ix_provider_event_attempt", ProviderEvent.payment_attempt_id)
+Index("ix_provider_event_refund", ProviderEvent.refund_attempt_id)
+Index("ix_refund_status", Refund.status, Refund.created_at)

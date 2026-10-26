@@ -16,7 +16,7 @@ from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
-from .payments_service import initialize_once, process_received_once
+from .payments_service import dispatch_refund_once, initialize_once, process_received_once
 from .security import challenge_value, now
 
 HOLD_SWEEP_SECONDS = 15
@@ -186,7 +186,11 @@ def main():
                 except Exception:
                     pass  # the next pass retries; expiry state lives in the database
             try:
-                busy = initialize_once(factory) | process_received_once(factory)
+                busy = (
+                    initialize_once(factory)
+                    | dispatch_refund_once(factory)
+                    | process_received_once(factory, settings)
+                )
             except Exception:
                 busy = False  # retried next loop; payment state lives in the database
             if not deliver_once(factory, settings) and not busy:

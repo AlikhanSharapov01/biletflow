@@ -52,8 +52,10 @@ same commit as the hold or order (`idempotency_record`, migration `0005b_commerc
 ## Rules enforced by the server
 
 - The event must be visible to the caller (published, not moderated, private events need an access
-  grant), inside its registration window, and each ticket type must be visible, free and inside its
-  sales window. Paid types return `409 paid_checkout_unavailable` until paid checkout exists.
+  grant), inside its registration window, and each ticket type must be visible and inside its
+  sales window. Paid types need active paid sales (`409 paid_sales_inactive` otherwise) and are
+  bought through `POST /holds/{hold_id}/checkout` ([PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md));
+  `/confirm` returns `409 payment_required` for them.
 - Event capacity, ticket-type quantity, `per_order_limit` and at most three live (not yet
   overdue) holds per account are checked while the event row is locked. Overdue holds on other
   events never block a buyer. The partial unique index `uq_live_seat` prevents two live
@@ -85,5 +87,5 @@ the payment and file-storage tables exist.
 
 ## Not yet implemented
 
-Paid checkout and payments, promo codes, PDF tickets and organizer cancellation of free
-registrations.
+Promo codes, PDF tickets and organizer cancellation of registrations. Paid checkout is described
+in [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md).

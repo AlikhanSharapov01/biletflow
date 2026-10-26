@@ -100,6 +100,26 @@ class OrderItemView(BaseModel):
     ticket: IssuedTicket | None = None
 
 
+class PaymentSummary(BaseModel):
+    id: UUID
+    status: str
+    charged_minor: int
+    environment: str
+    provider_payment_id: str | None
+    simulated: bool
+
+
+class RefundSummary(BaseModel):
+    id: UUID
+    payment_attempt_id: UUID
+    reason: str
+    status: str
+    amount_minor: int
+    latest_attempt_id: UUID | None
+    latest_attempt_status: str | None
+    simulated: bool
+
+
 class OrderView(BaseModel):
     id: UUID
     event_id: UUID
@@ -113,7 +133,10 @@ class OrderView(BaseModel):
     processing_fee_minor: int
     confirmed_at: datetime | None
     created_at: datetime
+    quote_expires_at: datetime
     items: list[OrderItemView]
+    payment: PaymentSummary | None = None
+    refunds: list[RefundSummary] = []
 
 
 class ClaimResult(BaseModel):

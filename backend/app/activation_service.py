@@ -17,7 +17,14 @@ from .commerce_models import (
     VerificationRecord,
 )
 from .models import AuditLog
-from .payments_service import ENVIRONMENT, TARGETS, attempt_view, latest_attempt, new_attempt
+from .payments_service import (
+    ENVIRONMENT,
+    TARGETS,
+    attempt_view,
+    create_refund,
+    latest_attempt,
+    new_attempt,
+)
 from .security import fail, now
 
 # Proposed demonstration defaults, not confirmed product tariffs. They are saved on each
@@ -278,7 +285,7 @@ def service_audit(db, event, action, target, change=None):
     )
 
 
-def lock_activation(db, intent):
+def lock_activation(db, event, intent):
     return db.scalar(
         select(SalesActivation)
         .where(SalesActivation.id == intent.activation_id)
@@ -287,8 +294,7 @@ def lock_activation(db, intent):
     )
 
 
-def activation_paid(db, activation, intent, attempt, matches):
-    event = db.get(Event, activation.event_id)
+def activation_paid(db, settings, event, activation, intent, attempt, matches):
     org = db.get(Organization, activation.organization_id)
     found, missing = prerequisites(db, event)
     eligible = (
@@ -299,9 +305,10 @@ def activation_paid(db, activation, intent, attempt, matches):
         and event.publication_state != "cancelled"
     )
     if not eligible:
-        # The charge is kept on record; B3 adds the refund obligation for such captures.
+        # Captured money that cannot activate is kept on record and refunded in full.
         attempt.safe_result = attempt.safe_result | {"retained": "not_fulfilled"}
-        service_audit(db, event, "paid_sales.extra_charge_retained", attempt)
+        already = activation.status in ("active", "suspended")
+        create_refund(db, event, attempt, "duplicate_charge" if already else "blocked_fulfillment")
         return
     activation.payout_profile_id = found["payout_profile"].id
     activation.verification_record_id = found["identity_verification"].id

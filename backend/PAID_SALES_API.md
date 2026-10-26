@@ -54,17 +54,19 @@ Simulator body: `{"outcome": "pending" | "succeeded" | "failed", "external_event
 "amount_minor"?: n}`. Reusing an `external_event_id` with the same body is a harmless duplicate;
 with a different body it returns `409 provider_event_conflict`. A failure never downgrades a
 payment that already succeeded. A success with a wrong amount is recorded but never activates.
-A success for an activation that is already active is recorded as an extra charge; the refund
-obligation for such charges comes with B3.
+A success for an activation that is already active is recorded as an extra charge and refunded
+in full (`duplicate_charge`); a success that cannot activate is refunded as
+`blocked_fulfillment`. Refund handling is described in [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md).
 
 The simulator answers `404` unless `ENVIRONMENT` is `development` or `test`, and only for the
 account that started the payment.
 
 ## Effect on checkout
 
-Holds for a paid ticket type return `409 paid_sales_inactive` until the event's activation is
-`active` (including while suspended), then `409 paid_checkout_unavailable` until paid orders
-(B3) land. Free ticket types keep working regardless of paid-sales state.
+Holds for a paid ticket type return `409 paid_sales_inactive` unless the event's activation is
+`active` (a suspended activation counts as inactive). Paid orders are described in
+[PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md). Free ticket types keep working regardless of
+paid-sales state.
 
 ## Suspension
 

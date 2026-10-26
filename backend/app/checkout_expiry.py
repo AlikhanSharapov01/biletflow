@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from .catalog_models import Allocation, Event, Hold
 from .catalog_service import changed
+from .checkout_models import TicketOrder
 from .models import AuditLog
 from .security import now
 
@@ -18,6 +19,15 @@ def close_hold(db, hold, status, reason):
     current = now()
     hold.status = status
     hold.closed_at = current
+    order = db.scalar(
+        select(TicketOrder)
+        .where(TicketOrder.hold_id == hold.id, TicketOrder.status == "pending")
+        .with_for_update()
+    )
+    if order:
+        # An unpaid order dies with its hold; a payment arriving later is refunded, never
+        # fulfilled from released stock.
+        order.status = "expired" if status == "expired" else "cancelled"
     for allocation in db.scalars(
         select(Allocation)
         .where(Allocation.hold_id == hold.id, Allocation.state == "held")

@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import func, select
 
 from app.activation_service import TERMS_VERSION, reinstate, suspend
-from app.commerce_models import PaymentAttempt, ProviderEvent, SalesActivation
+from app.commerce_models import PaymentAttempt, ProviderEvent, Refund, SalesActivation
 from app.models import AuditLog
 from app.payments_service import initialize_once, process_received_once, receive
 from app.security import challenge_value
@@ -145,6 +145,8 @@ def test_failed_retried_duplicate_and_late_payments(client, setup, factory):
         activation = db.scalar(select(SalesActivation))
         assert activation.paid_attempt_id == UUID(second)
         assert db.get(PaymentAttempt, UUID(first)).safe_result["retained"] == "not_fulfilled"
+        late_refund = db.scalar(select(Refund).where(Refund.payment_attempt_id == UUID(first)))
+        assert late_refund.reason == "duplicate_charge" and late_refund.amount_minor == 500000
         activated = select(func.count(AuditLog.id)).where(AuditLog.action == "paid_sales.activated")
         assert db.scalar(activated) == 1
         assert db.scalar(select(func.count(PaymentAttempt.id))) == 2
@@ -180,10 +182,8 @@ def test_activation_is_per_event_and_never_copied(client, setup, account):
     assert set(status_b["missing"]) == {"terms", "activation_fee"}
 
     _, _, buyer = account()
-    # Event A passes the activation gate (paid orders arrive with the next increment).
-    assert (
-        hold_paid(client, a, buyer, paid_a).json()["detail"]["code"] == "paid_checkout_unavailable"
-    )
+    # Only the activated event accepts holds for its paid ticket type.
+    assert hold_paid(client, a, buyer, paid_a).status_code == 201
     assert hold_paid(client, b, buyer, paid_b).json()["detail"]["code"] == "paid_sales_inactive"
 
     copy = client.post(API + f"/events/{a['event']['id']}/duplicate", headers=a["headers"])
@@ -244,7 +244,7 @@ def test_suspension_blocks_paid_sales_until_reinstated(client, setup, account, f
     assert checklist(client, f).json()["status"] == "active"
 
 
-def test_retries_initialization_and_interrupted_processing(client, setup, factory):
+def test_retries_initialization_and_interrupted_processing(client, setup, factory, settings):
     f = published(client, setup)
     ready(client, f)
     key = str(uuid4())
@@ -259,13 +259,13 @@ def test_retries_initialization_and_interrupted_processing(client, setup, factor
     # A notification stored before the process stopped is applied by the worker later.
     receive(
         factory,
-        UUID(first),
         "evt-recovered",
         {"outcome": "succeeded", "amount_minor": 500000, "currency": "KZT"},
+        payment_attempt_id=UUID(first),
     )
     assert checklist(client, f).json()["status"] == "pending"
-    assert process_received_once(factory) is True
-    assert process_received_once(factory) is False
+    assert process_received_once(factory, settings) is True
+    assert process_received_once(factory, settings) is False
     assert checklist(client, f).json()["status"] == "active"
     with factory() as db:
         assert db.scalar(select(ProviderEvent.status)) == "processed"

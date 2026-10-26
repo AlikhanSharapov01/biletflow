@@ -10,7 +10,9 @@ from .catalog_service import active_allocations, catalog_audit, changed, event_g
 from .checkout_expiry import close_expired, close_hold
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .checkout_schemas import HOLD_MINUTES, MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
+from .commerce_models import PaymentAttempt, PaymentIntent, Refund
 from .models import OutboxJob
+from .payments_service import attempt_view, latest_attempt, refund_view
 from .security import challenge_value, digest, fail, now
 
 
@@ -63,16 +65,19 @@ def lock_types(db, event, type_ids):
     return rows
 
 
+def is_paid(ticket):
+    return ticket.kind != "free" or ticket.price_minor != 0
+
+
 def saleable_types(db, event, rows):
     paid_status = None
     for ticket in rows.values():
         if not ticket or ticket.is_hidden:
             fail("ticket_type_unavailable", 409)
-        if ticket.kind != "free" or ticket.price_minor != 0:
+        if is_paid(ticket):
             paid_status = paid_status or paid_sales_status(db, event.id)
             if paid_status != "active":
                 fail("paid_sales_inactive", 409)
-            fail("paid_checkout_unavailable", 409)
         if not ticket.sales_open_at <= now() < ticket.sales_close_at:
             fail("sales_window_closed", 409)
     return rows
@@ -262,51 +267,45 @@ def release(db, user, hold_id):
     return hold
 
 
-def confirm_free(db, settings, user, hold_id, data):
-    event, hold, types = locked_hold(db, user, hold_id, with_types=True)
-    existing = db.scalar(select(TicketOrder).where(TicketOrder.hold_id == hold.id))
-    if existing:
-        # A repeated confirmation returns the same order and never a second ticket set,
-        # but only for the same recipients; a changed request must not look accepted.
-        if not same_recipients(db, existing, data):
-            fail("confirmation_conflict", 409)
-        return existing
-    if hold.status != "active" or hold.expires_at <= now():
-        fail("hold_expired", 409)
-    saleable_event(event)
+def held_allocations(db, hold):
     allocations = list(
         db.scalars(
             select(Allocation)
             .where(Allocation.hold_id == hold.id)
             .order_by(Allocation.created_at, Allocation.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
     )
     if not allocations or any(row.state != "held" for row in allocations):
         fail("hold_expired", 409)
-    recipients = {row.allocation_id: row for row in data.recipients}
-    if recipients.keys() != {row.id for row in allocations}:
+    return allocations
+
+
+def matched_recipients(data, allocations):
+    if {row.allocation_id for row in data.recipients} != {row.id for row in allocations}:
         fail("recipient_allocation_mismatch", 422)
-    saleable_types(db, event, types)
+
+
+def new_order(db, event, hold, user, status, totals, rate_bps):
     venue = db.get(Venue, event.venue_id)
-    confirmed = now()
     order = TicketOrder(
         event_id=event.id,
         buyer_user_id=user.id,
         hold_id=hold.id,
-        status="confirmed",
+        status=status,
         currency="KZT",
-        gross_minor=0,
+        gross_minor=totals["gross"],
         discount_minor=0,
-        payable_minor=0,
-        processing_fee_minor=0,
-        processing_rate_bps=0,
+        payable_minor=totals["gross"],
+        processing_fee_minor=totals["fee"],
+        processing_rate_bps=rate_bps,
         policy_snapshot={
             "refund_allowed": event.refund_allowed,
             "refund_cutoff_at": event.refund_cutoff_at.isoformat()
             if event.refund_cutoff_at
             else None,
-            "processing_rate_bps": 0,
+            "processing_rate_bps": rate_bps,
             "hold_minutes": HOLD_MINUTES,
         },
         event_snapshot={
@@ -320,51 +319,67 @@ def confirm_free(db, settings, user, hold_id, data):
             "venue_city": venue.city,
         },
         quote_expires_at=hold.expires_at,
-        confirmed_at=confirmed,
+        confirmed_at=now() if status == "confirmed" else None,
     )
     db.add(order)
     db.flush()
+    return order
+
+
+def add_items(db, event, hold, order, data, allocations, types, prices):
+    """One order item per allocation with immutable price, recipient and seat snapshots.
+
+    `prices` lists (face_value_minor, processing_fee_minor) in recipient order.
+    """
     by_id = {row.id: row for row in allocations}
     # Unit numbers follow the buyer's recipient order, which is stable across retries.
-    for unit, recipient in enumerate(data.recipients, 1):
+    for unit, (recipient, (face, fee)) in enumerate(zip(data.recipients, prices, strict=True), 1):
         allocation = by_id[recipient.allocation_id]
-        ticket_type = types[allocation.ticket_type_id]
         seat = db.get(EventSeat, allocation.event_seat_id) if allocation.event_seat_id else None
-        item = OrderItem(
-            order_id=order.id,
-            event_id=event.id,
-            hold_id=hold.id,
-            ticket_type_id=allocation.ticket_type_id,
-            allocation_id=allocation.id,
-            unit_number=unit,
-            ticket_type_name=ticket_type.name,
-            recipient_name=recipient.name.strip(),
-            recipient_email=recipient.email,
-            face_value_minor=0,
-            discount_minor=0,
-            paid_minor=0,
-            processing_fee_minor=0,
-            seat_snapshot=(
-                {
-                    "section_label": seat.section_label,
-                    "row_label": seat.row_label,
-                    "seat_label": seat.seat_label,
-                }
-                if seat
-                else None
-            ),
+        db.add(
+            OrderItem(
+                order_id=order.id,
+                event_id=event.id,
+                hold_id=hold.id,
+                ticket_type_id=allocation.ticket_type_id,
+                allocation_id=allocation.id,
+                unit_number=unit,
+                ticket_type_name=types[allocation.ticket_type_id].name,
+                recipient_name=recipient.name.strip(),
+                recipient_email=recipient.email,
+                face_value_minor=face,
+                discount_minor=0,
+                paid_minor=face,
+                processing_fee_minor=fee,
+                seat_snapshot=(
+                    {
+                        "section_label": seat.section_label,
+                        "row_label": seat.row_label,
+                        "seat_label": seat.seat_label,
+                    }
+                    if seat
+                    else None
+                ),
+            )
         )
-        db.add(item)
-        db.flush()
+    db.flush()
+
+
+def issue_tickets(db, settings, event, order, buyer):
+    """TX-08 issuance shared by free and paid fulfilment: one ticket per order item."""
+    issued = order.confirmed_at
+    for item in db.scalars(
+        select(OrderItem).where(OrderItem.order_id == order.id).order_by(OrderItem.unit_number)
+    ):
         ticket_id = uuid4()
-        claimed = recipient.email == user.email
+        claimed = item.recipient_email == buyer.email
         db.add(
             Ticket(
                 id=ticket_id,
                 event_id=event.id,
                 order_item_id=item.id,
-                recipient_user_id=user.id if claimed else None,
-                claimed_at=confirmed if claimed else None,
+                recipient_user_id=buyer.id if claimed else None,
+                claimed_at=issued if claimed else None,
                 status="valid",
                 qr_token_hash=digest(challenge_value(settings, QR_PURPOSE, ticket_id)),
             )
@@ -377,10 +392,36 @@ def confirm_free(db, settings, user, hold_id, data):
                 payload={"version": 1, "ticket_id": str(ticket_id), "order_id": str(order.id)},
             )
         )
-        allocation.state = "sold"
+        db.get(Allocation, item.allocation_id).state = "sold"
+    hold = db.get(Hold, order.hold_id)
     hold.status = "consumed"
-    hold.closed_at = confirmed
+    hold.closed_at = issued
     changed(event)
+
+
+def confirm_free(db, settings, user, hold_id, data):
+    event, hold, types = locked_hold(db, user, hold_id, with_types=True)
+    existing = db.scalar(select(TicketOrder).where(TicketOrder.hold_id == hold.id))
+    if existing:
+        if existing.payable_minor > 0:
+            fail("payment_required", 409)
+        # A repeated confirmation returns the same order and never a second ticket set,
+        # but only for the same recipients; a changed request must not look accepted.
+        if not same_recipients(db, existing, data):
+            fail("confirmation_conflict", 409)
+        return existing
+    if hold.status != "active" or hold.expires_at <= now():
+        fail("hold_expired", 409)
+    saleable_event(event)
+    allocations = held_allocations(db, hold)
+    matched_recipients(data, allocations)
+    saleable_types(db, event, types)
+    if any(is_paid(ticket) for ticket in types.values()):
+        # The free endpoint never charges money; paid baskets use POST /holds/{id}/checkout.
+        fail("payment_required", 409)
+    order = new_order(db, event, hold, user, "confirmed", {"gross": 0, "fee": 0}, 0)
+    add_items(db, event, hold, order, data, allocations, types, [(0, 0)] * len(allocations))
+    issue_tickets(db, settings, event, order, user)
     org = db.get(Organization, event.organization_id)
     catalog_audit(db, user, "checkout.order_confirmed", org, event, order)
     return order
@@ -461,6 +502,22 @@ def attendee_page(db, event, limit, offset):
     ]
 
 
+def payment_details(db, order):
+    intent = db.scalar(select(PaymentIntent).where(PaymentIntent.order_id == order.id))
+    if not intent:
+        return {"payment": None, "refunds": []}
+    refunds = db.scalars(
+        select(Refund)
+        .join(PaymentAttempt, PaymentAttempt.id == Refund.payment_attempt_id)
+        .where(PaymentAttempt.intent_id == intent.id)
+        .order_by(Refund.created_at, Refund.id)
+    )
+    return {
+        "payment": attempt_view(latest_attempt(db, intent.id)),
+        "refunds": [refund_view(db, refund) for refund in refunds],
+    }
+
+
 def order_view(db, settings, order, viewer):
     items = []
     for item in db.scalars(
@@ -497,5 +554,7 @@ def order_view(db, settings, order, viewer):
         "processing_fee_minor": order.processing_fee_minor,
         "confirmed_at": order.confirmed_at,
         "created_at": order.created_at,
+        "quote_expires_at": order.quote_expires_at,
         "items": items,
+        **payment_details(db, order),
     }

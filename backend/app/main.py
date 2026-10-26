@@ -506,10 +506,12 @@ def create_app(settings: Settings | None = None):
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
     from .organization_api import router as organization_router
+    from .paid_checkout_api import router as paid_checkout_router
 
     app.include_router(organization_router(factory, settings, principal))
     app.include_router(event_router(factory, settings, principal))
     app.include_router(checkout_router(factory, settings, principal))
     app.include_router(admission_router(factory, settings, principal))
     app.include_router(activation_router(factory, settings, principal))
+    app.include_router(paid_checkout_router(factory, settings, principal))
     return app
