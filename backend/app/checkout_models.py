@@ -86,6 +86,14 @@ class TicketOrder(Base):
         UniqueConstraint("id", "event_id", name="ticket_order_uq3"),
         UniqueConstraint("id", "event_id", "hold_id", name="ticket_order_uq4"),
         ForeignKeyConstraint(
+            ["fulfillment_payment_attempt_id", "event_id"],
+            ["biletflow.payment_attempt.id", "biletflow.payment_attempt.event_id"],
+            name="fk_ticket_order_fulfillment",
+            ondelete="RESTRICT",
+            onupdate="RESTRICT",
+            use_alter=True,
+        ),
+        ForeignKeyConstraint(
             ["hold_id", "event_id", "buyer_user_id"],
             [
                 "biletflow.checkout_hold.id",

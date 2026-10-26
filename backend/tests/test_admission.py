@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
@@ -13,6 +14,9 @@ from app.models import AuditLog
 from app.security import challenge_value, now
 
 API = "/api/v1"
+
+# These tests cover admission itself; entry confirmation has its own tests.
+pytestmark = pytest.mark.usefixtures("no_entry_confirmation")
 
 
 def published(client, setup, factory, open_now=True):

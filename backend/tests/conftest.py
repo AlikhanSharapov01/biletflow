@@ -62,6 +62,12 @@ def app(settings):
 
 
 @pytest.fixture
+def no_entry_confirmation(app):
+    """Run the original (pre-0005) admission behavior: no attendee confirmation required."""
+    app.state.settings.admission_require_entry_confirmation = False
+
+
+@pytest.fixture
 def client(app):
     with TestClient(app) as client:
         yield client
@@ -164,3 +170,9 @@ def setup(client, account, factory):
         }
 
     return create
+
+
+@pytest.fixture(autouse=True)
+def private_storage(settings, tmp_path, monkeypatch):
+    """Every test gets its own storage root; nothing is written under backend/var."""
+    monkeypatch.setattr(settings, "storage_root", str(tmp_path / "storage"))

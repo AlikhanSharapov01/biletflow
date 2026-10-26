@@ -9,16 +9,26 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, or_, select
 
+from . import all_models  # noqa: F401
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
+from .checkout_expiry import sweep_expired_holds
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
+from .notification_service import deliver_notifications_once
+from .payments_service import dispatch_refund_once, initialize_once, process_received_once
 from .security import challenge_value, now
+from .storage import storage_from_settings
+from .support_models import SupportCase
+from .support_service import case_roles
+from .ticket_file_service import ensure_ticket_pdf
+
+HOLD_SWEEP_SECONDS = 15
 
 
-def ticket_message(db, settings, identifier, ticket_id):
+def ticket_message(db, settings, identifier, ticket_id, pdf=None):
     ticket = db.get(Ticket, ticket_id)
     if not ticket or ticket.status != "valid":
         return None
@@ -46,20 +56,61 @@ def ticket_message(db, settings, identifier, ticket_id):
         f"Sign in with {item.recipient_email} to view your QR code:",
         f"{settings.frontend_url.rstrip('/')}/tickets/{ticket.id}",
     ]
+    if pdf:
+        lines += ["", "Your printable ticket is attached (A4, grayscale-safe)."]
     message = EmailMessage()
     message["From"], message["To"] = settings.email_from, item.recipient_email
     message["Subject"] = f"Your BiletFlow ticket: {event['title']}"
     message["Message-ID"] = f"<{identifier}@biletflow.local>"
     message.set_content("\n".join(lines))
+    if pdf:
+        data, filename = pdf
+        message.add_attachment(data, maintype="application", subtype="pdf", filename=filename)
     return message
 
 
-def deliver_once(factory, settings, send=None):
+SUPPORT_SUBJECTS = {
+    "case_opened": "New support case",
+    "message": "New message on a support case",
+    "status": "Support case status changed",
+    "assignment": "Support case assignment changed",
+    "escalation": "Support case escalated to the platform",
+}
+
+
+def support_message(db, settings, identifier, payload):
+    # Sent only while the recipient still has a relationship to the case; no message text or
+    # subject leaves the system by email.
+    user = db.get(User, UUID(payload["recipient_user_id"]))
+    case = db.get(SupportCase, UUID(payload["case_id"]))
+    if not user or not case or user.status != "active" or user.email_verified_at is None:
+        return None
+    if not case_roles(db, user, case):
+        return None
+    subject = SUPPORT_SUBJECTS.get(payload["reason"], "Support case update")
+    message = EmailMessage()
+    message["From"], message["To"] = settings.email_from, user.email
+    message["Subject"] = f"BiletFlow: {subject}"
+    message["Message-ID"] = f"<{identifier}@biletflow.local>"
+    message.set_content(
+        f"{subject}.\n\nSign in to read it:\n{settings.frontend_url.rstrip('/')}/support/cases/{case.id}"
+    )
+    return message
+
+
+def deliver_once(factory, settings, send=None, storage=None):
     with factory.begin() as db:
         job = db.scalar(
             select(OutboxJob)
             .where(
-                OutboxJob.kind.in_(["auth_email", "staff_invite_email", "ticket_delivery_email"]),
+                OutboxJob.kind.in_(
+                    [
+                        "auth_email",
+                        "staff_invite_email",
+                        "ticket_delivery_email",
+                        "support_email",
+                    ]
+                ),
                 or_(
                     and_(OutboxJob.status == "pending", OutboxJob.available_at <= now()),
                     and_(OutboxJob.status == "leased", OutboxJob.lease_until <= now()),
@@ -80,6 +131,15 @@ def deliver_once(factory, settings, send=None):
         job.attempt_count += 1
         identifier, lease, payload, kind = job.id, job.lease_token, job.payload, job.kind
     try:
+        pdf = None
+        if kind == "ticket_delivery_email":
+            try:
+                storage = storage or storage_from_settings(settings)
+                pdf = ensure_ticket_pdf(factory, settings, storage, UUID(payload["ticket_id"]))
+            except Exception:
+                # The email still goes out; the ticket link works without the attachment.
+                # No exception text is kept: it may echo paths or addresses.
+                pdf = None
         with factory() as db:
             token = (
                 db.get(AccountToken, UUID(payload["account_token_id"]))
@@ -137,8 +197,10 @@ def deliver_once(factory, settings, send=None):
                         message.set_content(
                             f"You are invited to join {org.name}. Sign in with this email to accept.\n\n{link}\n\nExpires: {invitation.expires_at.isoformat()}"
                         )
+            if kind == "support_email":
+                message = support_message(db, settings, identifier, payload)
             if kind == "ticket_delivery_email":
-                message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]))
+                message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]), pdf)
         if message:
             if send:
                 send(message)
@@ -172,9 +234,26 @@ def deliver_once(factory, settings, send=None):
 def main():
     settings = Settings()
     engine, factory = database(settings.database_url.get_secret_value())
+    storage = storage_from_settings(settings)
+    next_sweep = 0.0
     try:
         while True:
-            if not deliver_once(factory, settings):
+            if time.monotonic() >= next_sweep:
+                next_sweep = time.monotonic() + HOLD_SWEEP_SECONDS
+                try:
+                    sweep_expired_holds(factory)
+                except Exception:
+                    pass  # the next pass retries; expiry state lives in the database
+            try:
+                busy = (
+                    initialize_once(factory)
+                    | dispatch_refund_once(factory)
+                    | process_received_once(factory, settings)
+                )
+            except Exception:
+                busy = False  # retried next loop; payment state lives in the database
+            worked = deliver_once(factory, settings, storage=storage)
+            if not (deliver_notifications_once(factory, settings) or worked or busy):
                 time.sleep(2)
     finally:
         engine.dispose()
