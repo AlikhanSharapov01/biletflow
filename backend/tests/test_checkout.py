@@ -108,8 +108,8 @@ def test_free_registration_issues_tickets_claims_and_delivers(
         pass
     tickets = [m for m in sent if m["Subject"].startswith("Your BiletFlow ticket")]
     assert sorted(m["To"] for m in tickets) == sorted([buyer_email, friend_email])
-    assert own["ticket"]["id"] in "".join(m.get_content() for m in tickets)
-    assert "biletflow:ticket:" not in "".join(m.get_content() for m in tickets)
+    assert own["ticket"]["id"] in "".join(m.get_body().get_content() for m in tickets)
+    assert "biletflow:ticket:" not in "".join(m.get_body().get_content() for m in tickets)
     with factory() as db:
         assert set(
             db.scalars(select(OutboxJob.status).where(OutboxJob.kind == "ticket_delivery_email"))

@@ -27,7 +27,7 @@ class DeliveryView(BaseModel):
     next_resend_at: datetime | None
 
 
-def router(factory, settings, principal):
+def router(factory, settings, principal, storage):
     routes = APIRouter(prefix="/api/v1/tickets", tags=["ticket-documents"])
 
     @routes.get(
@@ -39,7 +39,7 @@ def router(factory, settings, principal):
         with factory() as db:
             user, _ = valid_session(db, *ids)
             ticket, item, order = recipient_ticket(db, user, ticket_id)
-            content = ticket_pdf(settings, ticket, item, order)
+            content = ticket_pdf(settings, ticket, item, order, db=db, storage=storage)
         return Response(
             content,
             media_type="application/pdf",

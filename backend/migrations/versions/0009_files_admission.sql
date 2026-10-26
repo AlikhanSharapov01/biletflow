@@ -42,3 +42,8 @@ CREATE TABLE biletflow.support_attachment (
 	CONSTRAINT fk_support_attachment_file FOREIGN KEY (file_id) REFERENCES biletflow.stored_file (id) ON DELETE RESTRICT ON UPDATE RESTRICT
 );
 CREATE INDEX ix_support_attachment_message ON biletflow.support_attachment (message_id, created_at);
+
+-- BF-10: stored ticket PDFs. ticket.pdf_file_id already exists since 0003 as a plain UUID
+-- (the foreign key was deferred until stored_file existed); only the constraint is added here.
+ALTER TABLE biletflow.ticket
+	ADD CONSTRAINT fk_ticket_pdf_file FOREIGN KEY (pdf_file_id) REFERENCES biletflow.stored_file (id) ON DELETE RESTRICT ON UPDATE RESTRICT;

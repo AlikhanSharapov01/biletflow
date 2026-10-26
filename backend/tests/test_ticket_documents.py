@@ -236,7 +236,7 @@ def test_resend_enqueues_one_audited_job_without_rotating_token(
     while deliver_once(factory, settings, send=sent.append):
         pass
     assert len(sent) == 2
-    body = sent[1].get_content()
+    body = sent[1].get_body().get_content()
     assert sent[1]["To"] == email
     assert f"/tickets/{ticket['id']}" in body and "biletflow:ticket:" not in body
     assert "token" not in body.lower()

@@ -77,8 +77,25 @@ normally (a checked-in ticket is marked `VALID (checked in)`).
   (`429 rate_limited`).
 * `409 ticket_not_valid` unless the ticket is `valid`.
 
+## Stored PDFs and the email attachment
+
+The ticket delivery email carries the PDF as an `application/pdf` attachment named
+`biletflow-ticket-<id>.pdf`, with the line "Your printable ticket is attached (A4,
+grayscale-safe)." The worker renders the PDF once, between leasing the outbox job and sending,
+stores it privately (`stored_file`, purpose `ticket_pdf`, status `clean`, key
+`tickets/<ticket_id>/<file_id>.pdf`) and records it in `ticket.pdf_file_id`. Resends and
+`GET /tickets/{ticket_id}/pdf` reuse the stored copy; if the object is missing it is re-rendered
+under the same key. The status rules are unchanged (`409 ticket_not_valid` outside
+`valid`/`checked_in`, checked before storage is touched). If rendering or storage fails the email
+is still sent without the attachment, and the ticket link keeps working. The PDF contains the QR
+code, so it is never public: it is only reachable through the authenticated endpoint above or the
+recipient's own mailbox.
+
+Web client handoff: keep using `GET /tickets/{ticket_id}/pdf` for the download button; nothing
+changes in the request or response. Do not expect the attachment on every email (it is
+best-effort), and do not link to storage paths.
+
 ## Not covered
 
-PDFs are rendered on request; stored PDF files (`ticket.pdf_file_id`), background PDF
-generation and attaching the PDF to the email are not implemented. In-app notifications
-(BF-15) and the recipient-invitation email for non-account holders remain future work.
+In-app notifications (BF-15) and the recipient-invitation email for non-account holders remain
+future work.
