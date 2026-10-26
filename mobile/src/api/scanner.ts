@@ -45,6 +45,15 @@ export type CheckInResult = {
   replayed: boolean;
 };
 
+export type ReversalResult = {
+  check_in_id: string;
+  ticket_id: string;
+  // "valid" again, unless the ticket was cancelled or refunded after entry.
+  ticket_status: string;
+  reversed_at: string;
+  reason: string;
+};
+
 // A scan always ends in one of these; business rejections are results, not
 // exceptions, so the scan screen can show each one.
 export type CheckInOutcome =
@@ -132,4 +141,27 @@ export async function checkIn(
     checkedInAt: detail.checked_in_at ?? undefined,
     ticketStatus: detail.status,
   };
+}
+
+const REVERSAL_MESSAGES: Record<string, string> = {
+  check_in_not_found: "This admission couldn't be found.",
+  already_reversed: "This admission has already been undone.",
+  event_not_found: "You're no longer assigned to scan this event.",
+  permission_denied: "You don't have permission to undo admissions for this event.",
+  invalid_input: "Enter a reason for undoing this admission.",
+};
+
+// Undoes an accidental admission; the ticket can then be scanned again. Needs
+// the reverse_checkin capability, which the event list doesn't expose, so a
+// scanner without it only finds out from the permission_denied error here.
+export async function reverseCheckIn(checkInId: string, reason: string): Promise<ReversalResult> {
+  const response = await authedFetch(`/scanner/check-ins/${encodeURIComponent(checkInId)}/reverse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!response.ok) {
+    throw await friendlyError(response, REVERSAL_MESSAGES);
+  }
+  return response.json() as Promise<ReversalResult>;
 }
