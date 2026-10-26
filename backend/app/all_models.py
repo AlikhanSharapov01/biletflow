@@ -9,6 +9,7 @@ from . import (  # noqa: F401
     admission_models,
     catalog_models,
     checkout_models,
+    file_models,
     models,
     notification_models,
     offline_models,

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .schemas import Input
 
@@ -12,6 +12,14 @@ Category = Literal[
 Status = Literal["open", "in_progress", "waiting_for_customer", "resolved"]
 Body = Field(min_length=1, max_length=5000, pattern=r"\S")
 Reason = Field(min_length=1, max_length=500, pattern=r"\S")
+# The configured per-message limit (ATTACHMENT_MAX_PER_MESSAGE <= 20) is enforced by the API.
+AttachmentIds = Field(default_factory=list, max_length=20)
+
+
+def distinct(ids):
+    if len(set(ids)) != len(ids):
+        raise ValueError("Attachments must be distinct")
+    return ids
 
 
 class CaseCreate(Input):
@@ -25,6 +33,9 @@ class CaseCreate(Input):
     event_id: UUID | None = None
     order_id: UUID | None = None
     ticket_id: UUID | None = None
+    attachment_ids: list[UUID] = AttachmentIds
+
+    _distinct = field_validator("attachment_ids")(distinct)
 
     @model_validator(mode="after")
     def coherent(self):
@@ -44,6 +55,10 @@ class CaseCreate(Input):
 class MessageCreate(Input):
     client_message_id: UUID
     body: str = Body
+    # Files uploaded earlier through POST /cases/{id}/attachments.
+    attachment_ids: list[UUID] = AttachmentIds
+
+    _distinct = field_validator("attachment_ids")(distinct)
 
 
 class StatusChange(Input):
@@ -93,6 +108,30 @@ class CasePage(BaseModel):
     offset: int
 
 
+class AttachmentView(BaseModel):
+    id: UUID
+    file_id: UUID
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    created_at: datetime
+
+
+class UploadedFile(BaseModel):
+    file_id: UUID
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    status: str
+    # Until then the file can be linked to a message of the same case by its uploader.
+    expires_at: datetime
+
+
+class DownloadLink(BaseModel):
+    url: str
+    expires_at: datetime
+
+
 class MessageView(BaseModel):
     seq: int
     type: Literal["message"] = "message"
@@ -104,6 +143,7 @@ class MessageView(BaseModel):
     body: str
     created_at: datetime
     replayed: bool = False
+    attachments: list[AttachmentView] = []
 
 
 class ChangeView(BaseModel):

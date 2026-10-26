@@ -43,6 +43,7 @@ from .service import (
     rotate_refresh,
     valid_session,
 )
+from .storage import storage_from_settings
 
 bearer = HTTPBearer(auto_error=False)
 REFRESH_COOKIE = "biletflow_refresh"
@@ -62,6 +63,7 @@ def create_app(settings: Settings | None = None):
     app = FastAPI(title="BiletFlow API", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.engine, app.state.sessions = settings, engine, factory
     app.state.google = GoogleClient(settings)
+    app.state.storage = storage_from_settings(settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -521,5 +523,5 @@ def create_app(settings: Settings | None = None):
     app.include_router(notification_router(factory, settings, principal))
     app.include_router(admin_router(factory, settings, principal))
     app.include_router(offline_router(factory, settings, principal))
-    app.include_router(support_router(factory, settings, principal))
+    app.include_router(support_router(factory, settings, principal, storage=app.state.storage))
     return app
