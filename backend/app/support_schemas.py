@@ -33,9 +33,6 @@ class CaseCreate(Input):
     event_id: UUID | None = None
     order_id: UUID | None = None
     ticket_id: UUID | None = None
-    attachment_ids: list[UUID] = AttachmentIds
-
-    _distinct = field_validator("attachment_ids")(distinct)
 
     @model_validator(mode="after")
     def coherent(self):

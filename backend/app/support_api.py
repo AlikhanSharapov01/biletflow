@@ -86,12 +86,9 @@ def router(factory, settings, principal, storage):
 
     @routes.post("/cases", response_model=s.CaseCreated, status_code=201)
     def create_case(data: s.CaseCreate, response: Response, ids=Depends(principal)):
-        check_attachment_count(settings, data)
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
             case, first, replayed = open_case(db, user, data)
-            if not replayed:
-                attach_files(db, user, case, first, data.attachment_ids)
             roles = case_roles(db, user, case)
             result = {
                 "case": case_views(db, [(case, roles)])[0],
@@ -254,7 +251,8 @@ def router(factory, settings, principal, storage):
             media_type=mime_type,
             headers={
                 "Content-Disposition": content_disposition(filename),
-                "Cache-Control": "private, no-store",
+                # The global middleware in main.py sets the same value on every response.
+                "Cache-Control": "no-store",
                 "X-Content-Type-Options": "nosniff",
             },
         )
