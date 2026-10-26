@@ -214,6 +214,24 @@ def test_missing_object_is_rerendered_under_the_same_key(issued, factory, settin
     assert rows[0].sha256 == hashlib.sha256(storage.get(row.object_key)).hexdigest()
 
 
+def test_retired_stored_file_is_replaced_not_resurrected(issued, factory, settings, storage):
+    ticket, _ = issued
+    messages = []
+    deliver_all(factory, settings, storage, messages)
+    [old] = stored_rows(factory)
+    with factory.begin() as db:
+        db.execute(update(StoredFile).where(StoredFile.id == old.id).values(status="deleted"))
+    resend_job(factory, ticket["id"])
+    deliver_all(factory, settings, storage, messages)
+    rows = {r.id: r for r in stored_rows(factory)}
+    [new] = [r for r in rows.values() if r.id != old.id]
+    assert len(rows) == 2 and new.object_key != old.object_key and new.status == "clean"
+    assert rows[old.id].status == "deleted"
+    with factory() as db:
+        assert db.get(Ticket, ticket["id"]).pdf_file_id == new.id
+    assert ticket["id"] in pdf_text(attachments(ticket_email(messages)[-1])[0].get_content())
+
+
 def test_refunded_ticket_gets_no_email_and_no_file(issued, factory, settings, storage):
     ticket, _ = issued
     with factory.begin() as db:
