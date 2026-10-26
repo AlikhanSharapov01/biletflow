@@ -2,7 +2,7 @@
 // check-in contract in backend/ADMISSION_API.md. Every state has its own
 // icon and title, not just a colour, so it reads at a glance in a dark venue.
 
-import type { CheckInOutcome } from "@/api/scanner";
+import type { CheckInOutcome, ReversalResult } from "@/api/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
 
 export type Tone = "admitted" | "warning" | "rejected" | "offline";
@@ -110,5 +110,21 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
     icon: "✕",
     title: known?.title ?? "Can't admit",
     lines: known?.lines ?? ["Something went wrong checking this ticket. Try scanning again."],
+  };
+}
+
+// After an accidental admission is undone. The ticket normally goes back to
+// valid; one cancelled or refunded after entry keeps that status instead.
+export function describeReversal(result: ReversalResult, attendeeName: string): OutcomeView {
+  return {
+    tone: "warning",
+    icon: "↺",
+    title: "Admission undone",
+    lines: [
+      attendeeName,
+      result.ticket_status === "valid"
+        ? "The ticket can be scanned again."
+        : (TICKET_STATUS[result.ticket_status] ?? "This ticket can't be used for entry."),
+    ],
   };
 }

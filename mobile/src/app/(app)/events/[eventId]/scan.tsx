@@ -3,19 +3,34 @@ import { randomUUID } from "expo-crypto";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   checkIn,
   getAdmissionCounts,
   getAssignedEvent,
+  reverseCheckIn,
   type AdmissionCounts,
   type AssignedEvent,
 } from "@/api/scanner";
 import { SessionExpiredError } from "@/api/session";
 import { CameraPermissionGate } from "@/components/CameraPermissionGate";
-import { describeOutcome, type OutcomeView, type Tone } from "@/scanner/outcomes";
+import {
+  describeOutcome,
+  describeReversal,
+  type OutcomeView,
+  type Tone,
+} from "@/scanner/outcomes";
 import { formatEventWindow } from "@/utils/eventTime";
 
 // One physical scan. Kept so "Retry" can resend the same operation_id, which
@@ -26,10 +41,25 @@ type PendingScan = {
   capturedAt: string;
 };
 
+// The admission this screen just made, kept so it can be undone.
+type Admission = {
+  checkInId: string;
+  attendeeName: string;
+};
+
+type ResultPhase = {
+  name: "result";
+  view: OutcomeView;
+  retryable: boolean;
+  admission?: Admission;
+};
+
 type Phase =
   | { name: "scanning" }
   | { name: "checking" }
-  | { name: "result"; view: OutcomeView; retryable: boolean };
+  | ResultPhase
+  // Asking for a reason before undoing; Cancel returns to `result`.
+  | { name: "undo"; result: ResultPhase; admission: Admission };
 
 function feedback(tone: Tone) {
   if (Platform.OS === "web") return;
@@ -50,6 +80,9 @@ export default function Scan() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [counts, setCounts] = useState<AdmissionCounts | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: "scanning" });
+  const [reason, setReason] = useState("");
+  const [undoing, setUndoing] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
   // The camera fires onBarcodeScanned for every frame the code is in view;
   // a ref (not state) blocks repeats synchronously until "Scan next".
   const locked = useRef(false);
@@ -102,8 +135,41 @@ export default function Scan() {
       view.lines.push("Confirmed after retry.");
     }
     feedback(view.tone);
-    setPhase({ name: "result", view, retryable: outcome.kind === "network" });
+    setPhase({
+      name: "result",
+      view,
+      retryable: outcome.kind === "network",
+      admission:
+        outcome.kind === "admitted"
+          ? { checkInId: outcome.check_in_id, attendeeName: outcome.attendee_name }
+          : undefined,
+    });
     if (outcome.kind === "admitted") refreshCounts();
+  }
+
+  function startUndo(result: ResultPhase) {
+    if (!result.admission) return;
+    setReason("");
+    setUndoError(null);
+    setPhase({ name: "undo", result, admission: result.admission });
+  }
+
+  async function confirmUndo(admission: Admission) {
+    setUndoing(true);
+    setUndoError(null);
+    try {
+      const result = await reverseCheckIn(admission.checkInId, reason.trim());
+      const view = describeReversal(result, admission.attendeeName);
+      feedback(view.tone);
+      setPhase({ name: "result", view, retryable: false });
+      refreshCounts();
+    } catch (err) {
+      // Session couldn't be renewed: AuthContext is already redirecting to login.
+      if (err instanceof SessionExpiredError) return;
+      setUndoError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUndoing(false);
+    }
   }
 
   function handleScanned({ data }: BarcodeScanningResult) {
@@ -126,6 +192,9 @@ export default function Scan() {
     setPhase({ name: "scanning" });
     locked.current = false;
   }
+
+  // The server requires a non-blank reason (backend ReversalInput).
+  const canUndo = reason.trim().length > 0 && !undoing;
 
   if (loadError || event === null) {
     return (
@@ -165,7 +234,10 @@ export default function Scan() {
         ) : null}
       </View>
 
-      <View style={styles.cameraArea}>
+      <KeyboardAvoidingView
+        style={styles.cameraArea}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <CameraPermissionGate>
           <View style={styles.camera}>
             <CameraView
@@ -206,14 +278,62 @@ export default function Scan() {
                     <Text style={styles.panelButtonText}>Retry</Text>
                   </Pressable>
                 ) : null}
+                {phase.admission ? (
+                  <Pressable
+                    style={[styles.panelButton, styles.panelButtonSecondary]}
+                    onPress={() => startUndo(phase)}
+                  >
+                    <Text style={styles.panelButtonText}>Undo</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable style={styles.panelButton} onPress={scanNext}>
                   <Text style={styles.panelButtonText}>Scan next</Text>
                 </Pressable>
               </View>
             </View>
           ) : null}
+
+          {phase.name === "undo" ? (
+            <View style={[styles.panel, styles.panelUndo]}>
+              <Text style={styles.panelTitle}>Undo admission?</Text>
+              <Text style={styles.panelLine}>
+                {phase.admission.attendeeName} will be able to enter again with this ticket.
+              </Text>
+              <TextInput
+                style={styles.reasonInput}
+                placeholder="Reason, e.g. scanned by mistake"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                value={reason}
+                onChangeText={setReason}
+                editable={!undoing}
+                maxLength={500}
+                autoFocus
+              />
+              {undoError ? <Text style={styles.panelError}>{undoError}</Text> : null}
+              <View style={styles.panelActions}>
+                <Pressable
+                  style={[styles.panelButton, styles.panelButtonSecondary]}
+                  onPress={() => setPhase(phase.result)}
+                  disabled={undoing}
+                >
+                  <Text style={styles.panelButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.panelButton, !canUndo && styles.panelButtonDisabled]}
+                  onPress={() => confirmUndo(phase.admission)}
+                  disabled={!canUndo}
+                >
+                  {undoing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.panelButtonText}>Undo admission</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
         </CameraPermissionGate>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -346,6 +466,26 @@ const styles = StyleSheet.create({
   },
   panelButtonSecondary: {
     backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  panelButtonDisabled: {
+    opacity: 0.5,
+  },
+  panelUndo: {
+    backgroundColor: "#333",
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#fff",
+    marginTop: 6,
+  },
+  panelError: {
+    color: "#FCA5A5",
+    fontSize: 14,
   },
   panelButtonText: {
     color: "#fff",
