@@ -18,11 +18,13 @@ from .db import database
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .security import challenge_value, now
+from .storage import storage_from_settings
 from .support_models import SupportCase
 from .support_service import case_roles
+from .ticket_file_service import ensure_ticket_pdf
 
 
-def ticket_message(db, settings, identifier, ticket_id):
+def ticket_message(db, settings, identifier, ticket_id, pdf=None):
     ticket = db.get(Ticket, ticket_id)
     if not ticket or ticket.status != "valid":
         return None
@@ -50,11 +52,16 @@ def ticket_message(db, settings, identifier, ticket_id):
         f"Sign in with {item.recipient_email} to view your QR code:",
         f"{settings.frontend_url.rstrip('/')}/tickets/{ticket.id}",
     ]
+    if pdf:
+        lines += ["", "Your printable ticket is attached (A4, grayscale-safe)."]
     message = EmailMessage()
     message["From"], message["To"] = settings.email_from, item.recipient_email
     message["Subject"] = f"Your BiletFlow ticket: {event['title']}"
     message["Message-ID"] = f"<{identifier}@biletflow.local>"
     message.set_content("\n".join(lines))
+    if pdf:
+        data, filename = pdf
+        message.add_attachment(data, maintype="application", subtype="pdf", filename=filename)
     return message
 
 
@@ -87,7 +94,7 @@ def support_message(db, settings, identifier, payload):
     return message
 
 
-def deliver_once(factory, settings, send=None):
+def deliver_once(factory, settings, send=None, storage=None):
     with factory.begin() as db:
         job = db.scalar(
             select(OutboxJob)
@@ -120,6 +127,15 @@ def deliver_once(factory, settings, send=None):
         job.attempt_count += 1
         identifier, lease, payload, kind = job.id, job.lease_token, job.payload, job.kind
     try:
+        pdf = None
+        if kind == "ticket_delivery_email":
+            try:
+                storage = storage or storage_from_settings(settings)
+                pdf = ensure_ticket_pdf(factory, settings, storage, UUID(payload["ticket_id"]))
+            except Exception:
+                # The email still goes out; the ticket link works without the attachment.
+                # No exception text is kept: it may echo paths or addresses.
+                pdf = None
         with factory() as db:
             token = (
                 db.get(AccountToken, UUID(payload["account_token_id"]))
@@ -180,7 +196,7 @@ def deliver_once(factory, settings, send=None):
             if kind == "support_email":
                 message = support_message(db, settings, identifier, payload)
             if kind == "ticket_delivery_email":
-                message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]))
+                message = ticket_message(db, settings, identifier, UUID(payload["ticket_id"]), pdf)
         if message:
             if send:
                 send(message)
@@ -214,9 +230,10 @@ def deliver_once(factory, settings, send=None):
 def main():
     settings = Settings()
     engine, factory = database(settings.database_url.get_secret_value())
+    storage = storage_from_settings(settings)
     try:
         while True:
-            worked = deliver_once(factory, settings)
+            worked = deliver_once(factory, settings, storage=storage)
             if not (deliver_notifications_once(factory, settings) or worked):
                 time.sleep(2)
     finally:
