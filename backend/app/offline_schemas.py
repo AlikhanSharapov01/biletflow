@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from .schemas import Input
 
@@ -114,3 +114,12 @@ class SyncResult(BaseModel):
 
 class ResolveInput(Input):
     note: str = Field(min_length=1, max_length=1000, pattern=r"\S")
+    # Also undo the admission the conflicting upload ran into, in the same action.
+    reverse_existing_check_in: bool = False
+    reversal_reason: str | None = Field(default=None, min_length=1, max_length=500, pattern=r"\S")
+
+    @model_validator(mode="after")
+    def reason_with_reversal(self):
+        if self.reverse_existing_check_in and self.reversal_reason is None:
+            raise ValueError("reversal_reason is required to reverse the existing check-in")
+        return self

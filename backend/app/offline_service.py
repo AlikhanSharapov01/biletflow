@@ -619,7 +619,7 @@ def list_operations(db, event, status, limit, offset):
     return [operation_view(db, row) for row in db.scalars(query)]
 
 
-def resolve_conflict(db, user, conflict_id, note):
+def resolve_conflict(db, user, conflict_id, data):
     conflict = db.get(SyncConflict, conflict_id)
     if not conflict:
         fail("sync_conflict_not_found", 404)
@@ -630,6 +630,9 @@ def resolve_conflict(db, user, conflict_id, note):
         if error.status_code == 404:
             fail("sync_conflict_not_found", 404)
         raise
+    if data.reverse_existing_check_in:
+        # The same event, so no 404 is possible here: a 403 means the capability is missing.
+        event_guard(db, user, event.id, "reverse_checkin")
     conflict = db.scalar(
         select(SyncConflict)
         .where(SyncConflict.id == conflict_id)
@@ -638,9 +641,18 @@ def resolve_conflict(db, user, conflict_id, note):
     )
     if conflict.status == "resolved":
         fail("already_resolved", 409)
+    reversed_id = None
+    if data.reverse_existing_check_in:
+        if conflict.existing_check_in_id is None:
+            fail("no_admission_to_reverse", 409)
+        # Same transaction: a failed reversal (e.g. already_reversed) leaves the conflict open.
+        reversal = apply_reversal(
+            db, user, event, conflict.existing_check_in_id, data.reversal_reason.strip()
+        )
+        reversed_id = reversal["check_in_id"]
     conflict.status, conflict.resolved_by_user_id = "resolved", user.id
-    conflict.resolution_note, conflict.resolved_at = note.strip(), now()
+    conflict.resolution_note, conflict.resolved_at = data.note.strip(), now()
     db.flush()
     org = db.get(Organization, event.organization_id)
     catalog_audit(db, user, "admission.sync_conflict_resolved", org, event, conflict)
-    return conflict_view(db, conflict)
+    return {**conflict_view(db, conflict), "reversed_check_in_id": reversed_id}

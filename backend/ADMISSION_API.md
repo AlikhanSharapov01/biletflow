@@ -23,6 +23,7 @@ Anyone else gets `404 event_not_found`; staff without the capability get `403 pe
 | `GET /events/{event_id}` | One assigned event; `404` when it is not assigned |
 | `GET /events/{event_id}/counts` | `{"event_id", "registered", "admitted"}` |
 | `POST /events/{event_id}/check-ins` | Admit a ticket by its QR payload |
+| `POST /events/{event_id}/verifications` | Preview a check-in without admitting or consuming anything |
 | `POST /check-ins/{check_in_id}/reverse` | Undo an admission; body `{"reason": "..."}` |
 
 Event shape:
@@ -77,6 +78,40 @@ of the two is required (`422` otherwise). Manual check-in follows every rule of 
 Resending the same `operation_id` for the same ticket returns the original admission with
 `"replayed": true`, so a scanner can retry after a network timeout without seeing a false
 "already used".
+
+## Verification preview
+
+`POST /scanner/events/{event_id}/verifications` (capability `scan`, 60 requests a minute per
+account) answers "what would a check-in do?" for the same body as a check-in without
+`operation_id` and `captured_at`. It is only a preview: it writes no check-in, consumes no entry
+confirmation, changes no ticket and leaves no audit entry, and it never guarantees a later
+admission (another scanner may admit the ticket first, or the confirmation may expire). Send the
+real check-in to admit. At most one of `entry_confirmation` and `entry_code` may be sent.
+
+The checks and their order are those of a check-in (the confirmation check is shared code), so a
+rejection carries the code a real check-in would return, but the HTTP status is `200`:
+
+```json
+{
+  "result": "would_admit | rejected",
+  "code": "null, or the check-in code, e.g. already_checked_in",
+  "ticket_id": "...", "event_id": "...", "attendee_name": "Aru A.", "ticket_type_name": "...",
+  "seat": null, "ticket_status": "valid | checked_in | ...",
+  "checked_in_at": "set only for already_checked_in",
+  "confirmation": "valid | not_required | missing | expired | used | invalid | sign_in_required",
+  "checked_at": "server time of the preview"
+}
+```
+
+`confirmation` is `not_required` when `ADMISSION_REQUIRE_ENTRY_CONFIRMATION=false`, `missing` when
+none was sent, `sign_in_required` when the attendee's session ended, and `null` when no ticket was
+reached (for example `admission_not_open`, or `wrong_event`, which also hides the ticket's fields).
+Duplicates are reported first: an already admitted ticket gives `already_checked_in` even if its
+confirmation is spent, while `confirmation` still shows the confirmation state. Unknown or
+forbidden things keep their status: `404 event_not_found`, `403 permission_denied`,
+`404 ticket_not_found`, `422 not_a_ticket_qr`, `404`/`403` device errors, and `422
+invalid_confirmation` for a malformed or forged token. `429 rate_limited` after 60 previews a
+minute.
 
 ## Entry confirmation (BF-11)
 
@@ -133,8 +168,19 @@ the device are provisional until synced.
 | `POST /scanner/events/{event_id}/offline-packages` | Body `{device_id}`; scan permission; returns the signed package |
 | `POST /scanner/offline/sync` | Upload queued operations (1-200 per call) |
 | `GET /events/{event_id}/sync-conflicts?status=open` (or `resolved`) | Organizer review list (capability `attendees`) |
-| `POST /sync-conflicts/{id}/resolve` | `{note}`; records the gate outcome, never adds an entry |
+| `POST /sync-conflicts/{id}/resolve` | `{note}`; records the gate outcome, never adds an entry. Optional `reverse_existing_check_in` with `reversal_reason` also reverses the conflicting admission, see below |
 | `GET /events/{event_id}/offline-operations?status=` | Every uploaded operation, including rejected ones |
+
+### Reversing from the conflict review
+
+`POST /sync-conflicts/{id}/resolve` accepts `reverse_existing_check_in: true` together with a
+`reversal_reason` (1-500 characters, `422` when missing). The conflicting admission
+(`existing_check_in`) is then reversed in the same transaction as the resolution: the check-in is
+marked reversed, the ticket returns to `valid` and the audit log gets `admission.reversed` and
+`admission.sync_conflict_resolved`. The caller needs `attendees` and `reverse_checkin`
+(`403 permission_denied` without the latter). `409 no_admission_to_reverse` when the conflict has
+no existing admission, `409 already_reversed` when it was reversed already (the conflict then
+stays open). The response adds `reversed_check_in_id` (`null` when nothing was reversed).
 
 ### Package
 
@@ -249,4 +295,3 @@ rejected.
 
 - Offline manifest in object storage (`stored_file`); it is generated per request.
 - Real-time pushes of revocations to connected scanners; devices pull `refreshed` on sync.
-- Reversing an accepted entry from the conflict review screen (use the reverse endpoint).
