@@ -2,6 +2,7 @@ import { Slot } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 function Gate() {
   const { status } = useAuth();
@@ -22,7 +23,9 @@ function Gate() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <Gate />
+      <ToastProvider>
+        <Gate />
+      </ToastProvider>
     </AuthProvider>
   );
 }
