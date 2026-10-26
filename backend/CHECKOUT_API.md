@@ -47,7 +47,7 @@ client generates once per user action and reuses on retry.
 Keys are scoped to the signed-in account and the operation, and remembered for 24 hours. The
 server takes a transaction-scoped advisory lock on (account, operation, key) before any other
 lock, so concurrent duplicates wait and then replay. Only completed results are recorded, in the
-same commit as the hold or order (`idempotency_record`, migration `0005b_commerce`).
+same commit as the hold or order (`idempotency_record`, migration `0010_commerce`).
 
 ## Rules enforced by the server
 

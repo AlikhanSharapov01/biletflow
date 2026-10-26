@@ -4,8 +4,8 @@ from pathlib import Path
 
 from alembic import op
 
-revision = "0006b_paid_activation"
-down_revision = "0005b_commerce"
+revision = "0011_paid_activation"
+down_revision = "0010_commerce"
 branch_labels = None
 depends_on = None
 

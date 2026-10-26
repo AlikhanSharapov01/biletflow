@@ -1,4 +1,4 @@
-"""Commerce tables owned by the checkout/payments package (migrations 0005b and later).
+"""Commerce tables owned by the checkout/payments package (migrations 0010 and later).
 
 Every financial row here is a simulation or provider-sandbox record; no card data is stored.
 """

@@ -74,7 +74,7 @@ paid-sales state.
 platform-admin module. There is deliberately no public endpoint until that module is integrated;
 reinstatement rechecks every prerequisite and the successful fee payment.
 
-## Tables (`0006b_paid_activation`)
+## Tables (`0011_paid_activation`)
 
 | Table | Purpose |
 |---|---|
