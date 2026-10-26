@@ -86,7 +86,7 @@ account) answers "what would a check-in do?" for the same body as a check-in wit
 `operation_id` and `captured_at`. It is only a preview: it writes no check-in, consumes no entry
 confirmation, changes no ticket and leaves no audit entry, and it never guarantees a later
 admission (another scanner may admit the ticket first, or the confirmation may expire). Send the
-real check-in to admit. At most one of `entry_confirmation` and `entry_code` may be sent.
+real check-in to admit.
 
 The checks and their order are those of a check-in (the confirmation check is shared code), so a
 rejection carries the code a real check-in would return, but the HTTP status is `200`:
@@ -174,7 +174,7 @@ the device are provisional until synced.
 ### Reversing from the conflict review
 
 `POST /sync-conflicts/{id}/resolve` accepts `reverse_existing_check_in: true` together with a
-`reversal_reason` (1-500 characters, `422` when missing). The conflicting admission
+`reversal_reason` (1-500 characters, `422` when missing, and `422` when given without the flag). The conflicting admission
 (`existing_check_in`) is then reversed in the same transaction as the resolution: the check-in is
 marked reversed, the ticket returns to `valid` and the audit log gets `admission.reversed` and
 `admission.sync_conflict_resolved`. The caller needs `attendees` and `reverse_checkin`

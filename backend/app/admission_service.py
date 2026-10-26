@@ -200,7 +200,7 @@ def confirmation_state(error, token, code):
     reported = error.detail["code"]
     if reported == "sign_in_required":
         return "sign_in_required" if token or code else "missing"
-    return CONFIRMATION_STATES[reported]
+    return CONFIRMATION_STATES.get(reported, "invalid")
 
 
 def verify(db, settings, user, event_id, data):

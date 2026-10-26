@@ -51,11 +51,8 @@ class CheckInInput(TicketReference):
 
 
 class VerificationInput(TicketReference):
-    @model_validator(mode="after")
-    def one_confirmation(self):
-        if self.entry_confirmation is not None and self.entry_code is not None:
-            raise ValueError("Provide at most one of entry_confirmation or entry_code")
-        return self
+    # Accepts exactly what a check-in accepts, so the preview can predict it.
+    pass
 
 
 class VerificationResult(BaseModel):
