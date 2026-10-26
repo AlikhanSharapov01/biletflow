@@ -43,6 +43,7 @@ from .service import (
     rotate_refresh,
     valid_session,
 )
+from .storage import storage_from_settings
 
 bearer = HTTPBearer(auto_error=False)
 REFRESH_COOKIE = "biletflow_refresh"
@@ -62,11 +63,12 @@ def create_app(settings: Settings | None = None):
     app = FastAPI(title="BiletFlow API", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.engine, app.state.sessions = settings, engine, factory
     app.state.google = GoogleClient(settings)
+    app.state.storage = storage_from_settings(settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
     )
 
@@ -502,16 +504,32 @@ def create_app(settings: Settings | None = None):
         return pair(response, session, raw)
 
     from .activation_api import router as activation_router
+    from .admin_api import router as admin_router
     from .admission_api import router as admission_router
+    from .admission_history_api import router as admission_history_router
+    from .calendar_api import router as calendar_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
+    from .notification_api import router as notification_router
+    from .offline_api import router as offline_router
     from .organization_api import router as organization_router
     from .paid_checkout_api import router as paid_checkout_router
+    from .support_api import router as support_router
+    from .ticket_document_api import router as ticket_document_router
 
     app.include_router(organization_router(factory, settings, principal))
     app.include_router(event_router(factory, settings, principal))
     app.include_router(checkout_router(factory, settings, principal))
+    app.include_router(
+        ticket_document_router(factory, settings, principal, storage=app.state.storage)
+    )
     app.include_router(admission_router(factory, settings, principal))
+    app.include_router(admission_history_router(factory, settings, principal))
+    app.include_router(calendar_router(factory, settings, principal))
+    app.include_router(notification_router(factory, settings, principal))
+    app.include_router(admin_router(factory, settings, principal))
+    app.include_router(offline_router(factory, settings, principal))
+    app.include_router(support_router(factory, settings, principal, storage=app.state.storage))
     app.include_router(activation_router(factory, settings, principal))
     app.include_router(paid_checkout_router(factory, settings, principal))
     return app

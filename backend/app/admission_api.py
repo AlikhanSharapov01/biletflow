@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from . import admission_schemas as s
 from .admission_service import (
@@ -10,12 +10,23 @@ from .admission_service import (
     scanner_event,
     scanner_event_query,
     scanner_event_view,
+    verify,
 )
 from .catalog_models import Event, Venue
-from .service import valid_session
+from .service import rate_limit, valid_session
+
+# Previews are cheap reads that scanners repeat for every attendee in the queue: 60 a minute per
+# account (the shared limiter's window is rate_window_seconds). The per-address bucket is wider
+# because a whole venue shares one network address.
+PREVIEW_PER_ACCOUNT = 60
+PREVIEW_PER_ADDRESS = 600
 
 
 def router(factory, settings, principal):
+    preview_limits = settings.model_copy(
+        update={"rate_identity_limit": PREVIEW_PER_ACCOUNT, "rate_ip_limit": PREVIEW_PER_ADDRESS}
+    )
+
     routes = APIRouter(prefix="/api/v1/scanner", tags=["admission"])
 
     @routes.get("/events", response_model=list[s.ScannerEvent])
@@ -42,7 +53,27 @@ def router(factory, settings, principal):
     def admit(event_id: UUID, data: s.CheckInInput, ids=Depends(principal)):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
-            return check_in(db, user, ids[1], event_id, data)
+            return check_in(db, settings, user, ids[1], event_id, data)
+
+    @routes.post("/events/{event_id}/verifications", response_model=s.VerificationResult)
+    def verification(
+        event_id: UUID, data: s.VerificationInput, request: Request, ids=Depends(principal)
+    ):
+        """Preview a check-in: same checks as check-ins, but nothing is admitted or consumed.
+
+        A preview never guarantees a later admission; a rejection is a 200 whose ``code`` is
+        the one a real check-in would return.
+        """
+        rate_limit(
+            factory,
+            preview_limits,
+            request.client.host if request.client else "unknown",
+            "scanner_verification",
+            str(ids[0]),
+        )
+        with factory() as db:
+            user, _ = valid_session(db, *ids)
+            return verify(db, settings, user, event_id, data)
 
     @routes.post("/check-ins/{check_in_id}/reverse", response_model=s.ReversalResult)
     def undo(check_in_id: UUID, data: s.ReversalInput, ids=Depends(principal)):
