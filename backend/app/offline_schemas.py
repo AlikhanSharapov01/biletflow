@@ -122,4 +122,6 @@ class ResolveInput(Input):
     def reason_with_reversal(self):
         if self.reverse_existing_check_in and self.reversal_reason is None:
             raise ValueError("reversal_reason is required to reverse the existing check-in")
+        if not self.reverse_existing_check_in and self.reversal_reason is not None:
+            raise ValueError("reversal_reason is only allowed with reverse_existing_check_in")
         return self

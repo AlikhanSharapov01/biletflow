@@ -154,10 +154,16 @@ def test_confirmation_states(client, setup, account, factory, settings):
     r = preview(client, f, scanner, qr_payload=payload, entry_confirmation=foreign["token"])
     assert r.status_code == 200 and r.json()["code"] == "invalid_confirmation"
     assert r.json()["confirmation"] == "invalid"
+    # Both given is accepted like a check-in: the token wins over the code.
     both = preview(
-        client, f, scanner, qr_payload=payload, entry_confirmation="x", entry_code="12345678"
+        client,
+        f,
+        scanner,
+        qr_payload=payload,
+        entry_confirmation=old["token"],
+        entry_code="12345678",
     )
-    assert both.status_code == 422
+    assert both.status_code == 200 and both.json()["confirmation"] == "used"
     assert_untouched(factory, ticket)
 
 
@@ -272,6 +278,8 @@ def test_conflict_reversal_needs_permission_reason_and_an_open_admission(
 
     r = client.post(url, headers=reviewer, json={**base, "reversal_reason": "Mistake"})
     assert r.status_code == 403 and detail(r) == "permission_denied"
+    stray = {"note": "n", "reversal_reason": "Mistake"}
+    assert client.post(url, headers=f["headers"], json=stray).status_code == 422
     for bad in ({}, {"reversal_reason": "  "}, {"reversal_reason": "x" * 501}):
         r = client.post(url, headers=f["headers"], json={**base, **bad})
         assert r.status_code == 422, r.text
