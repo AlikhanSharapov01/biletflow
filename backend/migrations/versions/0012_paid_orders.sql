@@ -1,5 +1,5 @@
 -- Commerce package B3: simulated paid orders and the compensation refund path.
--- Adds the refund obligation/attempt tables and the foreign keys deferred since 0003/0006b.
+-- Adds the refund obligation/attempt tables and the foreign keys deferred since 0003/0011.
 
 CREATE TABLE biletflow.refund (
 	id UUID DEFAULT gen_random_uuid() NOT NULL,

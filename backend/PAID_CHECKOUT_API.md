@@ -90,7 +90,7 @@ cd backend
 uv run python ../tools/smoke_paid_checkout.py
 ```
 
-## Tables (`0007b_paid_orders`)
+## Tables (`0012_paid_orders`)
 
 | Table | Purpose |
 |---|---|
