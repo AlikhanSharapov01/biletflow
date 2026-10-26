@@ -102,13 +102,14 @@ def issue_confirmation(db, settings, user, session_id, ticket_id):
     }
 
 
-def consume_confirmation(db, settings, ticket, token, code, *, captured_at=None):
-    """Validate and consume the confirmation for this ticket, or fail with a stable code.
+def inspect_confirmation(db, settings, ticket, token, code, *, captured_at=None):
+    """Read-only half of consume_confirmation: return the usable confirmation or fail.
 
-    Runs inside the admission transaction, so a failure rolls the admission back and a success
-    commits admission and consumption together. ``captured_at`` is the device-reported time
-    for an offline upload: expiry is then judged against it (with slack) and the live session
-    check is skipped, because a disconnected device could not have known about a later logout.
+    Raises the stable failure codes in their fixed order and writes nothing, so the scanner
+    verification preview and the real admission cannot disagree about a confirmation.
+    ``captured_at`` is the device-reported time for an offline upload: expiry is then judged
+    against it (with slack) and the live session check is skipped, because a disconnected
+    device could not have known about a later logout.
     """
     if not token and not code:
         fail("sign_in_required", 409)
@@ -155,6 +156,17 @@ def consume_confirmation(db, settings, ticket, token, code, *, captured_at=None)
             fail("confirmation_expired", 409)
         if captured_at < row.created_at - OFFLINE_LEEWAY:
             fail("invalid_confirmation", 409)
+    return row
+
+
+def consume_confirmation(db, settings, ticket, token, code, *, captured_at=None):
+    """Validate and consume the confirmation for this ticket, or fail with a stable code.
+
+    Runs inside the admission transaction, so a failure rolls the admission back and a success
+    commits admission and consumption together.
+    """
+    row = inspect_confirmation(db, settings, ticket, token, code, captured_at=captured_at)
+    current = now()
     # The conditional update is the single-use guarantee, even for concurrent submissions.
     statement = (
         update(EntryConfirmation)

@@ -136,6 +136,6 @@ def router(factory, settings, principal):
     def resolve(conflict_id: UUID, data: s.ResolveInput, ids=Depends(principal)):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
-            return resolve_conflict(db, user, conflict_id, data.note)
+            return resolve_conflict(db, user, conflict_id, data)
 
     return routes
