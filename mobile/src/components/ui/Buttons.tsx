@@ -73,8 +73,15 @@ export function SubtleButton({
   );
 }
 
-// Inline green link-style action (web .text-button).
-export function TextButton({ label, onPress, disabled, style }: Omit<ButtonProps, "loading">) {
+// Inline green link-style action (web .text-button); `light` is the lime
+// version for dark-green backgrounds.
+export function TextButton({
+  label,
+  onPress,
+  disabled,
+  light,
+  style,
+}: Omit<ButtonProps, "loading"> & { light?: boolean }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -83,7 +90,7 @@ export function TextButton({ label, onPress, disabled, style }: Omit<ButtonProps
       hitSlop={8}
       style={[disabled && styles.inactive, style]}
     >
-      <Text style={styles.textButton}>{label}</Text>
+      <Text style={[styles.textButton, light && styles.textButtonLight]}>{label}</Text>
     </Pressable>
   );
 }
@@ -136,6 +143,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 13,
     fontWeight: "700",
+  },
+  textButtonLight: {
+    color: colors.lime,
   },
   inactive: {
     opacity: 0.55,

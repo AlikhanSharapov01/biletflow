@@ -16,6 +16,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  Eyebrow,
+  LoadingState,
+  PrimaryButton,
+  Screen,
+  SerifText,
+  TextButton,
+} from "@/components/ui";
+import { colors, fonts } from "@/theme";
+import {
   checkIn,
   getAdmissionCounts,
   getAssignedEvent,
@@ -198,39 +207,41 @@ export default function Scan() {
 
   if (loadError || event === null) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <Screen style={styles.centered} edges={["top", "bottom"]}>
         <Text style={styles.message}>{loadError ?? "This event isn't available to you."}</Text>
-        <Pressable style={styles.button} onPress={goBack}>
-          <Text style={styles.buttonText}>Back to events</Text>
-        </Pressable>
-      </SafeAreaView>
+        <PrimaryButton label="Back to events" onPress={goBack} />
+      </Screen>
     );
   }
 
   if (event === undefined) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator />
-      </SafeAreaView>
+      <Screen style={styles.centered}>
+        <LoadingState message="Loading event…" />
+      </Screen>
     );
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      {/* Dark-green card like the web check-in desk (.checkin-card + .checkin-count). */}
       <View style={styles.header}>
-        <Pressable onPress={goBack} hitSlop={8}>
-          <Text style={styles.back}>‹ Change event</Text>
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
+        <TextButton label="‹ Change event" onPress={goBack} style={styles.back} light />
+        <Eyebrow style={styles.eyebrow}>Your assigned event</Eyebrow>
+        <SerifText style={styles.title} numberOfLines={1}>
           {event.title}
-        </Text>
+        </SerifText>
         <Text style={styles.subtitle} numberOfLines={1}>
           {event.venue.name} · {formatEventWindow(event.starts_at, event.ends_at, event.time_zone)}
         </Text>
         {counts ? (
-          <Text style={styles.counts}>
-            Admitted {counts.admitted} of {counts.registered}
-          </Text>
+          <View style={styles.counts}>
+            <Text style={styles.countsLabel}>Guests through the door</Text>
+            <Text style={styles.countsValue}>
+              {counts.admitted}
+              <Text style={styles.countsTotal}> / {counts.registered}</Text>
+            </Text>
+          </View>
         ) : null}
       </View>
 
@@ -341,45 +352,71 @@ export default function Scan() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: colors.greenDark,
   },
   centered: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    gap: 12,
+    gap: 16,
   },
   message: {
+    color: colors.muted,
+    fontFamily: fonts.sans,
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 2,
+    paddingTop: 10,
+    paddingBottom: 14,
+    gap: 4,
   },
   back: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#208AEF",
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  eyebrow: {
+    color: "#c0d6c4",
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
+    marginTop: 4,
+    color: "#fff",
+    fontSize: 24,
+    lineHeight: 28,
   },
   subtitle: {
+    color: "#d5e2d5",
+    fontFamily: fonts.sans,
     fontSize: 13,
-    color: "#666",
   },
   counts: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginTop: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: colors.paper,
+  },
+  countsLabel: {
+    color: "#8a948d",
+    fontFamily: fonts.sans,
+    fontSize: 13,
+  },
+  countsValue: {
+    color: colors.ink,
+    fontFamily: fonts.serif,
+    fontSize: 28,
+  },
+  countsTotal: {
+    color: "#939d95",
+    fontFamily: fonts.sans,
+    fontSize: 15,
   },
   cameraArea: {
     flex: 1,
+    backgroundColor: colors.canvas,
   },
   // Black only behind the live camera; the permission screens draw on the
   // normal background so their dark text stays readable.
@@ -414,22 +451,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   panelChecking: {
-    backgroundColor: "#333",
+    backgroundColor: colors.greenStory,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
+  // Web palette, darkened where needed to keep white text readable at a
+  // distance in a dim entrance.
   panel_admitted: {
-    backgroundColor: "#1E7B34",
+    backgroundColor: colors.green,
   },
   panel_warning: {
-    backgroundColor: "#B45309",
+    backgroundColor: "#a57324",
   },
   panel_rejected: {
-    backgroundColor: "#B91C1C",
+    backgroundColor: "#a44735",
   },
   panel_offline: {
-    backgroundColor: "#4B5563",
+    backgroundColor: "#4f5c55",
   },
   panelHeader: {
     flexDirection: "row",
@@ -445,11 +484,12 @@ const styles = StyleSheet.create({
   },
   panelTitle: {
     color: "#fff",
-    fontSize: 24,
-    fontWeight: "700",
+    fontFamily: fonts.serif,
+    fontSize: 26,
   },
   panelLine: {
     color: "#fff",
+    fontFamily: fonts.sans,
     fontSize: 16,
   },
   panelActions: {
@@ -471,7 +511,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   panelUndo: {
-    backgroundColor: "#333",
+    backgroundColor: colors.greenStory,
   },
   reasonInput: {
     borderWidth: 1,
@@ -489,19 +529,7 @@ const styles = StyleSheet.create({
   },
   panelButtonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  button: {
-    backgroundColor: "#208AEF",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonText: {
-    color: "#fff",
+    fontFamily: fonts.sans,
     fontSize: 16,
     fontWeight: "600",
   },

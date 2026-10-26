@@ -1,6 +1,7 @@
 // Building blocks that mirror web/styles.css; screens import from here.
 export { Avatar, Brand } from "@/components/ui/Brand";
 export { PrimaryButton, SubtleButton, TextButton } from "@/components/ui/Buttons";
+export { DateTile } from "@/components/ui/DateTile";
 export { PageHeading } from "@/components/ui/PageHeading";
 export { Panel, PanelHeading } from "@/components/ui/Panel";
 export { Screen } from "@/components/ui/Screen";

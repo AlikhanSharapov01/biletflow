@@ -1,15 +1,9 @@
 import { PermissionStatus, useCameraPermissions } from "expo-camera";
 import { useEffect, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppState, Linking, Platform, StyleSheet, Text, View } from "react-native";
+
+import { LoadingState, PrimaryButton, SerifText } from "@/components/ui";
+import { colors, fonts } from "@/theme";
 
 // Renders children only once camera access is granted; otherwise walks the
 // user through granting it.
@@ -31,7 +25,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   if (!permission) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator />
+        <LoadingState message="Checking camera access…" />
       </View>
     );
   }
@@ -50,14 +44,12 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   if (!blocked) {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Camera access needed</Text>
+        <SerifText style={styles.heading}>Camera access needed</SerifText>
         <Text style={styles.body}>
           BiletFlow uses the camera to scan ticket QR codes at the entrance. Nothing is
           recorded or stored.
         </Text>
-        <Pressable style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Allow camera</Text>
-        </Pressable>
+        <PrimaryButton label="Allow camera" onPress={requestPermission} />
       </View>
     );
   }
@@ -66,7 +58,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   // only way forward is the system settings.
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Camera access is turned off</Text>
+      <SerifText style={styles.heading}>Camera access is turned off</SerifText>
       {Platform.OS === "web" ? (
         <Text style={styles.body}>
           Allow camera access for this site in your browser&apos;s settings, then reload the
@@ -77,9 +69,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
           <Text style={styles.body}>
             Turn on camera access for this app in Settings to scan tickets.
           </Text>
-          <Pressable style={styles.button} onPress={() => Linking.openSettings()}>
-            <Text style={styles.buttonText}>Open Settings</Text>
-          </Pressable>
+          <PrimaryButton label="Open Settings" onPress={() => Linking.openSettings()} />
         </>
       )}
     </View>
@@ -92,29 +82,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    gap: 12,
+    gap: 14,
+    backgroundColor: colors.canvas,
   },
   heading: {
-    fontSize: 22,
-    fontWeight: "600",
+    fontSize: 26,
     textAlign: "center",
   },
   body: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
     maxWidth: 320,
-  },
-  button: {
-    backgroundColor: "#208AEF",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    marginTop: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: colors.muted,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
   },
 });
