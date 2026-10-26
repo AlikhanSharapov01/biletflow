@@ -256,6 +256,70 @@ the server never needs to trust anything the client says about the ticket.
 original check-in row is kept. Both admission and reversal are written to the event history
 (`admission.checked_in`, `admission.reversed`).
 
+## Organizer admission history
+
+Organizer endpoints (not under `/scanner`) for the event's check-in log; they need the
+`attendees` capability (owner, or staff assigned with `attendees`). Staff without it get
+`403 permission_denied`; everyone else `404 event_not_found`. A scanner who only holds `scan`
+cannot read the log.
+
+| Method and path | Purpose |
+|---|---|
+| `GET /api/v1/events/{event_id}/check-ins` | Paged log, oldest admission first |
+| `GET /api/v1/events/{event_id}/check-ins.csv` | The same filtered log as a CSV download |
+| `GET /api/v1/tickets/{ticket_id}/admission` | The attendee's own admission status |
+
+Filters (both log endpoints): `from` and `to` (inclusive bounds on `accepted_at`; `to` before
+`from` is `422 invalid_range`; a value without an offset is read as UTC), `source`
+(`online | offline_sync`), `state` (`current | reversed`), `ticket_type_id`, and `q` (2 to 100
+characters, partial attendee name; `%` and `_` are literal; email is never matched).
+The JSON log also takes `limit` (1..200, default 50) and `offset`. Order is `accepted_at, id`,
+so pages are stable.
+
+```json
+{
+  "items": [{
+    "check_in_id": "…", "ticket_id": "…", "attendee_name": "Aru Attendee",
+    "ticket_type_name": "General admission",
+    "seat": {"section_label": "A", "row_label": "3", "seat_label": "12"},
+    "source": "online | offline_sync",
+    "accepted_at": "…", "captured_at": "…",
+    "scanner": {"id": "…", "display_name": "…"},
+    "device_label": "Gate B tablet",
+    "operation_id": "…",
+    "reversed_at": null,
+    "reversal": {"reason": "…", "actor": {"id": "…", "display_name": "…"}, "created_at": "…"}
+  }],
+  "total": 2, "limit": 50, "offset": 0
+}
+```
+
+`seat` is `null` for general admission, `device_label` is `null` for online scans without a
+registered device, and `reversal` is `null` while the admission stands. Reversed check-ins stay
+in the log.
+
+CSV export: `text/csv; charset=utf-8` with a UTF-8 BOM and `\r\n` line endings, every cell
+quoted, `Content-Disposition: attachment; filename="check-ins-{event_id}.csv"`. Columns:
+`check_in_id,ticket_id,attendee_name,ticket_type,seat,source,accepted_at,captured_at,scanner,device,reversed_at,reversal_reason,reversed_by`.
+Timestamps are ISO 8601 with offset; `seat` is `section-row-seat` (empty for general
+admission). A cell that starts with `=`, `+`, `-`, `@`, tab or CR gets a leading `'` so
+spreadsheets show it as text. More than 10 000 matching rows is `413 export_too_large`: narrow
+the range with `from`/`to` and export again. Every export writes an `admission.history_exported`
+audit row.
+
+`GET /tickets/{ticket_id}/admission` (buyer or claimed recipient; anyone else `404 ticket_not_found`):
+
+```json
+{
+  "ticket_id": "…", "status": "valid | checked_in | …",
+  "checked_in_at": "…", "reversed_at": null,
+  "admission_window": {"opens_at": "…", "closes_at": "…"}
+}
+```
+
+`checked_in_at` is the current admission's time. When there is none, `reversed_at` is when the
+most recent admission was undone (otherwise `null`).
+
 ## Tables (`0004_admission`)
 
 | Table | Purpose |
