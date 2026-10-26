@@ -277,9 +277,13 @@ Implemented now:
   registered/admitted counts
 - Audit history and durable email delivery
 
-Paid checkout, paid-sales activation, payments, refunds, issued ticket PDFs, signed-in attendee
-entry confirmation, offline scanning, support, analytics and platform administration remain
-future backend work.
+- Ticket PDFs and delivery status/resend, signed-in attendee entry confirmation, scanner
+  manual search and offline package/sync
+- In-app notifications, `.ics` calendar export, support cases (REST + WebSocket) and platform
+  administration (moderation, reports, settings, CSV export)
+
+Paid checkout, paid-sales activation, payments, refunds, payouts, promo campaigns and analytics
+remain future backend work.
 
 Detailed references:
 
@@ -287,6 +291,7 @@ Detailed references:
 - `backend/CATALOG_API.md` - organizer and event API contract
 - `backend/CHECKOUT_API.md` - free checkout, orders and ticket API contract
 - `backend/ADMISSION_API.md` - scanner and check-in API contract
+- `backend/NOTIFICATIONS_CALENDAR_API.md` - in-app notifications and calendar export contract
 - `backend/VALIDATION.md` - existing backend validation evidence
 - `docs/BiletFlow_Backend_Requirements.md` - shared backend plan
 - `docs/database/` - target database design; its 66-table reference SQL is not an application migration

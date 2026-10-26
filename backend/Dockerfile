@@ -8,6 +8,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 WORKDIR /app
 
+# DejaVu gives ticket PDFs Kazakh/Russian glyphs.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
@@ -15,7 +19,8 @@ COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini ./
 
-RUN useradd --uid 10001 --create-home biletflow
+RUN useradd --uid 10001 --create-home biletflow \
+    && mkdir -p /app/var/storage && chown -R biletflow /app/var
 USER biletflow
 
 EXPOSE 8000

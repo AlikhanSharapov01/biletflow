@@ -8,6 +8,8 @@ from .catalog_models import Event, EventStaff, Member, Organization, StaffPermis
 from .catalog_service import catalog_audit, event_guard, event_record
 from .checkout_models import OrderItem, Ticket
 from .checkout_schemas import QR_PREFIX
+from .entry_service import consume_confirmation, inspect_confirmation
+from .offline_models import ScannerDevice
 from .security import digest, fail, now
 
 
@@ -104,12 +106,58 @@ def current_check_in(db, ticket_id):
     )
 
 
-def check_in(db, user, session_id, event_id, data):
-    event = scanner_event(db, user, event_id)
+def ticket_by_id(db, event, ticket_id):
+    # Manual check-in picks a ticket found by attendee search; the same rules apply afterwards.
+    ticket = db.scalar(select(Ticket).where(Ticket.id == ticket_id, Ticket.event_id == event.id))
+    if not ticket:
+        fail("ticket_not_found", 404)
+    return ticket
+
+
+def scanner_device(db, user, device_id):
+    device = db.scalar(
+        select(ScannerDevice).where(
+            ScannerDevice.id == device_id, ScannerDevice.owner_user_id == user.id
+        )
+    )
+    if not device:
+        fail("device_not_found", 404)
+    if device.revoked_at is not None:
+        fail("device_revoked", 403)
+    return device
+
+
+def ensure_claimed(ticket):
+    if ticket.recipient_user_id is None:
+        fail("ticket_unclaimed", 409)
+
+
+def status_conflict(db, ticket):
+    """The 409 for a ticket that is not valid: duplicate entry or unusable status."""
+    if ticket.status == "checked_in":
+        earlier = current_check_in(db, ticket.id)
+        return HTTPException(
+            409,
+            detail={
+                "code": "already_checked_in",
+                "checked_in_at": earlier.accepted_at.isoformat() if earlier else None,
+            },
+        )
+    return HTTPException(409, detail={"code": "ticket_not_valid", "status": ticket.status})
+
+
+def check_in(db, settings, user, session_id, event_id, data):
+    # Authorized scanners of an unpublished or cancelled event get admission_closed, not 404.
+    event = event_guard(db, user, event_id, "scan")
     admission_open(event)
-    ticket = payload_ticket(db, data.qr_payload)
+    ticket = (
+        payload_ticket(db, data.qr_payload)
+        if data.qr_payload
+        else ticket_by_id(db, event, data.ticket_id)
+    )
     if ticket.event_id != event.id:
         fail("wrong_event", 409)
+    device = scanner_device(db, user, data.device_id) if data.device_id else None
     if data.operation_id:
         earlier = db.scalar(
             select(CheckIn).where(
@@ -118,11 +166,125 @@ def check_in(db, user, session_id, event_id, data):
         )
         if earlier:
             # A retried request returns its original outcome; reusing the key elsewhere fails.
-            if earlier.ticket_id != ticket.id:
+            # A key whose admission was reversed is spent: it must not report "admitted" again.
+            if earlier.ticket_id != ticket.id or earlier.reversed_at is not None:
                 fail("operation_conflict", 409)
             return result_view(db, earlier, replayed=True)
-    if ticket.recipient_user_id is None:
-        fail("ticket_unclaimed", 409)
+    current = now()
+    row = admit(
+        db,
+        settings,
+        user,
+        session_id,
+        event,
+        ticket,
+        operation_id=data.operation_id or uuid4(),
+        captured_at=data.captured_at or current,
+        source="online",
+        device_id=device.id if device else None,
+        token=data.entry_confirmation,
+        code=data.entry_code,
+    )
+    return result_view(db, row)
+
+
+# Confirmation failure code -> VerificationResult.confirmation (sign_in_required is refined below).
+CONFIRMATION_STATES = {
+    "confirmation_expired": "expired",
+    "confirmation_used": "used",
+    "invalid_confirmation": "invalid",
+}
+
+
+def confirmation_state(error, token, code):
+    reported = error.detail["code"]
+    if reported == "sign_in_required":
+        return "sign_in_required" if token or code else "missing"
+    return CONFIRMATION_STATES.get(reported, "invalid")
+
+
+def verify(db, settings, user, event_id, data):
+    """Preview what check_in would do for this ticket, without writing anything.
+
+    Runs the same checks in the same order as check_in/admit and reports the code a real
+    check-in would return as a 200 rejection. It is only a preview: it admits nobody, consumes
+    no confirmation, and does not guarantee a later admission (another scanner may admit the
+    ticket first, or the confirmation may expire in between). Malformed input and unknown
+    resources keep their 4xx status.
+    """
+    event = event_guard(db, user, event_id, "scan")
+    ticket, rejection, state = None, None, None
+    try:
+        admission_open(event)
+        found = (
+            payload_ticket(db, data.qr_payload)
+            if data.qr_payload
+            else ticket_by_id(db, event, data.ticket_id)
+        )
+        if found.event_id != event.id:
+            fail("wrong_event", 409)
+        ticket = found
+        if data.device_id:
+            scanner_device(db, user, data.device_id)
+        ensure_claimed(ticket)
+        if ticket.status != "valid":
+            raise status_conflict(db, ticket)
+    except HTTPException as error:
+        if error.status_code != 409:
+            raise
+        rejection = error
+    if ticket and settings.admission_require_entry_confirmation:
+        # Checked even after an earlier rejection so the scanner sees the confirmation state,
+        # but that rejection keeps its place in the order: duplicates come first.
+        try:
+            inspect_confirmation(db, settings, ticket, data.entry_confirmation, data.entry_code)
+            state = "valid"
+        except HTTPException as error:
+            if rejection is None and error.status_code != 409:
+                raise  # a malformed or forged token is bad input, not a verdict
+            state = confirmation_state(error, data.entry_confirmation, data.entry_code)
+            rejection = rejection or error
+    elif ticket:
+        state = "not_required"
+    detail = rejection.detail if rejection else {}
+    item = db.get(OrderItem, ticket.order_item_id) if ticket else None
+    return {
+        "result": "rejected" if rejection else "would_admit",
+        "code": detail.get("code"),
+        "ticket_id": ticket.id if ticket else None,
+        "event_id": event.id,
+        "attendee_name": item.recipient_name if item else None,
+        "ticket_type_name": item.ticket_type_name if item else None,
+        "seat": item.seat_snapshot if item else None,
+        "ticket_status": ticket.status if ticket else None,
+        "checked_in_at": detail.get("checked_in_at"),
+        "confirmation": state,
+        "checked_at": now(),
+    }
+
+
+def admit(
+    db,
+    settings,
+    user,
+    session_id,
+    event,
+    ticket,
+    *,
+    operation_id,
+    captured_at,
+    source,
+    device_id=None,
+    token=None,
+    code=None,
+    offline_capture=None,
+):
+    """Admit one ticket: the shared decision for online check-in and offline sync.
+
+    Raises HTTPException with a stable code when the ticket cannot be admitted. The caller's
+    transaction (or savepoint) then rolls back every write made here.
+    """
+    ensure_claimed(ticket)
     # One conditional update is the whole admission decision: of two racing scanners,
     # PostgreSQL lets only the first move the ticket from valid to checked_in.
     admitted = db.execute(
@@ -134,48 +296,57 @@ def check_in(db, user, session_id, event_id, data):
     ).first()
     if not admitted:
         db.refresh(ticket)
-        if ticket.status == "checked_in":
-            earlier = current_check_in(db, ticket.id)
-            raise HTTPException(
-                409,
-                detail={
-                    "code": "already_checked_in",
-                    "checked_in_at": earlier.accepted_at.isoformat() if earlier else None,
-                },
-            )
-        raise HTTPException(409, detail={"code": "ticket_not_valid", "status": ticket.status})
-    current = now()
+        raise status_conflict(db, ticket)
+    # Consumed in this same transaction: a rejected confirmation undoes the admission above.
+    confirmation = None
+    if settings.admission_require_entry_confirmation:
+        confirmation = consume_confirmation(
+            db, settings, ticket, token, code, captured_at=offline_capture
+        )
     row = CheckIn(
         ticket_id=ticket.id,
         event_id=event.id,
+        entry_confirmation_id=confirmation.id if confirmation else None,
         scanner_user_id=user.id,
         scanner_session_id=session_id,
-        operation_id=data.operation_id or uuid4(),
-        source="online",
-        accepted_at=current,
-        captured_at=data.captured_at or current,
+        device_id=device_id,
+        operation_id=operation_id,
+        source=source,
+        accepted_at=now(),
+        captured_at=captured_at,
     )
     db.add(row)
     db.flush()
     org = db.get(Organization, event.organization_id)
     catalog_audit(db, user, "admission.checked_in", org, event, row)
-    return result_view(db, row)
+    return row
 
 
 def reverse(db, user, check_in_id, data):
+    row = db.get(CheckIn, check_in_id)
+    if not row:
+        fail("check_in_not_found", 404)
+    try:
+        event = event_guard(db, user, row.event_id, "reverse_checkin")
+    except HTTPException as error:
+        # Outsiders must not learn that a check-in id exists.
+        if error.status_code == 404:
+            fail("check_in_not_found", 404)
+        raise
+    return apply_reversal(db, user, event, check_in_id, data.reason.strip())
+
+
+def apply_reversal(db, user, event, check_in_id, reason):
+    # Lock only after authorization so outsiders cannot block scanners on this row.
     row = db.scalar(
         select(CheckIn)
         .where(CheckIn.id == check_in_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if not row:
-        fail("check_in_not_found", 404)
-    event = event_guard(db, user, row.event_id, "reverse_checkin")
     if row.reversed_at is not None:
         fail("already_reversed", 409)
     row.reversed_at = now()
-    reason = data.reason.strip()
     db.add(CheckInReversal(check_in_id=row.id, actor_user_id=user.id, reason=reason))
     # A ticket refunded or cancelled after entry keeps that status; only checked_in reopens.
     db.execute(

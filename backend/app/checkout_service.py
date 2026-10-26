@@ -12,6 +12,7 @@ from .checkout_models import OrderItem, Ticket, TicketOrder
 from .checkout_schemas import HOLD_MINUTES, MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
 from .commerce_models import PaymentAttempt, PaymentIntent, Refund
 from .models import OutboxJob
+from .notification_service import enqueue_ticket_delivered
 from .payments_service import attempt_view, latest_attempt, refund_view
 from .security import challenge_value, digest, fail, now
 
@@ -392,6 +393,8 @@ def issue_tickets(db, settings, event, order, buyer):
                 payload={"version": 1, "ticket_id": str(ticket_id), "order_id": str(order.id)},
             )
         )
+        if claimed:
+            enqueue_ticket_delivered(db, ticket_id, event.id)
         db.get(Allocation, item.allocation_id).state = "sold"
     hold = db.get(Hold, order.hold_id)
     hold.status = "consumed"
@@ -475,6 +478,7 @@ def claim_tickets(db, user):
     )
     for ticket in claimed:
         ticket.recipient_user_id, ticket.claimed_at = user.id, current
+        enqueue_ticket_delivered(db, ticket.id, ticket.event_id)
     return len(claimed)
 
 

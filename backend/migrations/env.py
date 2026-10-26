@@ -3,10 +3,15 @@ from sqlalchemy import create_engine
 
 # Import model modules so their tables register on Base.metadata.
 from app import (  # noqa: F401
+    admin_models,
     admission_models,
     catalog_models,
     checkout_models,
     commerce_models,
+    file_models,
+    notification_models,
+    offline_models,
+    support_models,
 )
 from app.config import Settings
 from app.models import Base

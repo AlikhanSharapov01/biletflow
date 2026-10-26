@@ -5,7 +5,7 @@ from pathlib import Path
 from alembic import op
 
 revision = "0010_commerce"
-down_revision = "0004_admission"
+down_revision = "0009_files_admission"
 branch_labels = None
 depends_on = None
 
