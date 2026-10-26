@@ -19,7 +19,8 @@ COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini ./
 
-RUN useradd --uid 10001 --create-home biletflow
+RUN useradd --uid 10001 --create-home biletflow \
+    && mkdir -p /app/var/storage && chown -R biletflow /app/var
 USER biletflow
 
 EXPOSE 8000

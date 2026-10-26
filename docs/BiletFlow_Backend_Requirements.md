@@ -281,13 +281,13 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** order fulfills -> canonical ticket records created -> recipients are linked/invited -> delivery/PDF jobs run -> attendee signs in to view/download -> attendee prepares entry confirmation for BF-11.
 
-**Current implementation (11 October 2026):** free-order tickets, claim and email delivery exist (see the checkout guide). Presentation is added in [Ticket PDF and delivery API](../backend/TICKET_PDF_API.md): recipient-only A4 grayscale PDF whose vector QR encodes exactly the canonical `qr_payload` and which holds no payment data; refunded/cancelled/refund-pending tickets refuse download (`409 ticket_not_valid`); buyer/recipient delivery status; and a rate-limited, audited resend that queues an outbox job without rotating the token. Stored PDF files and PDF email attachments remain open; paid-order issuance and refund transitions belong to the commerce modules.
+**Current implementation (11 October 2026):** free-order tickets, claim and email delivery exist (see the checkout guide). Presentation is added in [Ticket PDF and delivery API](../backend/TICKET_PDF_API.md): recipient-only A4 grayscale PDF whose vector QR encodes exactly the canonical `qr_payload` and which holds no payment data; refunded/cancelled/refund-pending tickets refuse download (`409 ticket_not_valid`); buyer/recipient delivery status; and a rate-limited, audited resend that queues an outbox job without rotating the token. Update (26 October 2026): the rendered PDF is now stored privately (`stored_file`, purpose `ticket_pdf`), attached to the ticket delivery email and served from the stored copy for valid tickets; resends reuse it and the email still goes out without it if rendering fails. Paid-order issuance and refund transitions belong to the commerce modules.
 
 **Completion checks:** one order item quantity maps to exactly that many tickets; PDF QR matches the canonical ticket; unauthorized downloads fail; old copies of refunded tickets are rejected online; a delivery failure does not cancel a successful order.
 
 ### BF-11. Online scanner verification and signed-in attendee admission
 
-**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** online scan/manual check-in, one-time admission under races, reversal with reason and history, counts, minimal manual attendee search, and signed-in attendee entry confirmation (short-lived, signed, single-use, ticket- and event-bound, with an 8-digit code for printed tickets; consumed atomically with the check-in; switchable by `ADMISSION_REQUIRE_ENTRY_CONFIRMATION`, default on). Refund interaction awaits BF-13.
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** online scan/manual check-in, one-time admission under races, reversal with reason and history, counts, minimal manual attendee search, and signed-in attendee entry confirmation (short-lived, signed, single-use, ticket- and event-bound, with an 8-digit code for printed tickets; consumed atomically with the check-in; switchable by `ADMISSION_REQUIRE_ENTRY_CONFIRMATION`, default on). Refund interaction awaits BF-13. Since 26 October 2026 scanners can also preview a check-in without side effects (`POST /scanner/events/{event_id}/verifications`) and attendees can read their ticket's admission status (`GET /tickets/{ticket_id}/admission`); see [ADMISSION_API.md](../backend/ADMISSION_API.md#verification-preview).
 
 **Purpose:** admit the correct registered attendee exactly once through an authorized scanner.
 
@@ -309,7 +309,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 ### BF-12. Offline verification and synchronization
 
-**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** device registration, expiring event-specific signed verification package with snapshot version and revocations, idempotent batch sync with per-operation outcomes (accepted, duplicate, conflict, rejected), separate device and server times, and organizer review of stored conflicts. Mobile queue/storage/verification UI and refund-driven revocations (BF-13) are outside this increment.
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** device registration, expiring event-specific signed verification package with snapshot version and revocations, idempotent batch sync with per-operation outcomes (accepted, duplicate, conflict, rejected), separate device and server times, and organizer review of stored conflicts. Mobile queue/storage/verification UI and refund-driven revocations (BF-13) are outside this increment. Since 26 October 2026 organizers can also reverse the conflicting admission while resolving a stored conflict (`reverse_existing_check_in` with a reason; see [ADMISSION_API.md](../backend/ADMISSION_API.md#reversing-from-the-conflict-review)).
 
 **Purpose:** demonstrate controlled disconnected operation and reconciliation, without claiming impossible real-time guarantees.
 
@@ -408,7 +408,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** unrelated users cannot read thread, attachment, or WebSocket events; reconnect recovers missed messages; revoked staff lose live access; invalid uploads never become available for download.
 
-**Implementation status (BF-16):** implemented except attachments. Cases from an event, own order or assigned ticket, organizer-to-platform cases, categories, statuses with requester-reply reopening, assignment, escalation, idempotent persisted messages, `seq` cursor polling and an authenticated WebSocket (`/api/v1/support/ws`) with per-delivery authorization are in `../backend`; audit and notification outbox rows are written in the business transaction. Protected attachments (upload limits, validation, quarantine, short-lived downloads) remain later work. See [the support API guide](../backend/SUPPORT_API.md).
+**Implementation status (BF-16):** implemented. Cases from an event, own order or assigned ticket, organizer-to-platform cases, categories, statuses with requester-reply reopening, assignment, escalation, idempotent persisted messages, `seq` cursor polling and an authenticated WebSocket (`/api/v1/support/ws`) with per-delivery authorization are in `../backend`; audit and notification outbox rows are written in the business transaction. Protected PNG/JPEG/PDF attachments (26 October 2026) are uploaded per case, validated by content and size, stored privately (`stored_file`, `support_attachment`), linked to follow-up messages and downloaded only through short-lived signed links; asynchronous malware scanning remains later work. See [the support API guide](../backend/SUPPORT_API.md).
 
 ### BF-17. Calendar exports and links
 
@@ -480,6 +480,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Flow:** authorized action executes -> transaction writes audit entry -> organizer opens past event/timeline -> filters history -> optionally duplicates configuration -> adjusts new draft and publishes independently.
 
 **Completion checks:** duplication preserves original event records; audit cannot be modified through ordinary APIs; history permissions match event permissions; background changes identify their service actor.
+
+**Current implementation (26 October 2026):** organizers with the `attendees` capability can read an event's check-in history (filters by date, source, state, ticket type and attendee name; deterministic pagination; reversals retained) and export it as an audited, formula-safe CSV; see [ADMISSION_API.md](../backend/ADMISSION_API.md#organizer-admission-history). It complements the event activity history and duplication in the [catalogue guide](../backend/CATALOG_API.md).
 
 ### BF-21. Platform administration, moderation, and settings
 

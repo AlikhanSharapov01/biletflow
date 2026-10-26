@@ -415,3 +415,45 @@ Register the router in `app/main.py` (one import + one `include_router` line; pr
   own migration); shared files (`main.py`, `all_models.py`, `env.py`, `config.py`, `worker.py`,
   `README.md`) will conflict trivially (additive lines) and should be resolved by keeping both sides.
 - Run the whole quality gate once more: ruff check, ruff format --check, full pytest.
+
+## Status (26 October 2026)
+
+All five tasks are done on `dauka-backend`; nothing has been pushed by the implementers.
+
+| Task | Result | Commits |
+|---|---|---|
+| 1. Protected file storage and support attachments (BF-16) | Done | `62d8532` feat(support): BF-16 protected attachments and file storage; `b61cc77` fix(support): attachment review fixes |
+| 2. Stored ticket PDFs and email attachment (BF-10) | Done | `8a66084` feat(tickets): BF-10 stored ticket PDFs attached to delivery email; `e11d091` fix(tickets): stored PDF review fixes |
+| 3. Verification preview and conflict-review reversal (BF-11/BF-12) | Done | `2cc302d` feat(admission): BF-11 verification preview and conflict-review reversal; `0f3c8d0` fix(admission): preview review fixes |
+| 4. Organizer check-in history, CSV and attendee admission status (BF-20/BF-11) | Done | `1f3a632` feat(admission): BF-20 organizer check-in history, CSV export and attendee admission status |
+| 5. Documentation, configuration and handoff | Done | this commit (docs: Part A increment guides, config, compose storage volume and client handoff) |
+
+Final state: the `biletflow` schema has 48 tables (46 + `stored_file` + `support_attachment`) through migration
+`0009_files_admission`; the full suite is 241 tests on real PostgreSQL, with ruff check and format clean. New test
+files: `tests/test_support_attachments.py`, `tests/test_ticket_files.py`, `tests/test_admission_preview.py`,
+`tests/test_admission_history.py`. Task 5 also adds a `file_storage` Docker volume at `/app/var/storage` (`api`
+and `worker`), `STORAGE_ROOT` in compose, and creates that directory owned by the non-root `biletflow` user in
+`backend/Dockerfile` (otherwise a fresh named volume would be root-owned and unwritable).
+
+## Merge notes for Part B
+
+- **Migrations.** Part B must number its migrations from `0010_` and set `down_revision` to the newest migration
+  on `main` when its PR is rebased or merged (this branch ends at `0009_files_admission`). Never edit `0009`.
+- **`stored_file`.** Part B must not alter `stored_file` or `support_attachment`. It may reference `stored_file`
+  (for example for event images) from its own migration with its own foreign key and its own `purpose` value.
+  `storage.py` (`FileStorage`) and `app.state.storage` are available for reuse.
+- **Shared files.** `app/main.py`, `app/all_models.py`, `migrations/env.py`, `app/config.py`, `app/worker.py`,
+  `backend/README.md` and the compose/`.env.example` files receive only additive lines in this increment, so
+  conflicts should be trivial: resolve by keeping both sides. In `main.py` keep both `include_router` lines
+  and both imports; in `config.py` keep both groups of settings; in `worker.py` keep Part A's `storage`
+  handling in `deliver_once` / `main()` together with any Part B job handlers. The README "Database relations"
+  paragraph needs the table count and migration list combined (Part A: 48 tables, `0009_files_admission`).
+- **Existing tests changed by this branch.** Ticket emails are now `multipart/mixed` (the PDF is attached), so
+  four existing assertions changed from `message.get_content()` to `message.get_body().get_content()`:
+  `tests/test_checkout.py` (2 lines), `tests/test_support.py` (1) and `tests/test_ticket_documents.py` (1). Any
+  Part B test that reads a ticket email body must use `get_body()` as well. `tests/conftest.py` gained an
+  additive autouse fixture, `private_storage`, that points `settings.storage_root` at a per-test temporary
+  directory; keep it when resolving conflicts.
+- **Deployment.** After merging both parts run `python -m app.bootstrap` (the `migrate` service) so every new
+  table is granted to the runtime role, and keep `STORAGE_ROOT` on a persistent volume shared by the API and the
+  worker.
