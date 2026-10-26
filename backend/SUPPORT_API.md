@@ -38,8 +38,7 @@ for staff actions. Responses show `display_name`/`id` of people, never email add
   "subject": "Ticket email missing",
   "body": "I did not get my ticket",
   "client_message_id": "<uuid>",
-  "event_id": "<uuid>", "order_id": "<uuid>", "ticket_id": "<uuid>",
-  "attachment_ids": []
+  "event_id": "<uuid>", "order_id": "<uuid>", "ticket_id": "<uuid>"
 }
 ```
 
@@ -134,15 +133,15 @@ participant (requester, support, platform) may upload, also to a resolved case. 
 - `expires_at` is one hour after the upload: until then the uploader can link the file.
 
 **Linking**: send the `file_id`s as `attachment_ids` in `POST /cases/{id}/messages`. `POST /cases`
-accepts the same field, but a file can only be uploaded to an existing case, so on a new case it
-is always `409 attachment_not_available`; attach files to the follow-up message. At most
+takes no attachments (a file can only be uploaded to an existing case): attach files to the first
+follow-up message. At most
 `ATTACHMENT_MAX_PER_MESSAGE` distinct ids (`422 invalid_input` otherwise). Every file must be clean,
 uploaded by the caller to this case, unexpired and not yet linked to a message; otherwise
 `409 attachment_not_available` with `{"code": ..., "file_id": "<uuid>"}`, and nothing in the
 request is saved. A file belongs to exactly one message.
 
 **Reading**: every message in `/messages`, `/updates`, the WebSocket and the send responses has
-`attachments: [{id, file_id, original_filename, mime_type, size_bytes, created_at}]`. The private
+`attachments: [{id, file_id, original_filename, mime_type, size_bytes, created_at}]` (only files whose status is `clean`). The private
 storage key is never returned.
 
 **Download**: `GET /cases/{case_id}/attachments/{attachment_id}/download-link` (bearer, case

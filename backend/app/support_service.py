@@ -293,7 +293,7 @@ def attachment_views(db, message_ids):
     rows = db.execute(
         select(SupportAttachment, StoredFile)
         .join(StoredFile, StoredFile.id == SupportAttachment.file_id)
-        .where(SupportAttachment.message_id.in_(message_ids))
+        .where(SupportAttachment.message_id.in_(message_ids), StoredFile.status == "clean")
         .order_by(SupportAttachment.created_at, SupportAttachment.id)
     )
     for attachment, file in rows:
@@ -398,7 +398,7 @@ def resolve_organizer_context(db, user, data):
     return org, None
 
 
-def same_creation(case, first, data, attached):
+def same_creation(case, first, data):
     return (
         case.case_kind == data.kind
         and case.category == data.category
@@ -408,7 +408,6 @@ def same_creation(case, first, data, attached):
         and case.ticket_id == data.ticket_id
         and (data.event_id is None or case.event_id == data.event_id)
         and (data.kind == "attendee" or case.organization_id == data.organization_id)
-        and attached == set(data.attachment_ids)
     )
 
 
@@ -430,7 +429,7 @@ def open_case(db, user, data):
     ).first()
     if earlier:
         case, first = earlier
-        if not same_creation(case, first, data, linked_file_ids(db, first.id)):
+        if not same_creation(case, first, data):
             fail("client_message_conflict", 409)
         return case, first, True
     if data.kind == "attendee":

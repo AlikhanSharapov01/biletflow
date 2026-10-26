@@ -113,7 +113,7 @@ def test_upload_attach_and_download_round_trip(client, app, world):
             'attachment; filename="my receipt.png"'
         )
         assert "filename*=UTF-8''my%20receipt.png" in got.headers["content-disposition"]
-        assert "no-store" in got.headers["cache-control"]
+        assert got.headers["cache-control"] == "no-store"
         assert got.headers["x-content-type-options"] == "nosniff"
 
     # The private object key never leaves the server, and the bytes sit under it on disk.
@@ -133,6 +133,21 @@ def test_upload_attach_and_download_round_trip(client, app, world):
     different = send(client, w["buyer"], case_id, [], cmid=sent.json()["client_message_id"])
     assert different.status_code == 409
     assert different.json()["detail"]["code"] == "client_message_conflict"
+
+    # A file that is no longer clean disappears from views and cannot be downloaded.
+    with app.state.sessions.begin() as db:
+        db.execute(
+            update(StoredFile).where(StoredFile.id == file["file_id"]).values(status="deleted")
+        )
+    for path in ("messages", "updates"):
+        page = client.get(SUPPORT + f"/cases/{case_id}/{path}", headers=w["buyer"]).json()
+        item = [i for i in page["items"] if i["id"] == sent.json()["id"]][0]
+        assert item["attachments"] == []
+    gone = client.get(
+        SUPPORT + f"/cases/{case_id}/attachments/{attachment['id']}/download-link",
+        headers=w["buyer"],
+    )
+    assert gone.status_code == 404 and gone.json()["detail"]["code"] == "attachment_not_found"
 
 
 def test_staff_attachment_pdf_jpeg_and_audit(client, app, world, factory):
@@ -161,12 +176,10 @@ def test_staff_attachment_pdf_jpeg_and_audit(client, app, world, factory):
     assert all("object_key" not in a.safe_change for a in uploaded)
 
 
-def test_open_case_with_attachment_ids_is_not_available(client, world):
+def test_open_case_takes_no_attachments(client, world):
     w = world
     r = open_case(client, w["buyer"], w["f"], attachment_ids=[str(uuid4())])
-    assert r.status_code == 409
-    assert r.json()["detail"]["code"] == "attachment_not_available"
-    assert "file_id" in r.json()["detail"]
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "invalid_input"
 
 
 def test_content_mismatch_is_rejected_and_recorded(client, app, world, factory):
