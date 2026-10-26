@@ -224,12 +224,23 @@ step(
 done = step("order", c.get(f"{API}/orders/{order['id']}", headers=buyer))
 assert done["status"] == "confirmed" and done["items"][0]["ticket"]["qr_payload"]
 print("      confirmed, ticket issued")
+proof = step(
+    "attendee requests entry confirmation",
+    c.post(
+        f"{API}/tickets/{done['items'][0]['ticket']['id']}/entry-confirmations",
+        headers=buyer,
+    ),
+    201,
+)
 scan = step(
-    "owner scans the paid ticket",
+    "owner scans the paid ticket + confirmation",
     c.post(
         f"{API}/scanner/events/{event['id']}/check-ins",
         headers=owner,
-        json={"qr_payload": done["items"][0]["ticket"]["qr_payload"]},
+        json={
+            "qr_payload": done["items"][0]["ticket"]["qr_payload"],
+            "entry_confirmation": proof["token"],
+        },
     ),
 )
 print(f"      {scan['result']}: {scan['attendee_name']}")
