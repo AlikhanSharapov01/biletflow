@@ -16,6 +16,7 @@ from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
+from .payments_service import initialize_once, process_received_once
 from .security import challenge_value, now
 
 HOLD_SWEEP_SECONDS = 15
@@ -184,7 +185,11 @@ def main():
                     sweep_expired_holds(factory)
                 except Exception:
                     pass  # the next pass retries; expiry state lives in the database
-            if not deliver_once(factory, settings):
+            try:
+                busy = initialize_once(factory) | process_received_once(factory)
+            except Exception:
+                busy = False  # retried next loop; payment state lives in the database
+            if not deliver_once(factory, settings) and not busy:
                 time.sleep(2)
     finally:
         engine.dispose()

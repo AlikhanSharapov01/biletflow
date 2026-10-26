@@ -501,6 +501,7 @@ def create_app(settings: Settings | None = None):
             session, raw = new_session(db, settings, user, "web")
         return pair(response, session, raw)
 
+    from .activation_api import router as activation_router
     from .admission_api import router as admission_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
@@ -510,4 +511,5 @@ def create_app(settings: Settings | None = None):
     app.include_router(event_router(factory, settings, principal))
     app.include_router(checkout_router(factory, settings, principal))
     app.include_router(admission_router(factory, settings, principal))
+    app.include_router(activation_router(factory, settings, principal))
     return app

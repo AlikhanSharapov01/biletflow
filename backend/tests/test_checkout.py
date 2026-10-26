@@ -130,7 +130,7 @@ def test_checkout_rejects_invalid_requests(client, setup, account, factory):
     )
     assert paid.status_code == 201, paid.text
     r = hold(client, f, buyer, ticket_id=paid.json()["id"])
-    assert r.status_code == 409 and r.json()["detail"]["code"] == "paid_checkout_unavailable"
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "paid_sales_inactive"
 
     held = hold(client, f, buyer, quantity=2).json()
     body = recipients(held, ("A", "a@example.com"), ("B", "b@example.com"))

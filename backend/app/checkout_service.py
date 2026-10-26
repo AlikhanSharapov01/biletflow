@@ -4,6 +4,7 @@ from uuid import uuid4
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from .activation_service import paid_sales_status
 from .catalog_models import Allocation, Event, EventSeat, Hold, Organization, TicketType, Venue
 from .catalog_service import active_allocations, catalog_audit, changed, event_guard
 from .checkout_expiry import close_expired, close_hold
@@ -62,11 +63,15 @@ def lock_types(db, event, type_ids):
     return rows
 
 
-def saleable_types(rows):
+def saleable_types(db, event, rows):
+    paid_status = None
     for ticket in rows.values():
         if not ticket or ticket.is_hidden:
             fail("ticket_type_unavailable", 409)
         if ticket.kind != "free" or ticket.price_minor != 0:
+            paid_status = paid_status or paid_sales_status(db, event.id)
+            if paid_status != "active":
+                fail("paid_sales_inactive", 409)
             fail("paid_checkout_unavailable", 409)
         if not ticket.sales_open_at <= now() < ticket.sales_close_at:
             fail("sales_window_closed", 409)
@@ -97,7 +102,7 @@ def create_hold(db, user, event_id, data):
             fail("seats_not_applicable", 422)
     if len(seats) != len(set(seats)):
         fail("duplicate_seat_selection", 422)
-    types = saleable_types(lock_types(db, event, requested))
+    types = saleable_types(db, event, lock_types(db, event, requested))
     close_expired(db, event)
     previous = list(
         db.scalars(
@@ -282,7 +287,7 @@ def confirm_free(db, settings, user, hold_id, data):
     recipients = {row.allocation_id: row for row in data.recipients}
     if recipients.keys() != {row.id for row in allocations}:
         fail("recipient_allocation_mismatch", 422)
-    saleable_types(types)
+    saleable_types(db, event, types)
     venue = db.get(Venue, event.venue_id)
     confirmed = now()
     order = TicketOrder(
