@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     admission_require_entry_confirmation: bool = True
     entry_confirmation_seconds: int = Field(120, ge=30, le=600)
     offline_package_minutes: int = Field(720, ge=5, le=2880)
+    # BF-16: private file storage (app/storage.py) and support attachment limits.
+    storage_root: str = "var/storage"
+    attachment_max_bytes: int = Field(5 * 1024 * 1024, ge=1024)
+    attachment_max_per_message: int = Field(5, ge=1, le=20)
+    attachment_link_seconds: int = Field(300, ge=30, le=3600)
 
     @model_validator(mode="after")
     def secure_settings(self):

@@ -4,13 +4,22 @@ from typing import Literal
 from uuid import UUID
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, WebSocket
 from fastapi.concurrency import run_in_threadpool
 from fastapi.encoders import jsonable_encoder
 
 from . import support_schemas as s
-from .security import decode_access
-from .service import valid_session
+from .attachment_service import (
+    ALLOWED_TYPES,
+    attach_files,
+    content_disposition,
+    download_content,
+    download_link,
+    link_expires_at,
+    upload_attachment,
+)
+from .security import decode_access, fail
+from .service import rate_limit, valid_session
 from .support_models import CATEGORIES, STATUSES, SupportCase
 from .support_service import (
     assign,
@@ -62,15 +71,27 @@ class Connection:
         self.subs = {}
 
 
-def router(factory, settings, principal):
+def check_attachment_count(settings, data):
+    if len(data.attachment_ids) > settings.attachment_max_per_message:
+        fail("invalid_input", 422)
+
+
+def router(factory, settings, principal, storage):
     routes = APIRouter(prefix="/api/v1/support", tags=["support"])
     hub = Hub()
+    # 20 uploads a minute per account; the per-address bucket is only a coarse flood guard.
+    upload_limits = settings.model_copy(
+        update={"rate_identity_limit": 20, "rate_ip_limit": 200, "rate_window_seconds": 60}
+    )
 
     @routes.post("/cases", response_model=s.CaseCreated, status_code=201)
     def create_case(data: s.CaseCreate, response: Response, ids=Depends(principal)):
+        check_attachment_count(settings, data)
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
             case, first, replayed = open_case(db, user, data)
+            if not replayed:
+                attach_files(db, user, case, first, data.attachment_ids)
             roles = case_roles(db, user, case)
             result = {
                 "case": case_views(db, [(case, roles)])[0],
@@ -138,15 +159,105 @@ def router(factory, settings, principal):
     def send_message(
         case_id: UUID, data: s.MessageCreate, response: Response, ids=Depends(principal)
     ):
+        check_attachment_count(settings, data)
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
             case, _, row, replayed = post_message(db, user, case_id, data)
+            if not replayed:
+                attach_files(db, user, case, row, data.attachment_ids)
             result = message_views(db, case, [row], replayed)[0]
         if replayed:
             response.status_code = 200
         else:
             hub.publish(case_id)
         return result
+
+    @routes.post("/cases/{case_id}/attachments", response_model=s.UploadedFile, status_code=201)
+    async def upload(
+        case_id: UUID,
+        request: Request,
+        filename: str = Query(""),
+        ids=Depends(principal),
+    ):
+        """Raw-body upload: the body is the file, Content-Type its declared type."""
+        await run_in_threadpool(
+            rate_limit,
+            factory,
+            upload_limits,
+            request.client.host if request.client else "unknown",
+            "support_upload",
+            str(ids[0]),
+        )
+        content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+        if content_type not in ALLOWED_TYPES:
+            fail("unsupported_media_type", 415)
+        await run_in_threadpool(participant_check, ids, case_id)
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > settings.attachment_max_bytes:
+            fail("attachment_too_large", 413)
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > settings.attachment_max_bytes:
+                fail("attachment_too_large", 413)
+            chunks.append(chunk)
+        return await run_in_threadpool(
+            store_upload, ids, case_id, filename, content_type, b"".join(chunks)
+        )
+
+    def participant_check(ids, case_id):
+        # Strangers are turned away before any body is buffered.
+        with factory() as db:
+            user, _ = valid_session(db, *ids)
+            get_case(db, user, case_id)
+
+    def store_upload(ids, case_id, filename, content_type, data):
+        with factory.begin() as db:
+            user, _ = valid_session(db, *ids)
+            file = upload_attachment(
+                db, storage, settings, user, case_id, filename, content_type, data
+            )
+            return {
+                "file_id": file.id,
+                "mime_type": file.mime_type,
+                "size_bytes": file.size_bytes,
+                "sha256": file.sha256,
+                "status": file.status,
+                "expires_at": link_expires_at(file),
+            }
+
+    @routes.get(
+        "/cases/{case_id}/attachments/{attachment_id}/download-link",
+        response_model=s.DownloadLink,
+    )
+    def attachment_link(case_id: UUID, attachment_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            user, _ = valid_session(db, *ids)
+            return download_link(db, settings, user, case_id, attachment_id)
+
+    @routes.get(
+        "/attachments/{attachment_id}/content",
+        response_class=Response,
+        responses={200: {"content": {"application/octet-stream": {}}}},
+    )
+    def attachment_content(
+        attachment_id: UUID, token: str = Query(..., min_length=1, max_length=512)
+    ):
+        """Open this URL directly: the signed token is the credential, so no bearer header is
+        needed. Access is re-checked on every request."""
+        with factory() as db:
+            data, mime_type, filename = download_content(
+                db, storage, settings, token, attachment_id
+            )
+        return Response(
+            data,
+            media_type=mime_type,
+            headers={
+                "Content-Disposition": content_disposition(filename),
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     @routes.post("/cases/{case_id}/status", response_model=s.ChangeView)
     def set_case_status(case_id: UUID, data: s.StatusChange, ids=Depends(principal)):

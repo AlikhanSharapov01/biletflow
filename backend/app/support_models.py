@@ -2,7 +2,7 @@
 
 Mirrors migrations 0008_support. Every message and case change takes the next per-case `seq`
 while the case row is locked; clients resume polling or WebSocket delivery from that cursor.
-Attachments are not implemented yet, so stored_file/support_attachment do not exist.
+Attachments (stored_file, support_attachment) are modeled in file_models.py.
 """
 
 from datetime import datetime

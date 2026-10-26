@@ -19,6 +19,7 @@ from .catalog_models import (
 )
 from .catalog_service import event_caps, event_guard, organization_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
+from .file_models import StoredFile, SupportAttachment
 from .models import AuditLog, OutboxJob, User
 from .notification_service import enqueue_support_notice
 from .security import fail, now
@@ -284,8 +285,42 @@ def case_views(db, rows):
     ]
 
 
+def attachment_views(db, message_ids):
+    """Attachments of all given messages in one query, grouped by message id."""
+    grouped = {}
+    if not message_ids:
+        return grouped
+    rows = db.execute(
+        select(SupportAttachment, StoredFile)
+        .join(StoredFile, StoredFile.id == SupportAttachment.file_id)
+        .where(SupportAttachment.message_id.in_(message_ids))
+        .order_by(SupportAttachment.created_at, SupportAttachment.id)
+    )
+    for attachment, file in rows:
+        grouped.setdefault(attachment.message_id, []).append(
+            {
+                "id": attachment.id,
+                "file_id": file.id,
+                "original_filename": attachment.original_filename,
+                "mime_type": file.mime_type,
+                "size_bytes": file.size_bytes,
+                "created_at": attachment.created_at,
+            }
+        )
+    return grouped
+
+
+def linked_file_ids(db, message_id):
+    return set(
+        db.scalars(
+            select(SupportAttachment.file_id).where(SupportAttachment.message_id == message_id)
+        )
+    )
+
+
 def message_views(db, case, messages, replayed=False):
     named = people(db, [m.author_user_id for m in messages])
+    attached = attachment_views(db, [m.id for m in messages])
     return [
         {
             "seq": m.seq,
@@ -298,6 +333,7 @@ def message_views(db, case, messages, replayed=False):
             "body": m.body,
             "created_at": m.created_at,
             "replayed": replayed,
+            "attachments": attached.get(m.id, []),
         }
         for m in messages
     ]
@@ -362,7 +398,7 @@ def resolve_organizer_context(db, user, data):
     return org, None
 
 
-def same_creation(case, first, data):
+def same_creation(case, first, data, attached):
     return (
         case.case_kind == data.kind
         and case.category == data.category
@@ -372,6 +408,7 @@ def same_creation(case, first, data):
         and case.ticket_id == data.ticket_id
         and (data.event_id is None or case.event_id == data.event_id)
         and (data.kind == "attendee" or case.organization_id == data.organization_id)
+        and attached == set(data.attachment_ids)
     )
 
 
@@ -393,7 +430,7 @@ def open_case(db, user, data):
     ).first()
     if earlier:
         case, first = earlier
-        if not same_creation(case, first, data):
+        if not same_creation(case, first, data, linked_file_ids(db, first.id)):
             fail("client_message_conflict", 409)
         return case, first, True
     if data.kind == "attendee":
@@ -435,7 +472,7 @@ def post_message(db, user, case_id, data):
         )
     )
     if earlier:
-        if earlier.body != body:
+        if earlier.body != body or linked_file_ids(db, earlier.id) != set(data.attachment_ids):
             fail("client_message_conflict", 409)
         return case, roles, earlier, True
     requester_side = "requester" in roles
