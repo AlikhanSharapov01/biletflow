@@ -1,4 +1,4 @@
--- 0009: protected file storage (stored_file), support attachments, admission history columns.
+-- 0009: protected file storage (stored_file), support attachments, ticket PDF foreign key.
 -- This one migration covers the whole attendee/admission increment: every task appends its own
 -- section below. Sections must stay independent of each other and end with a newline.
 

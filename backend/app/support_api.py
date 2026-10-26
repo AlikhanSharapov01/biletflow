@@ -12,6 +12,7 @@ from . import support_schemas as s
 from .attachment_service import (
     ALLOWED_TYPES,
     attach_files,
+    clean_filename,
     content_disposition,
     download_content,
     download_link,
@@ -188,6 +189,7 @@ def router(factory, settings, principal, storage):
         content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type not in ALLOWED_TYPES:
             fail("unsupported_media_type", 415)
+        name = clean_filename(filename)  # a bad name is refused before any body is read
         await run_in_threadpool(participant_check, ids, case_id)
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > settings.attachment_max_bytes:
@@ -199,7 +201,7 @@ def router(factory, settings, principal, storage):
                 fail("attachment_too_large", 413)
             chunks.append(chunk)
         return await run_in_threadpool(
-            store_upload, ids, case_id, filename, content_type, b"".join(chunks)
+            store_upload, ids, case_id, name, content_type, b"".join(chunks)
         )
 
     def participant_check(ids, case_id):

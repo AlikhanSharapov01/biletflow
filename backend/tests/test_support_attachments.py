@@ -214,6 +214,13 @@ def test_size_type_and_empty_limits(client, world, factory):
     assert nothing.status_code == 422 and nothing.json()["detail"]["code"] == "attachment_empty"
     nameless = upload(client, w["buyer"], case_id, name="  ")
     assert nameless.status_code == 422
+    # The name is checked before the body is read: no 413, even for an oversize streamed body.
+    unnamed = client.post(
+        SUPPORT + f"/cases/{case_id}/attachments",
+        content=iter([PNG, b"x" * 3000]),
+        headers={**w["buyer"], "Content-Type": "image/png"},
+    )
+    assert unnamed.status_code == 422 and unnamed.json()["detail"]["code"] == "invalid_input"
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(StoredFile)) == 0
 

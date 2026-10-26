@@ -59,15 +59,17 @@ def ensure_ticket_pdf(factory, settings, storage, ticket_id):
             snapshot=order.event_snapshot,
             payload=qr_payload(settings, ticket.id),
         )
-        if stored:
-            # Missing object (or a file no longer clean): rewrite the same key, keep the row.
+        previous_id = ticket.pdf_file_id
+        if stored and stored.status == "clean":
+            # Missing object under a clean row: rewrite the same key, keep the row.
             file_id, key, created = stored.id, stored.object_key, False
         else:
+            # No row, or a retired one (never resurrected): a new file and key; the old row stays.
             file_id = uuid4()
             key, created = f"tickets/{ticket_id}/{file_id}.pdf", True
     try:
         storage.put(key, data)
-        return write_row(factory, storage, ticket_id, file_id, key, data), name
+        return write_row(factory, storage, ticket_id, file_id, key, data, previous_id), name
     except BaseException:
         if created:
             # Never leave a brand-new object without a row; an existing key is not ours to drop.
@@ -76,11 +78,16 @@ def ensure_ticket_pdf(factory, settings, storage, ticket_id):
         raise
 
 
-def write_row(factory, storage, ticket_id, file_id, key, data):
+def write_row(factory, storage, ticket_id, file_id, key, data, previous_id=None):
     name = attachment_name(ticket_id)
+    winner_key = None
     with factory.begin() as db:
         ticket = db.scalar(select(Ticket).where(Ticket.id == ticket_id).with_for_update())
-        if ticket.pdf_file_id is None:
+        if ticket.pdf_file_id == file_id:
+            stored = db.get(StoredFile, file_id)
+            stored.size_bytes, stored.sha256 = len(data), hashlib.sha256(data).hexdigest()
+            stored.status, stored.scanned_at = "clean", now()
+        elif ticket.pdf_file_id in (None, previous_id):
             db.add(
                 StoredFile(
                     id=file_id,
@@ -97,13 +104,11 @@ def write_row(factory, storage, ticket_id, file_id, key, data):
             )
             db.flush()
             ticket.pdf_file_id = file_id
-        elif ticket.pdf_file_id != file_id:
-            # Another worker stored a PDF first: drop our orphan object and serve theirs.
-            winner = db.get(StoredFile, ticket.pdf_file_id)
-            storage.delete(key)
-            data = storage.get(winner.object_key)
         else:
-            stored = db.get(StoredFile, file_id)
-            stored.size_bytes, stored.sha256 = len(data), hashlib.sha256(data).hexdigest()
-            stored.status, stored.scanned_at = "clean", now()
+            # Another worker stored a PDF first: only its key is needed once the lock is released.
+            winner_key = db.get(StoredFile, ticket.pdf_file_id).object_key
+    if winner_key:
+        # Drop our orphan object and serve theirs, outside the ticket row lock.
+        storage.delete(key)
+        data = storage.get(winner_key)
     return data

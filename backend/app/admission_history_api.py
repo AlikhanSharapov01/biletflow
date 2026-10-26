@@ -13,6 +13,7 @@ from .admission_history_service import (
 )
 from .catalog_models import Organization
 from .catalog_service import event_guard
+from .security import fail
 from .service import valid_session
 from .ticket_document_service import delivery_ticket
 
@@ -72,6 +73,10 @@ def history_filters(
     ticket_type_id: UUID | None = None,
     q: str | None = Query(None, min_length=2, max_length=100),
 ):
+    if q is not None:
+        q = q.strip()
+        if len(q) < 2:
+            fail("invalid_input", 422)
     return {
         "from_": as_aware(from_),
         "to": as_aware(to),

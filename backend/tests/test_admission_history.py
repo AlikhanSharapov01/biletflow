@@ -122,6 +122,8 @@ def test_history_filters(client, log, factory):
     assert history(client, f, q="B%").json()["total"] == 0
     assert history(client, f, q="B_ta").json()["total"] == 0
     assert history(client, f, q="a").status_code == 422
+    blank = history(client, f, q="  ")
+    assert blank.status_code == 422 and blank.json()["detail"]["code"] == "invalid_input"
 
     assert history(client, f, ticket_type_id=f["ticket"]["id"]).json()["total"] == 2
     assert history(client, f, ticket_type_id=str(uuid4())).json()["total"] == 0

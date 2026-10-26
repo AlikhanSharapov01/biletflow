@@ -426,7 +426,8 @@ All five tasks are done on `dauka-backend`; nothing has been pushed by the imple
 | 2. Stored ticket PDFs and email attachment (BF-10) | Done | `8a66084` feat(tickets): BF-10 stored ticket PDFs attached to delivery email; `e11d091` fix(tickets): stored PDF review fixes |
 | 3. Verification preview and conflict-review reversal (BF-11/BF-12) | Done | `2cc302d` feat(admission): BF-11 verification preview and conflict-review reversal; `0f3c8d0` fix(admission): preview review fixes |
 | 4. Organizer check-in history, CSV and attendee admission status (BF-20/BF-11) | Done | `1f3a632` feat(admission): BF-20 organizer check-in history, CSV export and attendee admission status |
-| 5. Documentation, configuration and handoff | Done | this commit (docs: Part A increment guides, config, compose storage volume and client handoff) |
+| 5. Documentation, configuration and handoff | Done | `9c6f2d4` docs: Part A increment guides, config, compose storage volume and client handoff |
+| final fix wave (judge minors) | Done | see git log |
 
 Final state: the `biletflow` schema has 48 tables (46 + `stored_file` + `support_attachment`) through migration
 `0009_files_admission`; the full suite is 241 tests on real PostgreSQL, with ruff check and format clean. New test
