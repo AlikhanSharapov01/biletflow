@@ -1,4 +1,4 @@
--- Commerce package B1: completed request outcomes for Idempotency-Key handling.
+-- Commerce package B1 (Part B migrations start at 0010): completed request outcomes for Idempotency-Key handling.
 -- A row is inserted in the same transaction as the result it names; there are no
 -- pending placeholders. Expired rows are reused in place, so no DELETE grant is needed.
 
