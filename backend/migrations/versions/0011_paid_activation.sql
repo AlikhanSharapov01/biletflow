@@ -1,4 +1,4 @@
--- Commerce package B2: per-event paid-sales activation and the simulated payment boundary
+-- Commerce package B2 (migration 0011): per-event paid-sales activation and the simulated payment boundary
 -- shared with paid orders (B3). Everything financial here is a SIMULATION: no card data,
 -- no real money and no production identity verification. Tables follow docs/database.
 
