@@ -15,13 +15,9 @@ from tests.test_admission import free_ticket, published
 
 
 @pytest.fixture
-def settings(settings, tmp_path):
-    return settings.model_copy(update={"storage_root": str(tmp_path / "api-storage")})
-
-
-@pytest.fixture
-def storage(tmp_path):
-    return LocalFileStorage(tmp_path / "worker-storage")
+def storage(settings):
+    # Same root as the app's storage, so the API and the worker see the same objects.
+    return LocalFileStorage(settings.storage_root)
 
 
 def deliver_all(factory, settings, storage, messages):
@@ -94,17 +90,103 @@ def test_delivery_attaches_stored_pdf_and_resend_reuses_it(
     assert [r.id for r in stored_rows(factory)] == [row.id]
 
 
-def test_pdf_endpoint_serves_the_stored_bytes(client, issued, factory, settings):
+MARKER = b"%PDF-1.4\nstored-copy-marker\n%%EOF\n"
+
+
+def test_api_and_resend_read_the_stored_object(client, issued, factory, settings, storage):
     ticket, headers = issued
-    api_storage = LocalFileStorage(settings.storage_root)
     messages = []
-    deliver_all(factory, settings, api_storage, messages)
+    deliver_all(factory, settings, storage, messages)
     [row] = stored_rows(factory)
     response = client.get(f"/api/v1/tickets/{ticket['id']}/pdf", headers=headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert hashlib.sha256(response.content).hexdigest() == row.sha256
     assert ticket["id"] in pdf_text(response.content)
+    # Replace the object with recognisable bytes: only a read from storage can return them.
+    storage.put(row.object_key, MARKER)
+    served = client.get(f"/api/v1/tickets/{ticket['id']}/pdf", headers=headers)
+    assert served.status_code == 200 and served.content == MARKER
+    resend_job(factory, ticket["id"])
+    deliver_all(factory, settings, storage, messages)
+    assert attachments(ticket_email(messages)[-1])[0].get_content() == MARKER
+
+
+def test_checked_in_ticket_is_rendered_not_served_from_storage(
+    client, issued, factory, settings, storage
+):
+    ticket, headers = issued
+    deliver_all(factory, settings, storage, [])
+    [row] = stored_rows(factory)
+    before = storage.get(row.object_key)
+    with factory.begin() as db:
+        db.execute(update(Ticket).where(Ticket.id == ticket["id"]).values(status="checked_in"))
+    response = client.get(f"/api/v1/tickets/{ticket['id']}/pdf", headers=headers)
+    assert response.status_code == 200
+    assert "checked in" in pdf_text(response.content)
+    assert "checked in" not in pdf_text(before)
+    assert storage.get(row.object_key) == before
+    assert ensure_ticket_pdf(factory, settings, storage, ticket["id"]) is None
+
+
+def test_checked_in_ticket_stores_nothing(issued, factory, settings, storage):
+    ticket, _ = issued
+    with factory.begin() as db:
+        db.execute(update(Ticket).where(Ticket.id == ticket["id"]).values(status="checked_in"))
+    assert ensure_ticket_pdf(factory, settings, storage, ticket["id"]) is None
+    assert stored_rows(factory) == []
+    assert list(storage.root.rglob("*.pdf")) == []
+
+
+def test_storage_read_error_falls_back_to_rendering(
+    client, app, issued, factory, settings, storage, monkeypatch
+):
+    ticket, headers = issued
+    deliver_all(factory, settings, storage, [])
+    assert len(stored_rows(factory)) == 1
+
+    def broken(key):
+        raise OSError("/secret/path unreadable")
+
+    monkeypatch.setattr(app.state.storage, "get", broken)
+    response = client.get(f"/api/v1/tickets/{ticket['id']}/pdf", headers=headers)
+    assert response.status_code == 200 and response.headers["content-type"] == "application/pdf"
+    assert ticket["id"] in pdf_text(response.content)
+
+
+def test_failed_row_write_removes_the_new_object(issued, factory, settings, storage):
+    ticket, _ = issued
+
+    class FailingWrite:
+        def __call__(self):
+            return factory()
+
+        def begin(self):
+            raise RuntimeError("database unavailable")
+
+    with pytest.raises(RuntimeError):
+        ensure_ticket_pdf(FailingWrite(), settings, storage, ticket["id"])
+    assert list(storage.root.rglob("*.pdf")) == []
+    assert stored_rows(factory) == []
+
+
+def test_failed_row_write_keeps_an_existing_object(issued, factory, settings, storage):
+    ticket, _ = issued
+    deliver_all(factory, settings, storage, [])
+    [row] = stored_rows(factory)
+    storage.delete(row.object_key)
+
+    class FailingWrite:
+        def __call__(self):
+            return factory()
+
+        def begin(self):
+            raise RuntimeError("database unavailable")
+
+    with pytest.raises(RuntimeError):
+        ensure_ticket_pdf(FailingWrite(), settings, storage, ticket["id"])
+    # The key belongs to the existing stored_file row: it was rewritten, not dropped.
+    assert storage.get(row.object_key).startswith(b"%PDF")
 
 
 def test_pdf_endpoint_renders_when_nothing_is_stored(client, issued, factory):

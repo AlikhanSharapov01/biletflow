@@ -19,14 +19,9 @@ PDF = b"%PDF-1.7\n" + b"pdf-body" * 20
 
 
 @pytest.fixture
-def settings(settings, tmp_path):
-    # create_app builds the storage from settings.storage_root, and the support router captures
-    # that object. The conftest `app` fixture deep-copies whatever `settings` resolves to, so
-    # overriding `settings` per test gives every test a private storage directory and small
-    # limits without touching conftest.py.
-    return settings.model_copy(
-        update={"storage_root": str(tmp_path / "storage"), "attachment_max_bytes": 2048}
-    )
+def settings(settings):
+    # Small limits for every test in this module; conftest's autouse fixture sets storage_root.
+    return settings.model_copy(update={"attachment_max_bytes": 2048})
 
 
 @pytest.fixture

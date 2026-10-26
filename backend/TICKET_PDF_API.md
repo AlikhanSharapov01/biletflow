@@ -84,8 +84,10 @@ The ticket delivery email carries the PDF as an `application/pdf` attachment nam
 grayscale-safe)." The worker renders the PDF once, between leasing the outbox job and sending,
 stores it privately (`stored_file`, purpose `ticket_pdf`, status `clean`, key
 `tickets/<ticket_id>/<file_id>.pdf`) and records it in `ticket.pdf_file_id`. Resends and
-`GET /tickets/{ticket_id}/pdf` reuse the stored copy; if the object is missing it is re-rendered
-under the same key. The status rules are unchanged (`409 ticket_not_valid` outside
+`GET /tickets/{ticket_id}/pdf` reuse the stored copy of a `valid` ticket; if the object is missing
+it is re-rendered under the same key, and if storage cannot be read the endpoint renders on
+request. A `checked_in` ticket is never served from storage (its PDF carries a "checked in"
+mark), so it is rendered on request. The status rules are unchanged (`409 ticket_not_valid` outside
 `valid`/`checked_in`, checked before storage is touched). If rendering or storage fails the email
 is still sent without the attachment, and the ticket link keeps working. The PDF contains the QR
 code, so it is never public: it is only reachable through the authenticated endpoint above or the
