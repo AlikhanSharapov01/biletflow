@@ -505,6 +505,7 @@ def create_app(settings: Settings | None = None):
 
     from .admin_api import router as admin_router
     from .admission_api import router as admission_router
+    from .admission_history_api import router as admission_history_router
     from .calendar_api import router as calendar_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
@@ -521,6 +522,7 @@ def create_app(settings: Settings | None = None):
         ticket_document_router(factory, settings, principal, storage=app.state.storage)
     )
     app.include_router(admission_router(factory, settings, principal))
+    app.include_router(admission_history_router(factory, settings, principal))
     app.include_router(calendar_router(factory, settings, principal))
     app.include_router(notification_router(factory, settings, principal))
     app.include_router(admin_router(factory, settings, principal))
