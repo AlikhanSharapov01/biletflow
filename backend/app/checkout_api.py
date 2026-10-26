@@ -1,16 +1,20 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy import select
 
 from . import checkout_schemas as s
+from .catalog_models import Hold
 from .catalog_service import event_guard
+from .checkout_expiry import sweep_event
 from .checkout_models import Ticket, TicketOrder
 from .checkout_service import (
     attendee_page,
     claim_tickets,
     confirm_free,
+    confirm_request,
     create_hold,
+    hold_request,
     hold_view,
     issued_ticket,
     order_view,
@@ -18,6 +22,7 @@ from .checkout_service import (
     release,
     ticket_rows,
 )
+from .idempotency import checked_key, fingerprint, guard, remember, remembered
 from .security import fail
 from .service import rate_limit, valid_session
 
@@ -35,11 +40,29 @@ def router(factory, settings, principal):
         )
 
     @routes.post("/events/{event_id}/holds", response_model=s.HoldView, status_code=201)
-    def reserve(event_id: UUID, data: s.HoldCreate, request: Request, ids=Depends(principal)):
+    def reserve(
+        event_id: UUID,
+        data: s.HoldCreate,
+        request: Request,
+        ids=Depends(principal),
+        idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    ):
+        key = checked_key(idempotency_key)
         limit_calls(request, "checkout_hold", ids[0])
+        # Expired stock is released in its own commit, so a rejected request below
+        # cannot roll that release back.
+        sweep_event(factory, event_id)
+        request_hash = fingerprint(hold_request(event_id, data))
         with factory.begin() as db:
+            if key:
+                guard(db, ids[0], "hold.create", key)
             user, _ = valid_session(db, *ids, lock=True)
-            return hold_view(db, create_hold(db, user, event_id, data))
+            if key and (done := remembered(db, user.id, "hold.create", key, request_hash)):
+                return hold_view(db, db.get(Hold, done.resource_id))
+            hold = create_hold(db, user, event_id, data)
+            if key:
+                remember(db, user.id, "hold.create", key, request_hash, "hold", hold.id, 201)
+            return hold_view(db, hold)
 
     @routes.get("/holds/{hold_id}", response_model=s.HoldView)
     def read_hold(hold_id: UUID, ids=Depends(principal)):
@@ -54,11 +77,33 @@ def router(factory, settings, principal):
             return hold_view(db, release(db, user, hold_id))
 
     @routes.post("/holds/{hold_id}/confirm", response_model=s.OrderView)
-    def confirm(hold_id: UUID, data: s.ConfirmHold, request: Request, ids=Depends(principal)):
+    def confirm(
+        hold_id: UUID,
+        data: s.ConfirmHold,
+        request: Request,
+        ids=Depends(principal),
+        idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    ):
+        key = checked_key(idempotency_key)
         limit_calls(request, "checkout_confirm", ids[0])
+        with factory() as db:
+            hold = db.get(Hold, hold_id)
+            event_id = hold.event_id if hold and hold.buyer_user_id == ids[0] else None
+        if event_id:
+            # An expired hold stays released even though confirmation is then rejected.
+            sweep_event(factory, event_id)
+        request_hash = fingerprint(confirm_request(hold_id, data))
         with factory.begin() as db:
+            if key:
+                guard(db, ids[0], "order.confirm_free", key)
             user, _ = valid_session(db, *ids, lock=True)
+            if key and (done := remembered(db, user.id, "order.confirm_free", key, request_hash)):
+                return order_view(db, settings, db.get(TicketOrder, done.resource_id), user)
             order = confirm_free(db, settings, user, hold_id, data)
+            if key:
+                remember(
+                    db, user.id, "order.confirm_free", key, request_hash, "order", order.id, 200
+                )
             return order_view(db, settings, order, user)
 
     @routes.get("/orders", response_model=list[s.OrderView])

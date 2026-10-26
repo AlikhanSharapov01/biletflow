@@ -2,7 +2,12 @@ from alembic import context
 from sqlalchemy import create_engine
 
 # Import model modules so their tables register on Base.metadata.
-from app import admission_models, catalog_models, checkout_models  # noqa: F401
+from app import (  # noqa: F401
+    admission_models,
+    catalog_models,
+    checkout_models,
+    commerce_models,
+)
 from app.config import Settings
 from app.models import Base
 

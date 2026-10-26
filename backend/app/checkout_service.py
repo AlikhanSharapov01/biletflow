@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .catalog_models import Allocation, Event, EventSeat, Hold, Organization, TicketType, Venue
 from .catalog_service import active_allocations, catalog_audit, changed, event_guard
+from .checkout_expiry import close_expired, close_hold
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .checkout_schemas import HOLD_MINUTES, MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
 from .models import OutboxJob
@@ -16,45 +17,28 @@ def qr_payload(settings, ticket_id):
     return QR_PREFIX + challenge_value(settings, QR_PURPOSE, ticket_id)
 
 
-def close_hold(db, hold, status, reason):
-    hold.status = status
-    hold.closed_at = now()
-    for allocation in db.scalars(
-        select(Allocation)
-        .where(Allocation.hold_id == hold.id, Allocation.state == "held")
-        .order_by(Allocation.id)
-        .with_for_update()
-    ):
-        allocation.state = "released"
-        allocation.released_at = now()
-        allocation.release_reason = reason
-
-
-def expire_event_holds(db, event):
-    current = now()
-    expired = list(
-        db.scalars(
-            select(Hold)
-            .where(Hold.event_id == event.id, Hold.status == "active", Hold.expires_at <= current)
-            .order_by(Hold.id)
-            .with_for_update()
-        )
-    )
-    for hold in expired:
-        close_hold(db, hold, "expired", "expired")
-    return bool(expired)
-
-
 def buyer_event(db, user, event_id):
-    # Buyers pass the attendee visibility rules, not organizer membership. Lock order for
-    # every checkout path is user -> event -> hold/allocations -> ticket types.
-    event_guard(db, user, event_id)
-    return db.scalar(
+    # Lock hierarchy (database specification, section 4): request key, user/session,
+    # organization, event, ticket types, holds, order, allocations, tickets. The
+    # organization is share-locked so buyers of different events do not queue behind
+    # each other, while suspension or access changes still wait for this transaction.
+    event = db.get(Event, event_id)
+    if not event:
+        fail("event_not_found", 404)
+    db.scalar(
+        select(Organization)
+        .where(Organization.id == event.organization_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    db.scalar(
         select(Event)
         .where(Event.id == event_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
+    # Visibility, organization status and private access are rechecked under the locks.
+    return event_guard(db, user, event_id)
 
 
 def saleable_event(event):
@@ -66,29 +50,55 @@ def saleable_event(event):
         fail("event_not_on_sale", 409)
 
 
-def locked_types(db, event, type_ids):
+def lock_types(db, event, type_ids):
     rows = {}
     for type_id in sorted(type_ids):
-        ticket = db.scalar(
+        rows[type_id] = db.scalar(
             select(TicketType)
             .where(TicketType.id == type_id, TicketType.event_id == event.id)
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
+    return rows
+
+
+def saleable_types(rows):
+    for ticket in rows.values():
         if not ticket or ticket.is_hidden:
             fail("ticket_type_unavailable", 409)
         if ticket.kind != "free" or ticket.price_minor != 0:
             fail("paid_checkout_unavailable", 409)
         if not ticket.sales_open_at <= now() < ticket.sales_close_at:
             fail("sales_window_closed", 409)
-        rows[type_id] = ticket
     return rows
+
+
+def hold_request(event_id, data):
+    # Normalized basket used for the Idempotency-Key fingerprint.
+    lines = sorted(
+        (str(line.ticket_type_id), line.quantity, sorted(str(seat) for seat in line.seat_ids))
+        for line in data.items
+    )
+    return {"event_id": str(event_id), "items": [list(line) for line in lines]}
 
 
 def create_hold(db, user, event_id, data):
     event = buyer_event(db, user, event_id)
     saleable_event(event)
-    if expire_event_holds(db, event):
-        changed(event)
+    requested = {}
+    seats = []
+    for line in data.items:
+        requested[line.ticket_type_id] = requested.get(line.ticket_type_id, 0) + line.quantity
+        if event.seating_mode == "assigned":
+            if not line.seat_ids:
+                fail("seats_required", 422)
+            seats.extend(line.seat_ids)
+        elif line.seat_ids:
+            fail("seats_not_applicable", 422)
+    if len(seats) != len(set(seats)):
+        fail("duplicate_seat_selection", 422)
+    types = saleable_types(lock_types(db, event, requested))
+    close_expired(db, event)
     previous = list(
         db.scalars(
             select(Hold)
@@ -105,24 +115,14 @@ def create_hold(db, user, event_id, data):
         close_hold(db, hold, "released", "abandoned")
     if previous:
         changed(event)
+    # Overdue holds on other events wait for the sweeper; they must not block this buyer.
     live_count = db.scalar(
-        select(func.count(Hold.id)).where(Hold.buyer_user_id == user.id, Hold.status == "active")
+        select(func.count(Hold.id)).where(
+            Hold.buyer_user_id == user.id, Hold.status == "active", Hold.expires_at > now()
+        )
     )
     if live_count >= MAX_ACTIVE_HOLDS:
         fail("too_many_active_holds", 409)
-    requested = {}
-    seats = []
-    for line in data.items:
-        requested[line.ticket_type_id] = requested.get(line.ticket_type_id, 0) + line.quantity
-        if event.seating_mode == "assigned":
-            if not line.seat_ids:
-                fail("seats_required", 422)
-            seats.extend(line.seat_ids)
-        elif line.seat_ids:
-            fail("seats_not_applicable", 422)
-    if len(seats) != len(set(seats)):
-        fail("duplicate_seat_selection", 422)
-    types = locked_types(db, event, requested)
     total = sum(requested.values())
     remaining_event = event.capacity - active_allocations(db, event.id)
     if total > remaining_event:
@@ -215,17 +215,40 @@ def owned_hold(db, user, hold_id, lock=False):
     return hold
 
 
-def locked_hold(db, user, hold_id):
-    # Read the event id unlocked, then lock event before hold to match create_hold.
+def locked_hold(db, user, hold_id, with_types=False):
+    # Read ids unlocked (they never change), then take locks in hierarchy order:
+    # organization/event, ticket types, holds, allocations.
     event = buyer_event(db, user, owned_hold(db, user, hold_id).event_id)
-    expired = expire_event_holds(db, event)
-    if expired:
-        changed(event)
-    return event, owned_hold(db, user, hold_id, lock=True)
+    types = {}
+    if with_types:
+        type_ids = set(
+            db.scalars(select(Allocation.ticket_type_id).where(Allocation.hold_id == hold_id))
+        )
+        types = lock_types(db, event, type_ids)
+    close_expired(db, event)
+    return event, owned_hold(db, user, hold_id, lock=True), types
+
+
+def confirm_request(hold_id, data):
+    # Normalized recipients used for the Idempotency-Key fingerprint and replay checks.
+    return {
+        "hold_id": str(hold_id),
+        "recipients": sorted(
+            [str(row.allocation_id), row.name.strip(), row.email] for row in data.recipients
+        ),
+    }
+
+
+def same_recipients(db, order, data):
+    stored = sorted(
+        [str(item.allocation_id), item.recipient_name, item.recipient_email]
+        for item in db.scalars(select(OrderItem).where(OrderItem.order_id == order.id))
+    )
+    return stored == confirm_request(order.hold_id, data)["recipients"]
 
 
 def release(db, user, hold_id):
-    event, hold = locked_hold(db, user, hold_id)
+    event, hold, _ = locked_hold(db, user, hold_id)
     if hold.status == "consumed":
         fail("hold_already_consumed", 409)
     if hold.status == "active":
@@ -235,10 +258,13 @@ def release(db, user, hold_id):
 
 
 def confirm_free(db, settings, user, hold_id, data):
-    event, hold = locked_hold(db, user, hold_id)
+    event, hold, types = locked_hold(db, user, hold_id, with_types=True)
     existing = db.scalar(select(TicketOrder).where(TicketOrder.hold_id == hold.id))
     if existing:
-        # Refreshing confirmation returns the same order and never issues a second ticket set.
+        # A repeated confirmation returns the same order and never a second ticket set,
+        # but only for the same recipients; a changed request must not look accepted.
+        if not same_recipients(db, existing, data):
+            fail("confirmation_conflict", 409)
         return existing
     if hold.status != "active" or hold.expires_at <= now():
         fail("hold_expired", 409)
@@ -256,7 +282,7 @@ def confirm_free(db, settings, user, hold_id, data):
     recipients = {row.allocation_id: row for row in data.recipients}
     if recipients.keys() != {row.id for row in allocations}:
         fail("recipient_allocation_mismatch", 422)
-    types = locked_types(db, event, {row.ticket_type_id for row in allocations})
+    saleable_types(types)
     venue = db.get(Venue, event.venue_id)
     confirmed = now()
     order = TicketOrder(

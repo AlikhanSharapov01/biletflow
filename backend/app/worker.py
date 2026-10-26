@@ -11,11 +11,14 @@ from sqlalchemy import and_, or_, select
 
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
+from .checkout_expiry import sweep_expired_holds
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
 from .models import AccountToken, OutboxJob, User
 from .security import challenge_value, now
+
+HOLD_SWEEP_SECONDS = 15
 
 
 def ticket_message(db, settings, identifier, ticket_id):
@@ -172,8 +175,15 @@ def deliver_once(factory, settings, send=None):
 def main():
     settings = Settings()
     engine, factory = database(settings.database_url.get_secret_value())
+    next_sweep = 0.0
     try:
         while True:
+            if time.monotonic() >= next_sweep:
+                next_sweep = time.monotonic() + HOLD_SWEEP_SECONDS
+                try:
+                    sweep_expired_holds(factory)
+                except Exception:
+                    pass  # the next pass retries; expiry state lives in the database
             if not deliver_once(factory, settings):
                 time.sleep(2)
     finally:
