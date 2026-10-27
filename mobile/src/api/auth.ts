@@ -20,9 +20,13 @@ export type Profile = {
   analytics_consent: boolean;
 };
 
+// Same wording as the web sign-in page (web/src/main.js parseResponse).
 const AUTH_MESSAGES: Record<string, string> = {
-  invalid_credentials: "Incorrect email or password.",
-  invalid_input: "Please check your email and password and try again.",
+  invalid_credentials: "That email and password don’t match.",
+  email_not_verified: "Please verify your email before signing in.",
+  invalid_input: "Check your details and try again.",
+  database_unavailable: "The service is temporarily unavailable. Please try again shortly.",
+  suspended_account: "This account is unavailable. Contact support if you think this is a mistake.",
 };
 
 function friendlyError(response: Response): Promise<Error> {
@@ -49,6 +53,48 @@ export async function login(email: string, password: string): Promise<TokenPair>
   }
 
   return response.json() as Promise<TokenPair>;
+}
+
+// Always answers 202, whether or not the email is already registered, so it
+// can't be used to discover accounts. The verification link arrives by email.
+export async function register(
+  email: string,
+  password: string,
+  displayName: string
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, display_name: displayName, locale: "en" }),
+    });
+  } catch {
+    throw networkError();
+  }
+
+  if (!response.ok) {
+    throw await friendlyError(response);
+  }
+}
+
+// Sends a reset link if the account is eligible; the answer never says whether
+// the email exists.
+export async function forgotPassword(email: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/auth/password/forgot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw networkError();
+  }
+
+  if (!response.ok) {
+    throw await friendlyError(response);
+  }
 }
 
 // Login alone returns only tokens, never the user's profile — this is the one
