@@ -56,3 +56,19 @@ export function formatEventMoment(at: string, timeZone: string): string {
     return at;
   }
 }
+
+// Day number and short month for the web-style date tile (.event-date),
+// e.g. { day: "30", month: "OCT" }, in the event's time zone.
+export function formatDateTile(at: string, timeZone: string): { day: string; month: string } {
+  try {
+    const moment = new Date(at);
+    const day = new Intl.DateTimeFormat(undefined, { timeZone, day: "2-digit" }).format(moment);
+    const month = new Intl.DateTimeFormat(undefined, { timeZone, month: "short" })
+      .format(moment)
+      .replace(".", "")
+      .toUpperCase();
+    return { day, month };
+  } catch {
+    return { day: at.slice(8, 10), month: "" };
+  }
+}
