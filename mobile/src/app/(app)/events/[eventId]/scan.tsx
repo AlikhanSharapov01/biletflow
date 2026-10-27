@@ -123,7 +123,7 @@ export default function Scan() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/");
+      router.replace("/check-in");
     }
   }
 

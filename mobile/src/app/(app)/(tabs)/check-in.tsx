@@ -1,10 +1,10 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { listAssignedEvents, type AssignedEvent } from "@/api/scanner";
+import { TopBar } from "@/components/TopBar";
 import {
-  Brand,
   DateTile,
   EmptyState,
   ErrorPanel,
@@ -13,7 +13,6 @@ import {
   Screen,
   StatusPill,
 } from "@/components/ui";
-import { useAuth } from "@/context/AuthContext";
 import { colors, fonts, radii, type StatusTone } from "@/theme";
 import { formatEventWindow } from "@/utils/eventTime";
 
@@ -44,12 +43,10 @@ function sortForScanning(events: AssignedEvent[]): AssignedEvent[] {
   );
 }
 
-export default function SelectEvent() {
-  const { profile, logout } = useAuth();
+export default function CheckIn() {
   const router = useRouter();
   const [events, setEvents] = useState<AssignedEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -65,33 +62,10 @@ export default function SelectEvent() {
     load();
   }, [load]);
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await logout();
-      // No navigation call needed: signing out flips AuthContext to
-      // "signedOut", and (app)/_layout's redirect takes it from there.
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
   // Copy follows the web check-in desk page (web/src/main.js staffPage).
   const header = (
     <View>
-      <View style={styles.topbar}>
-        <Brand />
-        <Pressable onPress={handleLogout} disabled={loggingOut} hitSlop={8}>
-          {loggingOut ? (
-            <ActivityIndicator color={colors.green} />
-          ) : (
-            <Text style={styles.logout}>Sign out</Text>
-          )}
-        </Pressable>
-      </View>
-      <Text style={styles.signedInAs} numberOfLines={1}>
-        Signed in as {profile?.display_name}
-      </Text>
+      <TopBar />
       <PageHeading
         eyebrow="Doors open, let’s make it smooth"
         title="Check-in desk"
@@ -166,25 +140,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
     gap: 10,
-  },
-  topbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  logout: {
-    color: colors.green,
-    fontFamily: fonts.sans,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  signedInAs: {
-    marginTop: 18,
-    marginBottom: 10,
-    color: colors.muted,
-    fontFamily: fonts.sans,
-    fontSize: 13,
   },
   card: {
     flexDirection: "row",
