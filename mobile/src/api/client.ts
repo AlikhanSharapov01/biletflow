@@ -19,9 +19,27 @@ type ErrorBody = {
   };
 };
 
+// Wording shared with the web client (web/src/live.js messages).
 const COMMON_MESSAGES: Record<string, string> = {
   rate_limited: "Too many attempts. Please wait a moment and try again.",
+  permission_denied: "You don’t have permission to perform that action.",
+  organization_not_found: "That organizer workspace is no longer available.",
+  event_not_found: "That event is no longer available.",
+  event_not_publishable: "This event cannot be published yet. Check its dates and ticket setup.",
+  usable_ticket_type_required: "Add an available ticket type before publishing this event.",
+  invalid_input: "Some details need attention. Review the form and try again.",
+  invalid_filter_range: "The selected filter range is invalid.",
+  database_unavailable: "The service is temporarily unavailable. Please try again shortly.",
 };
+
+// Unknown codes fall back by status, as the web's failureMessage does.
+function statusMessage(status: number): string {
+  if (status === 403) return "You don’t have permission to do that.";
+  if (status === 404) return "This item could not be found.";
+  if (status === 409) return "This change conflicts with the current event setup.";
+  if (status >= 500) return "The service is temporarily unavailable. Please try again shortly.";
+  return `Something went wrong (${status}). Please try again.`;
+}
 
 export async function friendlyError(
   response: Response,
@@ -35,8 +53,7 @@ export async function friendlyError(
   }
   const code = body?.detail?.code;
   const message =
-    (code && (messages[code] ?? COMMON_MESSAGES[code])) ??
-    `Something went wrong (${response.status}). Please try again.`;
+    (code && (messages[code] ?? COMMON_MESSAGES[code])) ?? statusMessage(response.status);
   return new Error(message);
 }
 

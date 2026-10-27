@@ -7,7 +7,7 @@
 // their own.
 
 import { refresh } from "@/api/auth";
-import { API_URL, networkError } from "@/api/client";
+import { API_URL, friendlyError, networkError } from "@/api/client";
 import { clearTokens, getTokens, saveTokens } from "@/api/tokenStorage";
 
 export class SessionExpiredError extends Error {
@@ -76,4 +76,18 @@ export async function authedFetch(path: string, init: RequestInit = {}): Promise
   const retried = await send(path, init, renewed);
   if (retried.status === 401) return expire();
   return retried;
+}
+
+// A signed-in JSON request: non-2xx answers become friendly errors, using
+// `messages` for codes this caller expects.
+export async function requestJson<T>(
+  path: string,
+  init: RequestInit = {},
+  messages: Record<string, string> = {}
+): Promise<T> {
+  const response = await authedFetch(path, init);
+  if (!response.ok) {
+    throw await friendlyError(response, messages);
+  }
+  return response.json() as Promise<T>;
 }
