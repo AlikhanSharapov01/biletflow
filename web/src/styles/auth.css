@@ -1,0 +1,53 @@
+/* Sign-in screen (two-column story layout) and emailed-link pages. */
+.auth-screen { display: grid; min-height: 100vh; grid-template-columns: minmax(350px, .92fr) minmax(490px, 1.08fr); }
+.auth-story { position: relative; display: flex; min-height: 100vh; overflow: hidden; flex-direction: column; justify-content: space-between; padding: 34px clamp(28px, 5vw, 76px) 30px; background: var(--green-story); color: #f7f4e9; }
+.auth-story::before { position: absolute; top: 18%; right: -140px; width: 430px; height: 430px; border: 1px solid rgb(226 244 191 / 17%); border-radius: 50%; box-shadow: 0 0 0 42px rgb(226 244 191 / 4%), 0 0 0 90px rgb(226 244 191 / 4%); content: ""; }
+.auth-story::after { position: absolute; right: -7%; bottom: 12%; width: 63%; height: 42%; border-radius: 48% 0 0 0; background: linear-gradient(145deg, #35745a, #214e3e 75%); content: ""; transform: rotate(-12deg); }
+.auth-story .brand { z-index: 1; color: var(--paper); }
+.auth-story .brand-mark { background: var(--lime); color: var(--green-dark); }
+.story-copy { z-index: 1; max-width: 520px; margin: auto 0; padding: 70px 0; }
+.story-copy .eyebrow { color: #bbd5b3; }
+.story-copy h1 { max-width: 500px; margin: 18px 0; font-size: clamp(42px, 5vw, 68px); letter-spacing: -2px; line-height: 1.02; }
+.story-copy h1 em { color: var(--lime); font-style: normal; }
+.story-copy > p:last-of-type { max-width: 380px; color: #d1ddd2; font-size: 16px; line-height: 1.7; }
+.story-ticket { position: relative; display: flex; width: min(360px, 100%); min-height: 114px; align-items: center; gap: 18px; margin-top: 38px; padding: 20px; border: 1px solid rgb(255 255 255 / 24%); border-radius: 12px; background: rgb(255 255 255 / 9%); backdrop-filter: blur(8px); }
+.ticket-stamp { display: grid; width: 66px; height: 66px; flex: 0 0 auto; place-items: center; border: 1px dashed #d7f06b; border-radius: 50%; color: #d7f06b; font-size: 11px; font-weight: 800; line-height: 1.2; text-align: center; transform: rotate(-12deg); }
+.story-ticket strong { display: block; font-size: 15px; }
+.story-ticket span { display: block; margin-top: 5px; color: #d1ddd2; font-size: 13px; }
+.auth-foot { z-index: 1; color: #bed0c5; font-size: 12px; }
+
+.auth-panel { display: grid; min-height: 100vh; place-items: center; padding: 40px clamp(24px, 6vw, 90px); }
+.auth-box { width: min(100%, 420px); animation: rise-in .45s ease both; }
+.auth-box > .eyebrow { margin-bottom: 8px; }
+.auth-box h2, .token-title { margin: 0 0 10px; font-size: 34px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
+.auth-subtitle { margin: 0 0 28px; color: #75817b; font-size: 15px; line-height: 1.5; }
+.auth-box > .tabs { margin-bottom: 24px; }
+.auth-row { display: flex; justify-content: flex-end; margin-top: -4px; }
+.auth-message { min-height: 21px; margin-top: -4px; color: var(--error); font-size: var(--text-body-sm); line-height: 1.5; }
+.auth-message.success { color: var(--green); }
+.resend-row { margin-top: -8px; }
+.google-button { display: flex; width: 100%; min-height: var(--control-height); align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); cursor: pointer; font-size: 15px; font-weight: 700; }
+.google-button:hover:not(:disabled) { border-color: var(--hover-line); background: #fff; }
+.google-mark { color: #4285f4; font-size: 18px; font-weight: 800; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: #9ba29c; font-size: 12px; }
+.divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
+.auth-legal { margin-top: 24px; color: #9ba29c; font-size: 12px; line-height: 1.6; }
+
+.token-screen { display: grid; min-height: 100vh; place-items: center; padding: 40px 24px; }
+.token-screen .auth-box > .brand { margin-bottom: 26px; }
+.token-eyebrow { margin: 8px 0; }
+.token-screen .auth-subtitle { margin-bottom: 18px; }
+.token-screen .auth-message { margin-top: 12px; }
+
+@media (max-width: 760px) {
+  .auth-screen { grid-template-columns: 1fr; }
+  .auth-story { min-height: 330px; padding: 22px 25px; }
+  .auth-story::before { top: 80px; right: -170px; width: 330px; height: 330px; }
+  .auth-story::after { right: -20%; bottom: -24%; width: 74%; height: 80%; }
+  .story-copy { padding: 37px 0 18px; }
+  .story-copy h1 { max-width: 420px; font-size: clamp(37px, 10vw, 51px); }
+  .story-copy > p:last-of-type { max-width: 350px; font-size: 15px; }
+  .story-ticket, .auth-foot { display: none; }
+  .auth-panel { min-height: auto; padding: 35px var(--gutter) 48px; }
+  .auth-box h2, .token-title { font-size: 30px; }
+}

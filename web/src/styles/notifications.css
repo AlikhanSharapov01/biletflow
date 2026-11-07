@@ -1,0 +1,15 @@
+/* Notifications inbox and the top-bar bell badge. */
+.notification-list { display: grid; margin: 0; padding: 0; list-style: none; }
+.notification-list > li + li { border-top: 1px solid var(--line-soft); }
+.notification-row { display: grid; width: 100%; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding: 14px 8px; border: 0; border-radius: var(--radius-button); background: none; color: var(--ink); cursor: pointer; text-align: left; }
+.notification-row:hover:not(:disabled) { background: var(--hover-surface); }
+.notification-row.unread { background: var(--note); }
+.notification-copy { display: grid; min-width: 0; gap: 3px; }
+.notification-title { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.notification-row.unread .notification-title { font-weight: 800; }
+.notification-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--green); }
+.notification-body { color: var(--body-soft); font-size: var(--text-body-sm); line-height: 1.45; overflow-wrap: anywhere; }
+.notification-time { color: var(--meta); font-size: var(--text-meta); }
+
+.notification-bell { position: relative; }
+.notification-badge { position: absolute; top: -4px; right: -4px; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 5px; border: 2px solid var(--paper); border-radius: var(--radius-pill); background: var(--coral); color: var(--paper); font-size: var(--text-micro); font-weight: 800; line-height: 1; }

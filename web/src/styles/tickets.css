@@ -1,0 +1,45 @@
+/* Ticket detail and its print stylesheet. */
+.printable-ticket-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 24px; }
+.printable-ticket-copy { display: grid; gap: 12px; }
+.printable-ticket-copy h2 { font-family: var(--font-serif); font-size: 26px; font-weight: 400; line-height: 1.15; }
+.printable-ticket-copy code { word-break: break-all; }
+.ticket-footnote { margin-top: 4px; color: var(--meta); font-size: var(--text-meta); line-height: 1.5; }
+.qr-box { display: grid; place-items: center; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: #fff; }
+.qr-box svg { display: block; width: 232px; height: 232px; }
+.qr-missing { width: 256px; min-height: 256px; color: var(--intro); font-size: var(--text-meta); text-align: center; }
+.qr-missing p { padding: 0 16px; }
+
+@media (max-width: 760px) {
+  .printable-ticket-grid { grid-template-columns: 1fr; justify-items: center; }
+}
+
+@media print {
+  html, body, .page { background: #fff; }
+  .topbar, .tab-bar, .skip-link, .back-link, .heading-actions, .toast { display: none !important; }
+  .app-shell, .with-tab-bar { padding: 0; }
+  .page { max-width: none; padding: 0; }
+  .printable-ticket { border: 1px solid #000; border-radius: 0; box-shadow: none; }
+  .qr-box { border: 0; }
+  .qr-box svg { width: 70mm; height: 70mm; }
+  .status { border: 1px solid #000; background: none; color: #000; }
+}
+
+/* Ticket side panels: entry confirmation, admission and delivery. */
+.content-grid.ticket-side-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.entry-panel { border-color: var(--yellow); }
+.entry-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 20px; }
+.entry-qr { display: grid; justify-items: center; gap: 8px; margin: 0; }
+.entry-qr figcaption { padding: 4px 10px; border-radius: var(--radius-pill); background: var(--tone-pending-bg); color: var(--tone-pending); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-align: center; }
+.entry-qr-box { padding: 10px; border: 3px dashed var(--yellow); border-radius: var(--radius-panel); background: var(--paper); }
+.entry-qr-box svg { display: block; width: 176px; height: 176px; }
+.entry-copy { display: grid; justify-items: start; gap: 8px; }
+.entry-code { font-family: var(--font-serif); font-size: 40px; font-variant-numeric: tabular-nums; font-weight: 400; letter-spacing: 4px; line-height: 1; }
+
+@media (max-width: 760px) {
+  .content-grid.ticket-side-grid, .entry-grid { grid-template-columns: 1fr; justify-items: center; }
+  .entry-copy { justify-items: center; text-align: center; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+}

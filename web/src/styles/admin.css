@@ -1,0 +1,11 @@
+/* Platform-admin portal (features/admin). */
+.admin-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; padding: 4px; border-radius: 9px; background: var(--tab-track); }
+.admin-nav-link { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-body-sm); font-weight: 600; text-decoration: none; }
+.admin-nav-link:hover { color: var(--ink); }
+.admin-nav-link.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); }
+.admin-content { display: grid; gap: var(--gap); }
+
+@media (max-width: 760px) {
+  .admin-nav { flex-wrap: nowrap; overflow-x: auto; }
+  .admin-nav-link { flex: none; }
+}

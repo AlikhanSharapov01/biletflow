@@ -1,0 +1,21 @@
+/* Organizer analytics: stat tiles and the hand-written SVG bar chart. */
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--gap); margin: 0; padding: 0; list-style: none; }
+.stat-tile { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-panel); }
+.stat-label { color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.stat-value { font-family: var(--font-serif); font-size: 26px; font-weight: 400; line-height: 1.1; }
+.stat-note { color: var(--meta); font-size: 12px; }
+
+.sales-chart { display: grid; gap: 8px; margin: 0; }
+.sales-chart-caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: var(--text-label); font-weight: 700; }
+.sales-chart-plot { display: grid; gap: 6px; }
+.sales-chart-plot svg { width: 100%; height: auto; overflow: visible; }
+.chart-tooltip { min-height: 20px; color: var(--body-soft); font-size: var(--text-meta); }
+.chart-grid line { stroke: var(--line-soft); stroke-width: 1; }
+.chart-grid text, .chart-axis-label { fill: var(--meta); font-size: 11px; }
+.chart-bar { cursor: default; outline: none; }
+.chart-bar path { fill: var(--green); transition: fill .15s; }
+.chart-bar.active path, .chart-bar:focus-visible path { fill: var(--green-dark); }
+.chart-bar:focus-visible .chart-hit { stroke: var(--focus); stroke-width: 2; }
+.chart-hit { fill: transparent; }
+
+.analytics-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap); }
