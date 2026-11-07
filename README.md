@@ -1,300 +1,265 @@
 # BiletFlow
 
-BiletFlow is an academic event-ticketing platform with a FastAPI backend, PostgreSQL,
-a Vite-built web client, a mobile client, and Caddy as the single public entry point.
+BiletFlow is a self-service event ticketing platform for Kazakhstan, built as an academic
+project. Organizers create events and issue free or paid tickets; attendees discover events,
+register or buy, and receive QR-code tickets; event staff check people in with a mobile
+scanner app; platform administrators moderate the platform. All payments are **simulated** —
+no real money moves.
 
-## Branch `yeroaha-backend`: free checkout and QR tickets
+The requirements come from the SRS (`SWE project description.pdf`, v0.3) and the later scope
+decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_Requirements.md).
 
-> **Author:** Yerassyl Umbetov · **Branched from:** `dauka-backend` at `f3940b5`
-> (authentication, organizer/event APIs and the Docker stack) · **Status:** ready for review
+---
 
-This branch keeps all of `dauka-backend` and adds the next step of the backend plan:
-**free registration with QR-code ticket issuance** (SRS 4.4 and 4.7, backend plan BF-05, BF-07,
-BF-10). Paid checkout builds on it later.
+## Contents
 
-### What was added
+1. [Project status](#project-status)
+2. [Architecture](#architecture)
+3. [Repository layout](#repository-layout)
+4. [Run the whole project](#run-the-whole-project)
+5. [First steps after starting](#first-steps-after-starting)
+6. [Working on one part](#working-on-one-part)
+7. [What is left to do](#what-is-left-to-do)
+8. [How we work](#how-we-work)
+9. [Documentation map](#documentation-map)
 
-| Area | Change |
-|---|---|
-| Database | Migration `0003_checkout` with `ticket_order`, `order_item` and `ticket` tables |
-| Checkout | Ten-minute inventory holds, capacity/limit/seat checks, zero-total order confirmation |
-| Tickets | One ticket per order item with a signed, tamper-resistant QR payload |
-| Recipients | Buyer names a recipient for each place; recipients claim tickets sent to their email |
-| Organizers | Attendee list for users with the `attendees` event permission |
-| Email | Worker sends a ticket delivery email through Mailpit |
-| Tests | `tests/test_checkout.py`; the full suite passes (96 tests) |
+---
 
-### New endpoints
+## Project status
 
-All under `/api/v1` and require a verified signed-in account.
-
-| Method | Path | Purpose |
+| Part | State | Summary |
 |---|---|---|
-| `POST` | `/events/{event_id}/holds` | Reserve tickets or seats for 10 minutes |
-| `GET` / `DELETE` | `/holds/{hold_id}` | Read or release own hold |
-| `POST` | `/holds/{hold_id}/confirm` | Confirm a free order and issue tickets |
-| `GET` | `/orders`, `/orders/{order_id}` | Buyer's orders |
-| `POST` | `/tickets/claim` | Link tickets addressed to the caller's email |
-| `GET` | `/tickets`, `/tickets/{ticket_id}` | Caller's tickets with QR payload |
-| `GET` | `/events/{event_id}/attendees` | Organizer attendee list |
+| Backend (`backend/`) | Most of the MVP | Accounts, events, seating, free and simulated paid checkout, QR tickets and PDFs, online and offline admission, support, notifications, calendar export and platform administration are implemented and tested. Promo campaigns, analytics, organizer refunds and the finance view are not built yet. |
+| Database (`backend/migrations/`) | Most of the MVP | 12 migrations, 58 tables. Campaign tables are the main missing piece. |
+| Web (`web/`) | UI complete for current scope | Every screen exists. Screens whose backend exists are fully wired; promo, analytics, finance, refunds and event images show a "not available yet" state until their API ships. Kazakh/Russian translations are missing. |
+| Mobile scanner (`mobile/`) | Core scanning works | Staff sign in, see assigned events, scan, admit and undo. Entry-confirmation input and manual attendee search are missing. |
+| Environment | Local demo works | Docker Compose runs the full stack. No backups, no TLS, CI checks only the backend. |
+| Tests | Backend strong, clients thin | 238 backend tests (real PostgreSQL), 87 web unit tests, no mobile tests, no automated end-to-end tests. |
 
-Request bodies, error codes and server rules are in [`backend/CHECKOUT_API.md`](backend/CHECKOUT_API.md).
+### Feature progress against the SRS
 
-### QR codes: note for web and mobile
+"Done" means usable end to end. "Waiting for backend" means the web screen exists but the API
+does not yet.
 
-- The API returns the QR as **text** in `qr_payload` (`biletflow:ticket:<id>.<signature>`),
-  not as an image. Clients render it, for example with `qrcode.react` or
-  `react-native-qrcode-svg`.
-- Only the ticket's recipient sees `qr_payload`, after signing in. Emails contain a link to the
-  ticket, never the QR itself.
-- Call `POST /api/v1/tickets/claim` after sign-in so tickets bought for this user by someone else
-  appear in `/tickets`.
-- The server verifies a QR by its hash, so an edited payload is rejected. A PNG endpoint can be
-  added when PDF tickets need one.
+| SRS area | Backend | Web | Mobile |
+|---|---|---|---|
+| 4.1 Accounts, verification, password reset, Google sign-in | Done | Done | Done (sign-in) |
+| 4.2 Events: create, edit, publish, duplicate, cancel, visibility | Done (no images) | Done (images waiting for backend) | — |
+| 4.3 Ticket types and inventory | Done (no per-type sold/refunded counts) | Done | — |
+| 4.3.1 Assigned seating (bonus) | Done | Done (seat map + organizer setup) | — |
+| 4.4 Free registration | Done | Done | — |
+| 4.5 Paid-sales activation (simulated) | Done (no admin suspend endpoint) | Done | — |
+| 4.6 Checkout and payments (simulated) | Done (no organizer finance view) | Done (finance waiting for backend) | — |
+| 4.7 Digital tickets, PDF, email delivery | Done | Done | — |
+| 4.8 Scanner check-in | Done | Check-in history + CSV | Partial (no manual search, no entry-confirmation input) |
+| 4.9 Orders, cancellations, refunds | Partial (automatic refunds only) | Done (refund/cancel waiting for backend) | — |
+| 4.10 Notifications | Partial (5 of 9 types) | Done | — |
+| 4.11 Calendar export (bonus) | Done | Done | — |
+| 4.12 Platform administration | Partial (no payment/refund monitoring) | Done | — |
+| 4.13 Support cases | Done (incl. attachments) | Done | — |
+| 4.14 Promo codes and Campaign QR | Not started (scanner already rejects campaign QR) | Waiting for backend | Rejects campaign QR |
+| 4.15 Organizer analytics | Not started | Waiting for backend | — |
+| 4.16 Event history and audit trail | Done (no server-side filters) | Done | — |
+| 7 Localization (Kazakh, Russian, English) | Partial (some notifications) | Not started | Not started |
 
-### Try it
-
-```sh
-docker compose up --build -d db migrate api worker mailpit
-```
-
-Open Swagger at <http://localhost:8000/docs> (section **checkout**) and delivered emails at
-<http://localhost:8025>. Tests are described in [`backend/README.md`](backend/README.md#tests).
-
-### Next steps
-
-Background release of expired holds, retry-safe hold creation, organizer cancellation of free
-registrations, then paid-sales activation and simulated paid checkout.
+---
 
 ## Architecture
 
 ```text
-browser / mobile client
+ browser (web)          iPhone / Android (scanner)
+        \                     /
+         v                   v
+        Caddy  :8080   (serves the built web app, proxies /api)
           |
           v
-      Caddy :8080
-       |       |
-       |       +-- web routes and assets --> Vite dist
-       |
-       +-- /api, /docs, /health ----------> FastAPI
-                                                |
-                                                +--> PostgreSQL
-                                                +--> email outbox worker --> Mailpit
+       FastAPI  :8000  ── PostgreSQL 17
+          |
+       worker  ── email (Mailpit locally), PDFs, payments, notifications
 ```
 
-The root `docker-compose.yml` is the only Docker Compose entry point. The backend does not
-run a separate Compose project. Vite is used during development and during the Caddy image
-build; it is not a production server.
+- **One backend** (`backend/`): FastAPI API plus a background worker, both using PostgreSQL.
+- **Web client** (`web/`): React + TypeScript single-page app built with Vite. In Docker it is
+  built once and served by Caddy; there is no Node server in production.
+- **Mobile client** (`mobile/`): Expo / React Native app for event staff only.
+- **Caddy** (`proxy/`): the single public entry point on port 8080.
+
+---
 
 ## Repository layout
 
 ```text
-backend/              FastAPI source, migrations, tests and Python environment
-web/                  Browser source and Vite development/build configuration
-mobile/               Mobile client workspace
-proxy/                Caddy routes and the combined Vite/Caddy image
-docs/                 Product and database specifications
-docker-compose.yml    Complete local stack; run Compose from here
-.env.example          Complete-stack local environment template
+backend/            FastAPI app, worker, Alembic migrations, tests, API guides (*_API.md)
+web/                Browser client (React + TypeScript + Vite)
+mobile/             Scanner app for event staff (Expo / React Native)
+proxy/              Caddy config and the image that bundles the built web app
+docs/               Requirements, client hand-off notes, reference database design
+tools/              Smoke tests against a running stack, database-design generators
+api/                Legacy starter, not built or used — kept only for history
+docker-compose.yml  The complete local stack
+.env.example        Settings for the Docker stack (copy to .env)
 ```
 
-Each developer edits and runs native tooling from their own application directory, while
-shared infrastructure and containerized services are always controlled from the repository
-root.
+---
 
-## Start the complete project
+## Run the whole project
 
-Prerequisite: Docker with Docker Compose.
+**You need:** Docker Desktop (with Docker Compose). Node.js 22 and Python 3.12 are only needed
+if you work on one part natively (see each part's README).
 
 From the repository root:
 
-```sh
+```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-The values in `.env.example` are usable development-only defaults. Generate new URL-safe
-database passwords and signing secrets before any shared or production deployment.
+The first start creates the database, applies migrations, seeds demo categories and a demo
+venue with a seat layout, creates the restricted database role, starts the API and worker,
+builds the web app and starts Caddy.
 
-The first startup performs these steps automatically:
+| What | Address |
+|---|---|
+| Web app | <http://localhost:8080> |
+| API docs (Swagger) | <http://localhost:8080/docs> |
+| API directly | <http://localhost:8000> |
+| Emails sent by the app (Mailpit) | <http://localhost:8025> |
+| PostgreSQL | `localhost:5433` |
 
-1. Starts PostgreSQL 17.
-2. Applies Alembic migrations and seeds the demonstration categories and venue.
-3. Creates the restricted PostgreSQL role used by the application.
-4. Starts FastAPI and the email worker.
-5. Builds `web/` with Vite and copies `web/dist` into the Caddy image.
-6. Starts Caddy after the API readiness check succeeds.
+Stop the stack (data is kept):
 
-Local addresses:
-
-- Web application through Caddy: <http://localhost:8080>
-- Swagger through Caddy: <http://localhost:8080/docs>
-- OpenAPI JSON through Caddy: <http://localhost:8080/openapi.json>
-- API directly, for development: <http://localhost:8000>
-- API readiness: <http://localhost:8080/health/ready>
-- Mailpit inbox: <http://localhost:8025>
-- PostgreSQL: `localhost:5433`
-
-Stop the project while retaining the database:
-
-```sh
+```bash
 docker compose down
 ```
 
-Delete the local database and start from empty migrations only when you intentionally want a
-fresh environment:
+Start again from an empty database:
 
-```sh
+```bash
 docker compose down --volumes
 ```
 
-## Work on the backend
+After pulling new code, rebuild so new migrations run and the web app is rebuilt:
 
-Backend source, dependencies, migrations and tests live in `backend/`.
-
-For the Docker workflow, run the backend services from the repository root:
-
-```sh
-docker compose up --build -d db migrate api worker mailpit
-docker compose logs -f api worker
+```bash
+docker compose up --build
 ```
 
-FastAPI is published on `localhost:8000`, so a backend developer can use Swagger without
-starting Caddy. After changing Python dependencies or the backend image, rebuild it with:
+> `.env.example` contains development-only secrets. Never commit `.env`, and replace every
+> password and secret before any shared deployment.
 
-```sh
-docker compose up --build -d migrate api worker
-```
+---
 
-For native Python development with faster restarts, first start PostgreSQL, migrations and
-Mailpit from the root, then follow `backend/README.md`:
+## First steps after starting
 
-```sh
-docker compose up -d db migrate mailpit
+A fresh database has categories and a venue but **no users and no events**.
+
+1. **Create an account.** Open <http://localhost:8080>, choose *Create account*, then open
+   Mailpit (<http://localhost:8025>) and click the verification link.
+2. **Make yourself a platform admin** (optional, enables the Admin tab):
+   ```bash
+   docker compose exec api python -m app.admin_cli grant you@example.com
+   ```
+3. **Create an event.** *Organizer* tab → create a workspace → create an event → add ticket
+   types → *Publish*. It now appears in *Discover*.
+4. **Paid tickets.** On the event, open *Paid sales* and complete the simulated checklist
+   (payout profile, identity, terms, activation fee).
+5. **Register as an attendee** with a second account, then open *Tickets* to see the QR code.
+6. **Scan.** Sign in to the mobile app as the organizer (owners see their own events) or as a
+   team member who was given "Scan tickets" on the event's *Staff* tab.
+
+**Scanner tip:** with `ADMISSION_REQUIRE_ENTRY_CONFIRMATION=true` (the default) the backend also
+requires a short-lived entry confirmation from the attendee, which the mobile app cannot send
+yet. For local demos set it to `false` in `.env` and run `docker compose up -d` again.
+
+To create realistic data quickly, the smoke tests in `tools/` drive the whole flow through the
+API against a running stack:
+
+```bash
 cd backend
-cp .env.example .env
-uv sync --frozen
-uv run uvicorn app.main:create_app --factory --reload --port 8000
+uv run python ../tools/smoke_admission.py
+uv run python ../tools/smoke_paid_checkout.py
 ```
 
-Run the worker in a second terminal from `backend/`:
+---
 
-```sh
-uv run python -m app.worker
-```
+## Working on one part
 
-If root `.env` uses custom database passwords, copy the same `APP_DB_PASSWORD` into
-`backend/.env` before native startup.
+Each part has its own README with setup, structure, conventions and remaining work:
 
-## Work on the web client
+- **Backend** → [`backend/README.md`](backend/README.md)
+- **Web** → [`web/README.md`](web/README.md)
+- **Mobile scanner** → [`mobile/README.md`](mobile/README.md)
+- **Reference database design** → [`docs/database/README.md`](docs/database/README.md)
 
-Web source and Vite configuration live in `web/`. Start the backend dependencies from the
-repository root:
+All Docker commands are run from the repository root; native tooling (`uv`, `npm`, `npx expo`)
+is run from inside each part's folder.
 
-```sh
-docker compose up --build -d db migrate api worker mailpit
-```
+---
 
-Then work from the web directory:
+## What is left to do
 
-```sh
-cd web
-cp .env.example .env
-npm ci
-npm run dev
-```
+In priority order for the MVP. Bonus items come last.
 
-Open <http://localhost:5173>. The Vite development server forwards `/api/*` and `/health/*`
-to `http://localhost:8000`, so frontend code uses relative API URLs in development and in the
-final Caddy deployment.
+**1. Admission blocker (backend + web + mobile)**
+- Either let attendees create an entry confirmation on the ticket page **and** let the scanner
+  accept it, or agree to run the MVP with `ADMISSION_REQUIRE_ENTRY_CONFIRMATION=false`. The web
+  ticket page already shows the confirmation QR and code; the mobile app still has to read it.
 
-The current browser experience includes email/password sign-in, account registration, and a
-password-reset request, backed by the existing `/api/v1/auth/*` endpoints. After sign-in, the
-client loads the account profile from `/api/v1/me` and opens the attendee workspace. Registration
-requires email verification before sign-in.
+**2. Backend features the web is already waiting for**
+- Promo campaigns and Campaign QR (SRS 4.14): campaign tables, discount at checkout, atomic
+  redemption limits, campaign report.
+- Organizer analytics (SRS 4.15): capacity, sales over time, by ticket type, campaigns,
+  attendance, with filters.
+- Organizer refunds and cancellation of free registrations (SRS 4.9).
+- Organizer finance view: gross, fees, refunds, estimated payout (SRS 4.6).
+- Per-ticket-type counts, event images, admin endpoint to suspend paid sales, admin views of
+  payments/refunds/failures, the missing notifications (purchase confirmation, payment failure,
+  refund completed, payout status).
+- Before building them, confirm the request/response shapes the web expects (see
+  [`web/README.md`](web/README.md#screens-waiting-for-the-backend)) and document them in a
+  new `backend/*_API.md`.
 
-The sign-in screen also provides sample-data previews for four BiletFlow roles: Attendee,
-Organizer, Event Admin, and Platform Admin. These pages are frontend previews, not role-based
-access: switching workspaces does not change account permissions, and the event, sales,
-check-in, and moderation examples are not persisted. The role-specific backend authorization
-and production workflows remain to be integrated. Password-reset requests are wired to the
-API; completing a reset from a reset link is not yet part of the browser UI.
+**3. Clients**
+- Web: Kazakh and Russian translations; accessibility pass (WCAG 2.1 AA); page-level and
+  end-to-end tests.
+- Mobile: manual attendee search, entry-confirmation input, limit sign-in to staff, remove the
+  out-of-scope Discover/Organizer tabs, tests.
 
-Build the same production files that Caddy receives:
+**4. Environment and quality**
+- Backup and restore scripts with a short runbook (SRS requires backups).
+- CI: add web typecheck/tests/build and mobile typecheck; run the smoke tests.
+- HTTPS and security headers for any shared demo; restart policies and a worker health check.
+- Update `backend/VALIDATION.md` with current test evidence.
 
-```sh
-npm run build
-npm run preview
-```
+**5. Bonus**
+- Offline scanning in the mobile app (the backend already supports it).
+- GA4 traffic analytics.
 
-The generated `web/dist/` directory is ignored by Git. Docker recreates it during the proxy
-image build.
+---
 
-## Work on the mobile client
+## How we work
 
-Start the complete root stack and configure the mobile client to use the computer's reachable
-address, for example `http://192.168.1.20:8080/api/v1`. Caddy forwards those requests to the
-same FastAPI application used by the web client. The exact address depends on the developer's
-local network and device or emulator.
+- **One branch and one pull request per area** (for example `feature/web-…`,
+  `feature/mobile-…`, `feature/backend-…`). Keep backend, web and mobile changes in separate PRs
+  unless a change truly needs all of them.
+- **API changes go with documentation:** update the relevant `backend/*_API.md` in the same PR,
+  and tell the web/mobile owners what changed.
+- **Never edit an applied migration** — add a new one.
+- **Run the checks before opening a PR:**
+  - backend: `uv run ruff check app tests migrations && uv run pytest -q`
+  - web: `npm run typecheck && npm test && npm run build`
+  - mobile: `npx tsc --noEmit`
+- **Never commit** `.env` files, `node_modules`, `.venv`, `web/dist` or `mobile/.expo`.
 
-## Proxy and production web build
+---
 
-`proxy/Dockerfile` is a multi-stage image:
+## Documentation map
 
-1. A Node stage runs `npm ci` and `npm run build` in `web/`.
-2. A Caddy stage copies the resulting `dist/` directory into `/srv`.
-
-`proxy/Caddyfile` sends API, Swagger, OpenAPI and health requests to the `api` container. All
-other paths are served from `/srv`; unknown paths fall back to `index.html` for client-side
-routing.
-
-There is no nginx container and no long-running Vite container in the complete stack.
-
-## Environment files
-
-- Root `.env` configures the complete Docker Compose stack.
-- `backend/.env` is only for running FastAPI or the worker natively from `backend/`.
-- `web/.env` is only for Vite development and selects the local API proxy target.
-
-All real `.env` files are ignored by Git. Example files contain no production credentials.
-The checked-in Caddy configuration deliberately serves local HTTP on port 8080. For a real
-HTTPS deployment, configure the deployment domain in Caddy, publish ports 80/443, set
-`ENVIRONMENT=production`, use HTTPS URLs, set `COOKIE_SECURE=true`, and replace every
-development password and signing secret.
-
-## Current backend scope
-
-Implemented now:
-
-- Email/password and Google authentication, verification and recovery
-- Rotating refresh tokens and revocable sessions
-- Organizer workspaces, invitations and scoped permissions
-- Event drafts, publication, visibility and duplication
-- Ticket-type and predefined assigned-seat configuration
-- Free checkout: inventory holds, zero-total orders, QR tickets, recipient claims, ticket
-  delivery email and organizer attendee list
-- Online admission: assigned-scanner events, one-time atomic QR check-in, reversal and
-  registered/admitted counts
-- Audit history and durable email delivery
-
-- Ticket PDFs and delivery status/resend, signed-in attendee entry confirmation, scanner
-  manual search and offline package/sync
-- In-app notifications, `.ics` calendar export, support cases (REST + WebSocket) and platform
-  administration (moderation, reports, settings, CSV export)
-
-Paid checkout, paid-sales activation, payments, refunds, payouts, promo campaigns and analytics
-remain future backend work.
-
-Detailed references:
-
-- `backend/README.md` - backend behavior and native setup
-- `backend/CATALOG_API.md` - organizer and event API contract
-- `backend/CHECKOUT_API.md` - free checkout, orders and ticket API contract
-- `backend/ADMISSION_API.md` - scanner and check-in API contract
-- `backend/NOTIFICATIONS_CALENDAR_API.md` - in-app notifications and calendar export contract
-- `backend/VALIDATION.md` - existing backend validation evidence
-- `docs/BiletFlow_Backend_Requirements.md` - shared backend plan
-- `docs/database/` - target database design; its 66-table reference SQL is not an application migration
-
-The legacy `api/` starter remains in the repository for branch compatibility, but the root
-Compose stack no longer builds or runs it. New backend work belongs in `backend/`.
+| Document | What it is for |
+|---|---|
+| [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_Requirements.md) | Agreed scope, business rules and acceptance criteria |
+| [`docs/CLIENT_HANDOFF_NOTES.md`](docs/CLIENT_HANDOFF_NOTES.md) | Backend → web/mobile hand-off notes per increment |
+| [`backend/*_API.md`](backend/) | One contract per API area (catalog, checkout, paid sales, admission, support, …) |
+| [`backend/VALIDATION.md`](backend/VALIDATION.md) | Recorded validation evidence (needs updating) |
+| [`docs/database/`](docs/database/README.md) | 66-table reference design — a target, not the deployed schema |
+| [`docs/parallel-work/`](docs/parallel-work/) | Past increment plans, kept for history |

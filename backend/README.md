@@ -1,170 +1,288 @@
 # BiletFlow backend
 
-FastAPI + PostgreSQL implementation of authentication and Stage B event setup. Registration, Google sign-in, revocable sessions, organizer workspaces/invitations, scoped staff permissions, event discovery/publication, ticket-type configuration, predefined seating and free checkout with QR tickets are implemented. Paid checkout, payments, refunds and admission remain upcoming.
+FastAPI + PostgreSQL service for BiletFlow: the REST API under `/api/v1` and a background worker
+that sends emails, renders ticket PDFs, processes simulated payments and fans out notifications.
+The web and mobile clients both talk to this one backend.
 
-[Organizer/event API guide](CATALOG_API.md) describes the new endpoints, permissions, flows, migration and remaining scope.
+---
 
-[Free checkout and ticket guide](CHECKOUT_API.md) describes holds, orders, ticket claims and the QR payload.
+## Contents
 
-[Online admission guide](ADMISSION_API.md) describes the scanner endpoints and the check-in contract.
-[Platform administration guide](ADMIN_API.md) describes the admin role, moderation, reports, settings and CSV export.
+1. [Status](#status)
+2. [Run it](#run-it)
+3. [Code layout](#code-layout)
+4. [API guides](#api-guides)
+5. [Database and migrations](#database-and-migrations)
+6. [Background worker](#background-worker)
+7. [Authentication and sessions](#authentication-and-sessions)
+8. [Google sign-in](#google-sign-in)
+9. [Platform administrators](#platform-administrators)
+10. [Tests and checks](#tests-and-checks)
+11. [What is left to do](#what-is-left-to-do)
 
-[Ticket PDF and delivery guide](TICKET_PDF_API.md) describes the ticket PDF download, delivery status and resend.
+---
 
-[Notifications and calendar guide](NOTIFICATIONS_CALENDAR_API.md) describes the in-app inbox, the notification outbox fan-out (worker), `.ics` export and add-to-calendar links (migration `0005_notifications_calendar`, two tables).
+## Status
 
-[Support guide](SUPPORT_API.md) describes support cases, messages, polling cursor and the WebSocket (attachments are not implemented yet).
+**Implemented and tested**
 
-[Validation results and current local services](VALIDATION.md) records real PostgreSQL tests and running-API/local-SMTP checks.
+| Area | What works |
+|---|---|
+| Accounts | Email registration and verification, sign-in/out, password reset, Google sign-in, rotating refresh tokens, revocable sessions, rate limits |
+| Organizers | Workspaces, team invitations, organization and per-event staff permissions |
+| Events | Draft → publish/unpublish → cancel, duplicate, public/unlisted/private, registration and admission windows, capacity, refund policy, history timeline |
+| Tickets | Free and paid ticket types, sales windows, per-order limits, hidden types, inventory protection under concurrency |
+| Seating | Predefined venue layout, seat configuration, ten-minute seat holds, no double selling |
+| Checkout | Free orders; simulated paid checkout with a 3% processing fee, retries, late/duplicate payment compensation refunds |
+| Paid-sales activation | Simulated payout profile, identity check, terms, activation fee — per event |
+| Tickets after purchase | Signed QR payload, stored PDF, email delivery with resend, recipient claim |
+| Admission | Scanner event list, atomic one-time check-in, reversal, counts, manual search, verification preview, entry confirmation, offline package and sync, conflict review, organizer check-in history and CSV |
+| Support | Cases from event/order/ticket, organizer → platform cases, threads, assignment, escalation, statuses, attachments, polling cursor and WebSocket |
+| Notifications | In-app inbox; emails for verification, ticket delivery, event updates/cancellation and support |
+| Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
+| Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports |
 
-## Run with Docker
+**Not built yet** — see [What is left to do](#what-is-left-to-do).
 
-Docker orchestration is owned by the repository root. From the repository root, copy the root
-environment example and start the backend services:
+---
 
-```text
+## Run it
+
+### With Docker (recommended)
+
+Docker is controlled from the repository root:
+
+```bash
 cp .env.example .env
 docker compose up --build -d db migrate api worker mailpit
+docker compose logs -f api worker
 ```
 
-Open [API documentation](http://localhost:8000/docs) and the [local email inbox](http://localhost:8025).
-To run the complete application through Caddy, use `docker compose up --build` from the root
-and open [Swagger through the proxy](http://localhost:8080/docs).
+- Swagger: <http://localhost:8000/docs> (or <http://localhost:8080/docs> through Caddy)
+- Emails: <http://localhost:8025>
 
-The root Compose stack starts PostgreSQL 17, applies migrations and the fictional
-venue/category seed as `biletflow_owner`, provisions the restricted `biletflow_app` role, and
-starts the API, email worker and Mailpit. PostgreSQL data is kept in a named volume.
-`docker compose down` from the root stops the services while retaining that volume.
+The `migrate` service runs `python -m app.bootstrap` once per start: it applies migrations as
+`biletflow_owner`, creates the restricted `biletflow_app` role used by the API, grants it access
+to every table, and seeds the demo categories, venue and seat layout. The API never creates or
+drops tables itself.
 
-Database migrations are explicit; API startup never creates or drops tables. Re-running the migration is safe. The first migration requires a fresh `biletflow` schema: do not run it over the earlier 66-table reference DDL. Database history has no destructive downgrade command; use a reviewed backup/restore or a new development database.
+After pulling new code, rebuild so new migrations run:
 
-## Run without Docker
-
-Install Python 3.12+ and `uv`. Start PostgreSQL, migrations and Mailpit from the repository
-root:
-
-```text
-docker compose up -d db migrate mailpit
+```bash
+docker compose up --build -d migrate api worker
 ```
 
-Then prepare the native backend environment. Keep `APP_DB_PASSWORD` in `backend/.env`
-aligned with the root `.env`:
+### Natively (faster reloads)
 
-```text
+Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Keep PostgreSQL and Mailpit in
+Docker:
+
+```bash
+docker compose up -d db migrate mailpit     # from the repository root
 cd backend
-cp .env.example .env
+cp .env.example .env                        # keep APP_DB_PASSWORD equal to the root .env
 uv sync --frozen
+uv run uvicorn app.main:create_app --factory --reload --port 8000
 ```
 
-Migrations have already been applied by the root `migrate` service, so start the API and
-worker in separate terminals from `backend/`:
+In a second terminal, from `backend/`:
 
-```text
-uv run uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000 --no-access-log
+```bash
 uv run python -m app.worker
 ```
 
-Set SMTP configuration for your local mail viewer or transactional provider. The email worker retries failed delivery and retains exhausted jobs; registration itself does not depend on SMTP being available. The local demonstration uses Mailpit, never external email delivery.
+Uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage` natively,
+the `file_storage` volume in Docker). The API and worker must share it.
 
-Authentication emails currently use an English fallback template; the stored profile locale is available for later localized client/email templates.
+### Useful settings (`.env`)
 
-## Try registration and sign-in
+| Setting | Meaning |
+|---|---|
+| `ENVIRONMENT` | `development` enables the payment simulator endpoints; `production` enforces HTTPS URLs and secure cookies |
+| `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` | `true` requires the attendee's short-lived entry confirmation at the door. Set `false` for demos until the mobile app supports it |
+| `FRONTEND_URL` | Base URL used in emailed links |
+| `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
+| `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
 
-In `/docs`, use these operations in order:
+---
 
-1. `POST /api/v1/auth/register`: email, display name, password of 12–128 characters, and optional `kk`, `ru` or `en` locale. Names cannot be blank. Duplicate registration returns the same response and cannot replace an existing password.
-2. Read the verification email in Mailpit. Copy the value after `#token=` into `POST /api/v1/auth/verify-email`. The eventual frontend will read that fragment and submit the token; those frontend pages are not part of this backend task.
-3. `POST /api/v1/auth/login`: email, password, `client_kind: "web"` or `"scanner"`. Unverified and suspended users cannot sign in.
-4. Copy `access_token` into Swagger's **Authorize** field. Call `GET /api/v1/me` or the session endpoints.
+## Code layout
 
-Use `POST /password/forgot` then the emailed token with `POST /password/reset` for recovery. Verification lasts 24 hours; password reset lasts 30 minutes. Resending replaces the prior challenge. Successful reset revokes every existing session. A Google-only account can deliberately add a password through this verified-email recovery flow.
+Everything lives in `app/`, one module group per area:
 
-## Token and session contract
+| Files | Responsibility |
+|---|---|
+| `main.py` | App factory, router registration, error handling, security headers |
+| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage |
+| `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
+| `*_schemas.py` | Request/response models |
+| `*_service.py` | Business rules and transactions |
+| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin` |
+| `worker.py` | Background job loop |
+| `bootstrap.py`, `seed.py`, `admin_cli.py` | Migrations + role setup, demo seed, admin grant CLI |
 
-- Access tokens are HS256-signed JWTs, valid for up to 10 minutes. They are encoded and readable, not encrypted. Claims contain account/session IDs, issuer, audience, purpose, timestamps and a random JWT ID; no password, email or profile data. Access JWTs are not stored in the database.
-- Every protected operation checks the current verified active user and unrevoked, unexpired session in PostgreSQL. Reset/logout/suspension therefore block old JWTs immediately on the next request. Suspension also revokes sessions at the database level, so reinstatement does not revive them.
-- Refresh tokens are random 256-bit opaque secrets, separate from access JWTs. Only SHA-256 digests are retained in `auth_session` and `refresh_token`. Their high entropy makes a fast digest appropriate; passwords use salted Argon2id instead.
-- Refresh rotation consumes the old digest and inserts a new one under the account/session lock. Reusing an old genuine token revokes that session. A guessed token cannot revoke somebody else's session. Clients must serialize refresh requests; concurrent duplicates can force reauthentication. An uncertain/lost refresh response requires signing in again.
-- Sessions expire absolutely after 30 days by default; rotation never extends that deadline.
-- **Web:** refresh token is an HttpOnly, SameSite=Strict cookie restricted to `/api/v1/auth`; the JSON refresh field is null. Call `/refresh` with `{}`, `credentials: "include"`, and an allowed `Origin`. Keep access tokens in memory. Use the same site for web/API deployments with this cookie policy. Local HTTP explicitly uses `COOKIE_SECURE=false`; production requires secure cookies and HTTPS.
-- **Scanner:** refresh token is returned in JSON. Keep it in the OS protected credential store and send it as `refresh_token` to `/refresh`. Access tokens use `Authorization: Bearer ...` for both client types.
-- Logout requires the access token. `/logout-all` revokes all sessions; deleting `/sessions/{id}` revokes one owned session. Session listings are paginated and contain no hashes or bearer tokens.
+New routes follow the same pattern: schemas → service (transaction, permission check, audit and
+outbox rows in the same commit) → API module registered in `main.py` → contract in a
+`*_API.md` guide.
 
-No raw passwords, refresh tokens or emailed tokens appear in outbox/audit payloads. Email secrets are regenerated from a purpose-bound challenge ID and a separate HMAC key only when the worker dispatches the message. Protect and back up that key with the database; changing it invalidates outstanding challenges.
+---
 
-## Enable Google sign-in
+## API guides
 
-Create a **Web application** OAuth client in Google Cloud, configure the consent screen/test users, and set:
+Each guide is the contract for its area: endpoints, request/response shapes, error codes and
+remaining scope.
+
+| Guide | Covers |
+|---|---|
+| [CATALOG_API.md](CATALOG_API.md) | Organizations, staff, events, ticket types, venues and seating |
+| [CHECKOUT_API.md](CHECKOUT_API.md) | Holds, free orders, ticket claims, QR payload, attendee list |
+| [PAID_SALES_API.md](PAID_SALES_API.md) | Simulated paid-sales activation |
+| [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
+| [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
+| [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
+| [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments, WebSocket |
+| [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md) | In-app notifications and calendar export |
+| [ADMIN_API.md](ADMIN_API.md) | Platform administration |
+
+Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code to a message.
+
+---
+
+## Database and migrations
+
+- Migrations live in `migrations/versions/` as `NNNN_name.py` + a hand-written `NNNN_name.sql`.
+  There are **12 migrations and 58 tables** in the `biletflow` schema:
+  `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
+  `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
+  `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
+  `0012_paid_orders`.
+- **Never edit an applied migration.** Add the next number, mirror the tables in a
+  `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
+- There are no downgrades. To start over locally, use `docker compose down --volumes`.
+- Audit, moderation and support history rows are protected by database triggers and cannot be
+  edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
+- `docs/database/` holds a larger 66-table **reference design**. It is a target, not the deployed
+  schema — never run its DDL against this database.
+
+---
+
+## Background worker
+
+`python -m app.worker` claims durable jobs from the `outbox_job` table (`FOR UPDATE SKIP LOCKED`),
+retries with back-off and marks a job `dead` after 5 attempts. It handles:
+
+- emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
+- notification fan-out (in-app + email);
+- simulated payment initialization, provider events and refund dispatch;
+- releasing expired holds every 15 seconds.
+
+Business results never wait for email or notifications; those are retried independently.
+
+---
+
+## Authentication and sessions
+
+- **Access tokens**: HS256 JWTs valid for up to 10 minutes; not stored. Every request also checks
+  the session in PostgreSQL, so logout, password reset and suspension apply immediately.
+- **Refresh tokens**: random opaque secrets; only SHA-256 digests are stored. Each refresh rotates
+  the token; reusing an old one revokes the session. Sessions expire after 30 days.
+- **Web clients** get the refresh token as an HttpOnly, SameSite=Strict cookie scoped to
+  `/api/v1/auth`; call `/auth/refresh` with `credentials: "include"` from an allowed origin and
+  keep the access token in memory.
+- **Scanner clients** (`client_kind: "scanner"`) get the refresh token in the JSON body and must
+  keep it in the device's secure storage.
+- Passwords are hashed with Argon2id. Registration requires 12–128 characters. Verification links
+  last 24 hours, password-reset links 30 minutes; a reset revokes every session.
+
+Try it in Swagger: `POST /auth/register` → open the email in Mailpit and send the `#token=` value
+to `POST /auth/verify-email` → `POST /auth/login` → paste `access_token` into **Authorize**.
+
+---
+
+## Google sign-in
+
+Optional. Create a *Web application* OAuth client in Google Cloud and set:
 
 ```dotenv
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+GOOGLE_REDIRECT_URI=http://localhost:8080/api/v1/auth/google/callback
 ```
 
-Register that exact redirect URI in Google Cloud. Restart the API after changing settings. Use `localhost` consistently: starting on `127.0.0.1` and returning to `localhost` loses the browser-binding cookie.
+Register exactly that redirect URI and restart the API. Use `localhost` consistently (not
+`127.0.0.1`). The flow uses PKCE, a one-use state, a nonce and a browser-binding cookie.
+Accounts are matched by Google's stable `sub`, never by email alone; an existing password account
+links Google explicitly via `POST /auth/google/link`. Without credentials, Google endpoints
+return `503 google_not_configured`.
 
-1. In the same browser, `POST /api/v1/auth/google/start` and open the returned `authorization_url`.
-2. Google returns an authorization code to the configured callback. The backend verifies the one-use state and browser cookie, exchanges the code with PKCE, validates Google's RS256 signature/JWKS, issuer, audience, authorized party, expiry, nonce and verified email, and creates the BiletFlow session.
-3. The backend callback returns the access-token JSON and sets the web refresh cookie. Provider access/refresh tokens are never persisted.
+---
 
-For a frontend integration, the registered `GOOGLE_REDIRECT_URI` can instead point to the frontend's fixed callback page. That page submits Google's `code` and `state` to this backend's callback with credentials included and consumes the returned access token. Add the frontend origin to `ALLOWED_ORIGINS`; both start and callback requests must preserve the same API cookies. No arbitrary redirect URI is accepted from users.
+## Platform administrators
 
-Google `sub` is the stable identity key. Matching email alone never links accounts. If a password account already exists, sign in normally and call authenticated `POST /google/link`, then complete Google authorization. The callback rechecks the original session and refuses a Google identity already owned by another account. Linking is explicit; unlinking is outside this task.
+Admins can only be granted from the command line:
 
-Without Google credentials, start/link returns `503 google_not_configured`. Automated tests verify signed token validation and the OAuth lifecycle with mocked network exchanges. A real Google consent/browser round trip still requires your credentials.
-
-References: [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect), [FastAPI JWT and password hashing](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/).
-
-## Database relations and transactions
-
-The `biletflow` schema now has 48 tables across `0001_identity`, `0002_event_setup`, `0003_checkout`, `0004_admission`, `0005_notifications_calendar`, `0006_admin_moderation`, `0007_entry_offline`, `0008_support` and `0009_files_admission` (which adds `stored_file` and `support_attachment`). Files (support attachments, stored ticket PDFs) are written below `STORAGE_ROOT` (default `var/storage`; `/app/var/storage` on the `file_storage` Docker volume); keep it on persistent storage. After upgrading, run `python -m app.bootstrap` again (in Docker, restart the `migrate` service): it applies `0009` and re-grants the runtime role on all tables, including the two new ones. The nine identity/supporting tables below originate in `migrations/versions/0001_identity.sql`; the [catalogue guide](CATALOG_API.md#database-and-transaction-contract) describes the 18 event-setup tables the [checkout guide](CHECKOUT_API.md#tables-0003_checkout) the three order/ticket tables and the [admission guide](ADMISSION_API.md#tables-0004_admission) the two check-in tables.
-
-| Table | Purpose and relationships |
-|---|---|
-| `app_user` | Unique normalized email; nullable Argon2id password for Google-only identities; verified timestamp, locale, status and consent |
-| `auth_session` | Many sessions per user; FK to user, unique current refresh digest, absolute expiry, revocation, client kind |
-| `refresh_token` | Many issued refresh digests per session; FK to session, globally unique digest, consumed timestamp |
-| `account_token` | Many one-use challenges per user; FK to user, constrained purpose, unique digest, expiry, consumption |
-| `external_identity` | FK to user; unique `(provider, subject)` and `(user_id, provider)` |
-| `oauth_attempt` | One-use hashed state and browser binding; optional FK to the session authorizing account linking |
-| `auth_rate_bucket` | Shared database-backed fixed-window counters using keyed digests for IP/email keys |
-| `audit_log` | Append-only authentication events with actor-user FK; no credentials or profile payloads |
-| `outbox_job` | Durable email intent, retry count and fenced worker lease; payload references challenge ID |
-
-```mermaid
-erDiagram
-    app_user ||--o{ auth_session : owns
-    auth_session ||--o{ refresh_token : rotates
-    app_user ||--o{ account_token : verifies
-    app_user ||--o{ external_identity : links
-    auth_session o|--o{ oauth_attempt : authorizes_link
-    app_user ||--o{ audit_log : acts
+```bash
+docker compose exec api python -m app.admin_cli grant someone@example.com   # Docker
+uv run python -m app.admin_cli grant someone@example.com                     # native, from backend/
 ```
 
-UUID primary keys and creation timestamps are server defaults. All FKs use RESTRICT; no account/history deletion API exists. Unique email and identity constraints backstop application locks. User locks precede session/challenge locks; creation/linking also uses identity advisory locks. Account creation, challenge creation and email/audit intent commit together. Password reset and session revocation commit together. Rate counters commit independently, including rejected attempts. Remote Google/SMTP calls occur outside domain transactions.
+---
 
-Workers claim with `FOR UPDATE SKIP LOCKED`, release the transaction before SMTP, and acknowledge only the current unexpired lease. Up to five attempts are allowed; failed/uncertain sends may be repeated, as SMTP cannot guarantee exactly-once delivery. The same single-use challenge remains authoritative.
+## Tests and checks
 
-The original draw.io atlas remains the full-product design baseline. This implementation makes `password_hash` nullable and adds four supporting auth tables. `0002_event_setup` replaces the temporary authentication-only scope CHECKs with organization/event FKs in shared audit/outbox. Permission records retain revocation timestamps. Run the bootstrap after upgrading to grant the runtime role access to the added tables and seed the predefined catalogue. Do not infer that all 66 planned tables are deployed.
+Tests run against a **real, empty PostgreSQL database whose name ends in `_test`** — the suite
+refuses any other name and truncates every table. Never point it at valuable data.
 
-## Tests
-
-Create a **separate empty PostgreSQL database whose name ends in `_test`**, owned by a test role with migration/role-creation rights. Set `TEST_DATABASE_URL` to its `postgresql+psycopg://...` URL. The suite refuses other database names and truncates every implemented table. On Windows use `127.0.0.1` rather than `localhost` in the URL; Docker publishes PostgreSQL on IPv4 only and each `localhost` connection otherwise waits for an IPv6 timeout. Never point it at a shared or valuable database.
-
-```text
+```bash
+export TEST_DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1:5433/biletflow_test
 uv sync --frozen
 uv run pytest -q --cov=app --cov-report=term-missing
 uv run ruff check app tests migrations
 uv run ruff format --check app tests migrations
 ```
 
-When using the generated local `.env`, load its test URL for the run:
+There are 238 tests in 24 files, covering every implemented area, including concurrency
+(overselling, double check-in, racing payments) and permission isolation. CI
+(`.github/workflows/backend-auth.yml`) runs the same commands on PostgreSQL 17 for every push and
+pull request.
 
-```text
-uv run python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise SystemExit(pytest.main(['-q']))"
+End-to-end smoke tests against a running Docker stack live in `../tools/`:
+
+```bash
+uv run python ../tools/smoke_admission.py
+uv run python ../tools/smoke_paid_checkout.py
 ```
 
-Tests cover the full account flow, SQL relationships and audit immutability, token forgery/expiry/purpose, cookie CSRF protections, replay, session ownership, email retries/leases, shared rate limits, restricted-role permissions, rollback, concurrent registration/verification/refresh, reset-versus-refresh, and Google cryptographic validation/account linking. They use independent real PostgreSQL connections; no SQLite substitute. The suite also covers organizer isolation, invitation acceptance/replay, delegation limits, private/unlisted discovery, event lifecycle, seating, allocation capacity guards and transaction rollback. Checkout tests cover free registration, repeated confirmation, recipient claims, ticket emails, the attendee list, limits, expiry, private events and concurrent holds on one seat. Admission tests cover assigned-scanner access, one-time check-in, two scanners racing on one ticket, retries, forged/campaign/wrong-event codes, the admission window and reversal. `tests/test_support_attachments.py` covers protected support attachments (content sniffing, size limits, linking rules, signed download links); `tests/test_ticket_files.py` the stored ticket PDF and its email attachment; `tests/test_admission_preview.py` the read-only verification preview and conflict-review reversal; `tests/test_admission_history.py` the organizer check-in history, CSV export and attendee admission status. CI is configured to repeat these checks on PostgreSQL 17.
+---
 
-Deploy behind HTTPS, preserve secret-free logging, and configure trusted proxy handling explicitly if needed. The default rate limiter uses the connection peer IP, not untrusted forwarded headers. Audit/outbox/auth history is retained in this academic implementation; retention cleanup remains an explicit future policy. Platform-admin endpoints remain planned. Organizer/event endpoints and their limitations are documented in [CATALOG_API.md](CATALOG_API.md).
+## What is left to do
+
+**Required for the MVP**
+- **Promo campaigns and Campaign QR** (SRS 4.14): campaign, code, reservation and redemption
+  tables; discount in holds and orders; atomic redemption limit; campaign report; QR image.
+- **Organizer analytics** (SRS 4.15): capacity, sold/remaining, revenue, sales over time, by ticket
+  type and campaign, attendance, with event/date/ticket-type filters. Read-only queries that never
+  block checkout.
+- **Refunds and cancellations** (SRS 4.9): organizer-initiated full refunds, cancelling free
+  registrations, refunds when an event with sales is cancelled (currently
+  `409 commerce_cancellation_required`), ticket invalidation.
+- **Organizer finance view** (SRS 4.6): gross, fees, refunds, estimated payout.
+- **Per-ticket-type counts**: available, reserved, sold, refunded, checked-in.
+- **Event images** (SRS 4.2).
+- **Admin gaps** (SRS 4.12): endpoint to suspend/reinstate paid sales, views of payments,
+  refunds, failures, activation records and promo activity. Commerce code should read the
+  activation fee and hold time from admin settings instead of constants.
+- **Missing notifications** (SRS 4.10): purchase confirmation, payment failure, refund completed,
+  payout status.
+- **Event history filters** on the server (date range, action type).
+
+The web client already has screens for promo codes, campaigns, analytics, finance,
+refund/cancel and image upload. Agree their exact request/response shapes with the web owner and
+document them in new `*_API.md` guides before implementing.
+
+**Quality and operations**
+- Kazakh and Russian email templates.
+- Content-Security-Policy and HSTS headers for HTTPS deployments.
+- Optional S3-compatible storage backend (local disk today).
+- Update `VALIDATION.md` with current evidence.
