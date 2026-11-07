@@ -13,10 +13,10 @@ import {
   login as apiLogin,
   logout as apiLogout,
   refresh as apiRefresh,
-  type Profile,
 } from "@/api/auth";
 import { setSessionExpiredHandler } from "@/api/session";
 import { clearTokens, getTokens, saveTokens } from "@/api/tokenStorage";
+import type { Profile } from "@/api/types/auth";
 
 type Status = "loading" | "signedIn" | "signedOut";
 

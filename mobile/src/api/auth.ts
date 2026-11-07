@@ -3,22 +3,7 @@
 // earlier assumed spec. Field names below are exactly what the API sends/expects.
 
 import { API_URL, friendlyError as baseFriendlyError, networkError } from "@/api/client";
-
-export type TokenPair = {
-  access_token: string;
-  token_type: "bearer";
-  expires_in: number;
-  refresh_token: string;
-};
-
-export type Profile = {
-  id: string;
-  email: string;
-  display_name: string;
-  locale: string;
-  email_verified_at: string | null;
-  analytics_consent: boolean;
-};
+import type { Profile, TokenPair } from "@/api/types/auth";
 
 // Same wording as the web sign-in page (web/src/main.js parseResponse).
 const AUTH_MESSAGES: Record<string, string> = {

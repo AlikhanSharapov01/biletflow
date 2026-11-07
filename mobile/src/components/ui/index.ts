@@ -4,7 +4,6 @@ export { PrimaryButton, SubtleButton, TextButton } from "@/components/ui/Buttons
 export { DateTile } from "@/components/ui/DateTile";
 export { PageHeading } from "@/components/ui/PageHeading";
 export { Panel, PanelHeading } from "@/components/ui/Panel";
-export { Screen } from "@/components/ui/Screen";
 export { SelectField, type SelectOption } from "@/components/ui/SelectField";
 export { EmptyState, ErrorPanel, LoadingState } from "@/components/ui/States";
 export { StatusPill } from "@/components/ui/StatusPill";
