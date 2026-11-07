@@ -2,7 +2,7 @@ import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/features/auth/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { colors } from "@/theme";
 

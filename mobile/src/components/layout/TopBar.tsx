@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Avatar, Brand } from "@/components/ui";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/AuthContext";
 
 // Brand on the left, the signed-in user's avatar on the right (web .topbar);
 // the avatar opens the Account tab.

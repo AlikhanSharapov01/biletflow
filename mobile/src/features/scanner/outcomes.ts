@@ -2,7 +2,7 @@
 // check-in contract in backend/ADMISSION_API.md. Every state has its own
 // icon and title, not just a colour, so it reads at a glance in a dark venue.
 
-import type { CheckInOutcome, ReversalResult } from "@/api/scanner";
+import type { CheckInOutcome, ReversalResult } from "@/api/types/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
 
 export type Tone = "admitted" | "warning" | "rejected" | "offline";
