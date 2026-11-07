@@ -1,0 +1,42 @@
+/* Discover, the public event page and free checkout. */
+.discover-filters { grid-template-columns: minmax(220px, 1fr) minmax(180px, .55fr) auto; align-items: end; gap: var(--gap); margin-bottom: 16px; }
+.search-box { display: flex; min-height: var(--control-height); align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: #fff; }
+.search-box span { color: #829087; font-size: 16px; }
+.search-box input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 15px; }
+.search-box input::placeholder { color: var(--placeholder); }
+.search-box:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+.event-description { color: var(--body-soft); font-size: var(--text-body); line-height: 1.65; white-space: pre-line; }
+.checkout-heading { margin-top: 8px; }
+.signin-prompt { padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius-button); color: var(--body-soft); font-size: var(--text-body-sm); }
+.signin-prompt a { font-weight: 700; }
+
+.checkout { display: grid; gap: 14px; }
+.checkout-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.checkout-head h3 { font-size: var(--text-panel-title); }
+.countdown { padding: 5px 10px; border-radius: var(--radius-pill); background: var(--tone-positive-bg); color: var(--tone-positive); font-size: var(--text-meta); font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.countdown.urgent { background: var(--tone-blocked-bg); color: var(--tone-blocked); }
+.ticket-options { display: grid; gap: 8px; }
+.ticket-option { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-button); font-size: var(--text-body-sm); }
+.ticket-option-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.ticket-option-copy strong { font-size: 15px; }
+.ticket-option-copy small { color: var(--meta); font-size: var(--text-meta); }
+.ticket-option-copy .ticket-reason { color: var(--tone-pending); }
+.ticket-option .price { color: var(--green); }
+.qty-field select { min-width: 72px; min-height: var(--control-height-sm); padding: 0 10px; border: 1px solid var(--input-line); border-radius: var(--radius-button); background: var(--paper); color: var(--ink); font-size: 15px; }
+.recipient-list { display: grid; gap: var(--gap); }
+.recipient { margin: 0; padding: 12px 16px 16px; border: 1px solid var(--line); border-radius: var(--radius-button); }
+.recipient legend { padding: 0 6px; color: var(--button-ink); font-size: var(--text-label); font-weight: 700; }
+
+@media (max-width: 760px) {
+  .discover-filters { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .ticket-option { flex-wrap: wrap; }
+  .ticket-option-copy { flex-basis: 100%; }
+}
+
+/* Event page aside: calendar export and "Report this event". */
+.calendar-links { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.calendar-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-event { margin-top: 4px; }

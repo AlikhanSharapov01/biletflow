@@ -1,0 +1,59 @@
+/* Paid checkout, promo codes, the seat map and price summaries. */
+.ticket-option-copy .ticket-paid-note { color: var(--meta); }
+.ticket-option-copy .ticket-promo { color: var(--green); font-weight: 600; }
+
+/* Promo code */
+.promo-field { display: grid; gap: 6px; }
+.promo-row { display: flex; align-items: center; gap: 8px; }
+.promo-row input { flex: 1; min-width: 0; text-transform: uppercase; }
+.promo-note { font-size: var(--text-meta); line-height: 1.45; }
+.promo-note.success { color: var(--tone-positive); font-weight: 600; }
+.promo-note.info { color: var(--tone-neutral); }
+.promo-note.error { color: var(--error); }
+
+/* Price summary */
+.price-summary { display: grid; gap: 6px; margin: 0; font-size: var(--text-body-sm); }
+.price-summary > div { display: flex; justify-content: space-between; gap: 12px; }
+.price-summary dt { color: var(--body-soft); }
+.price-summary dd { margin: 0; font-variant-numeric: tabular-nums; }
+.price-summary-total { padding-top: 8px; border-top: 1px solid var(--line-soft); font-size: var(--text-body); font-weight: 700; }
+.price-summary-total dt { color: var(--ink); }
+.price-summary-total small { color: var(--meta); font-size: var(--text-micro); font-weight: 600; }
+
+/* Simulated payment */
+.simulation-banner { display: grid; gap: 4px; padding: 12px 14px; border: 1px dashed var(--tone-pending); border-radius: var(--radius-button); background: var(--tone-pending-bg); color: var(--tone-pending); font-size: var(--text-meta); line-height: 1.45; }
+.simulation-banner strong { font-size: var(--text-body-sm); }
+.payment-failed { color: var(--error); font-size: var(--text-body-sm); }
+
+/* Seat map */
+.seat-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; color: var(--body-soft); font-size: var(--text-meta); list-style: none; }
+.seat-legend li { display: flex; align-items: center; gap: 6px; }
+.seat-map { display: grid; gap: 16px; padding: 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--canvas); }
+.seat-stage { justify-self: center; width: min(320px, 80%); padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: 1.3px; text-align: center; text-transform: uppercase; }
+.seat-section { display: grid; gap: 6px; }
+.seat-section h4 { color: var(--button-ink); font-size: var(--text-label); }
+.seat-row { display: flex; align-items: center; gap: 8px; }
+.seat-row-label { width: 24px; flex: none; color: var(--meta); font-size: var(--text-micro); font-weight: 700; text-align: right; }
+.seat-row-seats { display: flex; flex-wrap: nowrap; gap: 4px; }
+.seat, .seat-swatch { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1.5px solid var(--green); border-radius: 6px 6px 3px 3px; background: var(--paper); color: var(--green); font-size: var(--text-micro); font-weight: 700; }
+.seat-swatch { width: 20px; height: 20px; font-size: 10px; }
+.seat { cursor: pointer; }
+.seat:hover:not(:disabled) { background: var(--active-nav); }
+.seat:disabled { cursor: not-allowed; opacity: 1; }
+.seat-selected { border-color: var(--green-dark); background: var(--green); color: var(--paper); }
+.seat.seat-selected:hover { background: var(--green-dark); }
+.seat-held { border-color: var(--tone-pending); background: var(--tone-pending-bg); color: var(--tone-pending); }
+.seat-sold, .seat-refund_pending { border-color: var(--tone-blocked); background: var(--tone-blocked-bg); color: var(--tone-blocked); }
+.seat-unavailable, .seat-blocked { border-color: var(--line); background: var(--tone-neutral-bg); color: var(--faint); }
+.seat-accessible { border-style: double; border-width: 3px; }
+.seat-selection { display: grid; gap: 8px; }
+.seat-chosen { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: var(--text-body-sm); }
+.seat-chosen li { display: flex; align-items: center; gap: 10px; }
+.seat-chosen li > span:first-child { flex: 1; min-width: 0; }
+.seat-chosen small { color: var(--meta); font-size: var(--text-meta); }
+.seat-chosen .price { color: var(--green); font-variant-numeric: tabular-nums; }
+.seat-chosen-total { padding-top: 6px; border-top: 1px solid var(--line-soft); font-weight: 700; }
+
+@media (max-width: 480px) {
+  .seat { width: 34px; height: 34px; }
+}

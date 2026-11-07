@@ -1,0 +1,105 @@
+/* Design tokens. Values match mobile/src/theme/index.ts so both clients read
+   as one product; components use these names instead of hex literals. */
+:root {
+  --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  /* Surfaces and ink */
+  --ink: #172724;
+  --muted: #7b8580;
+  --faint: #a0a7a1;
+  --line: #e4e7df;
+  --line-soft: #eef0ea;
+  --paper: #fffefa;
+  --canvas: #f6f5f0;
+  --sidebar: #fbfaf6;
+  --note: #eef3e6;
+  --hover-surface: #f0f1eb;
+  --hover-line: #aabaae;
+
+  /* Brand */
+  --green: #236b55;
+  --green-dark: #174a3b;
+  --green-story: #173c32;
+  --lime: #d8f06a;
+  --coral: #e9755d;
+  --yellow: #f4c96b;
+
+  /* Text roles */
+  --subtitle: #79847d;
+  --meta: #89928b;
+  --body-soft: #68756d;
+  --intro: #87928a;
+  --button-ink: #4a5951;
+  --nav-ink: #6e7972;
+
+  /* Controls */
+  --input-line: #dfe3dc;
+  --placeholder: #a3aaa5;
+  --tab-track: #ebece6;
+  --active-nav: #e8f0e6;
+  --row-icon: #edf3e8;
+  --date-tile: #f3eee1;
+  --date-tile-ink: #726044;
+  --avatar: #e6d7b9;
+  --avatar-ink: #604b2e;
+  --focus: #93b869;
+
+  /* Errors and danger */
+  --error: #a44735;
+  --error-title: #745247;
+  --error-text: #8d7067;
+  --danger: #a85443;
+  --danger-line: #f0d8d2;
+
+  /* Status pill tones (background / text) */
+  --tone-positive-bg: #eef5e9;
+  --tone-positive: #4a7151;
+  --tone-pending-bg: #fff3dd;
+  --tone-pending: #a57324;
+  --tone-blocked-bg: #f9e9e4;
+  --tone-blocked: #b25845;
+  --tone-neutral-bg: #edf0ef;
+  --tone-neutral: #68756d;
+
+  /* Event artwork gradients */
+  --art-0: #d8e6d6, #94b69b;
+  --art-1: #eee0bf, #c38b66;
+  --art-2: #d4dbea, #7b8faf;
+  --art-3: #efdbd2, #bb796c;
+
+  /* Type scale (mobile theme) */
+  --text-title: clamp(30px, 1.6vw + 18px, 38px);
+  --text-card-title: 20px;
+  --text-panel-title: 16px;
+  --text-body: 15px;
+  --text-body-sm: 14px;
+  --text-meta: 13px;
+  --text-label: 13px;
+  --text-micro: 11px;
+
+  /* Spacing and shape */
+  --gutter: 16px;
+  --gap: 12px;
+  --panel-pad: 16px;
+  --heading-gap: 20px;
+  --topbar-gap: 24px;
+  --content-max: 1120px;
+  --control-height: 46px;
+  --control-height-sm: 40px;
+  --radius-input: 7px;
+  --radius-button: 6px;
+  --radius-panel: 8px;
+  --radius-pill: 20px;
+
+  --shadow: 0 22px 60px rgb(31 51 43 / 8%);
+  --shadow-raised: 0 1px 4px rgb(23 39 36 / 9%);
+  --shadow-menu: 0 14px 36px rgb(31 51 43 / 14%);
+}
+
+@media (min-width: 761px) {
+  :root {
+    --gutter: 32px;
+    --panel-pad: 20px;
+  }
+}
