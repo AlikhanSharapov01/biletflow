@@ -30,8 +30,9 @@ async function send(url: string, init: RequestInit, token: string): Promise<Resp
 async function failure(response: Response): Promise<ApiError> {
   let code: string | undefined;
   try {
-    const body = (await response.json()) as { detail?: { code?: unknown } };
-    if (body.detail && typeof body.detail.code === "string") code = body.detail.code;
+    const body = (await response.json()) as { detail?: { code?: unknown } | string; code?: unknown };
+    if (body.detail && typeof body.detail === "object" && typeof body.detail.code === "string") code = body.detail.code;
+    else if (typeof body.code === "string") code = body.code;
   } catch {
     code = undefined;
   }
@@ -53,10 +54,36 @@ async function authorized(url: string, init: RequestInit = {}): Promise<Response
   return response;
 }
 
-function filenameFrom(response: Response, fallback: string): string {
-  const header = response.headers.get("Content-Disposition") ?? "";
-  const match = /filename="?([^";]+)"?/i.exec(header);
-  return match?.[1] ?? fallback;
+// `attachment; filename="biletflow-ticket-1.pdf"` -> "biletflow-ticket-1.pdf".
+export function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const encoded = /filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i.exec(header);
+  if (encoded?.[1]) {
+    try {
+      return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      // Fall through to the plain filename.
+    }
+  }
+  const plain = /filename\s*=\s*"?([^";]+)"?/i.exec(header);
+  return plain?.[1]?.trim() || null;
+}
+
+export interface DownloadedFile {
+  blob: Blob;
+  filename: string;
+}
+
+export async function requestBlob(path: string, fallbackName: string, query?: Query): Promise<DownloadedFile> {
+  const response = await authorized(withQuery(path, query));
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(response.headers.get("Content-Disposition")) ?? fallbackName,
+  };
+}
+
+export function saveFile(file: DownloadedFile): void {
+  saveBlob(file.blob, file.filename);
 }
 
 export async function fetchBlob(path: string, query?: Query): Promise<Blob> {
@@ -77,8 +104,7 @@ export function saveBlob(blob: Blob, filename: string): void {
 }
 
 export async function downloadFile(path: string, fallbackName: string, query?: Query): Promise<void> {
-  const response = await authorized(withQuery(path, query));
-  saveBlob(await response.blob(), filenameFrom(response, fallbackName));
+  saveFile(await requestBlob(path, fallbackName, query));
 }
 
 // Sends a file as the raw request body (no multipart), as the backend's

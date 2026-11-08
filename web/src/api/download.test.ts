@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filenameFromDisposition } from "./download";
+import { filenameFromDisposition } from "./files";
 
 describe("filenameFromDisposition", () => {
   it("reads plain and encoded filenames", () => {

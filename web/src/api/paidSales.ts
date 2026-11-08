@@ -27,8 +27,8 @@ export function acceptPaidSalesTerms(eventId: string, termsVersion: string): Pro
 }
 
 // Safe to repeat: an open payment attempt is returned instead of a new charge.
-export function startActivation(eventId: string): Promise<PaidSalesChecklist> {
-  return request<PaidSalesChecklist>(`/api/v1/events/${id(eventId)}/paid-sales/activation`, { method: "POST" });
+export function startActivation(eventId: string, idempotencyKey: string = crypto.randomUUID()): Promise<PaidSalesChecklist> {
+  return request<PaidSalesChecklist>(`/api/v1/events/${id(eventId)}/paid-sales/activation`, { method: "POST", idempotencyKey });
 }
 
 // Development/test only: act as the payment provider for your own attempt.

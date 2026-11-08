@@ -1,5 +1,5 @@
 import { request } from "./client";
-import { requestBlob, type DownloadedFile } from "./download";
+import { requestBlob, type DownloadedFile } from "./files";
 import type { EntryConfirmation, IssuedTicket, TicketAdmission, TicketDelivery } from "./types/checkout";
 
 const id = encodeURIComponent;

@@ -4,7 +4,7 @@ import { describeError } from "../../../api/errors";
 import type { Locale, Profile } from "../../../api/types";
 import { Button } from "../../../components/ui/Button";
 import { FormMessage } from "../../../components/ui/Feedback";
-import { SelectField, TextField } from "../../../components/ui/Field";
+import { CheckboxField, SelectField, TextField } from "../../../components/ui/Field";
 import { Panel, PanelHeading } from "../../../components/ui/Panel";
 import { StatusPill } from "../../../components/ui/StatusPill";
 import { useToast } from "../../../components/ui/Toast";
@@ -29,6 +29,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
       const updated = await authApi.updateProfile({
         display_name: String(data.get("display_name") ?? "").trim(),
         locale: String(data.get("locale") ?? "en") as Locale,
+        analytics_consent: data.get("analytics_consent") === "on",
       });
       onSaved(updated);
       notify("Profile updated.");
@@ -60,6 +61,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
             </option>
           ))}
         </SelectField>
+        <CheckboxField label="Allow optional traffic analytics on public event pages" name="analytics_consent" defaultChecked={profile.analytics_consent} />
         <FormMessage message={message.text} success={message.success} />
         <Button variant="primary" type="submit" disabled={saving}>
           Save profile

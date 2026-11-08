@@ -1,3 +1,4 @@
+import { TrafficAnalytics } from "../analytics/TrafficAnalytics";
 import { BrowserRouter } from "react-router";
 import { ToastProvider } from "../components/ui/Toast";
 import { AuthProvider } from "../features/auth/AuthContext";
@@ -8,6 +9,7 @@ export function App() {
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
+          <TrafficAnalytics />
           <AppRoutes />
         </AuthProvider>
       </ToastProvider>

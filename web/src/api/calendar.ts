@@ -1,5 +1,5 @@
 import { request } from "./client";
-import { requestBlob, type DownloadedFile } from "./download";
+import { requestBlob, type DownloadedFile } from "./files";
 import type { CalendarLinks } from "./types/calendar";
 
 export function getCalendarLinks(eventId: string): Promise<CalendarLinks> {
