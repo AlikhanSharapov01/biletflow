@@ -5,6 +5,15 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .activation_service import paid_sales_status
+from .campaign_service import (
+    active_reservation,
+    order_promo,
+    promo_summary,
+    redeem,
+    reservation_for,
+    reserve,
+    revalidate,
+)
 from .catalog_models import Allocation, Event, EventSeat, Hold, Organization, TicketType, Venue
 from .catalog_service import active_allocations, catalog_audit, changed, event_guard
 from .checkout_expiry import close_expired, close_hold
@@ -14,6 +23,7 @@ from .commerce_models import PaymentAttempt, PaymentIntent, Refund
 from .models import OutboxJob
 from .notification_service import enqueue_ticket_delivered
 from .payments_service import attempt_view, latest_attempt, refund_view
+from .pricing import hold_quote, quote
 from .security import challenge_value, digest, fail, now
 
 
@@ -90,7 +100,10 @@ def hold_request(event_id, data):
         (str(line.ticket_type_id), line.quantity, sorted(str(seat) for seat in line.seat_ids))
         for line in data.items
     )
-    return {"event_id": str(event_id), "items": [list(line) for line in lines]}
+    request = {"event_id": str(event_id), "items": [list(line) for line in lines]}
+    if data.promo_code:
+        request["promo_code"] = data.promo_code
+    return request
 
 
 def create_hold(db, user, event_id, data):
@@ -179,6 +192,8 @@ def create_hold(db, user, event_id, data):
         db.flush()
     except IntegrityError:
         fail("seat_unavailable", 409)
+    if data.promo_code:
+        reserve(db, event, hold, data.promo_code, types)
     changed(event)
     catalog_audit(
         db,
@@ -191,7 +206,44 @@ def create_hold(db, user, event_id, data):
     return hold
 
 
+def hold_pricing(db, allocations, reservation):
+    types = {
+        row.id: row
+        for row in db.scalars(
+            select(TicketType).where(TicketType.id.in_({a.ticket_type_id for a in allocations}))
+        )
+    }
+    snapshot = reservation.discount_snapshot if reservation else None
+    totals, lines = hold_quote(types, allocations, snapshot)
+    return {
+        "gross": totals["gross"],
+        "discount": totals["discount"],
+        "subtotal": totals["subtotal"],
+        "processing_fee": totals["fee"],
+        "payable": totals["subtotal"],
+        "lines": [
+            {
+                "allocation_id": row.id,
+                "ticket_type_id": row.ticket_type_id,
+                "face_value_minor": line.face,
+                "discount_minor": line.discount,
+                "paid_minor": line.paid,
+                "processing_fee_minor": line.fee,
+                "campaign_eligible": line.eligible,
+            }
+            for row, line in zip(allocations, lines, strict=True)
+        ],
+    }
+
+
 def hold_view(db, hold):
+    rows = list(
+        db.scalars(
+            select(Allocation)
+            .where(Allocation.hold_id == hold.id)
+            .order_by(Allocation.created_at, Allocation.id)
+        )
+    )
     allocations = [
         {
             "id": row.id,
@@ -199,12 +251,9 @@ def hold_view(db, hold):
             "event_seat_id": row.event_seat_id,
             "state": row.state,
         }
-        for row in db.scalars(
-            select(Allocation)
-            .where(Allocation.hold_id == hold.id)
-            .order_by(Allocation.created_at, Allocation.id)
-        )
+        for row in rows
     ]
+    reservation = reservation_for(db, hold.id)
     return {
         "id": hold.id,
         "event_id": hold.event_id,
@@ -213,6 +262,8 @@ def hold_view(db, hold):
         "expires_at": hold.expires_at,
         "created_at": hold.created_at,
         "allocations": allocations,
+        "pricing": hold_pricing(db, rows, reservation),
+        "promo": promo_summary(reservation),
     }
 
 
@@ -288,7 +339,7 @@ def matched_recipients(data, allocations):
         fail("recipient_allocation_mismatch", 422)
 
 
-def new_order(db, event, hold, user, status, totals, rate_bps):
+def new_order(db, event, hold, user, status, totals, rate_bps, reservation=None):
     venue = db.get(Venue, event.venue_id)
     order = TicketOrder(
         event_id=event.id,
@@ -297,9 +348,11 @@ def new_order(db, event, hold, user, status, totals, rate_bps):
         status=status,
         currency="KZT",
         gross_minor=totals["gross"],
-        discount_minor=0,
-        payable_minor=totals["gross"],
+        discount_minor=totals["discount"],
+        payable_minor=totals["subtotal"],
         processing_fee_minor=totals["fee"],
+        campaign_id=reservation.campaign_id if reservation else None,
+        promo_code_id=reservation.promo_code_id if reservation else None,
         processing_rate_bps=rate_bps,
         policy_snapshot={
             "refund_allowed": event.refund_allowed,
@@ -330,11 +383,11 @@ def new_order(db, event, hold, user, status, totals, rate_bps):
 def add_items(db, event, hold, order, data, allocations, types, prices):
     """One order item per allocation with immutable price, recipient and seat snapshots.
 
-    `prices` lists (face_value_minor, processing_fee_minor) in recipient order.
+    `prices` lists one pricing.Line per recipient, in recipient order.
     """
     by_id = {row.id: row for row in allocations}
     # Unit numbers follow the buyer's recipient order, which is stable across retries.
-    for unit, (recipient, (face, fee)) in enumerate(zip(data.recipients, prices, strict=True), 1):
+    for unit, (recipient, line) in enumerate(zip(data.recipients, prices, strict=True), 1):
         allocation = by_id[recipient.allocation_id]
         seat = db.get(EventSeat, allocation.event_seat_id) if allocation.event_seat_id else None
         db.add(
@@ -348,10 +401,11 @@ def add_items(db, event, hold, order, data, allocations, types, prices):
                 ticket_type_name=types[allocation.ticket_type_id].name,
                 recipient_name=recipient.name.strip(),
                 recipient_email=recipient.email,
-                face_value_minor=face,
-                discount_minor=0,
-                paid_minor=face,
-                processing_fee_minor=fee,
+                face_value_minor=line.face,
+                discount_minor=line.discount,
+                paid_minor=line.paid,
+                processing_fee_minor=line.fee,
+                campaign_eligible=line.eligible if order.campaign_id else None,
                 seat_snapshot=(
                     {
                         "section_label": seat.section_label,
@@ -419,12 +473,19 @@ def confirm_free(db, settings, user, hold_id, data):
     allocations = held_allocations(db, hold)
     matched_recipients(data, allocations)
     saleable_types(db, event, types)
-    if any(is_paid(ticket) for ticket in types.values()):
+    reservation = active_reservation(db, hold.id)
+    if reservation:
+        revalidate(db, reservation)
+    snapshot = reservation.discount_snapshot if reservation else None
+    totals, lines = quote(types, allocations, data, 0, snapshot)
+    if totals["subtotal"] > 0:
         # The free endpoint never charges money; paid baskets use POST /holds/{id}/checkout.
         fail("payment_required", 409)
-    order = new_order(db, event, hold, user, "confirmed", {"gross": 0, "fee": 0}, 0)
-    add_items(db, event, hold, order, data, allocations, types, [(0, 0)] * len(allocations))
+    order = new_order(db, event, hold, user, "confirmed", totals, 0, reservation)
+    add_items(db, event, hold, order, data, allocations, types, lines)
     issue_tickets(db, settings, event, order, user)
+    if reservation:
+        redeem(db, order, reservation)
     org = db.get(Organization, event.organization_id)
     catalog_audit(db, user, "checkout.order_confirmed", org, event, order)
     return order
@@ -560,5 +621,6 @@ def order_view(db, settings, order, viewer):
         "created_at": order.created_at,
         "quote_expires_at": order.quote_expires_at,
         "items": items,
+        "promo": order_promo(db, order),
         **payment_details(db, order),
     }

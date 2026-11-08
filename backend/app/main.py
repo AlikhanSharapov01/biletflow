@@ -508,12 +508,14 @@ def create_app(settings: Settings | None = None):
     from .admission_api import router as admission_router
     from .admission_history_api import router as admission_history_router
     from .calendar_api import router as calendar_router
+    from .campaign_api import router as campaign_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
     from .notification_api import router as notification_router
     from .offline_api import router as offline_router
     from .organization_api import router as organization_router
     from .paid_checkout_api import router as paid_checkout_router
+    from .refund_api import router as refund_router
     from .support_api import router as support_router
     from .ticket_document_api import router as ticket_document_router
 
@@ -532,4 +534,6 @@ def create_app(settings: Settings | None = None):
     app.include_router(support_router(factory, settings, principal, storage=app.state.storage))
     app.include_router(activation_router(factory, settings, principal))
     app.include_router(paid_checkout_router(factory, settings, principal))
+    app.include_router(campaign_router(factory, settings, principal))
+    app.include_router(refund_router(factory, settings, principal))
     return app

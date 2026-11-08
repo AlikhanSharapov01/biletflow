@@ -12,6 +12,7 @@ export function notificationPath(notification: Pick<AppNotification, "target" | 
     if (type === "event") return `/events/${encoded}`;
     if (type === "ticket") return `/tickets/${encoded}`;
     if (type === "support_case") return `/support/cases/${encoded}`;
+    if (type === "order") return `/orders/${encoded}`;
   }
   return notification.event_id ? `/events/${encodeURIComponent(notification.event_id)}` : null;
 }

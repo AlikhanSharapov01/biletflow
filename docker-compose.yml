@@ -36,6 +36,9 @@ services:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
       STORAGE_ROOT: /app/var/storage
+      # Trust Caddy's X-Forwarded-For so per-address rate limits see the real client.
+      # Port 8000 is published on localhost only, so nobody outside can forge this header.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - file_storage:/app/var/storage
     ports:

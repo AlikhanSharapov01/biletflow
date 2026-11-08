@@ -77,6 +77,13 @@ goes through that record's own endpoint and permission check.
 | `event_cancelled` | `POST /events/{id}/cancel` | in-app, email |
 | `ticket_delivered` | free-checkout confirmation (claimed recipient) and `POST /tickets/claim` | in-app only: the ticket email already comes from `ticket_delivery_email` |
 | `support_reply`, `support_status` | the support module, through the hook below (called from `support_service.notify`) | in-app only: the support worker already emails a link (`support_email`) |
+| `purchase_confirmed` | a paid order is confirmed | in-app, email |
+| `payment_failed` | a payment attempt fails while its order can still be paid | in-app, email |
+| `refund_started`, `refund_completed` | an order refund starts; any refund to a ticket buyer is confirmed | in-app, email |
+| `order_cancelled` | a free order or ticket is cancelled | in-app, email |
+
+The order kinds use `target: {type: "order", id}` and are sent once per order, attempt, refund or
+ticket, however many times the provider or client repeats the operation.
 
 Audience for event notices: accounts that are the recipient of a ticket of the event, plus buyers
 of its confirmed orders (updates: valid or checked-in tickets only; cancellations also include

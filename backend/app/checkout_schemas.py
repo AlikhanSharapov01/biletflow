@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
+from .campaign_schemas import normalize_code
 from .catalog_schemas import Name
 from .schemas import Input
 
@@ -28,6 +29,12 @@ class HoldLine(Input):
 
 class HoldCreate(Input):
     items: list[HoldLine] = Field(min_length=1, max_length=20)
+    promo_code: str | None = Field(default=None, max_length=64)
+
+    @field_validator("promo_code", mode="before")
+    @classmethod
+    def clean_code(cls, value):
+        return normalize_code(value)
 
 
 class RecipientInput(Input):
@@ -59,6 +66,32 @@ class AllocationView(BaseModel):
     state: str
 
 
+class PricingLine(BaseModel):
+    allocation_id: UUID
+    ticket_type_id: UUID
+    face_value_minor: int
+    discount_minor: int
+    paid_minor: int
+    processing_fee_minor: int
+    campaign_eligible: bool
+
+
+class Pricing(BaseModel):
+    gross: int
+    discount: int
+    subtotal: int
+    processing_fee: int
+    payable: int
+    lines: list[PricingLine]
+
+
+class AppliedPromo(BaseModel):
+    code: str
+    campaign_id: UUID
+    discount_kind: str
+    discount_value: int
+
+
 class HoldView(BaseModel):
     id: UUID
     event_id: UUID
@@ -67,6 +100,8 @@ class HoldView(BaseModel):
     expires_at: datetime
     created_at: datetime
     allocations: list[AllocationView]
+    pricing: Pricing
+    promo: AppliedPromo | None = None
 
 
 class IssuedTicket(BaseModel):
@@ -120,6 +155,11 @@ class RefundSummary(BaseModel):
     simulated: bool
 
 
+class OrderPromo(BaseModel):
+    code: str
+    campaign_id: UUID
+
+
 class OrderView(BaseModel):
     id: UUID
     event_id: UUID
@@ -137,6 +177,7 @@ class OrderView(BaseModel):
     items: list[OrderItemView]
     payment: PaymentSummary | None = None
     refunds: list[RefundSummary] = []
+    promo: OrderPromo | None = None
 
 
 class ClaimResult(BaseModel):

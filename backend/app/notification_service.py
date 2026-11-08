@@ -37,7 +37,19 @@ CHANNELS = {
     "ticket_delivered": ("in_app",),
     "support_reply": ("in_app",),
     "support_status": ("in_app",),
+    "purchase_confirmed": ("in_app", "email"),
+    "payment_failed": ("in_app", "email"),
+    "refund_started": ("in_app", "email"),
+    "refund_completed": ("in_app", "email"),
+    "order_cancelled": ("in_app", "email"),
 }
+ORDER_NOTICES = (
+    "purchase_confirmed",
+    "payment_failed",
+    "refund_started",
+    "refund_completed",
+    "order_cancelled",
+)
 
 TEMPLATES = {
     "event_updated": {
@@ -101,6 +113,82 @@ TEMPLATES = {
         "ru": ("Статус обращения изменён", "Статус вашего обращения в поддержку изменился: {link}"),
         "kk": ("Өтініш мәртебесі өзгерді", "Қолдау өтінішіңіздің мәртебесі өзгерді: {link}"),
     },
+    "purchase_confirmed": {
+        "en": (
+            "Order confirmed: {title}",
+            "Your payment for {title} ({when}, {zone}) is confirmed. Your order: {link}",
+        ),
+        "ru": (
+            "Заказ подтверждён: {title}",
+            "Оплата за {title} ({when}, {zone}) подтверждена. Ваш заказ: {link}",
+        ),
+        "kk": (
+            "Тапсырыс расталды: {title}",
+            "{title} ({when}, {zone}) үшін төлем расталды. Тапсырысыңыз: {link}",
+        ),
+    },
+    "payment_failed": {
+        "en": (
+            "Payment failed: {title}",
+            "Your payment for {title} did not go through and no ticket was issued. "
+            "You can try again while your reservation lasts: {link}",
+        ),
+        "ru": (
+            "Оплата не прошла: {title}",
+            "Оплата за {title} не прошла, билет не выпущен. "
+            "Повторить можно, пока действует бронь: {link}",
+        ),
+        "kk": (
+            "Төлем өтпеді: {title}",
+            "{title} үшін төлем өтпеді, билет шығарылмады. "
+            "Брондау мерзімі біткенше қайталай аласыз: {link}",
+        ),
+    },
+    "refund_started": {
+        "en": (
+            "Refund started: {title}",
+            "A refund has started for your order for {title}, and its tickets no longer "
+            "admit anyone. Order: {link}",
+        ),
+        "ru": (
+            "Возврат начат: {title}",
+            "По вашему заказу на {title} начат возврат, билеты больше не действуют. Заказ: {link}",
+        ),
+        "kk": (
+            "Қайтару басталды: {title}",
+            "{title} тапсырысыңыз бойынша қайтару басталды, билеттер енді жарамсыз. "
+            "Тапсырыс: {link}",
+        ),
+    },
+    "refund_completed": {
+        "en": (
+            "Refund completed: {title}",
+            "The refund for your order for {title} is complete. Order: {link}",
+        ),
+        "ru": (
+            "Возврат завершён: {title}",
+            "Возврат по вашему заказу на {title} завершён. Заказ: {link}",
+        ),
+        "kk": (
+            "Қайтару аяқталды: {title}",
+            "{title} тапсырысыңыз бойынша қайтару аяқталды. Тапсырыс: {link}",
+        ),
+    },
+    "order_cancelled": {
+        "en": (
+            "Registration cancelled: {title}",
+            "A registration for {title} was cancelled and its ticket no longer admits anyone. "
+            "Order: {link}",
+        ),
+        "ru": (
+            "Регистрация отменена: {title}",
+            "Регистрация на {title} отменена, билет больше не действует. Заказ: {link}",
+        ),
+        "kk": (
+            "Тіркеу тоқтатылды: {title}",
+            "{title} іс-шарасына тіркеу тоқтатылды, билет енді жарамсыз. Тапсырыс: {link}",
+        ),
+    },
 }
 
 
@@ -114,12 +202,19 @@ def target_of(kind, payload):
         return {"type": "support_case", "id": payload.get("case_id")}
     if kind == "ticket_delivered":
         return {"type": "ticket", "id": payload.get("ticket_id")}
+    if kind in ORDER_NOTICES:
+        return {"type": "order", "id": payload.get("order_id")}
     return {"type": "event", "id": payload.get("event_id")}
 
 
 def target_path(kind, payload):
     target = target_of(kind, payload)
-    folder = {"event": "events", "ticket": "tickets", "support_case": "support/cases"}
+    folder = {
+        "event": "events",
+        "ticket": "tickets",
+        "support_case": "support/cases",
+        "order": "orders",
+    }
     return f"/{folder[target['type']]}/{target['id']}"
 
 
@@ -178,6 +273,23 @@ def enqueue_ticket_delivered(db, ticket_id, event_id):
         f"notify-ticket:{ticket_id}",
         {"notice": "ticket_delivered", "ticket_id": str(ticket_id), "event_id": str(event_id)},
         event_id,
+    )
+
+
+def enqueue_order_notice(db, notice, order, change_id, recipient_user_id=None):
+    """change_id is the order, attempt, refund or ticket this notice is about, once each."""
+    recipient = recipient_user_id or order.buyer_user_id
+    enqueue(
+        db,
+        f"notify-{notice}:{change_id}:{recipient}",
+        {
+            "notice": notice,
+            "order_id": str(order.id),
+            "event_id": str(order.event_id),
+            "recipient_user_id": str(recipient),
+            "change_id": str(change_id),
+        },
+        order.event_id,
     )
 
 
@@ -320,6 +432,18 @@ def expand(db, payload):
             event_id = UUID(payload["event_id"]) if payload.get("event_id") else None
             key = f"{notice}:{payload['case_id']}:{payload.get('change_key') or uuid4()}"
             create_notification(db, user, notice, key, event_id, data)
+    elif notice in ORDER_NOTICES:
+        user = db.get(User, UUID(payload["recipient_user_id"]))
+        event = db.get(Event, UUID(payload["event_id"]))
+        if user and user.status == "active" and event:
+            create_notification(
+                db,
+                user,
+                notice,
+                f"{notice}:{payload['change_id']}",
+                event.id,
+                event_payload(event, order_id=payload["order_id"]),
+            )
 
 
 def backoff(attempts):

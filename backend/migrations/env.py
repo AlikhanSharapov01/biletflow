@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from app import (  # noqa: F401
     admin_models,
     admission_models,
+    campaign_models,
     catalog_models,
     checkout_models,
     commerce_models,

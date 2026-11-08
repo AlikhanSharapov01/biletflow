@@ -100,7 +100,12 @@ uv run python ../tools/smoke_paid_checkout.py
 Also adds the deferred foreign keys `ticket_order.fulfillment_payment_attempt_id` and
 `provider_event.refund_attempt_id`.
 
+## Related guides
+
+Promo discounts are described in [CAMPAIGNS_API.md](CAMPAIGNS_API.md): the processing fee is charged
+on the discounted amount. Voluntary refunds, cancellations and event-cancellation refunds are in
+[REFUNDS_API.md](REFUNDS_API.md).
+
 ## Not yet implemented
 
-Voluntary refunds, organizer cancellation of free or paid registrations and event-cancellation
-refunds (B4); promo codes, finance ledger and payout simulation (B5).
+Finance ledger and payout simulation.

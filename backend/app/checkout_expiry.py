@@ -2,8 +2,9 @@
 
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
+from .campaign_models import PromoReservation
 from .catalog_models import Allocation, Event, Hold
 from .catalog_service import changed
 from .checkout_models import TicketOrder
@@ -28,6 +29,11 @@ def close_hold(db, hold, status, reason):
         # An unpaid order dies with its hold; a payment arriving later is refunded, never
         # fulfilled from released stock.
         order.status = "expired" if status == "expired" else "cancelled"
+    db.execute(
+        update(PromoReservation)
+        .where(PromoReservation.hold_id == hold.id, PromoReservation.status == "active")
+        .values(status="released")
+    )
     for allocation in db.scalars(
         select(Allocation)
         .where(Allocation.hold_id == hold.id, Allocation.state == "held")

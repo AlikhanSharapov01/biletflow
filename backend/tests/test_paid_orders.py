@@ -105,12 +105,12 @@ def test_quote_is_exact_in_integer_minor_units():
     allocations = [SimpleNamespace(id=i, ticket_type_id=t) for i, t in enumerate("ttu")]
     data = SimpleNamespace(recipients=[SimpleNamespace(allocation_id=i) for i in range(3)])
     totals, lines = quote(types, allocations, data)
-    assert totals == {"gross": 300001, "fee": 9000}
-    assert sum(fee for _, fee in lines) == totals["fee"]
-    assert all(0 <= fee <= face for face, fee in lines)
+    assert totals == {"gross": 300001, "discount": 0, "subtotal": 300001, "fee": 9000}
+    assert sum(line.fee for line in lines) == totals["fee"]
+    assert all(0 <= line.fee <= line.face for line in lines)
     zero = {"t": SimpleNamespace(price_minor=0)}
     free = quote(zero, allocations[:1], SimpleNamespace(recipients=data.recipients[:1]))
-    assert free == ({"gross": 0, "fee": 0}, [(0, 0)])
+    assert free == ({"gross": 0, "discount": 0, "subtotal": 0, "fee": 0}, [(0, 0, 0, False)])
 
 
 def test_paid_order_is_fulfilled_once_after_payment(client, setup, account, factory):

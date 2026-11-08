@@ -8,6 +8,7 @@ again once those stages land — only the FK constraint will be added then.
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -49,6 +50,8 @@ class TicketOrder(Base):
         Column(
             "fulfillment_payment_attempt_id", PGUUID, nullable=True
         ),  # FK added when payment_attempt exists
+        Column("campaign_id", PGUUID, nullable=True),
+        Column("promo_code_id", PGUUID, nullable=True),
         Column(
             "created_at",
             DateTime(timezone=True),
@@ -128,6 +131,7 @@ class OrderItem(Base):
         Column("paid_minor", BigInteger, nullable=False),
         Column("processing_fee_minor", BigInteger, nullable=False, server_default=text("0")),
         Column("seat_snapshot", JSONB(none_as_null=True), nullable=True),
+        Column("campaign_eligible", Boolean, nullable=True),
         Column(
             "created_at",
             DateTime(timezone=True),

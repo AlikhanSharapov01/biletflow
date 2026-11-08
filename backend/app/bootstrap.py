@@ -33,12 +33,15 @@ def main():
             "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA biletflow TO biletflow_app"
         )
         connection.execute("REVOKE UPDATE ON biletflow.audit_log FROM biletflow_app")
+        # The only row the application removes: a campaign's eligible-type selection.
+        connection.execute("GRANT DELETE ON biletflow.campaign_ticket_type TO biletflow_app")
     from .db import database
-    from .seed import seed_catalog
+    from .seed import seed_catalog, seed_demo_campaigns
 
     engine, factory = database(settings.database_url.get_secret_value())
     try:
         seed_catalog(factory)
+        seed_demo_campaigns(factory, settings)
     finally:
         engine.dispose()
 

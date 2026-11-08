@@ -1,4 +1,43 @@
-# Backend validation — 24 September 2026
+# Backend validation
+
+## Promo campaigns, refunds and order notifications — 8 November 2026
+
+Scope: SRS 4.14 promo codes and Campaign QR, SRS 4.9 refunds and cancellations, the purchase,
+payment-failure and refund notifications of SRS 4.10, and migration `0013_campaigns`.
+
+| Check | Result |
+|---|---|
+| Automated tests | **330 cases: 329 passed, 1 failed on Windows only.** PostgreSQL 17, real independent connections |
+| The one failure | `test_pdf_keeps_unicode_attendee_names` needs the DejaVu font, which the Docker image and Linux have and this Windows machine does not. It failed the same way before these changes |
+| Statement coverage | **96%** overall; `pricing.py`, `refund_api.py` and `campaign_models.py` 100%, `campaign_service.py` 98%, `refund_service.py` 97% |
+| Static checks | Ruff checks and formatting passed for `app`, `tests` and `migrations` |
+| Migration | Applied by `python -m app.bootstrap` on an empty database; 13 migrations, one head |
+| Live smoke | `tools/smoke_paid_checkout.py` **passed** on `docker compose` with the restricted application role, the worker and Mailpit |
+
+The automated tests cover:
+
+- The worked example from the requirements: face 20,000, discount 2,000, collected 18,000, fee 540.
+- A race for the last redemption, on independent connections: one success, one `promo_exhausted`.
+- Reservation release on hold expiry, replacement, late payment and blocked fulfilment.
+- Requoting after a campaign changes, and refunding a charge when it is disabled during payment.
+- A basket discounted to zero going through the free path.
+- A campaign link rejected by the scanner as `not_a_ticket_qr`.
+- Full refunds, double submits, replayed callbacks, a failed refund staying blocked, and permission scope.
+- A refunded ticket rejected at the scanner, and stock returning only after a confirmed refund.
+- A refund not giving back a redemption.
+- Event cancellation with free and paid orders.
+- One notification per order, attempt or refund, however often the operation repeats.
+
+The live smoke test ran: paid-sales activation, campaign creation, link resolution, scanner rejection,
+a discounted hold and order, a failed then successful payment, admission, a compensation refund, the
+campaign report, and an organizer refund through to `refunded`.
+
+Not verified here: the web and mobile screens against these endpoints, and the 8080 Caddy route (the
+smoke test talks to the API directly).
+
+---
+
+## Earlier validation — 24 September 2026
 
 Implemented scope: BF-01 identity plus the [organizer/event setup increment](CATALOG_API.md): workspaces, email invitations, scoped permissions, discovery/publication, ticket types and predefined seating. Checkout, payments/refunds, admission and the full-product acceptance matrix remain incomplete.
 
