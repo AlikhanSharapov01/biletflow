@@ -1,28 +1,29 @@
-// Public event discovery — the calls the web Discover page makes
-// (web/src/live.js loadDiscovery). Types mirror backend/app/catalog_schemas.py.
+import { request } from "./http";
+import type { Category, EventFilters, EventView, TicketType, Venue } from "./types";
 
-import { requestJson } from "@/api/session";
-import type { CatalogEvent, Category, EventFilters, TicketType, Venue } from "@/api/types/catalog";
+const id = encodeURIComponent;
 
-export function listEvents(filters: EventFilters): Promise<CatalogEvent[]> {
-  const params = new URLSearchParams({ limit: "50" });
-  if (filters.q) params.set("q", filters.q);
-  if (filters.categoryId) params.set("category_id", filters.categoryId);
-  return requestJson<CatalogEvent[]>(`/events?${params}`);
-}
+// Public discovery: anyone can read categories, venues, published events and
+// their ticket types.
 
 export function listCategories(): Promise<Category[]> {
-  return requestJson<Category[]>("/categories");
+  return request<Category[]>("/api/v1/categories");
 }
 
 export function listVenues(): Promise<Venue[]> {
-  return requestJson<Venue[]>("/venues");
+  return request<Venue[]>("/api/v1/venues");
 }
 
-export function getEvent(id: string): Promise<CatalogEvent> {
-  return requestJson<CatalogEvent>(`/events/${encodeURIComponent(id)}`);
+export function listEvents(filters: EventFilters = {}): Promise<EventView[]> {
+  return request<EventView[]>("/api/v1/events", {
+    query: { q: filters.q, category_id: filters.category_id, limit: filters.limit ?? 50 },
+  });
+}
+
+export function getEvent(eventId: string): Promise<EventView> {
+  return request<EventView>(`/api/v1/events/${id(eventId)}`);
 }
 
 export function listTicketTypes(eventId: string): Promise<TicketType[]> {
-  return requestJson<TicketType[]>(`/events/${encodeURIComponent(eventId)}/ticket-types`);
+  return request<TicketType[]>(`/api/v1/events/${id(eventId)}/ticket-types`);
 }

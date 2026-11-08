@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Screen } from "@/components/layout";
 import { LoadingState, PrimaryButton } from "@/components/ui";
 import { CameraPermissionGate } from "@/features/scanner/CameraPermissionGate";
+import { AttendeeSearchPanel } from "@/features/scanner/AttendeeSearchPanel";
 import { CheckingPanel } from "@/features/scanner/CheckingPanel";
+import { ConfirmationPanel } from "@/features/scanner/ConfirmationPanel";
 import { ResultPanel } from "@/features/scanner/ResultPanel";
 import { ScanHeader } from "@/features/scanner/ScanHeader";
 import { ScannerCamera } from "@/features/scanner/ScannerCamera";
@@ -14,7 +16,8 @@ import { useScannerEvent } from "@/features/scanner/useScannerEvent";
 import { useScanSession } from "@/features/scanner/useScanSession";
 import { colors, fonts } from "@/theme";
 
-// Door scanner for one assigned event: camera, outcome panel, and undo.
+// Door scanner for one assigned event: camera, outcome panel, entry
+// confirmation, manual guest search and undo.
 export function ScanScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
@@ -56,7 +59,27 @@ export function ScanScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <CameraPermissionGate>
-          <ScannerCamera onScanned={session.handleScanned} showHint={phase.name === "scanning"} />
+          <ScannerCamera
+            onScanned={session.handleScanned}
+            showHint={phase.name === "scanning"}
+            onFindGuest={session.openSearch}
+          />
+
+          {phase.name === "confirm" ? (
+            <ConfirmationPanel
+              error={phase.error}
+              onSubmitCode={session.submitEntryCode}
+              onCancel={session.scanNext}
+            />
+          ) : null}
+
+          {phase.name === "search" ? (
+            <AttendeeSearchPanel
+              eventId={eventId}
+              onCheckIn={session.checkInAttendee}
+              onClose={session.scanNext}
+            />
+          ) : null}
 
           {phase.name === "checking" ? <CheckingPanel /> : null}
 

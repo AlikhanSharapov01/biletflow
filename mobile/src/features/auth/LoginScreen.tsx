@@ -6,6 +6,7 @@ import { Eyebrow } from "@/components/ui";
 import { AuthForm } from "@/features/auth/AuthForm";
 import { AuthModeTabs } from "@/features/auth/AuthModeTabs";
 import { AuthStory } from "@/features/auth/AuthStory";
+import { EmailLinkOptions } from "@/features/auth/components/EmailLinkOptions";
 import { useAuthForm } from "@/features/auth/useAuthForm";
 import { colors, fonts } from "@/theme";
 
@@ -38,6 +39,8 @@ export function LoginScreen() {
           <AuthModeTabs mode={form.mode} onChange={form.switchMode} />
 
           <AuthForm form={form} />
+
+          {registering ? null : <EmailLinkOptions onResend={form.handleResend} />}
 
           <Text style={styles.legal}>
             By continuing, you agree to our Terms of Service and Privacy Policy.

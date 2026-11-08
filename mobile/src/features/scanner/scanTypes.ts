@@ -1,9 +1,10 @@
+import type { CheckInTarget } from "@/api/types/scanner";
 import type { OutcomeView } from "@/features/scanner/outcomes";
 
-// One physical scan. Kept so "Retry" can resend the same operation_id, which
-// makes the server return the original admission instead of "already used".
+// One check-in attempt. Kept so "Retry" can resend the same operation_id,
+// which makes the server return the original admission instead of "already used".
 export type PendingScan = {
-  payload: string;
+  target: CheckInTarget;
   operationId: string;
   capturedAt: string;
 };
@@ -26,4 +27,9 @@ export type Phase =
   | { name: "checking" }
   | ResultPhase
   // Asking for a reason before undoing; Cancel returns to `result`.
-  | { name: "undo"; result: ResultPhase; admission: Admission };
+  | { name: "undo"; result: ResultPhase; admission: Admission }
+  // The ticket was accepted but needs the attendee's entry confirmation: the
+  // camera now reads the confirmation QR, or staff type the 8-digit code.
+  | { name: "confirm"; ticket: CheckInTarget; error: string | null }
+  // Manual attendee search instead of the camera.
+  | { name: "search" };

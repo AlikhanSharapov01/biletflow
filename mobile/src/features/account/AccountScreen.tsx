@@ -1,47 +1,89 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
 
-import { Screen, TopBar } from "@/components/layout";
-import { PageHeading, SubtleButton } from "@/components/ui";
-import { ProfilePanel } from "@/features/account/ProfilePanel";
+import { getMyProfile, logoutEverywhere } from "@/api/account";
+import { describeError } from "@/api/errors";
+import { ScrollScreen } from "@/components/layout";
+import { confirmAction, LoadingState, PageHeading, SubtleButton } from "@/components/ui";
+import { useToast } from "@/context/ToastContext";
+import { AccountLinks } from "@/features/account/components/AccountLinks";
+import { ProfileForm } from "@/features/account/components/ProfileForm";
+import { useIsPlatformAdmin } from "@/features/admin/useIsPlatformAdmin";
 import { useAuth } from "@/features/auth/AuthContext";
 
-// Copy follows the web Profile & sessions page (web/src/live.js loadAccount).
+// Account tab: profile, links to orders / support / notifications / sessions
+// (and the admin portal for platform admins), and signing out.
 export function AccountScreen() {
-  const { profile, logout } = useAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const { profile, logout, setProfile } = useAuth();
+  const { notify } = useToast();
+  const { isAdmin } = useIsPlatformAdmin();
+  const [refreshing, setRefreshing] = useState(false);
+  const [busy, setBusy] = useState<"" | "one" | "all">("");
 
-  async function handleLogout() {
-    setLoggingOut(true);
+  async function refresh() {
+    setRefreshing(true);
     try {
-      await logout();
-      // No navigation call needed: signing out flips AuthContext to
-      // "signedOut", and (app)/_layout's redirect takes it from there.
+      setProfile(await getMyProfile());
+    } catch (failure) {
+      notify(describeError(failure));
     } finally {
-      setLoggingOut(false);
+      setRefreshing(false);
     }
   }
 
+  async function signOut() {
+    setBusy("one");
+    try {
+      await logout();
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function signOutEverywhere() {
+    const confirmed = await confirmAction({
+      title: "Sign out everywhere",
+      message: "Sign out of every active BiletFlow session? This device will also be signed out.",
+      confirmLabel: "Sign out everywhere",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    setBusy("all");
+    try {
+      await logoutEverywhere();
+    } catch (failure) {
+      notify(`Could not sign out everywhere: ${describeError(failure)}`);
+      setBusy("");
+      return;
+    }
+    await logout();
+    setBusy("");
+  }
+
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TopBar />
-        <PageHeading
-          eyebrow="Your account"
-          title="Profile & sessions."
-          subtitle="Review your profile and keep track of where you’re signed in."
-          actions={<SubtleButton label="Sign out" onPress={handleLogout} loading={loggingOut} />}
-        />
-        <ProfilePanel profile={profile} />
-      </ScrollView>
-    </Screen>
+    <ScrollScreen header="top" refreshing={refreshing} onRefresh={() => void refresh()}>
+      <PageHeading
+        eyebrow="Your account"
+        title="Profile & sessions."
+        subtitle="Review your profile and keep track of where you’re signed in."
+        actions={
+          <>
+            <SubtleButton label="Sign out" onPress={() => void signOut()} loading={busy === "one"} disabled={busy !== ""} />
+            <SubtleButton
+              label="Sign out everywhere"
+              danger
+              onPress={() => void signOutEverywhere()}
+              loading={busy === "all"}
+              disabled={busy !== ""}
+            />
+          </>
+        }
+      />
+      {profile ? (
+        <ProfileForm key={profile.id} profile={profile} onSaved={setProfile} />
+      ) : (
+        <LoadingState message="Loading your profile…" />
+      )}
+      <AccountLinks isAdmin={isAdmin} />
+    </ScrollScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-    gap: 12,
-  },
-});

@@ -1,0 +1,71 @@
+import { useState } from "react";
+import { View } from "react-native";
+
+import { describeError } from "@/api/errors";
+import { simulatePayment } from "@/api/paidSales";
+import type { PaidSalesChecklist, SimulatedOutcome } from "@/api/types/paidSales";
+import { ListRow, PrimaryButton, StatusPill, SubtleButton, TextButton } from "@/components/ui";
+import { useToast } from "@/context/ToastContext";
+import { priceLabel, statusLabel } from "@/utils/format";
+
+import { formStyles } from "../../components/formStyles";
+import { Intro } from "../../components/Intro";
+import { canStartActivation, paymentOpen } from "../../utils/paidSales";
+
+interface ActivationFeeStepProps {
+  checklist: PaidSalesChecklist;
+  busy: boolean;
+  onStart: () => void;
+  onChanged: () => void;
+}
+
+// Last checklist step. While a simulated payment is open, development builds
+// of the API let the organizer act as the payment provider.
+export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: ActivationFeeStepProps) {
+  const { notify } = useToast();
+  const [simulating, setSimulating] = useState(false);
+  const active = checklist.status === "active";
+  const payment = checklist.payment;
+  const open = paymentOpen(checklist);
+
+  const simulate = async (outcome: SimulatedOutcome) => {
+    if (!payment) return;
+    setSimulating(true);
+    try {
+      await simulatePayment(payment.id, outcome);
+      notify(outcome === "succeeded" ? "Simulated payment succeeded." : "Simulated payment failed.");
+      onChanged();
+    } catch (failure) {
+      notify(`${describeError(failure)} The payment simulator only runs in development and test environments.`);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  return (
+    <ListRow
+      icon="₸"
+      title={`Activation fee · ${priceLabel(checklist.activation_fee_minor)}`}
+      meta={payment ? `Simulated payment ${statusLabel(payment.status)}${payment.charged_minor ? ` · ${priceLabel(payment.charged_minor)} captured` : ""}` : "Pay once the other steps are done."}
+      trailing={active ? <StatusPill label="Paid" /> : open ? <StatusPill tone="pending" label="Payment pending" /> : null}
+    >
+      {!active && !open ? (
+        <PrimaryButton
+          label={checklist.status === "failed" ? "Retry payment" : "Pay fee (simulated)"}
+          disabled={busy || !canStartActivation(checklist)}
+          onPress={onStart}
+        />
+      ) : null}
+      {open ? (
+        <View style={formStyles.stack}>
+          <Intro>Demo payment provider:</Intro>
+          <View style={formStyles.actions}>
+            <SubtleButton label="Simulate success" disabled={simulating} onPress={() => void simulate("succeeded")} />
+            <SubtleButton danger label="Simulate failure" disabled={simulating} onPress={() => void simulate("failed")} />
+            <TextButton label="Refresh status" onPress={onChanged} />
+          </View>
+        </View>
+      ) : null}
+    </ListRow>
+  );
+}

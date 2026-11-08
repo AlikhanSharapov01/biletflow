@@ -1,0 +1,19 @@
+import type { IssuedTicket } from "@/api/types/checkout";
+import { DateTile, ListRow, StatusPill } from "@/components/ui";
+import { browserTimeZone, dateLabel, seatLabel, statusLabel } from "@/utils/format";
+import { ticketTone } from "@/utils/status";
+
+// One ticket in the Tickets tab; pressing it opens the QR.
+export function TicketRow({ ticket, onOpen }: { ticket: IssuedTicket; onOpen: (ticketId: string) => void }) {
+  return (
+    <ListRow
+      icon={<DateTile at={ticket.event_starts_at} timeZone={browserTimeZone()} />}
+      title={ticket.event_title}
+      meta={`${dateLabel(ticket.event_starts_at)} · ${ticket.venue_name}`}
+      note={`${ticket.ticket_type_name} · ${seatLabel(ticket.seat_snapshot)}`}
+      trailing={<StatusPill tone={ticketTone(ticket.status)} label={statusLabel(ticket.status)} />}
+      onPress={() => onOpen(ticket.id)}
+      accessibilityLabel={`Show QR for ${ticket.event_title}`}
+    />
+  );
+}

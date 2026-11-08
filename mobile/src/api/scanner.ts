@@ -6,8 +6,10 @@ import { authedFetch, SessionExpiredError } from "@/api/session";
 import type {
   AdmissionCounts,
   AssignedEvent,
+  AttendeeHit,
   CheckInOutcome,
   CheckInResult,
+  CheckInTarget,
   ReversalResult,
 } from "@/api/types/scanner";
 
@@ -41,13 +43,35 @@ export async function getAdmissionCounts(eventId: string): Promise<AdmissionCoun
   return getJson<AdmissionCounts>(`/scanner/events/${encodeURIComponent(eventId)}/counts`);
 }
 
+// Manual search (2+ characters of the name, or an exact email). Hits carry no
+// email, order or payment data.
+export async function searchAttendees(eventId: string, query: string): Promise<AttendeeHit[]> {
+  const params = new URLSearchParams({ q: query, limit: "10" });
+  return (
+    (await getJson<AttendeeHit[]>(`/scanner/events/${encodeURIComponent(eventId)}/attendees?${params}`)) ?? []
+  );
+}
+
+// The request body for one check-in: exactly one of the scanned QR or a ticket
+// id from manual search, plus the attendee's entry confirmation (scanned
+// token or 8-digit code) when the event requires one.
+export function checkInBody(target: CheckInTarget, operationId: string, capturedAt: string) {
+  return {
+    ...(target.ticketId ? { ticket_id: target.ticketId } : { qr_payload: target.qrPayload }),
+    ...(target.entryConfirmation ? { entry_confirmation: target.entryConfirmation } : {}),
+    ...(target.entryCode ? { entry_code: target.entryCode } : {}),
+    operation_id: operationId,
+    captured_at: capturedAt,
+  };
+}
+
 // The QR payload goes to the server untouched — it alone decides what the
 // code is (ticket, campaign QR, forgery). Reuse operationId when retrying the
 // same scan: the server then returns the original admission (replayed)
 // instead of a false "already used".
 export async function checkIn(
   eventId: string,
-  qrPayload: string,
+  target: CheckInTarget,
   operationId: string,
   capturedAt: string
 ): Promise<CheckInOutcome> {
@@ -56,11 +80,7 @@ export async function checkIn(
     response = await authedFetch(`/scanner/events/${encodeURIComponent(eventId)}/check-ins`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        qr_payload: qrPayload,
-        operation_id: operationId,
-        captured_at: capturedAt,
-      }),
+      body: JSON.stringify(checkInBody(target, operationId, capturedAt)),
     });
   } catch (err) {
     // An expired session has already signed the user out; let that surface.

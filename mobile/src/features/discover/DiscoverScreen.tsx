@@ -1,22 +1,40 @@
-import { useState } from "react";
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 
-import type { EventFilters } from "@/api/types/catalog";
+import { listCategories, listEvents, listVenues } from "@/api/catalog";
 import { Screen, TopBar } from "@/components/layout";
-import { EmptyState, ErrorPanel, LoadingState, PageHeading } from "@/components/ui";
-import { DiscoverFilters } from "@/features/discover/DiscoverFilters";
-import { EventCard } from "@/features/discover/EventCard";
-import { useDiscoverCatalog } from "@/features/discover/useDiscoverCatalog";
-import { colors, fonts } from "@/theme";
-import { formatEventWindow } from "@/utils/eventTime";
+import { EmptyState, ErrorPanel, LoadingState, PageHeading, TextButton } from "@/components/ui";
+import { useRequest } from "@/hooks/useRequest";
+import { colors, fonts, spacing } from "@/theme";
+import { dateLabel } from "@/utils/format";
+import { DiscoverFilters, type DiscoverQuery } from "./components/DiscoverFilters";
+import { EventCard } from "./components/EventCard";
 
-// Published events with title search and a category filter — the web
-// Discover page (web/src/live.js loadDiscovery). Filters apply on "Search
-// events", like the web form.
+// Published events with title search and a category filter (web DiscoverPage).
 export function DiscoverScreen() {
-  const [draft, setDraft] = useState<EventFilters>({ q: "", categoryId: "" });
-  const [filters, setFilters] = useState<EventFilters>({ q: "", categoryId: "" });
-  const { catalog, error, loading, refreshing, refresh, lookup } = useDiscoverCatalog(filters);
+  const router = useRouter();
+  const [query, setQuery] = useState<DiscoverQuery>({ q: "", category: "" });
+
+  const page = useRequest(
+    async () => {
+      const [events, categories, venues] = await Promise.all([
+        listEvents({ q: query.q || undefined, category_id: query.category || undefined }),
+        listCategories(),
+        listVenues(),
+      ]);
+      return { events, categories, venues };
+    },
+    [query.q, query.category],
+  );
+
+  const lookups = useMemo(() => {
+    const venues = new Map(page.data?.venues.map((venue) => [venue.id, venue] as const) ?? []);
+    const categories = new Map(page.data?.categories.map((category) => [category.id, category] as const) ?? []);
+    return { venues, categories };
+  }, [page.data]);
+
+  const openEvent = (eventId: string) => router.push({ pathname: "/events/[eventId]", params: { eventId } });
 
   const header = (
     <View>
@@ -27,59 +45,50 @@ export function DiscoverScreen() {
         subtitle="Discover what’s happening around you, from the people bringing it to life."
       />
       <DiscoverFilters
-        draft={draft}
-        onDraftChange={setDraft}
-        onApply={() => setFilters({ ...draft, q: draft.q.trim() })}
-        categories={catalog?.categories ?? []}
-        loading={loading && catalog !== null}
+        applied={query}
+        categories={page.data?.categories ?? []}
+        loading={page.loading && page.data !== null}
+        onSearch={(next) => setQuery(next)}
       />
     </View>
   );
 
-  let emptyState;
-  if (error) {
-    emptyState = (
-      <ErrorPanel
-        title="We couldn’t load discover events."
-        message={error}
-        onRetry={() => setFilters({ ...filters })}
-      />
-    );
-  } else if (catalog === null) {
-    emptyState = <LoadingState message="Loading discover events…" />;
+  let empty;
+  if (page.error) {
+    empty = <ErrorPanel title="We couldn’t load events." message={page.error} onRetry={page.reload} />;
+  } else if (!page.data) {
+    empty = <LoadingState message="Loading events…" />;
   } else {
-    emptyState = (
-      <EmptyState message="No events match those filters yet. Try another search or check back soon." />
-    );
+    empty = <EmptyState message="No events match those filters yet. Try another search or check back soon." />;
   }
 
   return (
     <Screen>
       <FlatList
-        data={error ? [] : (catalog?.events ?? [])}
+        data={page.error ? [] : (page.data?.events ?? [])}
         keyExtractor={(event) => event.id}
         ListHeaderComponent={header}
-        ListEmptyComponent={emptyState}
+        ListEmptyComponent={empty}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.green} />
+          <RefreshControl refreshing={page.loading && page.data !== null} onRefresh={page.reload} tintColor={colors.green} />
         }
         renderItem={({ item: event, index }) => {
-          const venue = lookup.venue.get(event.venue_id);
-          const category = lookup.category.get(event.category_id);
+          const venue = lookups.venues.get(event.venue_id);
+          const categoryName = lookups.categories.get(event.category_id)?.name_en ?? "Community";
           return (
             <EventCard
               index={index}
-              category={category?.name_en || "Community"}
+              category={categoryName}
               title={event.title}
-              meta={`${formatEventWindow(event.starts_at, event.ends_at, event.time_zone)} · ${
-                venue ? `${venue.name} · ${venue.city}` : "Venue details unavailable"
-              }`}
+              meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : "Venue details unavailable"}`}
+              onPress={() => openEvent(event.id)}
               footer={
-                <Text style={styles.price}>
-                  {event.visibility === "public" ? "Tickets available" : "Event"}
-                </Text>
+                <>
+                  <Text style={styles.price}>{event.time_status === "completed" ? "Completed" : "Tickets available"}</Text>
+                  <TextButton label="View event →" onPress={() => openEvent(event.id)} />
+                </>
               }
             />
           );
@@ -90,15 +99,6 @@ export function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: {
-    padding: 16,
-    paddingBottom: 32,
-    gap: 12,
-  },
-  price: {
-    color: "#52645a",
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  list: { padding: spacing.gutter, paddingBottom: 32, gap: spacing.gap },
+  price: { color: colors.green, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
 });
