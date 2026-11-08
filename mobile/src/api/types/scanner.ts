@@ -84,4 +84,12 @@ export type CheckInOutcome =
       // ticket_not_valid: cancelled / refunded / refund_pending.
       ticketStatus?: string;
     }
+  // Accepted on this device with no connection; final only after sync.
+  | {
+      kind: "queued";
+      ticket_id: string;
+      attendee_name: string;
+      ticket_type_name: string;
+      seat: Seat | null;
+    }
   | { kind: "network" };

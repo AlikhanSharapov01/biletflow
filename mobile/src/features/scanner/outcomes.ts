@@ -45,6 +45,10 @@ const CONFIRMATION_REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">
     title: "Confirmation not valid",
     lines: ["This entry confirmation doesn't belong to this ticket or event. Ask the guest for a new one."],
   },
+  offline_code_unavailable: {
+    title: "Scan the confirmation QR",
+    lines: ["The 8-digit code can't be checked without a connection. Scan the guest's confirmation QR instead."],
+  },
 };
 
 const TICKET_STATUS: Record<string, string> = {
@@ -90,6 +94,10 @@ const REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
     title: "Scan conflict",
     lines: ["Please scan the ticket again."],
   },
+  offline_unknown_ticket: {
+    title: "Not on the offline list",
+    lines: ["This ticket isn't on this phone's list. It may be forged, unclaimed, or issued after the list was downloaded."],
+  },
 };
 
 export function describeOutcome(outcome: CheckInOutcome, timeZone: string): OutcomeView {
@@ -101,6 +109,17 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
       );
     }
     return { tone: "admitted", icon: "✓", title: "Admitted", lines };
+  }
+
+  if (outcome.kind === "queued") {
+    const lines = [outcome.attendee_name, outcome.ticket_type_name];
+    if (outcome.seat) {
+      lines.push(
+        `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
+      );
+    }
+    lines.push("Provisional until this phone syncs.");
+    return { tone: "admitted", icon: "✓", title: "Accepted offline", lines };
   }
 
   if (outcome.kind === "network") {

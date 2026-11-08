@@ -45,6 +45,38 @@ function scan(result: { current: ReturnType<typeof useScanSession> }, data: stri
 beforeEach(() => mockedCheckIn.mockReset());
 
 describe("useScanSession", () => {
+  it("falls back to the offline decision only when the server can't be reached", async () => {
+    mockedCheckIn.mockResolvedValueOnce({ kind: "network" });
+    const offline = {
+      decide: jest.fn().mockResolvedValue({
+        kind: "queued",
+        ticket_id: "t1",
+        attendee_name: "Aru A.",
+        ticket_type_name: "Standard",
+        seat: null,
+      }),
+      pending: 0,
+      sync: jest.fn(),
+    };
+    const { result } = await renderHook(() => useScanSession("e1", EVENT, jest.fn(), offline));
+    await act(async () => scan(result, "biletflow:ticket:t1.sig"));
+    expect(result.current.phase).toMatchObject({
+      name: "result",
+      retryable: false,
+      view: { title: "Accepted offline" },
+      admission: undefined,
+    });
+  });
+
+  it("uploads waiting scans once the server answers again", async () => {
+    mockedCheckIn.mockResolvedValueOnce(ADMITTED);
+    const offline = { decide: jest.fn(), pending: 2, sync: jest.fn() };
+    const { result } = await renderHook(() => useScanSession("e1", EVENT, jest.fn(), offline));
+    await act(async () => scan(result, "biletflow:ticket:t1.sig"));
+    expect(offline.decide).not.toHaveBeenCalled();
+    expect(offline.sync).toHaveBeenCalledWith(true);
+  });
+
   it("asks for an entry confirmation, then admits with the scanned one", async () => {
     mockedCheckIn.mockResolvedValueOnce({ kind: "rejected", code: "sign_in_required" }).mockResolvedValueOnce(ADMITTED);
     const refresh = jest.fn();
