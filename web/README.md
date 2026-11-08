@@ -30,14 +30,15 @@ as the mobile app (shared colours, type scale and components).
 - **Five areas are built against planned APIs** and show a "Not available yet" state until the
   backend ships them: promo campaigns and codes, analytics, finance, refund/cancellation actions
   and event image upload.
-- **Missing:** Kazakh and Russian interface text, an accessibility pass, page-level and
-  end-to-end tests.
+- **Missing:** Kazakh and Russian interface text, an accessibility pass, end-to-end tests and
+  page-level tests for most pages.
 
 ---
 
 ## Run it
 
-**You need:** Node.js 22.12+ and a running backend.
+**You need:** Node.js 22.22.2+ on 22.x, 24.15+ on 24.x, or 26+ (what jsdom, a test dependency,
+requires), and a running backend.
 
 Start the backend from the repository root:
 
@@ -175,10 +176,19 @@ Exact types are in `src/api/types/{promo,campaigns,analytics,finance}.ts`.
 npm test
 ```
 
-There are 87 tests in 21 files, next to the code they test (`*.test.ts(x)`). They cover the API
-client, formatting, checkout rules, seat and promo helpers, payment states, support threads,
-notification targets, organizer forms and charts, admin settings, the countdown hook and the app
-shell. There are no page-level or end-to-end browser tests yet, and CI does not run the web tests.
+There are 331 tests in 43 files, next to the code they test (`*.test.ts(x)`); shared fixtures
+are in `tests/helpers/`. They cover the API client and error messages, formatting, checkout rules
+and components (steps, seating, payment) and the checkout flow hook, seat and promo helpers,
+payment states, the auth context and route guards, QR codes, support threads, the notification
+bell, organizer forms, charts and pagination, admin settings, the request and countdown hooks, the
+app shell, and one page-level test for the orders page.
+
+There are no end-to-end browser tests yet. Apart from the orders page, pages have no page-level
+tests, including the organizer tabs, support, admin, event and ticket pages.
+
+The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
+that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
+`npm run typecheck`, `npm test` and `npx vite build`.
 
 ---
 
@@ -188,8 +198,8 @@ shell. There are no page-level or end-to-end browser tests yet, and CI does not 
   extra locale), use the saved profile language, and show category names in the chosen language.
 - **Accessibility (WCAG 2.1 AA):** check contrast, focus order and labels across the new screens;
   replace `window.confirm` with an accessible dialog.
-- **Tests:** page-level tests for checkout, tickets, support and organizer tabs; end-to-end tests
-  for the core flow (create event → register → ticket → scan); add web checks to CI.
+- **Tests:** page-level tests for checkout, the organizer tabs, support, admin, event and ticket pages;
+  end-to-end tests for the core flow (create event → register → ticket → scan).
 - **Backend-dependent:** once the endpoints in the table above exist, confirm the shapes and remove
   any adjustments; then test promo, analytics, finance and refunds end to end.
 - **Small clean-ups:** merge the two blob-download helpers (`api/download.ts` and `api/files.ts`);

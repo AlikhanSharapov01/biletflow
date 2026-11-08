@@ -10,15 +10,20 @@ export interface PageInfo {
   nextOffset: number;
 }
 
+// An empty page (none shown) has `from` and `to` of 0, even when `total` is
+// above 0 because rows were removed while paging. Previous then goes back to
+// the last page that still has rows instead of another empty one, and Next is
+// off so an empty page never links to a further empty page.
 export function pageInfo(total: number, limit: number, offset: number, shown: number): PageInfo {
-  const from = shown === 0 ? 0 : offset + 1;
+  const empty = shown === 0;
+  const lastPageOffset = total > 0 && limit > 0 ? Math.floor((total - 1) / limit) * limit : 0;
   return {
-    from,
-    to: offset + shown,
+    from: empty ? 0 : offset + 1,
+    to: empty ? 0 : offset + shown,
     total,
     hasPrevious: offset > 0,
-    hasNext: offset + shown < total,
-    previousOffset: Math.max(0, offset - limit),
+    hasNext: !empty && offset + shown < total,
+    previousOffset: Math.max(0, Math.min(offset - limit, lastPageOffset)),
     nextOffset: offset + limit,
   };
 }
