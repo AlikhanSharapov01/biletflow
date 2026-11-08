@@ -224,8 +224,8 @@ In priority order for the MVP. Bonus items come last.
 
 **3. Environment and quality**
 - Backup and restore scripts with a short runbook (SRS requires backups).
-- CI: add web typecheck/tests/build; run the smoke tests.
-- HTTPS and security headers for any shared demo; restart policies and a worker health check.
+- CI: add web typecheck/tests/build.
+- HTTPS and security headers for any shared demo.
 - Update `backend/VALIDATION.md` with current test evidence.
 
 **4. Bonus**

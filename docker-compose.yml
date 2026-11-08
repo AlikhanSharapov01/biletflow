@@ -3,6 +3,7 @@ name: biletflow
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: biletflow
       POSTGRES_USER: biletflow_owner
@@ -31,6 +32,7 @@ services:
 
   api:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
@@ -57,6 +59,7 @@ services:
 
   worker:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
@@ -70,14 +73,27 @@ services:
         condition: service_completed_successfully
       mailpit:
         condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/biletflow-worker-heartbeat') > 120)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   mailpit:
     image: axllent/mailpit:v1.31.2
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"
 
   proxy:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: proxy/Dockerfile
