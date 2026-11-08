@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { resendVerification } from "@/api/account";
 import { forgotPassword, register } from "@/api/auth";
 import { useAuth } from "@/features/auth/AuthContext";
 
@@ -75,6 +76,22 @@ export function useAuthForm() {
     }
   }
 
+  async function handleResend() {
+    if (!email.trim()) {
+      setMessage({ text: "Enter your email address first.", success: false });
+      return;
+    }
+    try {
+      await resendVerification(email.trim());
+      setMessage({ text: "A new verification link is on its way. Check your inbox.", success: true });
+    } catch (err) {
+      setMessage({
+        text: err instanceof Error ? err.message : "Something went wrong.",
+        success: false,
+      });
+    }
+  }
+
   return {
     mode,
     registering,
@@ -92,6 +109,7 @@ export function useAuthForm() {
     message,
     handleSubmit,
     handleForgot,
+    handleResend,
   };
 }
 

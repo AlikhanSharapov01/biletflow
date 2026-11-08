@@ -26,7 +26,9 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
 
 let refreshing: Promise<string | null> | null = null;
 
-function refreshAccessToken(): Promise<string | null> {
+// Shared by every authenticated helper (requestJson here, request() in http.ts)
+// so concurrent 401s still spend the rotating refresh token only once.
+export function refreshAccessToken(): Promise<string | null> {
   if (!refreshing) {
     refreshing = (async () => {
       const { refreshToken } = await getTokens();
@@ -45,9 +47,14 @@ function refreshAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
-async function expire(): Promise<never> {
+// Forgets the stored tokens and tells AuthContext to show the sign-in screen.
+export async function expireSession(): Promise<void> {
   await clearTokens();
   onSessionExpired?.();
+}
+
+async function expire(): Promise<never> {
+  await expireSession();
   throw new SessionExpiredError();
 }
 

@@ -1,11 +1,13 @@
-# BiletFlow mobile scanner
+# BiletFlow mobile app
 
-The iOS and Android app for **event staff** (the SRS "Event Admin"). Staff sign in, choose an
-event they are assigned to, scan attendees' ticket QR codes with the camera, and record or undo
-check-ins. Attendees and organizers use the web app; native attendee/organizer apps are out of
-the MVP scope.
+The iOS and Android app for BiletFlow. A phone user can do **everything the web app offers**:
+discover events, register or buy tickets, show tickets at the door, manage orders, open support
+cases, read notifications, run an organizer workspace and use the platform admin portal. Event
+staff also get the **ticket scanner**. The scope is recorded in
+[`docs/decisions/0001-mobile-app-full-scope.md`](../docs/decisions/0001-mobile-app-full-scope.md).
 
-Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router.
+Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. It uses the same
+`/api/v1` endpoints, error codes and wording as the web app.
 
 ---
 
@@ -14,42 +16,50 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router.
 1. [Status](#status)
 2. [Run it](#run-it)
 3. [Connecting to the backend](#connecting-to-the-backend)
-4. [Folder structure](#folder-structure)
-5. [How scanning works](#how-scanning-works)
-6. [What is left to do](#what-is-left-to-do)
+4. [Tests](#tests)
+5. [Folder structure](#folder-structure)
+6. [How to add or change a screen](#how-to-add-or-change-a-screen)
+7. [Screens](#screens)
+8. [How scanning works](#how-scanning-works)
+9. [What is left to do](#what-is-left-to-do)
 
 ---
 
 ## Status
 
-| SRS 4.8 requirement | State |
+| Area | State |
 |---|---|
-| Secure sign-in, tokens in the device keychain/keystore | Done |
-| Show only events the user may scan | Done (events they own, or where they have "Scan tickets") |
-| Scan ticket QR codes with the camera | Done |
-| Clear result: valid, invalid, cancelled, refunded, already used, wrong event, not a ticket | Done |
-| Record check-in and prevent double entry | Done (enforced by the server; retries are safe) |
-| Undo an accidental check-in | Done (requires a reason and the "Undo check-ins" permission) |
-| Registered vs checked-in counts | Done |
-| Reject Campaign QR codes | Done (shown as "Not a ticket") |
-| Search attendees manually | **Not done** (the backend endpoint exists) |
-| Entry confirmation from the attendee | **Not done** (see below) |
+| Sign in, create account, forgot password, resend verification | Done |
+| Verify email / reset password from an emailed link | Done (paste the link or its token) |
+| Discover: search, category filter | Done |
+| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done (promo shows "Not available yet" until the backend ships it) |
+| Free registration and simulated paid checkout | Done |
+| Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
+| Orders: totals, payment retry, cancel registration | Done (refund request "Not available yet") |
+| Support cases: list, new case, thread, attachments, staff actions | Done |
+| Notifications: inbox and unread badge in the top bar | Done |
+| Account: profile, language, sessions, sign out everywhere | Done |
+| Organizer: workspaces, team, invitations, create event, every event tab | Done (campaigns, analytics, finance, image upload "Not available yet" until the backend ships them) |
+| Platform admin portal (8 sections) | Done (shown only to platform admins) |
+| Scanner: scan, admit, undo, counts | Done |
+| Scanner: entry confirmation (second QR or 8-digit code) | Done |
+| Scanner: manual guest search | Done |
 | Offline scanning (bonus) | Not done (the backend supports it) |
-
-The app also contains a **Discover** tab, an **Organizer** placeholder tab and self-registration.
-These are outside the scanner's scope and are planned for removal.
+| Google sign-in | Web only |
+| Kazakh and Russian text | Not done (English only, like the web) |
 
 ---
 
 ## Run it
 
-**You need:** Node.js 22, Xcode with an iOS Simulator (or Android Studio, or the Expo Go app on
-a phone), and the backend running (from the repository root: `docker compose up --build`).
+**You need:** Node.js 22.13+ (or 24.3+), Xcode with an iOS Simulator (or Android Studio, or the
+Expo Go app on a phone), and the backend running (from the repository root:
+`docker compose up --build`).
 
 ```bash
 cd mobile
 npm ci
-EXPO_PUBLIC_API_URL=http://<your-computer-ip>:8080/api/v1 npx expo start
+EXPO_PUBLIC_API_URL=http://localhost:8000/api/v1 npx expo start
 ```
 
 Then press `i` for the iOS Simulator, `a` for Android, or scan the QR code with Expo Go.
@@ -58,7 +68,8 @@ Then press `i` for the iOS Simulator, `a` for Android, or scan the QR code with 
 |---|---|
 | `npx expo start` | Start the development server |
 | `npx expo start -c` | Same, clearing the bundler cache (use after changing `EXPO_PUBLIC_API_URL`) |
-| `npx tsc --noEmit` | Type check |
+| `npm run typecheck` | Type check |
+| `npm test` | Run the tests |
 
 ---
 
@@ -75,18 +86,47 @@ set, it uses `http://localhost:8000/api/v1`.
 
 Find your Mac's IP with `ipconfig getifaddr en0`.
 
-**"Couldn't reach the server"** means the request never reached the API:
+**"Can't reach BiletFlow right now"** means the request never reached the API:
 
 1. Check the stack is running: open `http://<computer-ip>:8080/health/ready` in the device's
-   browser — it should show `{"status":"ready"}`.
+   browser. It should show `{"status":"ready"}`.
 2. The URL is built into the app when the bundle is created. After changing it, restart with
    `npx expo start -c`, then reload the app (press `r` in the terminal, or open the Expo developer
    menu and choose *Reload*).
 3. Port `8000` is only reachable from the computer itself; phones must use `8080`.
 
-**Accounts:** create one on the web app and verify it through Mailpit (<http://localhost:8025>).
-To scan an event, either own it (create it as an organizer) or be added on the event's *Staff*
-tab with "Scan tickets".
+**Accounts:** create one in the app (or on the web) and verify it through Mailpit
+(<http://localhost:8025>): copy the verification link from the email and paste it into *I have a
+verification link* on the sign-in screen.
+
+---
+
+## Tests
+
+```bash
+npm test
+```
+
+Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
+(`*.test.ts(x)`): 43 files, 163 tests. They cover:
+
+- **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
+  status, support threads, notification targets, organizer forms, charts, history filters,
+  campaigns and admin settings.
+- **Screens rendered with a mocked API:** Discover, event page, checkout, campaign link, tickets,
+  ticket detail, order, support case, new case, notifications, organizer workspace and event,
+  ticket-type form, invitation, account, sessions, verify email, reset password and admin
+  sections.
+- **The scanner:** outcome messages, the check-in request body, the scan → confirmation → admit
+  flow, entry-code input and guest search.
+- **Shared UI:** list rows, "Not available yet", the QR code drawing and date helpers.
+
+In React Native Testing Library 14, `render` and `fireEvent` are async: write
+`await render(...)` and `await fireEvent.press(...)`. Native modules without a JavaScript version
+(for example `expo-secure-store`) are mocked in `jest.setup.js`.
+
+CI (`.github/workflows/mobile.yml`) runs `npm run typecheck` and `npm test` whenever `mobile/`
+changes.
 
 ---
 
@@ -94,66 +134,108 @@ tab with "Scan tickets".
 
 ```text
 src/
-  app/                  expo-router routes. Each file is a thin wrapper that renders a screen
-    (auth)/login.tsx      from features/. Paths here are the app's URLs — do not rename them.
-    (app)/(tabs)/         Bottom tabs: index (Discover), organizer, check-in, account
-    (app)/events/[eventId]/scan.tsx
-  api/                  client, session (refresh), secure token storage, auth, scanner, catalog
+  app/                  expo-router routes. Each file is a one-line re-export of a screen in
+    (auth)/               features/. Paths here are the app's URLs; do not rename them.
+    (app)/(tabs)/         Bottom tabs: Discover, Tickets, Organizer, Check-in, Account
+    (app)/…               Pushed screens: events, tickets, orders, support, notifications,
+                          organizer, admin, account/sessions, c/[token], staff-invitations
+  api/                  One module per backend area, ported from web/src/api (same names)
+    http.ts             request(): bearer token from the keychain, one refresh retry, ApiError
+    files.ts            Downloads to the share sheet, SVG text, raw-body uploads
+    errors.ts           Backend error code → message; isNotImplemented() for planned endpoints
+    session.ts          Shared token refresh (rotating refresh tokens)
+    tokenStorage.ts     Keychain / keystore storage
     types/              Request/response types per area
   components/
-    ui/                 Shared primitives: buttons, text, fields, panel, status pill, date tile, states
-    layout/             Screen, TopBar, tab glyph
-  features/
-    auth/               Sign-in screen, form, auth context
-    scanner/            Check-in event list, scan screen (camera, result, undo, counts), result codes
-    discover/           Event list (out of scope, see Status)
-    organizer/          Placeholder (out of scope)
-    account/            Profile and sign-out
+    ui/                 Buttons, Panel, PageHeading, FactList, ListRow, SegmentedTabs, StatusPill,
+                        QrCode, ReasonDialog, confirmAction, FormMessage, NotAvailableYet, fields…
+    layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, TabGlyph
+  features/             One folder per area, like the web
+    auth/ discover/ events/ checkout/ tickets/ orders/ support/ notifications/
+    account/ organizer/ admin/ scanner/
+  hooks/                useRequest, useCountdown, useAppActive
   context/              Toast provider
   theme/                Colours, fonts, radii and spacing shared with the web design
-  utils/                Date and time helpers
+  utils/                Formatting, status tones, event times
 ```
 
-To add a screen: create it in `features/<area>/`, keep route files in `src/app/` thin, use the
-primitives from `components/ui`, and call the backend through a function in `src/api/`.
+---
+
+## How to add or change a screen
+
+1. **Route:** add a one-line file in `src/app/` that re-exports the screen, e.g.
+   `export { OrdersScreen as default } from "@/features/orders/OrdersScreen";`.
+2. **Screen:** put it in `features/<area>/`, its parts in `features/<area>/components/`. Keep
+   files small (roughly under 200 lines), one component per file.
+3. **Page frame:** use `ScrollScreen` (`header="top"` for a tab, the default "‹ Back" for a pushed
+   screen).
+4. **Data:** call the backend through `src/api/` and load with `useRequest`; show
+   `LoadingState`, `ErrorPanel` and `EmptyState`. Show errors with `describeError`.
+5. **Planned endpoints:** when `isNotImplemented(error)` is true, render `NotAvailableYet`. Never
+   show sample data.
+6. **Browser habits:** use `confirmAction` (not `window.confirm`), `ReasonDialog` (not
+   `window.prompt`), `saveFile` for downloads, and poll only while `useAppActive()` is true.
+7. **Styles:** `StyleSheet.create` with tokens from `@/theme`; no new hex colours.
+8. **Navigation:** `useRouter()` with typed routes, e.g.
+   `router.push({ pathname: "/orders/[orderId]", params: { orderId } })`. New routes get their
+   types when `npx expo start` runs.
+9. **Tests:** add a `*.test.tsx` next to the screen with the API module mocked.
+
+---
+
+## Screens
+
+| Route | Screen |
+|---|---|
+| `/login`, `/verify-email`, `/reset-password` | Sign in / create account / forgot password; email links |
+| `/` (tab) | Discover |
+| `/events/[eventId]` | Event page with checkout |
+| `/c/[token]` | Campaign link: opens the event with its promo code |
+| `/tickets` (tab), `/tickets/[ticketId]` | Tickets and ticket detail |
+| `/orders`, `/orders/[orderId]` | Orders |
+| `/support`, `/support/new`, `/support/cases/[caseId]` | Support |
+| `/notifications` | Notification inbox (also from the bell) |
+| `/organizer` (tab), `/organizer/new-event`, `/organizer/events/[eventId]` | Organizer workspace and event management |
+| `/staff-invitations/accept` | Join a workspace from an invitation link |
+| `/check-in` (tab), `/events/[eventId]/scan` | Scanner |
+| `/account` (tab), `/account/sessions` | Account and sessions |
+| `/admin`, `/admin/[section]` | Platform admin portal |
+
+Orders, Support, Notifications, Sessions and Admin are reached from the Account tab (and from
+shortcuts on the Tickets tab and the bell).
 
 ---
 
 ## How scanning works
 
-1. **Check-in** tab → `GET /scanner/events` lists events the user may scan.
+1. **Check-in** tab → `GET /scanner/events` lists events the user may scan (owned events, or
+   staff with "Scan tickets").
 2. Opening an event shows the camera and the counts (`GET /scanner/events/{id}/counts`).
 3. A scanned QR is sent unchanged to `POST /scanner/events/{id}/check-ins` with a fresh
    `operation_id`, so a retried request cannot admit twice.
-4. The server's result code is shown as a large result panel (`features/scanner/outcomes.ts`).
-5. *Undo* calls `POST /scanner/check-ins/{id}/reverse` with a reason.
+4. **Entry confirmation:** when the backend requires one (`ADMISSION_REQUIRE_ENTRY_CONFIRMATION`,
+   on by default), the result asks for it. The guest opens their ticket and shows the entry
+   confirmation; staff scan that second QR or type its 8-digit code, and the app sends it with the
+   ticket.
+5. **Find guest by name:** searches `GET /scanner/events/{id}/attendees` (name or exact email)
+   and checks in by ticket id, with the same rules as a scan.
+6. *Undo* calls `POST /scanner/check-ins/{id}/reverse` with a reason.
 
-The full contract is in [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
-
-**Entry confirmation:** when the backend setting `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` is `true`
-(the default), every check-in also needs the attendee's short-lived entry confirmation (a second
-QR or an 8-digit code, shown on the attendee's ticket page in the web app). The app cannot send it
-yet, so such check-ins are rejected. For demos, set the setting to `false` in the root `.env`.
+Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
+[`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
 
 ---
 
 ## What is left to do
 
-**Required**
-- Read the attendee's entry confirmation (scan the second QR or type the 8-digit code) and send it
-  with the check-in; show clear messages for `sign_in_required`, `confirmation_expired`,
-  `confirmation_used` and `invalid_confirmation`.
-- Manual attendee search (`GET /scanner/events/{id}/attendees`) and check-in by ticket.
-- Allow only staff/owners to use the app (today any verified account can sign in and simply sees
-  no events).
-- Remove the Discover and Organizer tabs and self-registration; make Check-in the first tab.
-
-**Quality**
-- Add tests (none yet) and an ESLint config so `npx expo lint` works.
-- Set the real app name, slug and URL scheme in `app.json` (still `mobile`), and remove the
-  leftover template assets and the broken `reset-project` script.
-- Add a `.env.example` documenting `EXPO_PUBLIC_API_URL`.
-
-**Bonus**
-- Offline scanning: register the device, download the event package, queue scans and sync them
-  (`backend/ADMISSION_API.md`, offline section).
+- **Backend-dependent:** promo campaigns, analytics, finance, refund actions and event images
+  start working once their endpoints exist; then test them end to end on a device.
+- **Translations:** Kazakh and Russian, using the saved profile language.
+- **Device checks:** the share sheet (PDF, calendar, CSV), document picker, clipboard and camera
+  have been tested with mocks. Click them through on a real iPhone and Android phone.
+- **Clean-ups:** the order screen's payment panel duplicates checkout's (`orders/components/OrderPayment.tsx`
+  vs `checkout/components/PaymentStep.tsx`), so merge them. Rename the session kind `scanner`
+  to something like `native` in the backend.
+- **Bonus:** offline scanning (device registration, event package, queued scans and sync;
+  see the offline section of `backend/ADMISSION_API.md`), push notifications, Google sign-in on
+  mobile.

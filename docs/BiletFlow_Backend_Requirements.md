@@ -48,7 +48,7 @@ These make the specification concrete. They are proposed product rules, not clai
 
 ### 1.2 Still excluded
 
-Real-money payouts and production financial operation; production KYC/KYB; arbitrary venue imports and visual layout designer; production-grade offline guarantees; advanced disputes/chargebacks and partial refunds; app-store publication; resale/transfer marketplace; native attendee/organizer apps; affiliates; recurring events; advanced marketing automation; entry hardware; multi-organizer payout splits; tax/accounting automation; full field-level version history and rollback.
+Real-money payouts and production financial operation; production KYC/KYB; arbitrary venue imports and visual layout designer; production-grade offline guarantees; advanced disputes/chargebacks and partial refunds; app-store publication; resale/transfer marketplace; affiliates; recurring events; advanced marketing automation; entry hardware; multi-organizer payout splits; tax/accounting automation; full field-level version history and rollback.
 
 Initial recipient assignment is included to satisfy signed-in admission for multi-ticket purchases. It is not a resale or post-assignment transfer service.
 
@@ -696,7 +696,7 @@ This is an initial allocation, not a requirement to keep identical task counts. 
 | Mobile + Docker developer | Scanner auth/events/check-in API, deterministic scanner fixtures, health endpoints, migration/worker/storage setup instructions | Scanner integration plus Docker/service configuration, environment wiring, recovery walkthrough |
 | Mobile developer | Offline package/token formats, operation schemas, conflict outcomes, signed-in attendee confirmation verification contract | Camera/scanner UX, protected local storage, offline queue/sync and device-level tests |
 
-Attendee sign-in and entry confirmation use the responsive web application; no native attendee app is required. Frontend/admin screens are part of the overall project but are not implemented by this backend plan.
+Attendee sign-in and entry confirmation work in the responsive web application and, since decision [0001](decisions/0001-mobile-app-full-scope.md), also in the mobile app, which offers every web feature plus the scanner. Frontend/admin screens are part of the overall project but are not implemented by this backend plan.
 
 ## 10. Acceptance matrix: when the backend is complete
 

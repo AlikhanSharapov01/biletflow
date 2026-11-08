@@ -81,10 +81,12 @@ export function TextButton({
   disabled,
   light,
   style,
-}: Omit<ButtonProps, "loading"> & { light?: boolean }) {
+  accessibilityLabel,
+}: Omit<ButtonProps, "loading"> & { light?: boolean; accessibilityLabel?: string }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       disabled={disabled}
       hitSlop={8}

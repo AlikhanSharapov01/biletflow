@@ -25,6 +25,8 @@ type AuthContextValue = {
   profile: Profile | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  // After the profile is edited, so every screen shows the new details.
+  setProfile: (profile: Profile) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -93,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, profile, login, logout }),
+    () => ({ status, profile, login, logout, setProfile }),
     [status, profile, login, logout]
   );
 

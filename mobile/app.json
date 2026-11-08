@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "BiletFlow",
+    "slug": "biletflow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
-    "userInterfaceStyle": "automatic",
+    "scheme": "biletflow",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -28,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#f6f5f0",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -40,7 +40,8 @@
           "cameraPermission": "BiletFlow uses the camera to scan ticket QR codes at the entrance.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -3,7 +3,11 @@
 // earlier assumed spec. Field names below are exactly what the API sends/expects.
 
 import { API_URL, friendlyError as baseFriendlyError, networkError } from "@/api/client";
-import type { Profile, TokenPair } from "@/api/types/auth";
+import type { Profile, TokenPair as WireTokenPair } from "@/api/types/auth";
+
+// Native clients sign in as client_kind "scanner", so the refresh token always
+// comes back in the body (the web gets it as an HttpOnly cookie instead).
+export type TokenPair = WireTokenPair & { refresh_token: string };
 
 // Same wording as the web sign-in page (web/src/main.js parseResponse).
 const AUTH_MESSAGES: Record<string, string> = {

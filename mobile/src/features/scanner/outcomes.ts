@@ -12,6 +12,39 @@ export type OutcomeView = {
   icon: string;
   title: string;
   lines: string[];
+  // The ticket is fine but the attendee's entry confirmation is missing or
+  // unusable: offer to scan it or type its code.
+  needsConfirmation?: boolean;
+};
+
+// Prefixes the server uses for the two attendee codes (backend/app/signing.py).
+export const ENTRY_CONFIRMATION_PREFIX = "biletflow:entry:";
+
+export function isEntryConfirmation(payload: string): boolean {
+  return payload.startsWith(ENTRY_CONFIRMATION_PREFIX);
+}
+
+export function isEntryCode(code: string): boolean {
+  return /^\d{8}$/.test(code);
+}
+
+const CONFIRMATION_REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
+  sign_in_required: {
+    title: "Entry confirmation needed",
+    lines: ["Ask the guest to open their ticket and show the entry confirmation, or read out its 8-digit code."],
+  },
+  confirmation_expired: {
+    title: "Confirmation expired",
+    lines: ["The entry confirmation is too old. Ask the guest to create a new one on their ticket."],
+  },
+  confirmation_used: {
+    title: "Confirmation already used",
+    lines: ["This entry confirmation was used or replaced. Ask the guest for a new one."],
+  },
+  invalid_confirmation: {
+    title: "Confirmation not valid",
+    lines: ["This entry confirmation doesn't belong to this ticket or event. Ask the guest for a new one."],
+  },
 };
 
 const TICKET_STATUS: Record<string, string> = {
@@ -102,6 +135,11 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
           "This ticket can't be used for entry.",
       ],
     };
+  }
+
+  const confirmation = CONFIRMATION_REJECTIONS[outcome.code];
+  if (confirmation) {
+    return { tone: "warning", icon: "?", needsConfirmation: true, ...confirmation };
   }
 
   const known = REJECTIONS[outcome.code];

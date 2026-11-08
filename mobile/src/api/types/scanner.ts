@@ -51,6 +51,27 @@ export type ReversalResult = {
   reason: string;
 };
 
+// What a check-in admits: the scanned ticket QR, or a ticket id from manual
+// search, with the attendee's entry confirmation when the event requires it.
+export type CheckInTarget = {
+  qrPayload?: string;
+  ticketId?: string;
+  entryConfirmation?: string;
+  entryCode?: string;
+};
+
+// One manual-search hit (GET /scanner/events/{id}/attendees).
+export type AttendeeHit = {
+  ticket_id: string;
+  attendee_name: string;
+  ticket_type_name: string;
+  seat: Seat | null;
+  status: string;
+  claimed: boolean;
+  checked_in: boolean;
+  check_in_id: string | null;
+};
+
 // A scan always ends in one of these; business rejections are results, not
 // exceptions, so the scan screen can show each one.
 export type CheckInOutcome =

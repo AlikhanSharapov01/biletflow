@@ -4,8 +4,9 @@ import { StyleSheet } from "react-native";
 import { TabGlyph } from "@/components/layout";
 import { colors, fonts } from "@/theme";
 
-// Bottom navigation, matching the web's phone layout where the sidebar
-// becomes a bar of lettered glyph buttons (web .role-nav / .nav-glyph).
+// Bottom navigation, matching the web's phone tab bar (lettered glyph buttons).
+// Orders, Support, Notifications and Admin are reached from Account, as the
+// web reaches Account from the avatar menu.
 export default function TabsLayout() {
   return (
     <Tabs
@@ -24,6 +25,13 @@ export default function TabsLayout() {
         options={{
           title: "Discover",
           tabBarIcon: ({ color }) => <TabGlyph letter="D" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tickets"
+        options={{
+          title: "Tickets",
+          tabBarIcon: ({ color }) => <TabGlyph letter="T" color={color} />,
         }}
       />
       <Tabs.Screen
