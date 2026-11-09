@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import * as authApi from "../../../api/auth";
 import { describeError } from "../../../api/errors";
@@ -16,18 +17,19 @@ interface SessionListProps {
 }
 
 export function SessionList({ sessions, onChanged }: SessionListProps) {
+  useLocale();
   const { notify } = useToast();
   const [revoking, setRevoking] = useState("");
   const currentId = sessionIdFromToken(session.token);
   const now = Date.now();
 
-  if (sessions.length === 0) return <EmptyState>No sessions were found for this account.</EmptyState>;
+  if (sessions.length === 0) return <EmptyState>{t("account.no_sessions")}</EmptyState>;
 
   const revoke = async (id: string) => {
     setRevoking(id);
     try {
       await authApi.revokeSession(id);
-      notify("Session revoked.");
+      notify(t("account.session_revoked"));
       onChanged();
     } catch (failure) {
       notify(describeError(failure));
@@ -43,12 +45,12 @@ export function SessionList({ sessions, onChanged }: SessionListProps) {
         const revoked = Boolean(item.revoked_at);
         const expired = new Date(item.expires_at).getTime() <= now;
         const active = !revoked && !expired;
-        const label = current ? "This device" : item.client_kind === "web" ? "Web browser" : "Scanner";
+        const label = current ? t("account.this_device") : item.client_kind === "web" ? t("account.web_browser") : t("account.scanner");
         const lifecycle = revoked
-          ? `Revoked ${dateLabel(item.revoked_at)}`
+          ? t("account.revoked_at", { p0: dateLabel(item.revoked_at) })
           : expired
-            ? `Expired ${dateLabel(item.expires_at)}`
-            : `Expires ${dateLabel(item.expires_at)}`;
+            ? t("account.expired_at", { p0: dateLabel(item.expires_at) })
+            : t("account.expires_at", { p0: dateLabel(item.expires_at) });
         return (
           <ListRow
             key={item.id}
@@ -56,16 +58,14 @@ export function SessionList({ sessions, onChanged }: SessionListProps) {
             title={
               <>
                 {label}
-                {current ? <StatusPill>Current</StatusPill> : null}
+                {current ? <StatusPill>{t("account.current")}</StatusPill> : null}
               </>
             }
-            meta={`Started ${dateLabel(item.created_at)} · Last active ${item.last_seen_at ? dateLabel(item.last_seen_at) : "Not yet"}`}
+            meta={t("account.session_meta", { p0: dateLabel(item.created_at), p1: item.last_seen_at ? dateLabel(item.last_seen_at) : t("account.not_yet") })}
             note={lifecycle}
             actions={
               active && !current ? (
-                <Button variant="danger" size="sm" disabled={revoking === item.id} onClick={() => void revoke(item.id)}>
-                  Revoke
-                </Button>
+                <Button variant="danger" size="sm" disabled={revoking === item.id} onClick={() => void revoke(item.id)}>{t("organizer.revoke")}</Button>
               ) : null
             }
           />

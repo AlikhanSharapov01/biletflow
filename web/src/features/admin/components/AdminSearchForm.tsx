@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import { Button, SelectField, TextField } from "../../../components/ui";
 import type { SearchQuery } from "../hooks/useAdminSearch";
@@ -11,7 +12,8 @@ interface AdminSearchFormProps {
 }
 
 // Search text is matched literally by the server (% and _ are not wildcards).
-export function AdminSearchForm({ label, placeholder, statuses, statusLabel = "Status", onApply }: AdminSearchFormProps) {
+export function AdminSearchForm({ label, placeholder, statuses, statusLabel = t("common.status"), onApply }: AdminSearchFormProps) {
+  useLocale();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
 
@@ -22,9 +24,9 @@ export function AdminSearchForm({ label, placeholder, statuses, statusLabel = "S
 
   return (
     <form className="filter-bar" role="search" aria-label={label} onSubmit={submit}>
-      <TextField label="Search" className="filter-wide" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder={placeholder} />
+      <TextField label={t("common.search")} className="filter-wide" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder={placeholder} />
       <SelectField label={statusLabel} value={status} onChange={(e) => setStatus(e.target.value)}>
-        <option value="">Any</option>
+        <option value="">{t("admin.any")}</option>
         {statuses.map((item) => (
           <option key={item.value} value={item.value}>
             {item.label}
@@ -32,9 +34,7 @@ export function AdminSearchForm({ label, placeholder, statuses, statusLabel = "S
         ))}
       </SelectField>
       <div className="filter-actions">
-        <Button variant="primary" size="sm" type="submit">
-          Search
-        </Button>
+        <Button variant="primary" size="sm" type="submit">{t("common.search")}</Button>
       </div>
     </form>
   );

@@ -6,8 +6,8 @@
 
   /* Surfaces and ink */
   --ink: #172724;
-  --muted: #7b8580;
-  --faint: #a0a7a1;
+  --muted: #58655d;
+  --faint: #626e66;
   --line: #e4e7df;
   --line-soft: #eef0ea;
   --paper: #fffefa;
@@ -26,16 +26,16 @@
   --yellow: #f4c96b;
 
   /* Text roles */
-  --subtitle: #79847d;
-  --meta: #89928b;
-  --body-soft: #68756d;
-  --intro: #87928a;
+  --subtitle: #58655d;
+  --meta: #58655d;
+  --body-soft: #58655d;
+  --intro: #58655d;
   --button-ink: #4a5951;
-  --nav-ink: #6e7972;
+  --nav-ink: #58655d;
 
   /* Controls */
-  --input-line: #dfe3dc;
-  --placeholder: #a3aaa5;
+  --input-line: #818d84;
+  --placeholder: #626e66;
   --tab-track: #ebece6;
   --active-nav: #e8f0e6;
   --row-icon: #edf3e8;
@@ -43,12 +43,12 @@
   --date-tile-ink: #726044;
   --avatar: #e6d7b9;
   --avatar-ink: #604b2e;
-  --focus: #93b869;
+  --focus: #236b55;
 
   /* Errors and danger */
   --error: #a44735;
   --error-title: #745247;
-  --error-text: #8d7067;
+  --error-text: #79594f;
   --danger: #a85443;
   --danger-line: #f0d8d2;
 
@@ -56,11 +56,11 @@
   --tone-positive-bg: #eef5e9;
   --tone-positive: #4a7151;
   --tone-pending-bg: #fff3dd;
-  --tone-pending: #a57324;
+  --tone-pending: #805313;
   --tone-blocked-bg: #f9e9e4;
-  --tone-blocked: #b25845;
+  --tone-blocked: #984432;
   --tone-neutral-bg: #edf0ef;
-  --tone-neutral: #68756d;
+  --tone-neutral: #58655d;
 
   /* Event artwork gradients */
   --art-0: #d8e6d6, #94b69b;

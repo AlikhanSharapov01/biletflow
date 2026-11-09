@@ -1,3 +1,4 @@
+import { t, translate, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { describeError } from "../../../api/errors";
 import { acceptPaidSalesTerms, createIdentityVerification, createPayoutProfile, getPaidSales, startActivation } from "../../../api/paidSales";
@@ -11,6 +12,7 @@ import { SimulatedNote } from "./paid-sales/SimulatedNote";
 
 // Simulated paid-sales activation checklist (backend/PAID_SALES_API.md).
 export function PaidSalesTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const checklist = useRequest(() => getPaidSales(event.id), [event.id]);
   const [busy, setBusy] = useState("");
@@ -28,92 +30,82 @@ export function PaidSalesTab({ event }: { event: EventView }) {
     }
   };
 
-  if (checklist.loading && !checklist.data) return <Loading label="Loading paid-sales checklist…" />;
+  if (checklist.loading && !checklist.data) return <Loading label={t("org.paid_loading")} />;
   if (checklist.error || !checklist.data) {
     return (
       <ErrorPanel
-        title="We couldn’t load paid sales."
-        message={`${checklist.error ?? ""} Only the workspace owner and members with the finance permission can manage paid sales.`}
+        title={t("org.paid_error")}
+        message={t("org.paid_permission", { p0: checklist.error ?? "" })}
         onRetry={checklist.reload}
       />
     );
   }
   const data = checklist.data;
-  const done = (ok: boolean) => <StatusPill tone={ok ? "positive" : "pending"}>{ok ? "Done" : "To do"}</StatusPill>;
+  const done = (ok: boolean) => <StatusPill tone={ok ? "positive" : "pending"}>{ok ? t("org.done") : t("org.todo")}</StatusPill>;
 
   return (
     <div className="stack">
       <SimulatedNote />
       <Panel>
         <PanelHeading
-          title="Paid-sales activation"
-          subtitle="Every step must be complete before paid ticket types can be sold. Free tickets keep working either way."
+          title={t("org.paid_activation")}
+          subtitle={t("org.paid_activation_intro")}
           trailing={<StatusPill tone={activationTone(data.status)}>{statusLabel(data.status)}</StatusPill>}
         />
-        {data.status === "active" ? <p className="form-intro">Paid sales are active since {dateLabel(data.activated_at)}.</p> : null}
+        {data.status === "active" ? <p className="form-intro">{t("org.paid_active_since")}{" "}{dateLabel(data.activated_at)}.</p> : null}
         {data.status === "suspended" ? (
-          <p className="form-message" role="alert">
-            Paid sales were suspended by the platform{data.suspension_reason ? `: ${data.suspension_reason}` : "."} Contact support to reinstate them.
-          </p>
+          <p className="form-message" role="alert">{t("org.paid_suspended")}{data.suspension_reason ? `: ${data.suspension_reason}` : "."}{" "}{t("org.contact_reinstate")}</p>
         ) : null}
         <div className="list checklist">
           <ListRow
             icon="₸"
-            title="Paid ticket type"
-            meta="Add at least one ticket type of kind “Paid” in the Ticket types tab."
+            title={t("org.paid_type")}
+            meta={t("org.paid_type_hint")}
             actions={done(data.paid_ticket_type)}
           />
           <ListRow
             icon="P"
-            title="Payout profile"
-            meta="Simulated and verified immediately. No bank details are collected."
+            title={t("org.payout_profile")}
+            meta={t("org.payout_demo_hint")}
             actions={
               data.payout_profile_verified ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), "Simulated payout profile created.")}>
-                  Create simulated profile
-                </Button>
+                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}>{t("org.create_demo_profile")}</Button>
               )
             }
           />
           <ListRow
             icon="ID"
-            title="Identity verification"
-            meta="Simulated approval for this workspace. No documents are uploaded."
+            title={t("org.identity_verification")}
+            meta={t("org.identity_demo_hint")}
             actions={
               data.identity_verified ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), "Simulated identity check approved.")}>
-                  Verify (simulated)
-                </Button>
+                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}>{t("org.verify_demo")}</Button>
               )
             }
           />
           <ListRow
             icon="T"
-            title={`Organizer terms · version ${data.terms.version}`}
-            meta="Accepted per event and per terms version."
+            title={t("org.terms_version", { p0: data.terms.version })}
+            meta={t("org.terms_hint")}
             actions={
               data.terms.accepted ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), "Terms accepted.")}>
-                  Accept terms
-                </Button>
+                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}>{t("org.accept_terms")}</Button>
               )
             }
           >
             <details className="terms-text">
-              <summary>Read the terms</summary>
-              <p>{data.terms.text}</p>
+              <summary>{t("org.read_terms")}</summary>
+              <p>{translate(data.terms.text)}</p>
             </details>
           </ListRow>
           <ActivationFeeStep
             checklist={data}
             busy={Boolean(busy)}
-            onStart={() => void run("fee", () => startActivation(event.id), "Simulated activation payment started.")}
+            onStart={() => void run("fee", () => startActivation(event.id), t("org.activation_started"))}
             onChanged={checklist.reload}
           />
         </div>
-        <p className="form-intro">
-          Activation fee: {priceLabel(data.activation_fee_minor)} {data.currency} (demonstration value). Activation applies to this event only and is never copied by Duplicate.
-        </p>
+        <p className="form-intro">{t("org.activation_fee")}{" "}{priceLabel(data.activation_fee_minor)} {data.currency}{" "}{t("org.activation_fee_hint")}</p>
       </Panel>
     </div>
   );

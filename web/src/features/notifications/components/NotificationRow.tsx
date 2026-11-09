@@ -1,5 +1,7 @@
+import { t, useLocale } from "../../../i18n";
 import type { AppNotification } from "../../../api/types/notifications";
 import { dateLabel } from "../../../utils/format";
+import { notificationContent } from "../notificationContent";
 
 interface NotificationRowProps {
   notification: AppNotification;
@@ -18,7 +20,9 @@ const KIND_GLYPH: Record<string, string> = {
 // One inbox entry. Unread items are bold with a dot; activating the row marks
 // it read and opens its target.
 export function NotificationRow({ notification, busy, onOpen }: NotificationRowProps) {
+  useLocale();
   const unread = !notification.read_at;
+  const content = notificationContent(notification);
   return (
     <li>
       <button
@@ -32,10 +36,10 @@ export function NotificationRow({ notification, busy, onOpen }: NotificationRowP
         </span>
         <span className="notification-copy">
           <strong className="notification-title">
-            {unread ? <span className="notification-dot" aria-label="Unread" /> : null}
-            {notification.title}
+            {unread ? <span className="notification-dot" aria-label={t("notifications.unread")} /> : null}
+            {content.title}
           </strong>
-          <span className="notification-body">{notification.body}</span>
+          <span className="notification-body">{content.body}</span>
           <time className="notification-time" dateTime={notification.created_at}>
             {dateLabel(notification.created_at)}
           </time>

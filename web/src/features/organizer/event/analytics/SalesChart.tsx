@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../../i18n";
 import { useState } from "react";
 import type { SalesPoint, SeriesBucket } from "../../../../api/types/analytics";
 import { Button } from "../../../../components/ui";
@@ -21,19 +22,21 @@ function bucketLabel(value: string, bucket: SeriesBucket): string {
 // Tickets sold per bucket as a single-series bar chart, with a focusable
 // tooltip per bar and a table view for screen readers and printing.
 export function SalesChart({ points, bucket }: SalesChartProps) {
+  useLocale();
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
   const max = niceMax(Math.max(0, ...points.map((point) => point.tickets)));
   const bars = layoutBars(points.map((point) => point.tickets), WIDTH - LEFT, HEIGHT - BOTTOM, max);
   const current = active === null ? null : points[active];
   const labelEvery = Math.max(1, Math.ceil(points.length / 8));
+  const period = t(bucket === "hour" ? "period.hour" : "period.day");
 
   return (
     <figure className="sales-chart">
       <figcaption className="sales-chart-caption">
-        <span>Tickets sold per {bucket}</span>
+        <span>{t("org.sold_per")}{" "}{period}</span>
         <Button size="sm" variant="text" onClick={() => setShowTable(!showTable)} aria-expanded={showTable}>
-          {showTable ? "Show chart" : "Show as table"}
+          {showTable ? t("org.show_chart") : t("org.show_table")}
         </Button>
       </figcaption>
       {showTable ? (
@@ -41,9 +44,9 @@ export function SalesChart({ points, bucket }: SalesChartProps) {
           <table className="data-table">
             <thead>
               <tr>
-                <th scope="col">{bucket === "hour" ? "Hour" : "Day"}</th>
-                <th scope="col">Tickets</th>
-                <th scope="col">Revenue</th>
+                <th scope="col">{bucket === "hour" ? t("org.hour") : t("org.day")}</th>
+                <th scope="col">{t("common.tickets")}</th>
+                <th scope="col">{t("org.revenue")}</th>
               </tr>
             </thead>
             <tbody>
@@ -60,9 +63,9 @@ export function SalesChart({ points, bucket }: SalesChartProps) {
       ) : (
         <div className="sales-chart-plot">
           <p className="chart-tooltip" aria-live="polite">
-            {current ? `${bucketLabel(current.bucket_start, bucket)}: ${current.tickets} tickets · ${priceLabel(current.revenue_minor)}` : "Hover or focus a bar for details."}
+            {current ? t("org.chart_tooltip", { p0: bucketLabel(current.bucket_start, bucket), p1: current.tickets, p2: priceLabel(current.revenue_minor) }) : t("org.chart_hint")}
           </p>
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={`Bar chart of tickets sold per ${bucket}, ${points.length} bars, maximum ${Math.max(0, ...points.map((p) => p.tickets))}.`}>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={t("org.chart_alt", { p0: period, p1: points.length, p2: Math.max(0, ...points.map((p) => p.tickets)) })}>
             {ticks(max).map((tick) => {
               const y = HEIGHT - BOTTOM - (tick / max) * (HEIGHT - BOTTOM);
               return (
@@ -84,7 +87,7 @@ export function SalesChart({ points, bucket }: SalesChartProps) {
                     className={`chart-bar ${active === bar.index ? "active" : ""}`}
                     tabIndex={0}
                     role="img"
-                    aria-label={`${bucketLabel(point.bucket_start, bucket)}: ${point.tickets} tickets`}
+                    aria-label={t("org.chart_bar_label", { p0: bucketLabel(point.bucket_start, bucket), p1: point.tickets })}
                     onMouseEnter={() => setActive(bar.index)}
                     onMouseLeave={() => setActive(null)}
                     onFocus={() => setActive(bar.index)}

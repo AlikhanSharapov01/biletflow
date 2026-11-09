@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import type { PromoPreview } from "../../../api/types/promo";
 import { priceLabel } from "../../../utils/format";
 
@@ -46,9 +47,9 @@ function safeStorage(): Storage | null {
 }
 
 export function promoSummary(preview: PromoPreview): string {
-  const amount = preview.discount_kind === "percent" ? `${preview.discount_value}% off` : `${priceLabel(preview.discount_value)} off`;
-  const scope = preview.eligible_ticket_type_ids.length > 0 ? "eligible tickets" : "every ticket";
-  return `${preview.code}: ${amount} ${scope}`;
+  const amount = preview.discount_kind === "percent" ? t("checkout.percent_off", { p0: preview.discount_value }) : t("checkout.amount_off", { p0: priceLabel(preview.discount_value) });
+  const scope = preview.eligible_ticket_type_ids.length > 0 ? t("checkout.eligible_tickets") : t("checkout.every_ticket");
+  return `${preview.code}: ${amount} ${scope}${preview.discount_kind === "fixed" ? (" " + t("checkout.once_per_order")) : ""}`;
 }
 
 // Estimated discount on one ticket; the server's quote is authoritative.
@@ -56,6 +57,9 @@ export function promoDiscountFor(preview: PromoPreview | null, ticketTypeId: str
   if (!preview || priceMinor <= 0) return 0;
   const eligible = preview.eligible_ticket_type_ids;
   if (eligible.length > 0 && !eligible.includes(ticketTypeId)) return 0;
-  const raw = preview.discount_kind === "percent" ? Math.round((priceMinor * preview.discount_value) / 100) : preview.discount_value;
+  // A fixed discount applies once to the basket, then the server apportions it.
+  // It cannot be estimated for one ticket independently of the basket.
+  if (preview.discount_kind === "fixed") return 0;
+  const raw = Math.round((priceMinor * preview.discount_value) / 100);
   return Math.min(priceMinor, Math.max(0, raw));
 }

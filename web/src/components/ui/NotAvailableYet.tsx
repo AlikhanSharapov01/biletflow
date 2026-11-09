@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import type { ReactNode } from "react";
 import { StatusPill } from "./StatusPill";
 
@@ -10,11 +11,12 @@ interface NotAvailableYetProps {
 // Shown where a screen is built on a planned API contract that the backend
 // does not serve yet. Never filled with sample data.
 export function NotAvailableYet({ feature, children }: NotAvailableYetProps) {
+  useLocale();
   return (
     <div className="not-available" role="status">
-      <StatusPill tone="neutral">Not available yet</StatusPill>
-      <strong>{feature} is coming soon.</strong>
-      <p>{children ?? "This part of BiletFlow is designed and ready, and will start working once the server side is released."}</p>
+      <StatusPill tone="neutral">{t("common.not_available_yet")}</StatusPill>
+      <strong>{feature}{" "}{t("common.coming_soon_suffix")}</strong>
+      <p>{children ?? t("common.coming_soon_copy")}</p>
     </div>
   );
 }

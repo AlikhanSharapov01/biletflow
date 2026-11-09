@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { useSearchParams } from "react-router";
 import { listCases } from "../../api/support";
 import { ApiError } from "../../api/errors";
@@ -9,8 +10,8 @@ import { CaseRow } from "./components/CaseRow";
 
 const PAGE_SIZE = 20;
 const VIEWS = [
-  { id: "mine" as const, label: "My cases" },
-  { id: "queue" as const, label: "Queue" },
+  { id: "mine" as const, get label() { return t("support.my_cases"); } },
+  { id: "queue" as const, get label() { return t("support.queue"); } },
 ];
 
 // The queue is only for organizer support staff and platform admins; anyone
@@ -25,6 +26,7 @@ async function loadCases(view: SupportListView, status: SupportStatus | "", cate
 }
 
 export function SupportPage() {
+  useLocale();
   const [params, setParams] = useSearchParams();
   const view: SupportListView = params.get("view") === "queue" ? "queue" : "mine";
   const status = (params.get("status") ?? "") as SupportStatus | "";
@@ -44,21 +46,19 @@ export function SupportPage() {
   return (
     <>
       <PageHeading
-        eyebrow="Help when you need it"
-        title="Support."
-        subtitle="Questions about an event, a ticket or your account."
+        eyebrow={t("support.eyebrow")}
+        title={t("support.title")}
+        subtitle={t("support.subtitle")}
         actions={
-          <ButtonLink variant="primary" to="/support/new">
-            New case
-          </ButtonLink>
+          <ButtonLink variant="primary" to="/support/new">{t("support.new_case")}{" "}</ButtonLink>
         }
       />
-      <Tabs label="Case lists" idPrefix="support" items={VIEWS} value={view} onChange={(id) => update({ view: id, offset: "0" })} />
+      <Tabs label={t("support.case_lists")} idPrefix="support" items={VIEWS} value={view} onChange={(id) => update({ view: id, offset: "0" })} />
       <TabPanel idPrefix="support" active={view}>
         <Panel>
           <CaseFilters status={status} category={category} onChange={(filters) => update({ ...filters, offset: "0" })} />
-          {cases.loading ? <Loading label="Loading cases…" /> : null}
-          {cases.error ? <ErrorPanel title="We couldn’t load support cases." message={cases.error} onRetry={cases.reload} /> : null}
+          {cases.loading ? <Loading label={t("support.loading_cases")} /> : null}
+          {cases.error ? <ErrorPanel title={t("support.load_error")} message={cases.error} onRetry={cases.reload} /> : null}
           {!cases.loading && cases.data ? <CaseList page={cases.data} view={view} onPage={(next) => update({ offset: String(next) })} /> : null}
         </Panel>
       </TabPanel>
@@ -73,12 +73,13 @@ interface CaseListProps {
 }
 
 function CaseList({ page, view, onPage }: CaseListProps) {
+  useLocale();
   if (page === "forbidden" || page.items.length === 0) {
     return (
       <EmptyState>
         {view === "queue"
-          ? "No cases to work on. The queue lists cases from events where you are support staff, and escalated cases for platform admins."
-          : "No support cases yet. Open one whenever you need help."}
+          ? t("support.empty_queue")
+          : t("support.empty")}
       </EmptyState>
     );
   }
@@ -93,15 +94,11 @@ function CaseList({ page, view, onPage }: CaseListProps) {
       </div>
       {hasPrevious || hasNext ? (
         <div className="form-actions support-pager">
-          <Button size="sm" disabled={!hasPrevious} onClick={() => onPage(Math.max(0, page.offset - page.limit))}>
-            Previous
-          </Button>
+          <Button size="sm" disabled={!hasPrevious} onClick={() => onPage(Math.max(0, page.offset - page.limit))}>{t("common.previous")}</Button>
           <span className="field-note">
-            {page.offset + 1}–{page.offset + page.items.length} of {page.total}
+            {t("org.result_range", { p0: page.offset + 1, p1: page.offset + page.items.length, p2: page.total })}
           </span>
-          <Button size="sm" disabled={!hasNext} onClick={() => onPage(page.offset + page.limit)}>
-            Next
-          </Button>
+          <Button size="sm" disabled={!hasNext} onClick={() => onPage(page.offset + page.limit)}>{t("common.next")}</Button>
         </div>
       ) : null}
     </>

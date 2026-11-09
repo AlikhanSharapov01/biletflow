@@ -2,7 +2,7 @@ import { TrafficAnalytics } from "../analytics/TrafficAnalytics";
 import { BrowserRouter } from "react-router";
 import { ToastProvider } from "../components/ui/Toast";
 import { AuthProvider } from "../features/auth/AuthContext";
-import { AppRoutes } from "./routes";
+import { LocalizedApp } from "../i18n/LocalizedApp";
 
 export function App() {
   return (
@@ -10,7 +10,7 @@ export function App() {
       <ToastProvider>
         <AuthProvider>
           <TrafficAnalytics />
-          <AppRoutes />
+          <LocalizedApp />
         </AuthProvider>
       </ToastProvider>
     </BrowserRouter>

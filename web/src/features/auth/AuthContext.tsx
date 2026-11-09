@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import * as authApi from "../../api/auth";
 import { refreshAccessToken } from "../../api/client";
@@ -24,6 +25,7 @@ export interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [profile, setProfileState] = useState<Profile | null>(null);
   const [notice, setNotice] = useState("");
@@ -70,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           case "incomplete":
-            finish(() => becomeAnonymous("Google returned an incomplete sign-in response. Please try again."));
+            finish(() => becomeAnonymous(t("auth.google_incomplete")));
             return;
           case "backend_error":
             finish(() => becomeAnonymous(googleErrorMessage(callback.code)));

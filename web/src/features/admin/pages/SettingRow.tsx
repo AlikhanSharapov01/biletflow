@@ -1,3 +1,4 @@
+import { t, translate, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import { updateSetting } from "../../../api/admin";
 import { describeError, errorCodeOf } from "../../../api/errors";
@@ -12,6 +13,7 @@ interface SettingRowProps {
 }
 
 export function SettingRow({ setting, onSaved }: SettingRowProps) {
+  useLocale();
   const { notify } = useToast();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(setting.pending?.value ?? setting.value));
@@ -34,11 +36,11 @@ export function SettingRow({ setting, onSaved }: SettingRowProps) {
         ...(effective ? { effective_at: localInputToIso(effective) ?? undefined } : {}),
         ...(reason.trim() ? { reason: reason.trim() } : {}),
       });
-      notify("Setting saved.");
+      notify(t("admin.setting_saved"));
       onSaved();
     } catch (failure) {
       if (errorCodeOf(failure) === "setting_version_conflict") {
-        notify("Another admin changed this setting. The latest version is shown; review it and try again.");
+        notify(t("admin.setting_conflict"));
         onSaved();
         return;
       }
@@ -52,36 +54,34 @@ export function SettingRow({ setting, onSaved }: SettingRowProps) {
       title={
         <>
           {setting.key}
-          <StatusPill tone="neutral">v{setting.version}</StatusPill>
-          {setting.pending ? <StatusPill tone="pending">Scheduled change</StatusPill> : null}
+          <StatusPill tone="neutral">{t("word.version")}{setting.version}</StatusPill>
+          {setting.pending ? <StatusPill tone="pending">{t("admin.scheduled_change")}</StatusPill> : null}
         </>
       }
-      meta={`${setting.description} · current ${setting.value} (default ${setting.default}, range ${setting.minimum}–${setting.maximum})`}
+      meta={t("admin.setting_current", { p0: translate(setting.description), p1: setting.value, p2: setting.default, p3: setting.minimum, p4: setting.maximum })}
       note={
         setting.pending
-          ? `Changes to ${setting.pending.value} on ${dateLabel(setting.pending.effective_at)}`
+          ? t("admin.setting_changes", { p0: setting.pending.value, p1: dateLabel(setting.pending.effective_at) })
           : setting.effective_at
-            ? `In force since ${dateLabel(setting.effective_at)}`
-            : "Default value, never changed"
+            ? t("admin.setting_effective", { p0: dateLabel(setting.effective_at) })
+            : t("admin.setting_default")
       }
       actions={
         <Button size="sm" onClick={() => setEditing(!editing)}>
-          {editing ? "Close" : "Change"}
+          {editing ? t("common.close") : t("admin.change")}
         </Button>
       }
     >
       {editing ? (
         <form className="form-stack inline-form" onSubmit={(event) => void save(event)}>
           <div className="form-grid">
-            <TextField label="New value" type="number" min={setting.minimum} max={setting.maximum} step={1} value={value} onChange={(e) => setValue(e.target.value)} required />
-            <TextField label="Takes effect" hint="Blank = now" type="datetime-local" value={effective} onChange={(e) => setEffective(e.target.value)} />
+            <TextField label={t("admin.new_value")} type="number" min={setting.minimum} max={setting.maximum} step={1} value={value} onChange={(e) => setValue(e.target.value)} required />
+            <TextField label={t("admin.takes_effect")} hint={t("admin.blank_now")} type="datetime-local" value={effective} onChange={(e) => setEffective(e.target.value)} />
           </div>
-          <TextField label="Reason" hint="Optional" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
+          <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
           <FormMessage message={state.message} />
           <div className="form-actions">
-            <Button variant="primary" size="sm" type="submit" disabled={state.busy}>
-              Save setting
-            </Button>
+            <Button variant="primary" size="sm" type="submit" disabled={state.busy}>{t("admin.save_setting")}</Button>
           </div>
         </form>
       ) : null}

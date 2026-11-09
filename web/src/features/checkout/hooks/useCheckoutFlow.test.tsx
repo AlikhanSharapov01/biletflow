@@ -78,7 +78,7 @@ describe("useCheckoutFlow reserve", () => {
 
   it("sends an accepted promo code with the hold", async () => {
     createHoldMock.mockResolvedValue(makeHold());
-    const promo: PromoPreview = { event_id: "e1", code: "SPRING", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: [], valid_until: null };
+    const promo: PromoPreview = { event_id: "e1", code: "SPRING", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: [], valid_until: "2099-12-31T00:00:00Z" };
     const { result } = renderFlow({ promo });
     await act(() => result.current.flow.reserve([{ ticket_type_id: "paid", quantity: 1 }]));
     expect(createHoldMock).toHaveBeenCalledWith("e1", [{ ticket_type_id: "paid", quantity: 1 }], "SPRING");
@@ -96,7 +96,10 @@ describe("useCheckoutFlow reserve", () => {
 
 describe("useCheckoutFlow confirm", () => {
   async function held(allocations = [makeAllocation({ id: "a1", ticket_type_id: "free" })]) {
-    createHoldMock.mockResolvedValue(makeHold({ id: "h1", allocations }));
+    const payable = allocations.some((item) => item.ticket_type_id === "paid") ? 500_000 : 0;
+    createHoldMock.mockResolvedValue(makeHold({ id: "h1", allocations,
+      pricing: { gross: payable, discount: 0, subtotal: payable, processing_fee: 0, payable, lines: [] },
+    }));
     const rendered = renderFlow();
     await act(() => rendered.result.current.flow.reserve([{ ticket_type_id: allocations[0]!.ticket_type_id, quantity: allocations.length }]));
     return rendered;
@@ -135,6 +138,22 @@ describe("useCheckoutFlow confirm", () => {
     expect(result.current.flow.order).toBe(pending);
     expect(result.current.flow.busy).toBe(false);
     expect(result.current.location.pathname).toBe("/events/e1");
+  });
+
+  it("confirms a paid ticket discounted to zero without starting a payment", async () => {
+    createHoldMock.mockResolvedValue(makeHold({
+      allocations: [makeAllocation({ id: "a1", ticket_type_id: "paid" })],
+      pricing: { gross: 500_000, discount: 500_000, subtotal: 0, processing_fee: 0, payable: 0, lines: [] },
+      promo: { code: "FREE100", campaign_id: "c1", discount_kind: "percent", discount_value: 100 },
+    }));
+    confirmHoldMock.mockResolvedValue(makeOrder({ id: "zero-order", status: "confirmed" }));
+    const { result } = renderFlow();
+    await act(() => result.current.flow.reserve([{ ticket_type_id: "paid", quantity: 1 }]));
+    expect(result.current.flow.paid).toBe(false);
+    await act(() => result.current.flow.confirm());
+    expect(startCheckoutMock).not.toHaveBeenCalled();
+    expect(confirmHoldMock).toHaveBeenCalled();
+    expect(result.current.location.pathname).toBe("/orders/zero-order");
   });
 
   it("starts over when the promo needs a new quote", async () => {

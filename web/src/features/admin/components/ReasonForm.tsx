@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import { describeError } from "../../../api/errors";
 import { Button, FormMessage, TextAreaField } from "../../../components/ui";
@@ -14,13 +15,14 @@ interface ReasonFormProps {
 // Inline "why?" form for moderation decisions and report resolutions. The
 // text is stored in the append-only moderation record.
 export function ReasonForm({ label, submitLabel, danger = false, maxLength = 500, onSubmit, onCancel }: ReasonFormProps) {
+  useLocale();
   const [reason, setReason] = useState("");
   const [state, setState] = useState({ busy: false, message: "" });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!reason.trim()) {
-      setState({ busy: false, message: "Write a short reason." });
+      setState({ busy: false, message: t("admin.short_reason") });
       return;
     }
     setState({ busy: true, message: "" });
@@ -39,9 +41,7 @@ export function ReasonForm({ label, submitLabel, danger = false, maxLength = 500
         <Button variant={danger ? "danger" : "primary"} size="sm" type="submit" disabled={state.busy}>
           {submitLabel}
         </Button>
-        <Button size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
+        <Button size="sm" onClick={onCancel}>{t("common.cancel")}</Button>
       </div>
     </form>
   );

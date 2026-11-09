@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import type { OrderItem, Profile } from "../../../api/types";
 import { ButtonLink } from "../../../components/ui/Button";
 import { ListRow } from "../../../components/ui/ListRow";
@@ -7,6 +8,7 @@ import { ticketTone } from "../../../utils/status";
 
 // One ticket in an order. Only the recipient's own tickets link to the QR.
 export function OrderItemRow({ item, profile }: { item: OrderItem; profile: Profile | null }) {
+  useLocale();
   const mine = item.ticket?.qr_payload || (profile && item.recipient_email.toLowerCase() === profile.email.toLowerCase());
   return (
     <ListRow
@@ -15,13 +17,11 @@ export function OrderItemRow({ item, profile }: { item: OrderItem; profile: Prof
       meta={`${item.recipient_email} · ${seatLabel(item.seat_snapshot)}`}
       actions={
         <>
-          <StatusPill tone={ticketTone(item.ticket?.status)}>{item.ticket ? statusLabel(item.ticket.status) : "pending"}</StatusPill>
+          <StatusPill tone={ticketTone(item.ticket?.status)}>{statusLabel(item.ticket?.status ?? "pending")}</StatusPill>
           {item.ticket && mine ? (
-            <ButtonLink size="sm" to={`/tickets/${encodeURIComponent(item.ticket.id)}`}>
-              View ticket
-            </ButtonLink>
+            <ButtonLink size="sm" to={`/tickets/${encodeURIComponent(item.ticket.id)}`}>{t("tickets.view")}{" "}</ButtonLink>
           ) : (
-            <small className="order-note">Emailed to the recipient</small>
+            <small className="order-note">{t("tickets.emailed_recipient")}</small>
           )}
         </>
       }

@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { EventView, TicketType } from "../../api/types";
@@ -23,6 +24,7 @@ interface CheckoutPanelProps {
 // Pick tickets (or seats), hold them for ten minutes, name a recipient per
 // place, then confirm (free) or pay through the simulator (paid).
 export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutPanelProps) {
+  useLocale();
   const { status, profile } = useAuth();
   const [quantities, setQuantities] = useState<Quantities>({});
   const [promoCode] = useState(() => initialPromo(event.id, promoFromUrl));
@@ -35,28 +37,24 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     const from = promoCode ? `${eventPath}?promo=${encodeURIComponent(promoCode)}` : eventPath;
     return (
       <p className="signin-prompt">
-        <Link to="/sign-in" state={{ from }}>
-          Sign in
-        </Link>{" "}
-        to reserve tickets for this event.
-      </p>
+        <Link to="/sign-in" state={{ from }}>{t("auth.sign_in")}</Link>{" "}{t("checkout.sign_in_hint")}{" "}</p>
     );
   }
   if (!profile) return null;
   if (event.publication_state !== "published") {
-    return <EmptyState>Registration opens when the event is published.</EmptyState>;
+    return <EmptyState>{t("checkout.registration_unpublished_sentence")}</EmptyState>;
   }
   if (event.time_status === "completed") {
-    return <EmptyState>This event has ended.</EmptyState>;
+    return <EmptyState>{t("checkout.event_ended")}</EmptyState>;
   }
   if (!profile.email_verified_at) {
-    return <p className="signin-prompt">Verify your email address before reserving tickets. Check your inbox for the verification link.</p>;
+    return <p className="signin-prompt">{t("checkout.verify_email_hint")}</p>;
   }
   if (tickets.length === 0) {
-    return <EmptyState>Ticket details are not available yet.</EmptyState>;
+    return <EmptyState>{t("checkout.details_unavailable")}</EmptyState>;
   }
 
-  const typeName = (typeId: string) => tickets.find((type) => type.id === typeId)?.name ?? "Ticket";
+  const typeName = (typeId: string) => tickets.find((type) => type.id === typeId)?.name ?? t("common.ticket");
 
   if (flow.order && flow.hold) {
     return <PaymentStep order={flow.order} onConfirmed={flow.finished} onClosed={() => flow.reset()} onCancel={() => void flow.release()} />;

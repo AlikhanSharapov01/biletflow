@@ -1,0 +1,36 @@
+# Mount at /etc/caddy/Caddyfile; see web/docs/operations/https.md.
+(web_security) {
+    header {
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://www.google-analytics.com; font-src 'self'; connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+}
+
+(web_routes) {
+    encode zstd gzip
+    @backend path /api/* /docs /docs/* /redoc /redoc/* /openapi.json /health/*
+    handle @backend {
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+:80 {
+    import web_security
+    @demo host {$DEMO_HOST:demo.example.com}
+    redir @demo https://{host}{uri} permanent
+    import web_routes
+}
+
+https://{$DEMO_HOST:demo.example.com} {
+    import web_security
+    header Strict-Transport-Security "max-age=31536000"
+    import web_routes
+}

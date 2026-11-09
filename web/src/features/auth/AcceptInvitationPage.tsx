@@ -1,3 +1,4 @@
+import { t, translate, useLocale } from "../../i18n";
 import { useState } from "react";
 import { describeError } from "../../api/errors";
 import { acceptInvitation } from "../../api/organizations";
@@ -7,6 +8,7 @@ import { MissingToken, TokenLayout } from "./components/TokenLayout";
 import { TOKEN_FLOW_IDLE, useHashToken, type TokenFlowState } from "./useHashToken";
 
 export function AcceptInvitationPage() {
+  useLocale();
   const token = useHashToken();
   const { profile } = useAuth();
   const [state, setState] = useState<TokenFlowState>(TOKEN_FLOW_IDLE);
@@ -15,32 +17,28 @@ export function AcceptInvitationPage() {
     setState({ busy: true, done: false, message: "" });
     try {
       await acceptInvitation(token);
-      setState({ busy: false, done: true, message: "You joined the workspace. The owner can now assign you to events." });
+      setState({ busy: false, done: true, message: t("auth.joined") });
     } catch (failure) {
       setState({ busy: false, done: false, message: describeError(failure) });
     }
   };
 
   return (
-    <TokenLayout eyebrow="Organizer invitation" title="Join a workspace">
+    <TokenLayout eyebrow={t("auth.organizer_invitation")} title={t("auth.join_workspace")}>
       {!token ? (
-        <MissingToken action="accept the invitation" />
+        <MissingToken action={t("auth.action_accept")} />
       ) : (
         <>
-          <p className="auth-subtitle">
-            You are signed in as <strong>{profile?.email}</strong>. The invitation must have been sent to this exact address.
-          </p>
+          <p className="auth-subtitle">{t("auth.signed_in_as")}{" "}<strong>{profile?.email}</strong>{t("auth.invitation_address")}{" "}</p>
           {state.done ? (
-            <ButtonLink variant="primary" to="/organizer">
-              Open the organizer workspace
-            </ButtonLink>
+            <ButtonLink variant="primary" to="/organizer">{t("auth.open_workspace")}{" "}</ButtonLink>
           ) : (
             <Button variant="primary" disabled={state.busy} onClick={() => void accept()}>
-              {state.busy ? "Joining…" : "Accept invitation"}
+              {state.busy ? t("auth.joining") : t("auth.accept_invitation")}
             </Button>
           )}
           <p className={`auth-message ${state.done ? "success" : ""}`} role="status">
-            {state.message}
+            {translate(state.message)}
           </p>
         </>
       )}

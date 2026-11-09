@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { describeError } from "../../../api/errors";
 import { attachmentDownloadLink } from "../../../api/support";
@@ -14,6 +15,7 @@ interface AttachmentListProps {
 // (never cached); the server answers with Content-Disposition: attachment, so
 // following it downloads the file without leaving the page.
 export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
+  useLocale();
   const { notify } = useToast();
   const [busyId, setBusyId] = useState("");
   if (attachments.length === 0) return null;
@@ -43,11 +45,11 @@ export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
             className="support-file"
             disabled={busyId === attachment.id}
             onClick={() => void download(attachment)}
-            aria-label={`Download ${attachment.original_filename}`}
+            aria-label={t("support.download_file", { p0: attachment.original_filename })}
           >
             <span aria-hidden="true">{attachment.mime_type === "application/pdf" ? "PDF" : "IMG"}</span>
             <span className="support-file-name">{attachment.original_filename}</span>
-            <small>{busyId === attachment.id ? "Preparing…" : fileSizeLabel(attachment.size_bytes)}</small>
+            <small>{busyId === attachment.id ? t("support.preparing") : fileSizeLabel(attachment.size_bytes)}</small>
           </button>
         </li>
       ))}

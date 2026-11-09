@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../../i18n";
 import { useState, type FormEvent } from "react";
 import { describeError } from "../../../../api/errors";
 import { updateSeat } from "../../../../api/seating";
@@ -16,6 +17,7 @@ interface SeatEditorProps {
 }
 
 export function SeatEditor({ event, seat, types, onSaved, onClose }: SeatEditorProps) {
+  useLocale();
   const { notify } = useToast();
   const [blocked, setBlocked] = useState(seat.is_blocked);
   const [typeId, setTypeId] = useState(seat.ticket_type_id);
@@ -27,7 +29,7 @@ export function SeatEditor({ event, seat, types, onSaved, onClose }: SeatEditorP
     setState({ busy: true, message: "" });
     try {
       await updateSeat(event.id, seat.id, { is_blocked: blocked, ticket_type_id: typeId === seat.ticket_type_id ? null : typeId });
-      notify("Seat updated.");
+      notify(t("org.seat_updated"));
       setState({ busy: false, message: "" });
       onSaved();
     } catch (failure) {
@@ -39,28 +41,26 @@ export function SeatEditor({ event, seat, types, onSaved, onClose }: SeatEditorP
     <Panel>
       <PanelHeading
         title={seatName(seat)}
-        subtitle={seat.is_accessible ? "Accessible seat" : undefined}
+        subtitle={seat.is_accessible ? t("org.seat_accessible") : undefined}
         trailing={<StatusPill tone={seat.status === "available" ? "positive" : seat.status === "blocked" ? "blocked" : "neutral"}>{statusLabel(seat.status)}</StatusPill>}
       />
-      {!editable ? <p className="form-intro">This seat is reserved or sold, so it cannot be blocked or moved to another ticket type.</p> : null}
+      {!editable ? <p className="form-intro">{t("org.seat_locked_hint")}</p> : null}
       <form className="form-stack" onSubmit={(formEvent) => void save(formEvent)}>
         <div className="form-grid">
-          <SelectField label="Ticket type" value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!editable}>
+          <SelectField label={t("org.ticket_type")} value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={!editable}>
             {types.map((type) => (
               <option key={type.id} value={type.id}>
                 {type.name} · {priceLabel(type.price_minor)}
               </option>
             ))}
           </SelectField>
-          <CheckboxField label="Blocked (not for sale)" checked={blocked} onChange={(e) => setBlocked(e.target.checked)} disabled={!editable} />
+          <CheckboxField label={t("org.seat_blocked")} checked={blocked} onChange={(e) => setBlocked(e.target.checked)} disabled={!editable} />
         </div>
-        {seat.paid_activation_required ? <p className="form-intro">Paid seats sell only after paid-sales activation.</p> : null}
+        {seat.paid_activation_required ? <p className="form-intro">{t("org.paid_seats_hint")}</p> : null}
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={!editable || state.busy}>
-            Save seat
-          </Button>
-          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" type="submit" disabled={!editable || state.busy}>{t("org.save_seat")}</Button>
+          <Button onClick={onClose}>{t("common.close")}</Button>
         </div>
       </form>
     </Panel>

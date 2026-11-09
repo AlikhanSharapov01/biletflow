@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { downloadIcs, getCalendarLinks } from "../../../api/calendar";
 import { saveFile } from "../../../api/files";
@@ -8,6 +9,7 @@ import { useRequest } from "../../../hooks/useRequest";
 // "Add to calendar": pre-filled links for Google / Outlook / Office 365, plus
 // the .ics file (a plain link for public events, a signed-in download otherwise).
 export function CalendarLinks({ eventId }: { eventId: string }) {
+  useLocale();
   const links = useRequest(
     () =>
       getCalendarLinks(eventId).catch((failure: unknown) => {
@@ -21,7 +23,7 @@ export function CalendarLinks({ eventId }: { eventId: string }) {
   const [message, setMessage] = useState("");
 
   if (links.loading || !links.data) {
-    return links.error ? <FormMessage message={`Calendar links are unavailable: ${links.error}`} /> : null;
+    return links.error ? <FormMessage message={t("calendar.unavailable", { p0: links.error })} /> : null;
   }
   const data = links.data;
 
@@ -41,25 +43,23 @@ export function CalendarLinks({ eventId }: { eventId: string }) {
 
   return (
     <div className="calendar-links">
-      <PanelHeading title="Add to calendar" />
+      <PanelHeading title={t("calendar.add")} />
       <div className="calendar-buttons">
         <a href={data.google} {...external}>
-          Google<span className="visually-hidden"> Calendar (opens in a new tab)</span>
+          Google<span className="visually-hidden">{" "}{t("calendar.google_hidden")}</span>
         </a>
         <a href={data.outlook} {...external}>
-          Outlook<span className="visually-hidden">.com (opens in a new tab)</span>
+          Outlook<span className="visually-hidden">{t("calendar.outlook_hidden")}</span>
         </a>
         <a href={data.office365} {...external}>
-          Office 365<span className="visually-hidden"> (opens in a new tab)</span>
+          Office 365<span className="visually-hidden">{" "}{t("calendar.new_tab")}</span>
         </a>
         {data.ics_requires_sign_in ? (
           <Button size="sm" disabled={busy} onClick={() => void download()}>
-            {busy ? "Downloading…" : "Download .ics"}
+            {busy ? t("calendar.downloading") : t("calendar.download")}
           </Button>
         ) : (
-          <a href={data.ics_path} download className={buttonClass({ size: "sm" })}>
-            Download .ics
-          </a>
+          <a href={data.ics_path} download className={buttonClass({ size: "sm" })}>{t("calendar.download")}{" "}</a>
         )}
       </div>
       <FormMessage message={message} />

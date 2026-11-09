@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useEffect, useRef, useState } from "react";
 import { getOrder } from "../../../api/orders";
 import { retryPayment, simulatePayment } from "../../../api/paidCheckout";
@@ -21,6 +22,7 @@ interface PaymentStepProps {
 // Simulated payment for a pending paid order: the buyer plays the payment
 // provider (success or failure), then the order is reloaded until it settles.
 export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }: PaymentStepProps) {
+  useLocale();
   const [order, setOrder] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -71,53 +73,48 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
   return (
     <div className="checkout payment-step">
       <div className="checkout-head">
-        <h3>Payment</h3>
+        <h3>{t("checkout.payment")}</h3>
         <StatusPill tone={paymentTone(order)}>{paymentLabel(order)}</StatusPill>
       </div>
       <div className="simulation-banner" role="note">
-        <strong>Demonstration payment — no real money moves.</strong>
-        <span>BiletFlow is an academic project. Choose the result the payment provider would report.</span>
+        <strong>{t("checkout.demo_payment")}</strong>
+        <span>{t("checkout.demo_provider")}</span>
       </div>
       <PriceSummary order={order} />
       {stage === "awaiting" && order.quote_expires_at ? (
-        <small className="form-intro" role="timer">
-          Price held for {formatCountdown(quoteSeconds)}
+        <small className="form-intro" role="timer">{t("checkout.price_held_for")}{" "}{formatCountdown(quoteSeconds)}
         </small>
       ) : null}
       {stage === "processing" ? (
         polls < POLL_LIMIT ? (
-          <Loading label="Confirming your payment…" />
+          <Loading label={t("checkout.confirming_payment")} />
         ) : (
-          <p className="form-intro">Still waiting for the payment result. Check again in a moment.</p>
+          <p className="form-intro">{t("checkout.payment_waiting_hint")}</p>
         )
       ) : null}
-      {stage === "failed" ? <p className="payment-failed">The demonstration payment failed. You can try again while the price is held.</p> : null}
-      {stage === "closed" ? <p className="payment-failed">This order is {order.status}. Choose your tickets again to get a new price.</p> : null}
+      {stage === "failed" ? <p className="payment-failed">{t("checkout.payment_failed_hint")}</p> : null}
+      {stage === "closed" ? <p className="payment-failed">{t("orders.this_order_is")}{" "}{order.status}{t("checkout.requote_hint")}</p> : null}
       <FormMessage message={message} />
       <div className="form-actions">
         {stage === "awaiting" ? (
           <>
             <Button variant="primary" disabled={busy} onClick={() => void simulate("succeeded")}>
-              {busy ? "Sending…" : "Simulate successful payment"}
+              {busy ? t("common.sending") : t("checkout.simulate_success")}
             </Button>
-            <Button disabled={busy} onClick={() => void simulate("failed")}>
-              Simulate failed payment
-            </Button>
+            <Button disabled={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
           </>
         ) : null}
         {stage === "failed" ? (
           <Button variant="primary" disabled={busy} onClick={() => void run(() => retryPayment(order.id))}>
-            {busy ? "Starting…" : "Try payment again"}
+            {busy ? t("checkout.starting") : t("checkout.retry_payment")}
           </Button>
         ) : null}
         {stage === "processing" && polls >= POLL_LIMIT ? (
-          <Button onClick={() => setPolls(0)}>Check again</Button>
+          <Button onClick={() => setPolls(0)}>{t("checkout.check_again")}</Button>
         ) : null}
-        {stage === "closed" && onClosed ? <Button onClick={onClosed}>Choose tickets again</Button> : null}
+        {stage === "closed" && onClosed ? <Button onClick={onClosed}>{t("checkout.choose_tickets_again")}</Button> : null}
         {onCancel && (stage === "awaiting" || stage === "failed") ? (
-          <Button variant="text" disabled={busy} onClick={onCancel}>
-            Cancel and choose again
-          </Button>
+          <Button variant="text" disabled={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
         ) : null}
       </div>
     </div>

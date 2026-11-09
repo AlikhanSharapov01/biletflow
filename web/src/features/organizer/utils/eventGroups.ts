@@ -1,12 +1,13 @@
+import { t } from "../../../i18n";
 import type { EventView } from "../../../api/types";
 
 export type EventGroup = "active" | "upcoming" | "completed" | "cancelled";
 
 export const EVENT_GROUPS: Array<{ id: EventGroup; label: string; empty: string }> = [
-  { id: "active", label: "Active", empty: "Nothing is happening right now." },
-  { id: "upcoming", label: "Upcoming", empty: "No upcoming events. Create a draft to get started." },
-  { id: "completed", label: "Completed", empty: "No finished events yet." },
-  { id: "cancelled", label: "Cancelled", empty: "No cancelled events." },
+  { id: "active", get label() { return t("common.active"); }, get empty() { return t("org.no_active"); } },
+  { id: "upcoming", get label() { return t("common.upcoming"); }, get empty() { return t("org.no_upcoming"); } },
+  { id: "completed", get label() { return t("common.completed"); }, get empty() { return t("org.no_completed"); } },
+  { id: "cancelled", get label() { return t("common.cancelled"); }, get empty() { return t("org.no_cancelled"); } },
 ];
 
 // Cancellation wins over time; otherwise the server's derived time status.

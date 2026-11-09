@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 export interface NavItem {
   to: string;
   label: string;
@@ -14,12 +15,12 @@ export interface NavItem {
 // Primary sections. Account is reached from the avatar menu, as on mobile.
 // Admin is shown only to platform admins; the server still checks every call.
 export const NAV_ITEMS: NavItem[] = [
-  { to: "/discover", label: "Discover", glyph: "D", sections: ["/discover", "/events"], public: true },
-  { to: "/tickets", label: "Tickets", glyph: "T", sections: ["/tickets"] },
-  { to: "/orders", label: "Orders", glyph: "R", sections: ["/orders"] },
-  { to: "/organizer", label: "Organizer", glyph: "O", sections: ["/organizer"] },
-  { to: "/support", label: "Support", glyph: "S", sections: ["/support"] },
-  { to: "/admin", label: "Admin", glyph: "A", sections: ["/admin"], adminOnly: true },
+  { to: "/discover", get label() { return t("nav.discover"); }, glyph: "D", sections: ["/discover", "/events"], public: true },
+  { to: "/tickets", get label() { return t("common.tickets"); }, glyph: "T", sections: ["/tickets"] },
+  { to: "/orders", get label() { return t("common.orders"); }, glyph: "R", sections: ["/orders"] },
+  { to: "/organizer", get label() { return t("nav.organizer"); }, glyph: "O", sections: ["/organizer"] },
+  { to: "/support", get label() { return t("nav.support"); }, glyph: "S", sections: ["/support"] },
+  { to: "/admin", get label() { return t("nav.admin"); }, glyph: "A", sections: ["/admin"], adminOnly: true },
 ];
 
 export function isSectionActive(item: NavItem, pathname: string): boolean {

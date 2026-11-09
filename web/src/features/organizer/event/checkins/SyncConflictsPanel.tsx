@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../../i18n";
 import { useState } from "react";
 import { listSyncConflicts } from "../../../../api/admissionHistory";
 import type { EventView } from "../../../../api/types";
@@ -11,6 +12,7 @@ type View = "open" | "resolved";
 // Offline uploads that ran into an existing admission or a refunded ticket.
 // Resolving records the gate outcome; it never adds a second entry.
 export function SyncConflictsPanel({ event, onResolved }: { event: EventView; onResolved: () => void }) {
+  useLocale();
   const [view, setView] = useState<View>("open");
   const [openId, setOpenId] = useState("");
   const conflicts = useRequest(() => listSyncConflicts(event.id, view), [event.id, view]);
@@ -24,24 +26,24 @@ export function SyncConflictsPanel({ event, onResolved }: { event: EventView; on
   return (
     <Panel>
       <PanelHeading
-        title="Offline sync conflicts"
-        subtitle="Scans made offline that clashed with another admission or a cancelled ticket."
-        trailing={view === "open" ? <StatusPill tone={conflicts.data?.length ? "pending" : "positive"}>{conflicts.data?.length ?? 0} open</StatusPill> : null}
+        title={t("org.offline_conflicts")}
+        subtitle={t("org.offline_conflicts_hint")}
+        trailing={view === "open" ? <StatusPill tone={conflicts.data?.length ? "pending" : "positive"}>{conflicts.data?.length ?? 0}{" "}{t("word.open")}</StatusPill> : null}
       />
       <Tabs
-        label="Conflict status"
+        label={t("org.conflict_status")}
         items={[
-          { id: "open", label: "Open" },
-          { id: "resolved", label: "Resolved" },
+          { id: "open", label: t("support.open") },
+          { id: "resolved", label: t("support.resolved") },
         ]}
         value={view}
         onChange={setView}
       />
-      {conflicts.loading ? <Loading label="Loading conflicts…" /> : null}
-      {conflicts.error ? <ErrorPanel title="We couldn’t load conflicts." message={conflicts.error} onRetry={conflicts.reload} /> : null}
+      {conflicts.loading ? <Loading label={t("org.conflict_loading")} /> : null}
+      {conflicts.error ? <ErrorPanel title={t("org.conflict_error")} message={conflicts.error} onRetry={conflicts.reload} /> : null}
       {conflicts.data && !conflicts.loading ? (
         conflicts.data.length === 0 ? (
-          <EmptyState>{view === "open" ? "No open conflicts. Offline scans all synced cleanly." : "No resolved conflicts yet."}</EmptyState>
+          <EmptyState>{view === "open" ? t("org.no_open_conflicts") : t("org.no_resolved_conflicts")}</EmptyState>
         ) : (
           <div className="list">
             {conflicts.data.map((conflict) => {
@@ -52,22 +54,22 @@ export function SyncConflictsPanel({ event, onResolved }: { event: EventView; on
                   icon="!"
                   title={
                     <>
-                      {op.ticket?.attendee_name ?? "Unknown ticket"}
+                      {op.ticket?.attendee_name ?? t("org.unknown_ticket")}
                       <StatusPill tone={conflict.status === "open" ? "pending" : "neutral"}>{statusLabel(conflict.reason)}</StatusPill>
                     </>
                   }
-                  meta={`${op.ticket?.ticket_type_name ?? "Ticket"} · ${op.device.label} · scanned ${dateLabel(op.captured_at_device)} (device) · received ${dateLabel(op.received_at_server)}`}
+                  meta={t("org.scanned_received", { p0: op.ticket?.ticket_type_name ?? t("common.ticket"), p1: op.device.label, p2: dateLabel(op.captured_at_device), p3: dateLabel(op.received_at_server) })}
                   note={
                     conflict.status === "resolved"
-                      ? `Resolved ${dateLabel(conflict.resolved_at)}: ${conflict.resolution_note ?? ""}`
+                      ? t("org.resolved_meta", { p0: dateLabel(conflict.resolved_at), p1: conflict.resolution_note ?? "" })
                       : conflict.existing_check_in
-                        ? `Already admitted ${dateLabel(conflict.existing_check_in.accepted_at)} via ${statusLabel(conflict.existing_check_in.source)}${conflict.existing_check_in.reversed_at ? " (since reversed)" : ""}`
-                        : "No existing admission"
+                        ? t("org.already_admitted", { p0: dateLabel(conflict.existing_check_in.accepted_at), p1: statusLabel(conflict.existing_check_in.source), p2: conflict.existing_check_in.reversed_at ? (" " + t("org.since_reversed")) : "" })
+                        : t("org.no_existing_admission")
                   }
                   actions={
                     conflict.status === "open" ? (
                       <button type="button" className="text-button" onClick={() => setOpenId(openId === conflict.id ? "" : conflict.id)}>
-                        {openId === conflict.id ? "Close" : "Resolve"}
+                        {openId === conflict.id ? t("common.close") : t("org.resolve")}
                       </button>
                     ) : null
                   }

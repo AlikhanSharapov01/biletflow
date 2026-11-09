@@ -1,23 +1,25 @@
+import { t, useLocale } from "../../../../i18n";
 import type { EventAnalytics } from "../../../../api/types/analytics";
 import { EmptyState, Panel, PanelHeading } from "../../../../components/ui";
 import { priceLabel } from "../../../../utils/format";
 
 export function BreakdownTables({ data }: { data: EventAnalytics }) {
+  useLocale();
   return (
     <div className="analytics-tables">
       <Panel>
-        <PanelHeading title="By ticket type" />
+        <PanelHeading title={t("org.by_ticket_type")} />
         {data.by_ticket_type.length === 0 ? (
-          <EmptyState>No ticket types match.</EmptyState>
+          <EmptyState>{t("org.no_types_match")}</EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th scope="col">Ticket type</th>
-                  <th scope="col">Sold</th>
-                  <th scope="col">Checked in</th>
-                  <th scope="col">Revenue</th>
+                  <th scope="col">{t("org.ticket_type")}</th>
+                  <th scope="col">{t("checkout.sold")}</th>
+                  <th scope="col">{t("tickets.checked_in")}</th>
+                  <th scope="col">{t("org.revenue")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -37,18 +39,18 @@ export function BreakdownTables({ data }: { data: EventAnalytics }) {
         )}
       </Panel>
       <Panel>
-        <PanelHeading title="By campaign" />
+        <PanelHeading title={t("org.by_campaign")} />
         {data.by_campaign.length === 0 ? (
-          <EmptyState>No campaign redemptions in this range.</EmptyState>
+          <EmptyState>{t("org.no_redemptions")}</EmptyState>
         ) : (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th scope="col">Campaign</th>
-                  <th scope="col">Redemptions</th>
-                  <th scope="col">Discount</th>
-                  <th scope="col">Revenue</th>
+                  <th scope="col">{t("org.campaign")}</th>
+                  <th scope="col">{t("org.redemptions")}</th>
+                  <th scope="col">{t("common.discount")}</th>
+                  <th scope="col">{t("org.revenue")}</th>
                 </tr>
               </thead>
               <tbody>

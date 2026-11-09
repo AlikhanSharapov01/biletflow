@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { searchOrders } from "../../../api/admin";
 import { Panel, PanelHeading, StatusPill } from "../../../components/ui";
 import { dateLabel, priceLabel, statusLabel } from "../../../utils/format";
@@ -9,23 +10,24 @@ import { useAdminSearch } from "../hooks/useAdminSearch";
 const STATUSES = ["pending", "confirmed", "failed", "expired", "cancelled", "refund_pending", "refunded"];
 
 export function AdminOrdersPage() {
+  useLocale();
   const orders = useAdminSearch(searchOrders);
   return (
     <Panel>
-      <PanelHeading title="Orders" subtitle="Search by buyer email, order id or buyer id. Payment details are never shown." />
-      <AdminSearchForm label="Order search" placeholder="buyer@example.com or order id" statuses={STATUSES.map((value) => ({ value, label: statusLabel(value) }))} onApply={orders.apply} />
-      <SearchResults noun="orders" {...orders} onPage={orders.setOffset}>
+      <PanelHeading title={t("common.orders")} subtitle={t("admin.order_search_hint")} />
+      <AdminSearchForm label={t("admin.order_search")} placeholder={t("admin.order_search_placeholder")} statuses={STATUSES.map((value) => ({ value, label: statusLabel(value) }))} onApply={orders.apply} />
+      <SearchResults noun={t("word.orders")} {...orders} onPage={orders.setOffset}>
         {(items) => (
           <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th scope="col">Order</th>
-                  <th scope="col">Buyer</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Payable</th>
-                  <th scope="col">Discount · fee</th>
-                  <th scope="col">Created</th>
+                  <th scope="col">{t("common.order")}</th>
+                  <th scope="col">{t("admin.buyer")}</th>
+                  <th scope="col">{t("common.status")}</th>
+                  <th scope="col">{t("admin.payable")}</th>
+                  <th scope="col">{t("admin.discount_fee")}</th>
+                  <th scope="col">{t("admin.created")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -33,7 +35,7 @@ export function AdminOrdersPage() {
                   <tr key={order.id}>
                     <td>
                       <code className="id-code">{order.id.slice(0, 8)}</code>
-                      <small className="cell-note">event {order.event_id.slice(0, 8)}</small>
+                      <small className="cell-note">{t("word.event")}{" "}{order.event_id.slice(0, 8)}</small>
                     </td>
                     <td>{order.buyer_email}</td>
                     <td>

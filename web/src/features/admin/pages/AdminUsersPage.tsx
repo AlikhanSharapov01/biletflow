@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { moderateUser, searchUsers } from "../../../api/admin";
 import { Button, ListRow, Panel, PanelHeading, StatusPill, useToast } from "../../../components/ui";
@@ -10,23 +11,24 @@ import { useAdminSearch } from "../hooks/useAdminSearch";
 // Suspending a user revokes every session at once; reinstating allows a
 // fresh sign-in. Platform admins cannot be suspended here.
 export function AdminUsersPage() {
+  useLocale();
   const { notify } = useToast();
   const users = useAdminSearch(searchUsers);
   const [openId, setOpenId] = useState("");
 
   return (
     <Panel>
-      <PanelHeading title="Users" subtitle="Search by email, display name or exact account id." />
+      <PanelHeading title={t("admin.users")} subtitle={t("admin.user_search_hint")} />
       <AdminSearchForm
-        label="User search"
+        label={t("admin.user_search")}
         placeholder="aru@example.com"
         statuses={[
-          { value: "active", label: "Active" },
-          { value: "suspended", label: "Suspended" },
+          { value: "active", label: t("common.active") },
+          { value: "suspended", label: t("org.suspended") },
         ]}
         onApply={users.apply}
       />
-      <SearchResults noun="users" {...users} onPage={users.setOffset}>
+      <SearchResults noun={t("word.users")} {...users} onPage={users.setOffset}>
         {(items) => (
           <div className="list">
             {items.map((user) => {
@@ -40,28 +42,28 @@ export function AdminUsersPage() {
                     <>
                       {user.display_name}
                       <StatusPill tone={suspended ? "blocked" : "positive"}>{user.status}</StatusPill>
-                      {user.is_platform_admin ? <StatusPill tone="neutral">Admin</StatusPill> : null}
+                      {user.is_platform_admin ? <StatusPill tone="neutral">{t("nav.admin")}</StatusPill> : null}
                     </>
                   }
-                  meta={`${user.email} · ${user.email_verified_at ? "verified" : "not verified"}`}
-                  note={`Joined ${dateLabel(user.created_at)} · ${user.id}`}
+                  meta={`${user.email} · ${user.email_verified_at ? "verified" : t("admin.not_verified")}`}
+                  note={t("admin.joined", { p0: dateLabel(user.created_at), p1: user.id })}
                   actions={
                     user.is_platform_admin ? null : (
                       <Button size="sm" variant={suspended ? "subtle" : "danger"} onClick={() => setOpenId(openId === user.id ? "" : user.id)}>
-                        {openId === user.id ? "Close" : suspended ? "Reinstate" : "Suspend"}
+                        {openId === user.id ? t("common.close") : suspended ? t("admin.reinstate") : t("admin.suspend")}
                       </Button>
                     )
                   }
                 >
                   {openId === user.id ? (
                     <ReasonForm
-                      label={suspended ? "Reason for reinstating" : "Reason for suspending (signs the user out everywhere)"}
-                      submitLabel={suspended ? "Reinstate user" : "Suspend user"}
+                      label={suspended ? t("admin.reason_reinstate") : t("admin.reason_suspend_user")}
+                      submitLabel={suspended ? t("admin.reinstate_user") : t("admin.suspend_user")}
                       danger={!suspended}
                       onCancel={() => setOpenId("")}
                       onSubmit={async (reason) => {
                         await moderateUser(user.id, action, reason);
-                        notify(suspended ? "User reinstated." : "User suspended and signed out.");
+                        notify(suspended ? t("admin.user_reinstated") : t("admin.user_suspended"));
                         setOpenId("");
                         users.reload();
                       }}

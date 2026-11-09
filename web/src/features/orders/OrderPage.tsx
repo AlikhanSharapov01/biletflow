@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { useParams } from "react-router";
 import { getOrder } from "../../api/orders";
 import { ButtonLink, ErrorPanel, FactList, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
@@ -14,13 +15,14 @@ import { RefundList } from "./components/RefundList";
 import { orderStart, orderTitle } from "./orderSummary";
 
 export function OrderPage() {
+  useLocale();
   const { orderId = "" } = useParams();
   const { profile } = useAuth();
   const order = useRequest(() => getOrder(orderId), [orderId]);
 
-  if (order.loading && !order.data) return <Loading label="Loading order…" />;
+  if (order.loading && !order.data) return <Loading label={t("orders.loading_one")} />;
   if (order.error || !order.data) {
-    return <ErrorPanel title="We couldn’t load this order." message={order.error ?? "Unknown error"} onRetry={order.reload} />;
+    return <ErrorPanel title={t("orders.load_one_error")} message={order.error ?? t("errors.unknown")} onRetry={order.reload} />;
   }
   const data = order.data;
   const start = orderStart(data);
@@ -31,34 +33,35 @@ export function OrderPage() {
   return (
     <>
       <PageHeading
-        back={{ to: "/orders", label: "All orders" }}
-        eyebrow={`Order · ${dateLabel(data.created_at)}`}
+        back={{ to: "/orders", label: t("orders.all") }}
+        eyebrow={t("orders.order_date", { p0: dateLabel(data.created_at) })}
         title={orderTitle(data)}
         subtitle={`${start ? dateLabel(start) : ""}${venueName ? ` · ${venueName}` : ""}`}
         actions={
           <>
             <StatusPill tone={orderStatusTone(data.status)}>{statusLabel(data.status)}</StatusPill>
-            <ButtonLink to={`/events/${encodeURIComponent(data.event_id)}`}>Event page</ButtonLink>
+            <ButtonLink to={`/events/${encodeURIComponent(data.event_id)}`}>{t("orders.event_page")}</ButtonLink>
           </>
         }
       />
       <div className="content-grid account-grid">
         <div className="stack">
           <Panel>
-            <PanelHeading title="Summary" trailing={<StatusPill tone={paymentTone(data)}>{paymentLabel(data)}</StatusPill>} />
+            <PanelHeading title={t("orders.summary")} trailing={<StatusPill tone={paymentTone(data)}>{paymentLabel(data)}</StatusPill>} />
             <PriceSummary order={data} />
+            {data.promo ? <p className="form-intro">{t("checkout.promo_code")}: {data.promo.code}</p> : null}
             <FactList
               items={[
-                { label: "Confirmed", value: dateLabel(data.confirmed_at) },
-                { label: "Tickets", value: data.items.length },
+                { label: t("common.confirmed"), value: dateLabel(data.confirmed_at) },
+                { label: t("common.tickets"), value: data.items.length },
               ]}
             />
-            <p className="form-intro">Demonstration order. Payments on BiletFlow’s academic MVP are simulated; no real money moves.</p>
+            <p className="form-intro">{t("orders.demo_notice")}</p>
             <OrderActions order={data} onChanged={order.reload} />
           </Panel>
           {refunds.length > 0 ? (
             <Panel>
-              <PanelHeading title="Refunds" />
+              <PanelHeading title={t("event.refunds")} />
               <RefundList refunds={refunds} />
             </Panel>
           ) : null}
@@ -71,9 +74,9 @@ export function OrderPage() {
             </Panel>
           ) : null}
           <Panel>
-            <PanelHeading title="Tickets in this order" />
+            <PanelHeading title={t("orders.tickets_in_order")} />
             {data.items.length === 0 || data.status !== "confirmed" ? (
-              <p className="form-intro">Tickets are issued once the order is confirmed.</p>
+              <p className="form-intro">{t("orders.issued_after_confirmation")}</p>
             ) : null}
             <div className="list">
               {data.items.map((item) => (

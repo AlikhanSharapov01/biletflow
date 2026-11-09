@@ -42,17 +42,17 @@ describe("PriceSummary", () => {
 
   it("shows subtotal, fee and total from the server quote", () => {
     render(<PriceSummary order={makeOrder({ gross_minor: 1_000_000, discount_minor: 0, processing_fee_minor: 30_000, payable_minor: 1_000_000 })} />);
-    expect(row("Subtotal")).toBe("₸10000.00");
+    expect(row("Subtotal")).toBe("₸10,000.00");
     expect(screen.queryByText("Discount")).toBeNull();
     expect(row("Processing fee")).toBe("₸300.00 · included");
-    expect(row("Total")).toBe("₸10000.00 KZT");
+    expect(row("Total")).toBe("₸10,000.00 KZT");
   });
 
   it("shows a discount line only when there is one, and no fee as None", () => {
     render(<PriceSummary order={makeOrder({ gross_minor: 1_000_000, discount_minor: 100_000, processing_fee_minor: 0, payable_minor: 900_000 })} />);
-    expect(row("Discount")).toBe("−₸1000.00");
+    expect(row("Discount")).toBe("−₸1,000.00");
     expect(row("Processing fee")).toBe("None");
-    expect(row("Total")).toBe("₸9000.00 KZT");
+    expect(row("Total")).toBe("₸9,000.00 KZT");
   });
 });
 
@@ -121,7 +121,7 @@ describe("TicketSelector", () => {
   });
 
   it("estimates the promo discount only on eligible paid types", () => {
-    const promo: PromoPreview = { event_id: "e1", code: "VIP10", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: ["paid"], valid_until: null };
+    const promo: PromoPreview = { event_id: "e1", code: "VIP10", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: ["paid"], valid_until: "2099-12-31T00:00:00Z" };
     render(<Harness promo={promo} />);
     expect(screen.getAllByText(/Promo: about/)).toHaveLength(1);
     expect(screen.getByText("Promo: about ₸500.00 off each")).toBeTruthy();
@@ -129,7 +129,7 @@ describe("TicketSelector", () => {
 });
 
 describe("PromoCodeField", () => {
-  const preview: PromoPreview = { event_id: "e1", code: "SPRING10", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: [], valid_until: null };
+  const preview: PromoPreview = { event_id: "e1", code: "SPRING10", discount_kind: "percent", discount_value: 10, eligible_ticket_type_ids: [], valid_until: "2099-12-31T00:00:00Z" };
 
   beforeEach(() => window.sessionStorage.clear());
   afterEach(() => previewPromoMock.mockReset());
@@ -194,13 +194,13 @@ describe("PromoCodeField", () => {
     expect(readStashedPromo("e1")).toBe("");
   });
 
-  it("says promo codes are coming soon while the endpoint is not served", async () => {
+  it("reports a missing promo as an error rather than a planned feature", async () => {
     previewPromoMock.mockRejectedValue(new ApiError("This item could not be found.", 404));
     const onApplied = vi.fn();
     render(<Harness onApplied={onApplied} />);
     fireEvent.change(input(), { target: { value: "x" } });
     fireEvent.click(button("Apply"));
-    expect((await screen.findByRole("status")).textContent).toBe("Promo codes are coming soon. Your code was not applied.");
+    expect((await screen.findByRole("status")).textContent).toBe("This item could not be found.");
     expect(onApplied).toHaveBeenLastCalledWith(null);
     expect(input().disabled).toBe(false);
   });
@@ -235,7 +235,7 @@ describe("RecipientForm", () => {
     props.onChange?.(recipients);
     return (
       <RecipientForm
-        hold={hold}
+        hold={{ ...hold, pricing: { gross: props.paid ? 1_500_000 : 0, discount: 0, subtotal: props.paid ? 1_500_000 : 0, processing_fee: 0, payable: props.paid ? 1_500_000 : 0, lines: [] } }}
         typeName={(id) => names[id] ?? id}
         recipients={recipients}
         setRecipients={setRecipients}
@@ -284,7 +284,7 @@ describe("RecipientForm", () => {
 
   it("continues a paid basket to payment with the subtotal", () => {
     render(<Harness paid />);
-    expect(screen.getByText("₸15000.00")).toBeTruthy();
+    expect(screen.getByText("Subtotal").nextElementSibling?.textContent).toBe("₸15,000.00");
     expect(button("Continue to payment")).toBeTruthy();
   });
 

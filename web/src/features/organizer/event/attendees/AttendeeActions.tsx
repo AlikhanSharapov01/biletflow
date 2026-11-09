@@ -1,6 +1,8 @@
+import { t, useLocale } from "../../../../i18n";
+import { requestReason } from "../../../../components/ui/ActionDialog";
 import { useState } from "react";
 import { cancelTicket, refundOrder } from "../../../../api/eventAdmin";
-import { describeError, isNotImplemented } from "../../../../api/errors";
+import { describeError } from "../../../../api/errors";
 import type { Attendee } from "../../../../api/types";
 import { Button, useToast } from "../../../../components/ui";
 
@@ -8,18 +10,17 @@ interface AttendeeActionsProps {
   eventId: string;
   row: Attendee;
   onDone: () => void;
-  // Called when the backend does not serve the planned endpoint yet.
-  onPlanned: () => void;
 }
 
-// Per-ticket cancel and per-order refund on the PLANNED commerce contract.
-export function AttendeeActions({ eventId, row, onDone, onPlanned }: AttendeeActionsProps) {
+// Paid registrations must be refunded as a whole order; the server enforces policy.
+export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) {
+  useLocale();
   const { notify } = useToast();
   const [busy, setBusy] = useState(false);
   if (row.status !== "valid") return null;
 
   const run = async (question: string, action: (reason: string) => Promise<unknown>, done: string) => {
-    const reason = window.prompt(`${question}\n\nReason (shown in the activity history):`)?.trim();
+    const reason = (await requestReason(question))?.trim();
     if (!reason) return;
     setBusy(true);
     try {
@@ -27,8 +28,7 @@ export function AttendeeActions({ eventId, row, onDone, onPlanned }: AttendeeAct
       notify(done);
       onDone();
     } catch (failure) {
-      if (isNotImplemented(failure)) onPlanned();
-      else notify(describeError(failure));
+      notify(describeError(failure));
     } finally {
       setBusy(false);
     }
@@ -40,17 +40,13 @@ export function AttendeeActions({ eventId, row, onDone, onPlanned }: AttendeeAct
         size="sm"
         variant="danger"
         disabled={busy}
-        onClick={() => void run(`Cancel ${row.recipient_name}’s registration? The ticket stops working.`, (reason) => cancelTicket(eventId, row.ticket_id, reason), "Registration cancelled.")}
-      >
-        Cancel registration
-      </Button>
+        onClick={() => void run(t("org.registration_cancel_confirm", { p0: row.recipient_name }), (reason) => cancelTicket(eventId, row.ticket_id, reason), t("checkout.cancelled"))}
+      >{t("checkout.cancel_registration")}</Button>
       <Button
         size="sm"
         disabled={busy}
-        onClick={() => void run("Refund the whole order this ticket belongs to? Every ticket in it is cancelled.", (reason) => refundOrder(row.order_id, reason), "Refund requested.")}
-      >
-        Refund
-      </Button>
+        onClick={() => void run(t("org.refund_order_confirm"), (reason) => refundOrder(row.order_id, reason), t("checkout.refund_requested"))}
+      >{t("checkout.refund")}</Button>
     </div>
   );
 }

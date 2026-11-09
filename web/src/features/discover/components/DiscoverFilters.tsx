@@ -1,3 +1,4 @@
+import { categoryName, t, useLocale } from "../../../i18n";
 import type { FormEvent } from "react";
 import type { Category } from "../../../api/types";
 import { Button } from "../../../components/ui/Button";
@@ -13,6 +14,7 @@ interface DiscoverFiltersProps {
 // Title search and category filter. Inputs are uncontrolled and re-keyed when
 // the URL changes, so back/forward navigation restores them.
 export function DiscoverFilters({ q, categoryId, categories, onSearch }: DiscoverFiltersProps) {
+  useLocale();
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -23,19 +25,17 @@ export function DiscoverFilters({ q, categoryId, categories, onSearch }: Discove
     <form className="panel discover-filters" onSubmit={handleSubmit}>
       <label className="search-box">
         <span aria-hidden="true">⌕</span>
-        <input name="q" defaultValue={q} key={q} placeholder="Search event titles" aria-label="Search events" />
+        <input name="q" defaultValue={q} key={q} placeholder={t("discover.search_titles")} aria-label={t("discover.search_events")} />
       </label>
-      <SelectField label="Category" name="category" defaultValue={categoryId} key={`${categoryId}-${categories.length}`}>
-        <option value="">All categories</option>
+      <SelectField label={t("discover.category")} name="category" defaultValue={categoryId} key={`${categoryId}-${categories.length}`}>
+        <option value="">{t("discover.all_categories")}</option>
         {categories.map((category) => (
           <option key={category.id} value={category.id}>
-            {category.name_en}
+            {categoryName(category)}
           </option>
         ))}
       </SelectField>
-      <Button variant="primary" type="submit">
-        Search events
-      </Button>
+      <Button variant="primary" type="submit">{t("discover.search_events")}</Button>
     </form>
   );
 }

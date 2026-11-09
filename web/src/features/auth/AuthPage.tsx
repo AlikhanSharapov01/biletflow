@@ -1,3 +1,5 @@
+import { getLocale, t, useLocale } from "../../i18n";
+import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import * as authApi from "../../api/auth";
@@ -11,8 +13,8 @@ import { CredentialsForm, type AuthFeedback } from "./components/CredentialsForm
 type Mode = "login" | "register";
 
 const MODES = [
-  { id: "login" as const, label: "Sign in" },
-  { id: "register" as const, label: "Create account" },
+  { id: "login" as const, get label() { return t("auth.sign_in"); } },
+  { id: "register" as const, get label() { return t("auth.create_account"); } },
 ];
 
 function fieldValue(form: HTMLFormElement, name: string): string {
@@ -21,6 +23,7 @@ function fieldValue(form: HTMLFormElement, name: string): string {
 }
 
 export function AuthPage() {
+  useLocale();
   const { status, notice, clearNotice, signIn, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,9 +61,9 @@ export function AuthPage() {
     setUnverifiedEmail("");
     try {
       if (registering) {
-        await register({ email, password, display_name: fieldValue(form, "display_name").trim(), locale: "en" });
+        await register({ email, password, display_name: fieldValue(form, "display_name").trim(), locale: getLocale() });
         setFeedback({
-          text: "Account request received. Check your email for the verification link, then sign in.",
+          text: t("auth.registration_received"),
           success: true,
         });
       } else {
@@ -78,7 +81,7 @@ export function AuthPage() {
   const handleResend = async () => {
     try {
       await authApi.resendVerification(unverifiedEmail);
-      setFeedback({ text: "A new verification link is on its way. Check your inbox.", success: true });
+      setFeedback({ text: t("auth.verification_sent"), success: true });
       setUnverifiedEmail("");
     } catch (failure) {
       setFeedback({ text: describeError(failure), success: false });
@@ -88,12 +91,12 @@ export function AuthPage() {
   const handleForgot = async (form: HTMLFormElement | null) => {
     const email = form ? fieldValue(form, "email").trim() : "";
     if (!email) {
-      setFeedback({ text: "Enter your email address first.", success: false });
+      setFeedback({ text: t("auth.email_first"), success: false });
       return;
     }
     try {
       await authApi.requestPasswordReset(email);
-      setFeedback({ text: "If the account is eligible, a password reset link will arrive by email.", success: true });
+      setFeedback({ text: t("auth.reset_sent"), success: true });
     } catch (failure) {
       setFeedback({ text: describeError(failure), success: false });
     }
@@ -101,7 +104,7 @@ export function AuthPage() {
 
   const handleGoogle = async () => {
     setBusy(true);
-    setFeedback({ text: "Connecting to Google…", success: false });
+    setFeedback({ text: t("auth.google_connecting"), success: false });
     try {
       const { authorization_url } = await authApi.startGoogleSignIn();
       window.location.assign(authorization_url);
@@ -116,14 +119,15 @@ export function AuthPage() {
       <AuthStory />
       <section className="auth-panel">
         <div className="auth-box">
-          <p className="eyebrow">Welcome to BiletFlow</p>
-          <h2>{registering ? "Create your account" : "Good to see you"}</h2>
+          <LanguageSwitcher />
+          <p className="eyebrow">{t("auth.welcome")}</p>
+          <h2>{registering ? t("auth.create_your_account") : t("auth.good_to_see_you")}</h2>
           <p className="auth-subtitle">
             {registering
-              ? "Start discovering events and bringing people together."
-              : "Sign in to pick up right where your plans left off."}
+              ? t("auth.registration_intro")
+              : t("auth.login_intro")}
           </p>
-          <Tabs label="Account access" items={MODES} value={mode} onChange={switchMode} fill />
+          <Tabs label={t("auth.account_access")} items={MODES} value={mode} onChange={switchMode} fill />
           <CredentialsForm
             registering={registering}
             busy={busy}
@@ -137,15 +141,11 @@ export function AuthPage() {
             <button className="google-button" type="button" disabled={busy} onClick={() => void handleGoogle()}>
               <span className="google-mark" aria-hidden="true">
                 G
-              </span>
-              Continue with Google
-            </button>
+              </span>{t("auth.google")}</button>
           ) : null}
-          <div className="divider">OR</div>
-          <Button full onClick={() => navigate("/discover")}>
-            Browse events without signing in
-          </Button>
-          <p className="auth-legal">By continuing, you agree to our Terms of Service and Privacy Policy.</p>
+          <div className="divider">{t("auth.or")}</div>
+          <Button full onClick={() => navigate("/discover")}>{t("auth.browse_without_login")}</Button>
+          <p className="auth-legal">{t("auth.legal")}</p>
         </div>
       </section>
     </main>

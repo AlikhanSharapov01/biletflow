@@ -1,3 +1,4 @@
+import { t } from "../../i18n";
 // Route constants for the platform-admin portal (all signed-in, under /admin).
 export const ADMIN_PATHS = {
   root: "/admin",
@@ -12,12 +13,12 @@ export const ADMIN_PATHS = {
 } as const;
 
 export const ADMIN_SECTIONS: Array<{ to: string; label: string }> = [
-  { to: ADMIN_PATHS.users, label: "Users" },
-  { to: ADMIN_PATHS.events, label: "Events" },
-  { to: ADMIN_PATHS.orders, label: "Orders" },
-  { to: ADMIN_PATHS.tickets, label: "Tickets" },
-  { to: ADMIN_PATHS.reports, label: "Reports" },
-  { to: ADMIN_PATHS.moderation, label: "Moderation log" },
-  { to: ADMIN_PATHS.settings, label: "Settings" },
-  { to: ADMIN_PATHS.exports, label: "CSV exports" },
+  { to: ADMIN_PATHS.users, get label() { return t("admin.users"); } },
+  { to: ADMIN_PATHS.events, get label() { return t("common.events"); } },
+  { to: ADMIN_PATHS.orders, get label() { return t("common.orders"); } },
+  { to: ADMIN_PATHS.tickets, get label() { return t("common.tickets"); } },
+  { to: ADMIN_PATHS.reports, get label() { return t("common.reports"); } },
+  { to: ADMIN_PATHS.moderation, get label() { return t("admin.moderation_log"); } },
+  { to: ADMIN_PATHS.settings, get label() { return t("admin.settings"); } },
+  { to: ADMIN_PATHS.exports, get label() { return t("admin.exports"); } },
 ];

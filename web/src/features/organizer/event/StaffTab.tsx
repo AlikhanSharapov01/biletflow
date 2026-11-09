@@ -1,3 +1,5 @@
+import { t, useLocale } from "../../../i18n";
+import { confirmAction } from "../../../components/ui/ActionDialog";
 import { listStaff, revokeStaff } from "../../../api/eventAdmin";
 import { describeError } from "../../../api/errors";
 import { listMembers } from "../../../api/organizations";
@@ -8,6 +10,7 @@ import { dateLabel } from "../../../utils/format";
 import { StaffAssignForm } from "./StaffAssignForm";
 
 export function StaffTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const staff = useRequest(
     async () => {
@@ -22,14 +25,14 @@ export function StaffTab({ event }: { event: EventView }) {
 
   const memberLabel = (id: string) => {
     const member = staff.data?.members.find((row) => row.id === id);
-    return member ? `${member.display_name} · ${member.email}` : `Member ${id.slice(0, 8)}`;
+    return member ? `${member.display_name} · ${member.email}` : t("org.member_id", { p0: id.slice(0, 8) });
   };
 
   const revoke = async (staffId: string) => {
-    if (!window.confirm("Remove this staff assignment?")) return;
+    if (!await confirmAction(t("organizer.remove_staff_confirm"))) return;
     try {
       await revokeStaff(event.id, staffId);
-      notify("Assignment removed.");
+      notify(t("org.assignment_removed"));
       staff.reload();
     } catch (failure) {
       notify(describeError(failure));
@@ -41,12 +44,12 @@ export function StaffTab({ event }: { event: EventView }) {
   return (
     <div className="stack">
       <Panel>
-        <PanelHeading title="Event staff" subtitle="Members with the “Scan tickets” capability see this event in the mobile scanner app." />
-        {staff.loading ? <Loading label="Loading staff…" /> : null}
-        {staff.error ? <ErrorPanel title="We couldn’t load staff." message={staff.error} onRetry={staff.reload} /> : null}
+        <PanelHeading title={t("organizer.event_staff")} subtitle={t("org.staff_hint")} />
+        {staff.loading ? <Loading label={t("org.staff_loading")} /> : null}
+        {staff.error ? <ErrorPanel title={t("org.staff_error")} message={staff.error} onRetry={staff.reload} /> : null}
         {staff.data ? (
           staff.data.assignments.length === 0 ? (
-            <EmptyState>No staff assigned yet. The workspace owner can always scan and manage this event.</EmptyState>
+            <EmptyState>{t("org.no_staff")}</EmptyState>
           ) : (
             <div className="list">
               {staff.data.assignments.map((row) => (
@@ -55,11 +58,9 @@ export function StaffTab({ event }: { event: EventView }) {
                   icon="S"
                   title={memberLabel(row.member_id)}
                   meta={row.capabilities.map((capability) => EVENT_CAPABILITIES.find((item) => item.id === capability)?.label ?? capability).join(", ")}
-                  note={`Assigned ${dateLabel(row.created_at)}`}
+                  note={t("org.assigned_date", { p0: dateLabel(row.created_at) })}
                   actions={
-                    <Button variant="danger" size="sm" onClick={() => void revoke(row.id)}>
-                      Remove
-                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => void revoke(row.id)}>{t("common.remove")}</Button>
                   }
                 />
               ))}

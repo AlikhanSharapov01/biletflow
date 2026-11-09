@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { describeError, isNotImplemented } from "../../../api/errors";
+import { t, translate, useLocale } from "../../../i18n";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { describeError } from "../../../api/errors";
 import { previewPromo } from "../../../api/promo";
 import type { PromoPreview } from "../../../api/types/promo";
 import { Button } from "../../../components/ui";
@@ -14,9 +15,10 @@ interface PromoCodeFieldProps {
 
 type Note = { kind: "error" | "info" | "success"; text: string } | null;
 
-// Checks a code with the (planned) preview endpoint. Only an accepted code is
-// sent with the hold; while the endpoint is missing nothing is sent.
+// Preview a code; the hold response is authoritative for basket pricing.
 export function PromoCodeField({ eventId, initialCode, applied, onApplied }: PromoCodeFieldProps) {
+  useLocale();
+  const inputId = useId();
   const [code, setCode] = useState(initialCode);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
@@ -34,7 +36,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
       setNote({ kind: "success", text: promoSummary(preview) });
     } catch (failure) {
       onApplied(null);
-      setNote(isNotImplemented(failure) ? { kind: "info", text: "Promo codes are coming soon. Your code was not applied." } : { kind: "error", text: describeError(failure) });
+      setNote({ kind: "error", text: describeError(failure) });
     } finally {
       setBusy(false);
     }
@@ -62,26 +64,25 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
 
   return (
     <form className="promo-field" onSubmit={submit}>
-      <label className="field">
-        <span className="field-label">
-          Promo code <small>Optional</small>
+      <div className="field">
+        <label htmlFor={inputId}>
+        <span className="field-label">{t("checkout.promo_code")} <small>{t("common.optional")}</small>
         </span>
+        </label>
         <span className="promo-row">
-          <input value={code} maxLength={64} autoComplete="off" disabled={Boolean(applied)} onChange={(e) => setCode(e.target.value)} />
+          <input id={inputId} value={code} maxLength={32} autoComplete="off" disabled={busy || Boolean(applied)} onChange={(e) => setCode(e.target.value)} />
           {applied ? (
-            <Button size="sm" onClick={remove}>
-              Remove
-            </Button>
+            <Button size="sm" onClick={remove}>{t("common.remove")}</Button>
           ) : (
             <Button size="sm" type="submit" disabled={busy || !code.trim()}>
-              {busy ? "Checking…" : "Apply"}
+              {busy ? t("checkout.checking") : t("common.apply")}
             </Button>
           )}
         </span>
-      </label>
+      </div>
       {note ? (
         <p className={`promo-note ${note.kind}`} role="status">
-          {note.text}
+          {note.kind === "success" && applied ? promoSummary(applied) : translate(note.text)}
         </p>
       ) : null}
     </form>

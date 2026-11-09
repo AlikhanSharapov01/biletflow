@@ -1,3 +1,5 @@
+import { t, useLocale } from "../../../i18n";
+import { confirmAction } from "../../../components/ui/ActionDialog";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { getEvent, listCategories, listVenues } from "../../../api/catalog";
@@ -33,20 +35,21 @@ type Tab =
   | "history";
 
 const TABS: Array<TabItem<Tab>> = [
-  { id: "details", label: "Details" },
-  { id: "tickets", label: "Ticket types" },
-  { id: "seating", label: "Seating" },
-  { id: "paid-sales", label: "Paid sales" },
-  { id: "attendees", label: "Attendees" },
-  { id: "check-ins", label: "Check-ins" },
-  { id: "staff", label: "Staff" },
-  { id: "campaigns", label: "Campaigns" },
-  { id: "analytics", label: "Analytics" },
-  { id: "finance", label: "Finance" },
-  { id: "history", label: "History" },
+  { id: "details", get label() { return t("common.details"); } },
+  { id: "tickets", get label() { return t("organizer.ticket_types"); } },
+  { id: "seating", get label() { return t("organizer.seating"); } },
+  { id: "paid-sales", get label() { return t("organizer.paid_sales"); } },
+  { id: "attendees", get label() { return t("organizer.attendees"); } },
+  { id: "check-ins", get label() { return t("organizer.check_ins"); } },
+  { id: "staff", get label() { return t("organizer.staff"); } },
+  { id: "campaigns", get label() { return t("organizer.campaigns"); } },
+  { id: "analytics", get label() { return t("organizer.analytics"); } },
+  { id: "finance", get label() { return t("organizer.finance"); } },
+  { id: "history", get label() { return t("organizer.history"); } },
 ];
 
 export function OrganizerEventPage() {
+  useLocale();
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
@@ -61,9 +64,9 @@ export function OrganizerEventPage() {
     [eventId],
   );
 
-  if (page.loading) return <Loading label="Loading event…" />;
+  if (page.loading) return <Loading label={t("org.loading_event")} />;
   if (page.error || !page.data) {
-    return <ErrorPanel title="We couldn’t load this event." message={page.error ?? "Unknown error"} onRetry={page.reload} />;
+    return <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />;
   }
   const { event, categories, venues } = page.data;
   const venue = venues.find((item) => item.id === event.venue_id);
@@ -84,15 +87,15 @@ export function OrganizerEventPage() {
   };
 
   const cancel = async () => {
-    if (!window.confirm("Cancel this event? This cannot be undone.")) return;
-    await act(() => cancelEvent(event.id), "Event cancelled.");
+    if (!await confirmAction(t("organizer.cancel_event_confirm"))) return;
+    await act(() => cancelEvent(event.id), t("org.event_cancelled"));
   };
 
   const duplicate = async () => {
     setBusy(true);
     try {
       const copy = await duplicateEvent(event.id);
-      notify("Draft copied. Adjust its dates before publishing.");
+      notify(t("org.draft_copied"));
       navigate(`/organizer/events/${encodeURIComponent(copy.id)}`);
       setTab("details");
     } catch (failure) {
@@ -105,35 +108,31 @@ export function OrganizerEventPage() {
   return (
     <>
       <PageHeading
-        back={{ to: "/organizer", label: "Organizer workspace" }}
-        eyebrow={`Manage event · ${statusLabel(event.time_status)}${event.moderation_state !== "normal" ? " · suspended by moderation" : ""}`}
+        back={{ to: "/organizer", label: t("nav.workspace") }}
+        eyebrow={t("org.manage_event", { p0: statusLabel(event.time_status), p1: event.moderation_state !== "normal" ? (" " + t("org.moderation_suffix")) : "" })}
         title={event.title}
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
         actions={
           <>
             <StatusPill tone={publicationTone(event.publication_state)}>{statusLabel(event.publication_state)}</StatusPill>
-            <ButtonLink to={`/events/${encodeURIComponent(event.id)}`}>Public page</ButtonLink>
+            <ButtonLink to={`/events/${encodeURIComponent(event.id)}`}>{t("organizer.public_page")}</ButtonLink>
             {!cancelled ? (
               <Button
                 variant="primary"
                 disabled={busy}
-                onClick={() => void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? "Event unpublished." : "Event published.")}
+                onClick={() => void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
               >
-                {published ? "Unpublish" : "Publish"}
+                {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button disabled={busy} onClick={() => void duplicate()}>
-              Duplicate
-            </Button>
+            <Button disabled={busy} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
             {!cancelled ? (
-              <Button variant="danger" disabled={busy} onClick={() => void cancel()}>
-                Cancel event
-              </Button>
+              <Button variant="danger" disabled={busy} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
             ) : null}
           </>
         }
       />
-      <Tabs label="Event sections" items={TABS} value={tab} onChange={setTab} idPrefix="event-section" />
+      <Tabs label={t("organizer.event_sections")} items={TABS} value={tab} onChange={setTab} idPrefix="event-section" />
       <TabPanel idPrefix="event-section" active={tab}>
         {tab === "details" ? <DetailsTab key={event.updated_at} event={event} categories={categories} venues={venues} onSaved={page.reload} /> : null}
         {tab === "tickets" ? <TicketTypesTab event={event} /> : null}

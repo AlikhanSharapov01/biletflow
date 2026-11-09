@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { createEvent, createTicketType } from "../../../api/eventAdmin";
@@ -14,6 +15,7 @@ interface CreateEventPanelProps {
 }
 
 export function CreateEventPanel({ organization, categories, venues }: CreateEventPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const navigate = useNavigate();
   const [state, setState] = useState<FormState>(IDLE);
@@ -24,7 +26,7 @@ export function CreateEventPanel({ organization, categories, venues }: CreateEve
       const created = await createEvent(organization.id, input);
       try {
         await createTicketType(created.id, {
-          name: "General admission",
+          name: t("checkout.general_admission"),
           description: "",
           kind: "free",
           price_minor: 0,
@@ -34,9 +36,9 @@ export function CreateEventPanel({ organization, categories, venues }: CreateEve
           sales_close_at: input.registration_closes_at,
           is_hidden: false,
         });
-        notify("Event draft created with a free RSVP ticket.");
+        notify(t("org.draft_created"));
       } catch (failure) {
-        notify(`The event draft was saved, but its RSVP ticket could not be created: ${describeError(failure)}`);
+        notify(t("org.draft_ticket_error", { p0: describeError(failure) }));
       }
       setState(IDLE);
       navigate(`/organizer/events/${encodeURIComponent(created.id)}`);
@@ -47,12 +49,12 @@ export function CreateEventPanel({ organization, categories, venues }: CreateEve
 
   return (
     <Panel>
-      <PanelHeading title="Create an event draft" />
-      <p className="form-intro">A free RSVP ticket is added automatically so a valid event can be published. You can add more ticket types on the event page.</p>
+      <PanelHeading title={t("org.create_event_heading")} />
+      <p className="form-intro">{t("org.free_rsvp_hint")}</p>
       <EventForm
         categories={categories}
         venues={venues}
-        submitLabel="Create event draft"
+        submitLabel={t("org.create_event")}
         busy={state.busy}
         message={state.message}
         onSubmit={submit}

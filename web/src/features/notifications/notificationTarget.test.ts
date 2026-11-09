@@ -6,6 +6,7 @@ describe("notificationPath", () => {
     expect(notificationPath({ target: { type: "event", id: "e1" }, event_id: null })).toBe("/events/e1");
     expect(notificationPath({ target: { type: "ticket", id: "t1" }, event_id: "e1" })).toBe("/tickets/t1");
     expect(notificationPath({ target: { type: "support_case", id: "c1" }, event_id: null })).toBe("/support/cases/c1");
+    expect(notificationPath({ target: { type: "order", id: "order/1" }, event_id: null })).toBe("/orders/order%2F1");
   });
 
   it("falls back to the event, then to nothing", () => {

@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { saveFile } from "../../../api/files";
 import { describeError } from "../../../api/errors";
@@ -6,6 +7,7 @@ import { Button, useToast } from "../../../components/ui";
 
 // Fetches the A4 PDF with the bearer token and hands it to the save dialog.
 export function DownloadPdfButton({ ticketId }: { ticketId: string }) {
+  useLocale();
   const { notify } = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -22,7 +24,7 @@ export function DownloadPdfButton({ ticketId }: { ticketId: string }) {
 
   return (
     <Button variant="primary" disabled={busy} onClick={() => void download()}>
-      {busy ? "Preparing PDF…" : "Download PDF"}
+      {busy ? t("tickets.preparing_pdf") : t("tickets.download_pdf")}
     </Button>
   );
 }

@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { describeError } from "../../../api/errors";
 import { requestEntryConfirmation } from "../../../api/tickets";
@@ -10,6 +11,7 @@ import { EntryQr } from "./EntryQr";
 // At the gate the scanner needs the ticket QR plus proof that its holder is
 // signed in right now: a two-minute token (QR) or its 8-digit code.
 export function EntryConfirmationPanel({ ticket }: { ticket: IssuedTicket }) {
+  useLocale();
   const [confirmation, setConfirmation] = useState<EntryConfirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -35,31 +37,30 @@ export function EntryConfirmationPanel({ ticket }: { ticket: IssuedTicket }) {
   return (
     <Panel className="entry-panel no-print">
       <PanelHeading
-        title="Entry confirmation"
-        subtitle="Needed at the gate together with your ticket QR. It lasts about two minutes, so open it when you reach the entrance."
-        trailing={confirmation ? <StatusPill tone={expired ? "neutral" : "positive"}>{expired ? "Expired" : "Active"}</StatusPill> : null}
+        title={t("tickets.entry_confirmation")}
+        subtitle={t("tickets.entry_instructions")}
+        trailing={confirmation ? <StatusPill tone={expired ? "neutral" : "positive"}>{expired ? t("tickets.expired") : t("common.active")}</StatusPill> : null}
       />
       {confirmation && !expired ? (
         <div className="entry-grid">
           <EntryQr token={confirmation.token} />
           <div className="entry-copy">
-            <span className="field-label">Entry code</span>
-            <strong className="entry-code" aria-label={`Entry code ${confirmation.code.split("").join(" ")}`}>
+            <span className="field-label">{t("tickets.entry_code")}</span>
+            <strong className="entry-code" aria-label={t("tickets.entry_code_label", { p0: confirmation.code.split("").join(" ") })}>
               {confirmation.code.slice(0, 4)} {confirmation.code.slice(4)}
             </strong>
-            <span className="countdown" role="timer" aria-live="off">
-              Expires in {formatCountdown(secondsLeft)}
+            <span className="countdown" role="timer" aria-live="off">{t("tickets.expires_in")}{" "}{formatCountdown(secondsLeft)}
             </span>
-            <small className="form-intro">For a printed ticket, read this code out to the staff member.</small>
+            <small className="form-intro">{t("tickets.printed_code_hint")}</small>
           </div>
         </div>
       ) : null}
-      {expired ? <p className="form-intro">This confirmation expired. Get a new one when you are at the gate.</p> : null}
-      {!usable ? <p className="form-intro">Entry confirmations are only available for valid tickets.</p> : null}
+      {expired ? <p className="form-intro">{t("tickets.entry_expired")}</p> : null}
+      {!usable ? <p className="form-intro">{t("tickets.entry_valid_only")}</p> : null}
       <FormMessage message={message} />
       <div className="form-actions">
         <Button variant={confirmation && !expired ? "subtle" : "primary"} disabled={busy || !usable} onClick={() => void request()}>
-          {busy ? "Requesting…" : confirmation ? "Refresh confirmation" : "Confirm entry"}
+          {busy ? t("tickets.requesting") : confirmation ? t("tickets.refresh_confirmation") : t("tickets.confirm_entry")}
         </Button>
       </div>
     </Panel>
