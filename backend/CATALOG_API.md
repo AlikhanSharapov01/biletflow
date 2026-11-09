@@ -75,7 +75,10 @@ Knowing an image ID or retaining an old URL grants no access after revocation/un
 
 Storage lifecycle reserves a pending `stored_file`, writes the generated UUID key outside
 the business transaction, then reauthorizes and attaches it as clean under an event lock.
-Failed finalize/commit compensates only that upload's object. Delete commits removal and
+A finalization error triggers a fresh locked metadata/reference check. Only an unreferenced
+pending/deleted upload with a positively acknowledged orphan-fence commit is deleted. Clean
+or referenced files survive lost commit acknowledgments; unavailable verification or uncertain
+fence commits defer deletion to recurring reconciliation. Delete commits removal and
 deleted metadata before physical deletion. The existing worker reconciles pending/deleted
 event-image metadata every hold-sweep interval (15 seconds), claiming at most 50 due files.
 Implementation defaults: pending uploads have one hour of grace, and cleanup claims advance

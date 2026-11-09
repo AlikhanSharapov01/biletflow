@@ -56,7 +56,10 @@ def validated_image(data, content_type, limit):
                 # Re-encode decoded pixels: discard metadata and appended active content.
                 output = BytesIO()
                 image.convert(
-                    "RGBA" if expected == "PNG" and "A" in image.getbands() else "RGB"
+                    "RGBA"
+                    if expected == "PNG"
+                    and ("A" in image.getbands() or "transparency" in image.info)
+                    else "RGB"
                 ).save(output, format=expected)
                 result = output.getvalue()
     except (
@@ -151,24 +154,45 @@ def upload(factory, storage, settings, ids, event_id, filename, alt_text, conten
             result = image_record(row)
         return result
     except BaseException as exc:
-        # Only this upload's object is compensated, never an existing gallery image.
+        # A lost commit acknowledgment can leave a live image; uncertainty must retain bytes.
+        delete_key = None
         try:
-            with factory.begin() as db:
-                file = db.get(StoredFile, file_id)
-                file.status, file.cleanup_after = "deleted", now()
+            delete_key = _fence_failed_upload(factory, file_id)
         except SQLAlchemyError:
             logger.warning(
-                "Event image metadata cleanup failed; pending key retained for reconciliation"
+                "Event image cleanup verification failed; durable reconciliation deferred"
             )
-        try:
-            storage.delete(key)
-        except OSError:
-            logger.warning(
-                "Event image cleanup failed; deleted metadata retained for reconciliation"
-            )
+        if delete_key is not None:
+            try:
+                storage.delete(delete_key)
+            except OSError:
+                logger.warning(
+                    "Event image cleanup failed; deleted metadata retained for reconciliation"
+                )
         if isinstance(exc, OSError):
             fail("storage_unavailable", 503)
         raise
+
+
+def _unreferenced_file():
+    return (
+        ~exists(select(EventMedia.id).where(EventMedia.file_id == StoredFile.id))
+        & ~exists(select(SupportAttachment.id).where(SupportAttachment.file_id == StoredFile.id))
+        & ~exists(select(Ticket.id).where(Ticket.pdf_file_id == StoredFile.id))
+    )
+
+
+def _fence_failed_upload(factory, file_id):
+    key = None
+    with factory.begin() as db:
+        file = db.scalar(select(StoredFile).where(StoredFile.id == file_id).with_for_update())
+        if file.status in ("pending", "deleted") and db.scalar(
+            select(_unreferenced_file()).where(StoredFile.id == file_id)
+        ):
+            file.status, file.cleanup_after = "deleted", now()
+            key = file.object_key
+    # Returning only after commit positively acknowledges the orphan fence.
+    return key
 
 
 def reorder(db, user, event, image_ids):
@@ -220,13 +244,7 @@ def reconcile_images(factory, storage, batch_size=CLEANUP_BATCH):
                             | (StoredFile.created_at <= current - UPLOAD_GRACE)
                         ),
                     ),
-                    ~exists(select(EventMedia.id).where(EventMedia.file_id == StoredFile.id)),
-                    ~exists(
-                        select(SupportAttachment.id).where(
-                            SupportAttachment.file_id == StoredFile.id
-                        )
-                    ),
-                    ~exists(select(Ticket.id).where(Ticket.pdf_file_id == StoredFile.id)),
+                    _unreferenced_file(),
                 )
                 .order_by(StoredFile.cleanup_after.asc().nullsfirst(), StoredFile.id)
                 .limit(max(1, min(batch_size, CLEANUP_BATCH)))
