@@ -1,24 +1,23 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import type { Order } from "@/api/types/checkout";
+import type { Order, Pricing } from "@/api/types/checkout";
 import { colors, fonts } from "@/theme";
 import { priceLabel } from "@/utils/format";
 
 // Subtotal, discount, processing fee and total, straight from the server's
 // saved quote. The fee is part of the total (an organizer cost), not extra.
-export function PriceSummary({ order }: { order: Order }) {
+export function PriceSummary({ order, pricing }: { order: Order; pricing?: never } | { order?: never; pricing: Pricing }) {
+  const quote = order ? { gross: order.gross_minor, discount: order.discount_minor, processing_fee: order.processing_fee_minor, payable: order.payable_minor } : pricing;
+  const currency = order?.currency ?? "KZT";
   return (
     <View style={styles.list}>
-      <Line label="Subtotal" value={priceLabel(order.gross_minor)} />
-      {order.discount_minor > 0 ? <Line label="Discount" value={`−${priceLabel(order.discount_minor)}`} /> : null}
-      <Line
-        label="Processing fee"
-        value={order.processing_fee_minor > 0 ? `${priceLabel(order.processing_fee_minor)} · included` : "None"}
-      />
+      <Line label="Subtotal" value={priceLabel(quote.gross)} />
+      {quote.discount > 0 ? <Line label="Discount" value={`−${priceLabel(quote.discount)}`} /> : null}
+      <Line label="Processing fee" value={quote.processing_fee > 0 ? `${priceLabel(quote.processing_fee)} · included` : "None"} />
       <View style={[styles.row, styles.total]}>
         <Text style={[styles.label, styles.totalText]}>Total</Text>
         <Text style={[styles.value, styles.totalText]}>
-          {priceLabel(order.payable_minor)} <Text style={styles.currency}>{order.currency}</Text>
+          {priceLabel(quote.payable)} <Text style={styles.currency}>{currency}</Text>
         </Text>
       </View>
     </View>

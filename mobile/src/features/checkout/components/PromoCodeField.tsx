@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { describeError, isNotImplemented } from "@/api/errors";
+import { describeError } from "@/api/errors";
 import { previewPromo } from "@/api/promo";
 import type { PromoPreview } from "@/api/types/promo";
-import { StatusPill, SubtleButton, fieldStyles } from "@/components/ui";
+import { SubtleButton, fieldStyles } from "@/components/ui";
 import { colors, fonts, statusTones } from "@/theme";
 import { normalizePromoCode, promoSummary, stashPromo } from "../utils/promo";
 
@@ -15,10 +15,10 @@ interface PromoCodeFieldProps {
   onApplied: (preview: PromoPreview | null) => void;
 }
 
-type Note = { kind: "error" | "info" | "success"; text: string } | null;
+type Note = { kind: "error" | "success"; text: string } | null;
 
-// Checks a code with the (planned) preview endpoint. Only an accepted code is
-// sent with the hold; while the endpoint is missing nothing is sent.
+// Previews a code. Only an accepted code is sent with the hold, and the hold
+// response is authoritative for basket pricing.
 export function PromoCodeField({ eventId, initialCode, applied, onApplied }: PromoCodeFieldProps) {
   const [code, setCode] = useState(initialCode);
   const [busy, setBusy] = useState(false);
@@ -37,11 +37,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
       setNote({ kind: "success", text: promoSummary(preview) });
     } catch (failure) {
       onApplied(null);
-      setNote(
-        isNotImplemented(failure)
-          ? { kind: "info", text: "Promo codes are coming soon. Your code was not applied." }
-          : { kind: "error", text: describeError(failure) },
-      );
+      setNote({ kind: "error", text: describeError(failure) });
     } finally {
       setBusy(false);
     }
@@ -86,7 +82,6 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
           <SubtleButton label={busy ? "Checking…" : "Apply"} disabled={busy || !code.trim()} onPress={() => void check(code)} />
         )}
       </View>
-      {note?.kind === "info" ? <StatusPill tone="neutral" label="Not available yet" /> : null}
       {note ? (
         <Text style={[styles.note, styles[note.kind]]} accessibilityLiveRegion="polite">
           {note.text}
@@ -104,6 +99,5 @@ const styles = StyleSheet.create({
   locked: { opacity: 0.6 },
   note: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
   success: { color: statusTones.positive.color, fontWeight: "600" },
-  info: { color: statusTones.neutral.color },
   error: { color: colors.error },
 });

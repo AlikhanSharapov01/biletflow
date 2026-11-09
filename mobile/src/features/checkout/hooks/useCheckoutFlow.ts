@@ -18,7 +18,9 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const secondsLeft = useCountdown(hold?.expires_at ?? null);
-  const paid = hold ? basketIsPaid(hold.allocations, tickets) : false;
+  // A paid ticket discounted to zero must use free confirmation. The server's
+  // saved pricing is authoritative; the fallback supports an older demo stack.
+  const paid = hold ? (hold.pricing ? hold.pricing.payable > 0 : basketIsPaid(hold.allocations, tickets)) : false;
 
   const reset = useCallback((note = "") => {
     setHold(null);

@@ -25,10 +25,11 @@ describe("CampaignLinkScreen", () => {
     expect(readStashedPromo("e7")).toBe("SPRING");
   });
 
-  it("says campaign links are not available yet while the server lacks them", async () => {
-    jest.mocked(resolveCampaignLink).mockRejectedValue(new ApiError("Not Found", 404));
+  it("explains a link that does not resolve", async () => {
+    jest.mocked(resolveCampaignLink).mockRejectedValue(new ApiError("That promo code doesn’t exist.", 404, "promo_not_found"));
     await render(<CampaignLinkScreen />);
-    expect(await screen.findByText("Campaign links is coming soon.")).toBeTruthy();
+    expect(await screen.findByText("This campaign link doesn’t work.")).toBeTruthy();
+    expect(screen.getByText("That promo code doesn’t exist.")).toBeTruthy();
     expect(screen.getByText("Browse events")).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
   });

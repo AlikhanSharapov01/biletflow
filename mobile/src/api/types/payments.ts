@@ -31,11 +31,29 @@ export interface SimulatedPaymentResult {
   attempt: PaymentSummary;
 }
 
-// Planned contract (B4): voluntary refund request and free-registration cancel.
+// backend/REFUNDS_API.md and app/refund_api.py.
 export interface RefundRequestInput {
-  reason: string;
+  reason?: string;
 }
 
 export interface CancelRegistrationInput {
-  reason: string;
+  reason?: string;
+}
+
+export interface RefundRequested {
+  order_id: string;
+  status: "requested";
+  case_id: string;
+}
+
+export interface RefundStarted {
+  order_id: string;
+  status: string;
+  refund: RefundSummary;
+}
+
+export interface TicketCancelled {
+  ticket_id: string;
+  order_id: string;
+  status: string;
 }

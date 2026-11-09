@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 
-import { describeError, isNotImplemented } from "@/api/errors";
+import { describeError } from "@/api/errors";
 import { resolveCampaignLink } from "@/api/promo";
 import { ScrollScreen } from "@/components/layout";
-import { ErrorPanel, LoadingState, NotAvailableYet, PageHeading, SubtleButton } from "@/components/ui";
+import { ErrorPanel, LoadingState, PageHeading, SubtleButton } from "@/components/ui";
 import { stashPromo } from "./utils/promo";
 
-type State = { kind: "loading" } | { kind: "planned" } | { kind: "error"; message: string };
+type State = { kind: "loading" } | { kind: "error"; message: string };
 
 // /c/[token] — a campaign QR or link. Resolves to its event and promo code and
 // forwards there. Campaign links never admit anyone: they are not tickets.
@@ -30,7 +30,7 @@ export function CampaignLinkScreen() {
       })
       .catch((failure: unknown) => {
         if (!active) return;
-        setState(isNotImplemented(failure) ? { kind: "planned" } : { kind: "error", message: describeError(failure) });
+        setState({ kind: "error", message: describeError(failure) });
       });
     return () => {
       active = false;
@@ -42,11 +42,6 @@ export function CampaignLinkScreen() {
     <ScrollScreen>
       <PageHeading eyebrow="Campaign link" title="Opening your event." />
       {state.kind === "loading" ? <LoadingState message="Opening the event…" /> : null}
-      {state.kind === "planned" ? (
-        <NotAvailableYet feature="Campaign links">
-          This link will open its event with the promo code applied once campaigns are released. You can still browse events.
-        </NotAvailableYet>
-      ) : null}
       {state.kind === "error" ? <ErrorPanel title="This campaign link doesn’t work." message={state.message} /> : null}
       {state.kind !== "loading" ? <SubtleButton label="Browse events" onPress={() => router.replace("/")} /> : null}
     </ScrollScreen>

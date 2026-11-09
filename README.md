@@ -33,7 +33,7 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 | Backend (`backend/`) | Most of the MVP | Accounts, events, seating, free and simulated paid checkout, QR tickets and PDFs, online and offline admission, support, notifications, calendar export and platform administration are implemented and tested. Promo campaigns, analytics, organizer refunds and the finance view are not built yet. |
 | Database (`backend/migrations/`) | Most of the MVP | 12 migrations, 58 tables. Campaign tables are the main missing piece. |
 | Web (`web/`) | UI complete for current scope | Every screen exists. Screens whose backend exists are fully wired; promo, analytics, finance, refunds and event images show a "not available yet" state until their API ships. Kazakh/Russian translations are missing. |
-| Mobile app (`mobile/`) | Full app + scanner | Every web feature on iOS/Android (see [decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), plus the scanner with entry confirmation and manual guest search. The same features as the web wait for the backend. |
+| Mobile app (`mobile/`) | Full app + scanner | Every web feature on iOS/Android (see [decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), plus the scanner with entry confirmation and manual guest search. Analytics, finance and event images wait for the backend. |
 | Environment | Local demo works | Docker Compose runs the full stack, with [backup and restore](docs/operations/backup.md). No TLS. CI checks the backend and the mobile app, not yet the web. |
 | Tests | Backend strong, clients growing | 238 backend tests (real PostgreSQL), 87 web unit tests, 163 mobile tests (screens with a mocked API, helpers, scanner flow), no automated end-to-end tests. |
 
@@ -53,12 +53,12 @@ does not yet.
 | 4.6 Checkout and payments (simulated) | Done (no organizer finance view) | Done (finance waiting for backend) | Done (finance waiting for backend) |
 | 4.7 Digital tickets, PDF, email delivery | Done | Done | Done (PDF via share sheet) |
 | 4.8 Scanner check-in | Done | Check-in history + CSV | Done (scan, entry confirmation, manual search, undo, history) |
-| 4.9 Orders, cancellations, refunds | Partial (automatic refunds only) | Done (refund/cancel waiting for backend) | Done (refund/cancel waiting for backend) |
+| 4.9 Orders, cancellations, refunds | Partial (automatic refunds only) | Done (refund/cancel waiting for backend) | Done |
 | 4.10 Notifications | Partial (5 of 9 types) | Done | Done (inbox + badge) |
 | 4.11 Calendar export (bonus) | Done | Done | Done |
 | 4.12 Platform administration | Partial (no payment/refund monitoring) | Done | Done |
 | 4.13 Support cases | Done (incl. attachments) | Done | Done |
-| 4.14 Promo codes and Campaign QR | Not started (scanner already rejects campaign QR) | Waiting for backend | Waiting for backend (scanner rejects campaign QR) |
+| 4.14 Promo codes and Campaign QR | Not started (scanner already rejects campaign QR) | Waiting for backend | Done (scanner rejects campaign QR) |
 | 4.15 Organizer analytics | Not started | Waiting for backend | Waiting for backend |
 | 4.16 Event history and audit trail | Done (no server-side filters) | Done | Done |
 | 7 Localization (Kazakh, Russian, English) | Partial (some notifications) | Not started | Not started |

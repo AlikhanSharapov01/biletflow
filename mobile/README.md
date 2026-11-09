@@ -32,14 +32,14 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 | Sign in, create account, forgot password, resend verification | Done |
 | Verify email / reset password from an emailed link | Done (paste the link or its token) |
 | Discover: search, category filter | Done |
-| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done (promo shows "Not available yet" until the backend ships it) |
+| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done |
 | Free registration and simulated paid checkout | Done |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
-| Orders: totals, payment retry, cancel registration | Done (refund request "Not available yet") |
+| Orders: totals, payment retry, cancel registration, refund request | Done |
 | Support cases: list, new case, thread, attachments, staff actions | Done |
 | Notifications: inbox and unread badge in the top bar | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, every event tab | Done (campaigns, analytics, finance, image upload "Not available yet" until the backend ships them) |
+| Organizer: workspaces, team, invitations, create event, every event tab | Done (analytics, finance, image upload "Not available yet" until the backend ships them) |
 | Platform admin portal (8 sections) | Done (shown only to platform admins) |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
@@ -108,7 +108,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 43 files, 163 tests. They cover:
+(`*.test.ts(x)`): 47 files, 183 tests. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
   status, support threads, notification targets, organizer forms, charts, history filters,
@@ -233,8 +233,10 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Backend-dependent:** promo campaigns, analytics, finance, refund actions and event images
-  start working once their endpoints exist; then test them end to end on a device.
+- **Backend-dependent:** analytics, finance and event images start working once their endpoints
+  exist; then test them end to end on a device.
+- **Promo, campaigns and refunds:** connected and covered by tests with a mocked API. Click them
+  through against `docker compose up` on a simulator or phone.
 - **Translations:** Kazakh and Russian, using the saved profile language.
 - **Device checks:** the share sheet (PDF, calendar, CSV), document picker, clipboard and camera
   have been tested with mocks. Click them through on a real iPhone and Android phone.

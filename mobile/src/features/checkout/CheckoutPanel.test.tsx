@@ -75,7 +75,7 @@ describe("CheckoutPanel", () => {
   });
 
   it("sends a paid basket to the simulated payment step", async () => {
-    jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"], "t2"));
+    jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"], "t2", 500000));
     jest.mocked(startCheckout).mockResolvedValue(
       sampleOrder({
         status: "pending",
@@ -94,13 +94,45 @@ describe("CheckoutPanel", () => {
     expect(screen.getByText("Demonstration payment — no real money moves.")).toBeTruthy();
   });
 
-  it("explains that promo codes are not available yet and sends none", async () => {
-    jest.mocked(previewPromo).mockRejectedValue(new ApiError("Not Found", 404));
+  it("shows the server's quote and sends an accepted promo code with the hold", async () => {
+    jest.mocked(previewPromo).mockResolvedValue({
+      event_id: "e1",
+      code: "SPRING",
+      discount_kind: "percent",
+      discount_value: 10,
+      eligible_ticket_type_ids: [],
+      valid_until: "2099-11-01T00:00:00Z",
+    });
+    jest.mocked(createHold).mockResolvedValue({
+      ...sampleHold(["al1"], "t2", 450000),
+      pricing: { gross: 500000, discount: 50000, subtotal: 450000, processing_fee: 13500, payable: 450000, lines: [] },
+    });
+    await render(<CheckoutPanel event={sampleEvent} tickets={[vip]} promoFromRoute="spring" />);
+    expect(await screen.findByText("SPRING: 10% off every ticket")).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText("More VIP"));
+    await fireEvent.press(screen.getByText("Reserve 1 ticket"));
+    expect(createHold).toHaveBeenCalledWith("e1", [{ ticket_type_id: "t2", quantity: 1 }], "SPRING");
+    expect(await screen.findByText("Discount")).toBeTruthy();
+    expect(screen.getByText("Continue to payment")).toBeTruthy();
+  });
+
+  it("confirms a paid ticket discounted to zero without a payment", async () => {
+    jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"], "t2", 0));
+    jest.mocked(confirmHold).mockResolvedValue(sampleOrder({ items: [] }));
+    await render(<CheckoutPanel event={sampleEvent} tickets={[vip]} />);
+    await fireEvent.press(screen.getByLabelText("More VIP"));
+    await fireEvent.press(screen.getByText("Reserve 1 ticket"));
+    await fireEvent.press(await screen.findByText("Confirm registration"));
+    expect(confirmHold).toHaveBeenCalled();
+    expect(startCheckout).not.toHaveBeenCalled();
+  });
+
+  it("explains a rejected promo code and sends none", async () => {
+    jest.mocked(previewPromo).mockRejectedValue(new ApiError("That promo code has expired.", 409, "promo_expired"));
     jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"]));
     await render(<CheckoutPanel event={sampleEvent} tickets={[general]} promoFromRoute="spring" />);
-    expect(await screen.findByText("Promo codes are coming soon. Your code was not applied.")).toBeTruthy();
+    expect(await screen.findByText("That promo code has expired.")).toBeTruthy();
     expect(previewPromo).toHaveBeenCalledWith("e1", "SPRING");
-    expect(screen.getByText("Not available yet")).toBeTruthy();
     await fireEvent.press(screen.getByLabelText("More General"));
     await fireEvent.press(screen.getByText("Reserve 1 ticket"));
     expect(createHold).toHaveBeenCalledWith("e1", [{ ticket_type_id: "t1", quantity: 1 }], undefined);

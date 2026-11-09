@@ -68,7 +68,7 @@ export function CampaignRow({ eventId, campaign, types, onChanged }: CampaignRow
     <ListRow
       icon="%"
       title={campaign.name}
-      meta={`${discountLabel(campaign)} · ${usageLabel(campaign.redemptions_used, campaign.max_redemptions)}${campaign.code ? ` · code ${campaign.code}` : ""}`}
+      meta={`${discountLabel(campaign)} · ${usageLabel(campaign.redemptions_used, campaign.max_redemptions)} · code ${campaign.code}`}
       note={`${dateLabel(campaign.starts_at)} – ${dateLabel(campaign.ends_at)} · ${eligible}`}
       trailing={<StatusPill tone={campaign.status === "active" ? "positive" : disabled ? "blocked" : "neutral"} label={statusLabel(campaign.status)} />}
     >

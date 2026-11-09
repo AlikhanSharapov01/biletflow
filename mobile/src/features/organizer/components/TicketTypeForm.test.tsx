@@ -14,7 +14,7 @@ describe("TicketTypeForm", () => {
 
     await fireEvent.changeText(screen.getByPlaceholderText("e.g. General admission"), "VIP");
     await fireEvent.press(screen.getByLabelText("Kind: Free"));
-    await fireEvent.press(screen.getByText("Paid (checkout not available yet)"));
+    await fireEvent.press(screen.getByText("Paid"));
     await fireEvent.changeText(screen.getByDisplayValue("0"), "8500");
     await fireEvent.changeText(screen.getByPlaceholderText("Up to 100"), "10");
     await fireEvent.press(screen.getByRole("checkbox", { name: "Hidden from attendees" }));

@@ -53,7 +53,7 @@ export function initialPromo(eventId: string, fromRoute: string | null | undefin
 export function promoSummary(preview: PromoPreview): string {
   const amount = preview.discount_kind === "percent" ? `${preview.discount_value}% off` : `${priceLabel(preview.discount_value)} off`;
   const scope = preview.eligible_ticket_type_ids.length > 0 ? "eligible tickets" : "every ticket";
-  return `${preview.code}: ${amount} ${scope}`;
+  return `${preview.code}: ${amount} ${scope}${preview.discount_kind === "fixed" ? " (once per order)" : ""}`;
 }
 
 // Estimated discount on one ticket; the server's quote is authoritative.
@@ -61,6 +61,9 @@ export function promoDiscountFor(preview: PromoPreview | null, ticketTypeId: str
   if (!preview || priceMinor <= 0) return 0;
   const eligible = preview.eligible_ticket_type_ids;
   if (eligible.length > 0 && !eligible.includes(ticketTypeId)) return 0;
-  const raw = preview.discount_kind === "percent" ? Math.round((priceMinor * preview.discount_value) / 100) : preview.discount_value;
+  // A fixed discount applies once to the basket, then the server apportions it.
+  // It cannot be estimated for one ticket independently of the basket.
+  if (preview.discount_kind === "fixed") return 0;
+  const raw = Math.round((priceMinor * preview.discount_value) / 100);
   return Math.min(priceMinor, Math.max(0, raw));
 }

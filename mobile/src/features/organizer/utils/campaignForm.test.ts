@@ -40,7 +40,7 @@ function toCampaignInputFixture() {
     ends_at: "2026-11-20T10:00:00Z",
     max_redemptions: 50,
     eligible_ticket_type_ids: [],
-    code: null,
+    code: "SPRING",
   };
 }
 

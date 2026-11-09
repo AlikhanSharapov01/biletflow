@@ -5,22 +5,20 @@ import { listTicketTypes } from "@/api/catalog";
 import { describeError } from "@/api/errors";
 import type { EventView } from "@/api/types";
 import type { CampaignInput } from "@/api/types/campaigns";
-import { EmptyState, ErrorPanel, LoadingState, NotAvailableYet, Panel, StatusPill } from "@/components/ui";
+import { EmptyState, ErrorPanel, LoadingState, Panel, StatusPill } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 import { useRequest } from "@/hooks/useRequest";
 
 import { SectionHeading } from "../components/SectionHeading";
-import { orPlanned } from "../utils/planned";
 import { CampaignForm } from "./campaigns/CampaignForm";
 import { CampaignRow } from "./campaigns/CampaignRow";
 
-// Promo campaigns on the PLANNED contract (plan section 3). Until the backend
-// serves them, the create form stays visible but disabled.
+// Confirmed contract: backend/CAMPAIGNS_API.md.
 export function CampaignsTab({ event }: { event: EventView }) {
   const { notify } = useToast();
   const [state, setState] = useState({ busy: false, message: "" });
   const page = useRequest(async () => {
-    const [campaigns, types] = await Promise.all([orPlanned(() => listCampaigns(event.id)), listTicketTypes(event.id)]);
+    const [campaigns, types] = await Promise.all([listCampaigns(event.id), listTicketTypes(event.id)]);
     return { campaigns, types };
   }, [event.id]);
 
@@ -31,8 +29,10 @@ export function CampaignsTab({ event }: { event: EventView }) {
       notify("Campaign created.");
       setState({ busy: false, message: "" });
       page.reload();
+      return true;
     } catch (failure) {
       setState({ busy: false, message: describeError(failure) });
+      return false;
     }
   };
 
@@ -46,14 +46,12 @@ export function CampaignsTab({ event }: { event: EventView }) {
         <SectionHeading
           title="Promo campaigns"
           subtitle="Discount links and codes for this event. A campaign QR opens the promo link; it never admits anyone."
-          trailing={!campaigns.planned ? <StatusPill tone="neutral" label={`${campaigns.value.length} campaigns`} /> : null}
+          trailing={<StatusPill tone="neutral" label={`${campaigns.length} campaigns`} />}
         />
-        {campaigns.planned ? (
-          <NotAvailableYet feature="Promo campaigns" />
-        ) : campaigns.value.length === 0 ? (
+        {campaigns.length === 0 ? (
           <EmptyState message="No campaigns yet. Create one below." />
         ) : (
-          campaigns.value.map((campaign) => <CampaignRow key={campaign.id} eventId={event.id} campaign={campaign} types={types} onChanged={page.reload} />)
+          campaigns.map((campaign) => <CampaignRow key={campaign.id} eventId={event.id} campaign={campaign} types={types} onChanged={page.reload} />)
         )}
       </Panel>
       <Panel>
@@ -61,7 +59,6 @@ export function CampaignsTab({ event }: { event: EventView }) {
         <CampaignForm
           types={types}
           submitLabel="Create campaign"
-          disabled={campaigns.planned}
           busy={state.busy}
           message={state.message}
           onSubmit={create}

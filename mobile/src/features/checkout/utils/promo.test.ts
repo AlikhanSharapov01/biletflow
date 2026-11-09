@@ -16,7 +16,7 @@ const preview: PromoPreview = {
   discount_kind: "percent",
   discount_value: 10,
   eligible_ticket_type_ids: ["t1"],
-  valid_until: null,
+  valid_until: "2099-11-01T00:00:00Z",
 };
 
 describe("promo codes", () => {
@@ -52,12 +52,13 @@ describe("promo codes", () => {
   it("estimates discounts only for eligible types", () => {
     expect(promoDiscountFor(preview, "t1", 500000)).toBe(50000);
     expect(promoDiscountFor(preview, "t2", 500000)).toBe(0);
-    expect(promoDiscountFor({ ...preview, discount_kind: "fixed", discount_value: 900000 }, "t1", 500000)).toBe(500000);
+    expect(promoDiscountFor({ ...preview, discount_kind: "fixed", discount_value: 900000 }, "t1", 500000)).toBe(0);
     expect(promoDiscountFor(null, "t1", 500000)).toBe(0);
   });
 
   it("summarises an accepted code", () => {
     expect(promoSummary(preview)).toBe("SPRING: 10% off eligible tickets");
+    expect(promoSummary({ ...preview, discount_kind: "fixed", discount_value: 100000 })).toContain("(once per order)");
     expect(promoSummary({ ...preview, eligible_ticket_type_ids: [] })).toBe("SPRING: 10% off every ticket");
   });
 });
