@@ -85,7 +85,8 @@ recomputing the hash. Rotating `CHALLENGE_SECRET` invalidates every issued QR co
 `fulfillment_payment_attempt_id` and `pdf_file_id` are nullable columns without foreign keys until
 the payment and file-storage tables exist.
 
-## Not yet implemented
+## Related guides
 
-Promo codes, PDF tickets and organizer cancellation of registrations. Paid checkout is described
-in [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md).
+Paid checkout is described in [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md), promo codes and the
+hold's `pricing` and `promo` fields in [CAMPAIGNS_API.md](CAMPAIGNS_API.md), and cancellation in
+[REFUNDS_API.md](REFUNDS_API.md).

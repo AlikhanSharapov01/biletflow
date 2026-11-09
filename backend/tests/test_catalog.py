@@ -450,11 +450,6 @@ def test_allocated_capacity_and_cancellation_guards(client, setup, factory):
         ).status_code
         == 409
     )
-    with factory.begin() as db:
-        db.get(Allocation, allocation).state = "sold"
-    assert client.post(API + f"/events/{eid}/cancel", headers=headers).status_code == 409
-    with factory.begin() as db:
-        db.get(Allocation, allocation).state = "held"
     assert client.post(API + f"/events/{eid}/cancel", headers=headers).status_code == 200
     with factory() as db:
         assert db.get(Allocation, allocation).state == "released"

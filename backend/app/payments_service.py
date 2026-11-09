@@ -358,6 +358,10 @@ def apply_refund_result(db, event, inbox):
         if refund.status != "succeeded":
             refund.status, refund.succeeded_at = "succeeded", now()
             audit(db, event, "payments.refund_succeeded", refund)
+            # Imported here so this boundary never imports the modules that build on it.
+            from .refund_service import refund_succeeded
+
+            refund_succeeded(db, event, refund)
     elif outcome == "failed":
         if attempt.status not in ("succeeded", "failed"):
             attempt.status, attempt.resolved_at = "failed", now()

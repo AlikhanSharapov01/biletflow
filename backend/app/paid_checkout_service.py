@@ -8,6 +8,13 @@ wrong-amount charges never issue tickets; they become refund obligations.
 from sqlalchemy import select
 
 from .activation_service import paid_sales_status
+from .campaign_service import (
+    active_reservation,
+    redeem,
+    release_reservation,
+    revalidate,
+    still_enabled,
+)
 from .catalog_models import Allocation, Hold, Organization
 from .catalog_service import catalog_audit
 from .checkout_expiry import close_expired
@@ -16,7 +23,6 @@ from .checkout_service import (
     add_items,
     confirm_free,
     held_allocations,
-    is_paid,
     issue_tickets,
     locked_hold,
     matched_recipients,
@@ -27,6 +33,7 @@ from .checkout_service import (
 )
 from .commerce_models import PaymentIntent
 from .models import User
+from .notification_service import enqueue_order_notice
 from .payments_service import (
     ENVIRONMENT,
     TARGETS,
@@ -35,31 +42,8 @@ from .payments_service import (
     latest_attempt,
     new_attempt,
 )
+from .pricing import PROCESSING_RATE_BPS, quote
 from .security import fail, now
-
-# Proposed demonstration default (3%), saved on every order; not a provider tariff.
-PROCESSING_RATE_BPS = 300
-
-
-def quote(types, allocations, data, rate_bps=PROCESSING_RATE_BPS):
-    """Integer KZT minor units. Returns totals and (face, fee) per recipient, in order.
-
-    The processing fee is rounded half-up once for the order, then split across items in
-    proportion to price with the remainder going to the largest fractional shares, so the
-    item fees always add up exactly to the order fee.
-    """
-    by_id = {row.id: row for row in allocations}
-    faces = [types[by_id[r.allocation_id].ticket_type_id].price_minor for r in data.recipients]
-    gross = sum(faces)
-    fee = (gross * rate_bps + 5000) // 10000
-    if gross == 0:
-        return {"gross": 0, "fee": 0}, [(face, 0) for face in faces]
-    shares = [face * fee for face in faces]
-    fees = [share // gross for share in shares]
-    leftover = fee - sum(fees)
-    for index in sorted(range(len(faces)), key=lambda i: (-(shares[i] % gross), i))[:leftover]:
-        fees[index] += 1
-    return {"gross": gross, "fee": fee}, list(zip(faces, fees, strict=True))
 
 
 def start_checkout(db, settings, user, hold_id, data):
@@ -75,11 +59,15 @@ def start_checkout(db, settings, user, hold_id, data):
     allocations = held_allocations(db, hold)
     matched_recipients(data, allocations)
     saleable_types(db, event, types)
-    if not any(is_paid(ticket) for ticket in types.values()):
+    reservation = active_reservation(db, hold.id)
+    if reservation:
+        revalidate(db, reservation)
+    snapshot = reservation.discount_snapshot if reservation else None
+    totals, prices = quote(types, allocations, data, snapshot=snapshot)
+    if totals["subtotal"] == 0:
         # A zero-total basket needs no payment (TX-07 hands it straight to TX-08).
         return confirm_free(db, settings, user, hold_id, data)
-    totals, prices = quote(types, allocations, data)
-    order = new_order(db, event, hold, user, "pending", totals, PROCESSING_RATE_BPS)
+    order = new_order(db, event, hold, user, "pending", totals, PROCESSING_RATE_BPS, reservation)
     add_items(db, event, hold, order, data, allocations, types, prices)
     intent = PaymentIntent(
         event_id=event.id,
@@ -115,6 +103,11 @@ def retry_payment(db, user, order_id):
         fail("quote_expired", 409)
     saleable_event(event)
     saleable_types(db, event, types)
+    if order.campaign_id:
+        reservation = active_reservation(db, hold.id)
+        if not reservation:
+            fail("promo_requote_required", 409)
+        revalidate(db, reservation)
     intent = db.scalar(
         select(PaymentIntent).where(PaymentIntent.order_id == order.id).with_for_update()
     )
@@ -157,10 +150,12 @@ def order_paid(db, settings, event, order, intent, attempt, matches):
             create_refund(db, event, attempt, "duplicate_charge")
         return
     if not matches:
+        release_reservation(db, order.hold_id)
         create_refund(db, event, attempt, "blocked_fulfillment")
         return
     hold = db.get(Hold, order.hold_id)
     if order.status != "pending" or hold.status != "active" or hold.expires_at <= now():
+        release_reservation(db, order.hold_id)
         create_refund(db, event, attempt, "late_payment")
         return
     allocations = list(
@@ -173,21 +168,32 @@ def order_paid(db, settings, event, order, intent, attempt, matches):
         )
     )
     if not allocations or any(row.state != "held" for row in allocations):
+        release_reservation(db, order.hold_id)
         create_refund(db, event, attempt, "late_payment")
         return
-    if not on_sale(event) or paid_sales_status(db, event.id) != "active":
+    reservation = active_reservation(db, hold.id) if order.campaign_id else None
+    if (
+        not on_sale(event)
+        or paid_sales_status(db, event.id) != "active"
+        or (order.campaign_id and not still_enabled(db, reservation))
+    ):
+        release_reservation(db, order.hold_id)
         create_refund(db, event, attempt, "blocked_fulfillment")
         return
     order.status = "confirmed"
     order.confirmed_at = now()
     order.fulfillment_payment_attempt_id = attempt.id
     issue_tickets(db, settings, event, order, db.get(User, order.buyer_user_id))
+    if reservation:
+        redeem(db, order, reservation)
     audit(db, event, "checkout.order_paid", order, {"payable_minor": order.payable_minor})
+    enqueue_order_notice(db, "purchase_confirmed", order, order.id)
 
 
 def order_payment_failed(db, order, intent, attempt):
     # The order stays pending while its quote lasts, so the buyer can retry payment.
-    return
+    if order.status == "pending":
+        enqueue_order_notice(db, "payment_failed", order, attempt.id)
 
 
 TARGETS["ticket_order"] = (lock_order, order_paid, order_payment_failed)

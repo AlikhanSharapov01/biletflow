@@ -7,6 +7,7 @@ SQLAlchemy can resolve cross-module foreign keys.
 from . import (  # noqa: F401
     admin_models,
     admission_models,
+    campaign_models,
     catalog_models,
     checkout_models,
     commerce_models,

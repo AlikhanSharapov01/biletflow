@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import AwareDatetime
-from sqlalchemy import exists, func, select, update
+from sqlalchemy import exists, func, select
 
 from . import catalog_schemas as s
 from .catalog_models import (
@@ -12,7 +12,6 @@ from .catalog_models import (
     Event,
     EventSeat,
     EventStaff,
-    Hold,
     Layout,
     Member,
     Organization,
@@ -38,6 +37,7 @@ from .catalog_service import (
 )
 from .models import AuditLog, User
 from .notification_service import enqueue_event_notice
+from .refund_service import settle_event_cancellation
 from .security import decode_access, fail, now
 from .service import valid_session
 
@@ -384,28 +384,9 @@ def router(factory, settings, principal):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
             event = event_guard(db, user, event_id, "event_edit", lock=True)
-            # Commerce cancellation must invalidate tickets and enqueue refunds atomically.
-            # Until that module exists, never silently cancel sold/quarantined inventory.
-            if db.scalar(
-                select(Allocation.id)
-                .where(
-                    Allocation.event_id == event.id,
-                    Allocation.state.in_(["sold", "refund_quarantine"]),
-                )
-                .limit(1)
-            ):
-                fail("commerce_cancellation_required", 409)
             if event.publication_state != "cancelled":
-                db.execute(
-                    update(Allocation)
-                    .where(Allocation.event_id == event.id, Allocation.state == "held")
-                    .values(state="released", released_at=now(), release_reason="abandoned")
-                )
-                db.execute(
-                    update(Hold)
-                    .where(Hold.event_id == event.id, Hold.status == "active")
-                    .values(status="released", closed_at=now())
-                )
+                # Holds, tickets and refunds change in the same commit as the cancellation.
+                settle_event_cancellation(db, user, event)
                 event.publication_state = "cancelled"
                 event.calendar_sequence += 1
                 changed(event)

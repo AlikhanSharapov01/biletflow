@@ -2,10 +2,13 @@
 
 Run from backend/:  uv run python ../tools/smoke_paid_checkout.py
 
-organizer activates paid sales (simulated KZT 5,000 fee) -> buyer holds a paid ticket ->
-quote and pending order -> first payment fails, retry succeeds -> ticket issued and admitted
-by the scanner -> the provider later reports the failed attempt as captured -> the worker
-dispatches the compensation refund -> refund confirmed. Nothing here moves real money.
+organizer activates paid sales (simulated KZT 5,000 fee) and creates a 10% campaign -> the
+campaign link resolves and is rejected by the scanner -> buyer holds a paid ticket with the promo
+code -> discounted quote and pending order -> first payment fails, retry succeeds -> ticket issued
+and admitted by the scanner -> the provider later reports the failed attempt as captured -> the
+worker dispatches the compensation refund -> refund confirmed -> campaign report reconciles ->
+a second buyer is refunded in full by the organizer and the stock returns.
+Nothing here moves real money.
 """
 
 import re
@@ -171,16 +174,79 @@ assert (
 )
 print("      paid sales active")
 
-buyer_email, buyer = account("buyer")
-hold = step(
-    "hold 1 paid ticket",
+campaign = step(
+    "create 10% campaign",
     c.post(
-        f"{API}/events/{event['id']}/holds",
-        headers=buyer,
-        json={"items": [{"ticket_type_id": paid["id"], "quantity": 1}]},
+        f"{API}/events/{event['id']}/campaigns",
+        headers=owner,
+        json={
+            "name": "Smoke 10%",
+            "discount_kind": "percent",
+            "value": 10,
+            "starts_at": iso(t - timedelta(hours=1)),
+            "ends_at": iso(t + timedelta(hours=1)),
+            "max_redemptions": 10,
+            "eligible_ticket_type_ids": [],
+            "code": "SMOKE10",
+        },
     ),
     201,
 )
+narrow = {
+    "name": "Smoke narrow",
+    "discount_kind": "fixed",
+    "value": 10000,
+    "starts_at": iso(t - timedelta(hours=1)),
+    "ends_at": iso(t + timedelta(hours=1)),
+    "max_redemptions": None,
+    "eligible_ticket_type_ids": [paid["id"]],
+    "code": "SMOKENARROW",
+}
+limited = step(
+    "create campaign limited to one ticket type",
+    c.post(f"{API}/events/{event['id']}/campaigns", headers=owner, json=narrow),
+    201,
+)
+widened = step(
+    "widen it (the application role removes the eligibility row)",
+    c.put(
+        f"{API}/events/{event['id']}/campaigns/{limited['id']}",
+        headers=owner,
+        json=narrow | {"eligible_ticket_type_ids": []},
+    ),
+)
+assert widened["eligible_ticket_type_ids"] == []
+token = campaign["link_url"].rsplit("/", 1)[1]
+link = step("campaign link resolves", c.get(f"{API}/campaign-links/{token}"))
+assert link == {"event_id": event["id"], "code": "SMOKE10"}
+qr = c.get(f"{API}/events/{event['id']}/campaigns/{campaign['id']}/qr.svg", headers=owner)
+assert qr.status_code == 200 and "not an entry ticket" in qr.text
+print("      campaign QR is captioned as a promo link")
+step(
+    "scanner rejects the campaign link",
+    c.post(
+        f"{API}/scanner/events/{event['id']}/check-ins",
+        headers=owner,
+        json={"qr_payload": campaign["link_url"]},
+    ),
+    422,
+)
+step("promo preview", c.get(f"{API}/events/{event['id']}/promo-codes/smoke10/preview"))
+
+buyer_email, buyer = account("buyer")
+hold = step(
+    "hold 1 paid ticket with the promo code",
+    c.post(
+        f"{API}/events/{event['id']}/holds",
+        headers=buyer,
+        json={
+            "items": [{"ticket_type_id": paid["id"], "quantity": 1}],
+            "promo_code": "SMOKE10",
+        },
+    ),
+    201,
+)
+assert hold["pricing"]["discount"] == 40000 and hold["pricing"]["payable"] == 360000
 order = step(
     "checkout (quote)",
     c.post(
@@ -200,6 +266,7 @@ order = step(
 print(
     f"      status={order['status']} payable={order['payable_minor']} fee={order['processing_fee_minor']}"
 )
+assert order["payable_minor"] == 360000 and order["promo"]["code"] == "SMOKE10"
 first = order["payment"]["id"]
 step(
     "first payment fails",
@@ -282,4 +349,74 @@ assert (
     and final["items"][0]["ticket"]["status"] == "checked_in"
 )
 print("      legitimate ticket untouched by the compensation refund")
+report = step(
+    "campaign report",
+    c.get(f"{API}/events/{event['id']}/campaigns/{campaign['id']}/report", headers=owner),
+)
+assert report["redemptions"] == 1 and report["discount_minor"] == 40000
+assert report["collected_minor"] == 360000 and report["net_minor"] == 349200
+print(f"      redemptions=1 collected={report['collected_minor']} net={report['net_minor']}")
+
+second_email, second = account("second")
+held = step(
+    "second buyer holds a ticket",
+    c.post(
+        f"{API}/events/{event['id']}/holds",
+        headers=second,
+        json={"items": [{"ticket_type_id": paid["id"], "quantity": 1}]},
+    ),
+    201,
+)
+sold = step(
+    "second buyer checks out",
+    c.post(
+        f"{API}/holds/{held['id']}/checkout",
+        headers=second,
+        json={
+            "recipients": [
+                {
+                    "allocation_id": held["allocations"][0]["id"],
+                    "name": "Second Buyer",
+                    "email": second_email,
+                }
+            ]
+        },
+    ),
+)
+step(
+    "second buyer pays",
+    c.post(
+        f"{API}/simulator/payments/{sold['payment']['id']}/events",
+        headers=second,
+        json={"outcome": "succeeded"},
+    ),
+)
+started = step(
+    "organizer refunds the order",
+    c.post(f"{API}/orders/{sold['id']}/refunds", headers=owner, json={"reason": "Smoke test"}),
+)
+assert started["status"] == "refund_pending"
+pending = until(
+    "worker dispatched the organizer refund",
+    lambda: next(
+        iter(
+            r
+            for r in c.get(f"{API}/orders/{sold['id']}", headers=second).json()["refunds"]
+            if r["latest_attempt_id"]
+        ),
+        None,
+    ),
+)
+step(
+    "simulated refund succeeds",
+    c.post(
+        f"{API}/simulator/refunds/{pending['latest_attempt_id']}/events",
+        headers=second,
+        json={"outcome": "succeeded"},
+    ),
+)
+refunded = c.get(f"{API}/orders/{sold['id']}", headers=second).json()
+assert refunded["status"] == "refunded"
+assert refunded["items"][0]["ticket"]["status"] == "refunded"
+print("      order refunded and its ticket invalidated")
 print("SMOKE PASSED")
