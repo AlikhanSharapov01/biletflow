@@ -512,6 +512,7 @@ def create_app(settings: Settings | None = None):
     from .campaign_api import router as campaign_router
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
+    from .finance_api import router as finance_router
     from .notification_api import router as notification_router
     from .offline_api import router as offline_router
     from .organization_api import router as organization_router
@@ -529,6 +530,7 @@ def create_app(settings: Settings | None = None):
     app.include_router(admission_router(factory, settings, principal))
     app.include_router(admission_history_router(factory, settings, principal))
     app.include_router(analytics_router(factory, settings, principal))
+    app.include_router(finance_router(factory, settings, principal))
     app.include_router(calendar_router(factory, settings, principal))
     app.include_router(notification_router(factory, settings, principal))
     app.include_router(admin_router(factory, settings, principal))

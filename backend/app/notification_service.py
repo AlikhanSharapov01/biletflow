@@ -13,6 +13,7 @@ from email.message import EmailMessage
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
@@ -32,6 +33,7 @@ LEASE_SECONDS = 120
 # ticket_delivery_email job and must not be duplicated. The support kinds are in-app only for
 # the same reason: the support worker already emails a link (support_email).
 CHANNELS = {
+    "payout_status": ("in_app", "email"),
     "event_updated": ("in_app", "email"),
     "event_cancelled": ("in_app", "email"),
     "ticket_delivered": ("in_app",),
@@ -192,6 +194,39 @@ TEMPLATES = {
 }
 
 
+TEMPLATES["payout_status"] = {
+    "en": ("Simulated payout: {status}", "Simulated payout: {status}. No real money moved. {link}"),
+    "ru": (
+        "Учебная выплата: {status}",
+        "Учебная выплата: {status}. Реальные деньги не переводились. {link}",
+    ),
+    "kk": ("Оқу төлемі: {status}", "Оқу төлемі: {status}. Нақты ақша аударылған жоқ. {link}"),
+}
+PAYOUT_STATUSES = {
+    "en": {
+        "pending": "pending",
+        "eligible": "eligible",
+        "sent": "sent",
+        "failed": "failed",
+        "adjusted": "adjusted",
+    },
+    "ru": {
+        "pending": "ожидает",
+        "eligible": "доступна",
+        "sent": "отправлена",
+        "failed": "ошибка",
+        "adjusted": "скорректирована",
+    },
+    "kk": {
+        "pending": "күтуде",
+        "eligible": "қолжетімді",
+        "sent": "жіберілді",
+        "failed": "қате",
+        "adjusted": "түзетілді",
+    },
+}
+
+
 def resolve_locale(value):
     """User locale when supported, otherwise the documented fallback (ru)."""
     return value if value in LOCALES else FALLBACK_LOCALE
@@ -226,6 +261,7 @@ def render(settings, kind, locale, payload):
         when = datetime.fromisoformat(payload["starts_at"]).astimezone(ZoneInfo(zone_name))
         when = f"{when:%d.%m.%Y %H:%M}"
     values = {
+        "status": PAYOUT_STATUSES[resolve_locale(locale)].get(payload.get("status"), ""),
         "title": payload.get("title", ""),
         "when": when,
         "zone": zone_name,
@@ -408,6 +444,26 @@ def expand(db, payload):
                 create_notification(
                     db, user, notice, f"{notice}:{event.id}:{sequence}", event.id, data
                 )
+    elif notice == "payout_status":
+        from .activation_service import finance_event
+
+        user = db.get(User, UUID(payload["recipient_user_id"]))
+        if not user or user.status != "active":
+            return
+        try:
+            _, event = finance_event(db, user, UUID(payload["event_id"]))
+        except HTTPException:
+            return
+        create_notification(
+            db,
+            user,
+            notice,
+            f"payout:{payload['payout_id']}:{payload['status']}:{payload['change_id']}",
+            event.id,
+            event_payload(
+                event, payout_id=payload["payout_id"], status=payload["status"], simulated=True
+            ),
+        )
     elif notice == "ticket_delivered":
         ticket = db.get(Ticket, UUID(payload["ticket_id"]))
         user = (
