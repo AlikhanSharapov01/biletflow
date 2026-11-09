@@ -83,6 +83,8 @@ export function makeHold(overrides: Partial<Hold> = {}): Hold {
     expires_at: new Date(Date.now() + 600_000).toISOString(),
     created_at: "2026-10-26T12:00:00Z",
     allocations: [makeAllocation()],
+    pricing: { gross: 0, discount: 0, subtotal: 0, processing_fee: 0, payable: 0, lines: [] },
+    promo: null,
     ...overrides,
   };
 }
@@ -131,7 +133,10 @@ export function makeOrder(overrides: Partial<Order> = {}): Order {
     confirmed_at: "2026-10-26T12:05:00Z",
     created_at: "2026-10-26T12:00:00Z",
     items: [],
+    quote_expires_at: new Date(Date.now() + 600_000).toISOString(),
+    refunds: [],
     payment: null,
+    promo: null,
     ...overrides,
   };
 }

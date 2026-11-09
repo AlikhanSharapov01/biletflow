@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { unreadNotificationCount } from "../../../api/notifications";
@@ -6,6 +7,7 @@ import { NOTIFICATIONS_CHANGED, unreadBadgeLabel } from "../notificationTarget";
 const REFRESH_MS = 60_000;
 
 function BellIcon() {
+  useLocale();
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -18,6 +20,7 @@ function BellIcon() {
 // minute while the tab is visible, and when the inbox marks items read.
 // Render it only for signed-in users.
 export function NotificationBell() {
+  useLocale();
   const { pathname } = useLocation();
   const [unread, setUnread] = useState(0);
 
@@ -42,7 +45,7 @@ export function NotificationBell() {
     };
   }, [pathname]);
 
-  const label = unread > 0 ? `Notifications, ${unread} unread` : "Notifications";
+  const label = unread > 0 ? t("notifications.unread_count", { p0: unread }) : t("nav.notifications");
   return (
     <Link className="icon-button notification-bell" to="/notifications" aria-label={label}>
       <BellIcon />

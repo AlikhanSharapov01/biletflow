@@ -7,6 +7,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue>({ notify: () => undefined });
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -24,7 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div className={`toast ${visible ? "visible" : ""}`} role="status" aria-live="polite">
-        {message}
+        {translate(message)}
       </div>
     </ToastContext.Provider>
   );
@@ -33,3 +34,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast(): ToastContextValue {
   return useContext(ToastContext);
 }
+import { translate, useLocale } from "../../i18n";

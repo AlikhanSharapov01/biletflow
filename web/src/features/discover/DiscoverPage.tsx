@@ -1,3 +1,4 @@
+import { categoryName, t, useLocale } from "../../i18n";
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import { listCategories, listEvents, listVenues } from "../../api/catalog";
@@ -7,6 +8,7 @@ import { dateLabel } from "../../utils/format";
 import { DiscoverFilters } from "./components/DiscoverFilters";
 
 export function DiscoverPage() {
+  useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const categoryId = searchParams.get("category") ?? "";
@@ -39,36 +41,34 @@ export function DiscoverPage() {
   return (
     <>
       <PageHeading
-        eyebrow="Your city, in good company"
-        title="Find your next moment."
-        subtitle="Discover what’s happening around you, from the people bringing it to life."
+        eyebrow={t("discover.eyebrow")}
+        title={t("discover.title")}
+        subtitle={t("discover.subtitle")}
       />
       <DiscoverFilters q={q} categoryId={categoryId} categories={page.data?.categories ?? []} onSearch={search} />
-      {page.loading ? <Loading label="Loading events…" /> : null}
-      {page.error ? <ErrorPanel title="We couldn’t load events." message={page.error} onRetry={page.reload} /> : null}
+      {page.loading ? <Loading label={t("discover.loading")} /> : null}
+      {page.error ? <ErrorPanel title={t("discover.load_error")} message={page.error} onRetry={page.reload} /> : null}
       {page.data ? (
         <div className="event-grid">
           {page.data.events.length === 0 ? (
-            <EmptyState wide>No events match those filters yet. Try another search or check back soon.</EmptyState>
+            <EmptyState wide>{t("discover.empty")}</EmptyState>
           ) : (
             page.data.events.map((event, index) => {
               const venue = lookups.venues.get(event.venue_id);
-              const categoryName = lookups.categories.get(event.category_id)?.name_en ?? "Community";
+              const categoryLabel = categoryName(lookups.categories.get(event.category_id));
               const path = `/events/${encodeURIComponent(event.id)}`;
               return (
                 <EventCard
                   key={event.id}
-                  art={{ index, letter: categoryName.slice(0, 1) }}
-                  eyebrow={categoryName}
+                  art={{ index, letter: categoryLabel.slice(0, 1) }}
+                  eyebrow={categoryLabel}
                   title={event.title}
                   to={path}
-                  meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : "Venue details unavailable"}`}
+                  meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
                   footer={
                     <>
-                      <span className="price">{event.time_status === "completed" ? "Completed" : "Tickets available"}</span>
-                      <Link className="text-button" to={path}>
-                        View event →
-                      </Link>
+                      <span className="price">{event.time_status === "completed" ? t("common.completed") : t("discover.tickets_available")}</span>
+                      <Link className="text-button" to={path}>{t("discover.view_event")}{" "}</Link>
                     </>
                   }
                 />

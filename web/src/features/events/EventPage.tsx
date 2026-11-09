@@ -1,3 +1,4 @@
+import { categoryName, t, useLocale } from "../../i18n";
 import { useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "../../api/catalog";
 import { ErrorPanel, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
@@ -12,6 +13,7 @@ import { EventFacts } from "./components/EventFacts";
 import { ReportEventForm } from "./components/ReportEventForm";
 
 export function EventPage() {
+  useLocale();
   const { eventId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const { status } = useAuth();
@@ -34,9 +36,9 @@ export function EventPage() {
     [eventId],
   );
 
-  if (page.loading) return <Loading label="Loading event details…" />;
+  if (page.loading) return <Loading label={t("event.loading")} />;
   if (page.error || !page.data) {
-    return <ErrorPanel title="We couldn’t load this event." message={page.error ?? "Unknown error"} onRetry={page.reload} />;
+    return <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />;
   }
 
   const { event, tickets, category, venue } = page.data;
@@ -44,23 +46,23 @@ export function EventPage() {
   return (
     <>
       <PageHeading
-        back={{ to: "/discover", label: "Back to events" }}
-        eyebrow={category?.name_en ?? "Event"}
+        back={{ to: "/discover", label: t("event.back") }}
+        eyebrow={categoryName(category ?? undefined)}
         title={event.title}
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
-        actions={<StatusPill tone={publicationTone(event.publication_state)}>{{ draft: "Draft", published: "Published", unpublished: "Unpublished", cancelled: "Cancelled" }[event.publication_state]}</StatusPill>}
+        actions={<StatusPill tone={publicationTone(event.publication_state)}>{{ draft: t("common.draft"), published: t("common.published"), unpublished: t("common.unpublished"), cancelled: t("common.cancelled") }[event.publication_state]}</StatusPill>}
       />
       <div className="content-grid">
         <Panel>
-          <PanelHeading title="About this event" />
-          <p className="event-description">{event.description || "More details will be shared by the organizer."}</p>
+          <PanelHeading title={t("event.about")} />
+          <p className="event-description">{event.description || t("event.more_details")}</p>
           <div className="checkout-heading">
-            <PanelHeading title="Tickets" />
+            <PanelHeading title={t("common.tickets")} />
           </div>
-          <CheckoutPanel event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
+          <CheckoutPanel key={event.id} event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
         </Panel>
         <Panel as="aside">
-          <PanelHeading title="Details" />
+          <PanelHeading title={t("common.details")} />
           <EventFacts event={event} venue={venue} />
           <CalendarLinks key={status} eventId={event.id} />
           {status === "authenticated" ? <ReportEventForm eventId={event.id} /> : null}

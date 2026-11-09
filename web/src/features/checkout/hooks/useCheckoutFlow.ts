@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { confirmHold, createHold, releaseHold, startCheckout } from "../../../api/checkout";
@@ -18,7 +19,9 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const secondsLeft = useCountdown(hold?.expires_at ?? null);
-  const paid = hold ? basketIsPaid(hold.allocations, tickets) : false;
+  // A paid ticket discounted to zero must use free confirmation. The server's
+  // saved pricing is authoritative; the fallback supports an older demo stack.
+  const paid = hold ? (hold.pricing ? hold.pricing.payable > 0 : basketIsPaid(hold.allocations, tickets)) : false;
 
   const reset = useCallback((note = "") => {
     setHold(null);
@@ -27,13 +30,13 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   }, []);
 
   useEffect(() => {
-    if (hold && secondsLeft === 0) reset("Your reservation expired. Choose your tickets again.");
+    if (hold && secondsLeft === 0) reset(t("checkout.expired"));
   }, [hold, secondsLeft, reset]);
 
   const reserve = async (lines: HoldLine[]) => {
     if (!profile) return;
     if (lines.length === 0) {
-      setMessage("Choose at least one ticket.");
+      setMessage(t("checkout.choose_ticket"));
       return;
     }
     setBusy(true);
@@ -56,7 +59,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
 
   const finished = useCallback(
     (confirmed: Order) => {
-      notify(confirmed.payment ? "Payment received. Your tickets are ready." : "Registration confirmed. Your tickets are ready.");
+      notify(confirmed.payment ? t("checkout.payment_received") : t("checkout.registration_confirmed"));
       navigate(`/orders/${encodeURIComponent(confirmed.id)}`);
     },
     [navigate, notify],
@@ -65,7 +68,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   const confirm = async () => {
     if (!hold) return;
     if (!recipientsComplete(hold.allocations, recipients)) {
-      setMessage("Enter a name and a valid email for every ticket.");
+      setMessage(t("checkout.recipients_required"));
       return;
     }
     setBusy(true);

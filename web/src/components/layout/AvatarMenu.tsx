@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import type { Profile } from "../../api/types";
@@ -12,6 +13,7 @@ interface AvatarMenuProps {
 // <details> keeps it keyboard-operable; it closes on navigation, outside
 // clicks and Escape.
 export function AvatarMenu({ profile, onSignOut }: AvatarMenuProps) {
+  useLocale();
   const menu = useRef<HTMLDetailsElement>(null);
   const { pathname } = useLocation();
   const name = profile.display_name;
@@ -41,7 +43,7 @@ export function AvatarMenu({ profile, onSignOut }: AvatarMenuProps) {
 
   return (
     <details className="avatar-menu" ref={menu}>
-      <summary aria-label={`Account menu for ${name}`}>
+      <summary aria-label={t("nav.account_menu", { p0: name })}>
         <Avatar name={name} />
       </summary>
       <div className="avatar-menu-panel">
@@ -49,12 +51,8 @@ export function AvatarMenu({ profile, onSignOut }: AvatarMenuProps) {
           <strong>{name}</strong>
           <span>{profile.email}</span>
         </div>
-        <Link className="avatar-menu-item" to="/account">
-          Account
-        </Link>
-        <button className="avatar-menu-item" type="button" onClick={onSignOut}>
-          Sign out
-        </button>
+        <Link className="avatar-menu-item" to="/account">{t("nav.account")}</Link>
+        <button className="avatar-menu-item" type="button" onClick={onSignOut}>{t("auth.sign_out")}</button>
       </div>
     </details>
   );

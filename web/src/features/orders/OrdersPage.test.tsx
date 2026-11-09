@@ -81,7 +81,7 @@ describe("OrdersPage", () => {
     const paid = within(cards[1]!);
     // A pending order has no issued ticket yet, so the title falls back.
     expect(paid.getByRole("link", { name: "Event" }).getAttribute("href")).toBe("/orders/paid%2F2");
-    expect(paid.getByText(/^2 tickets · ₸10000\.00 · placed /)).toBeTruthy();
+    expect(paid.getByText(/^2 tickets · ₸10,000\.00 · placed /)).toBeTruthy();
     expect(paid.getByText("Payment failed")).toBeTruthy();
     expect(paid.getByText("pending").className).toBe("status pending");
     expect(paid.getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/orders/paid%2F2");

@@ -1,23 +1,23 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { createCampaign, listCampaigns } from "../../../api/campaigns";
 import { listTicketTypes } from "../../../api/catalog";
 import { describeError } from "../../../api/errors";
 import type { EventView } from "../../../api/types";
 import type { CampaignInput } from "../../../api/types/campaigns";
-import { EmptyState, ErrorPanel, Loading, NotAvailableYet, Panel, PanelHeading, StatusPill, useToast } from "../../../components/ui";
+import { EmptyState, ErrorPanel, Loading, Panel, PanelHeading, StatusPill, useToast } from "../../../components/ui";
 import { useRequest } from "../../../hooks/useRequest";
-import { orPlanned } from "../utils/planned";
 import { CampaignForm } from "./campaigns/CampaignForm";
 import { CampaignRow } from "./campaigns/CampaignRow";
 
-// Promo campaigns on the PLANNED contract (plan section 3). Until the backend
-// serves them, the create form stays visible but disabled.
+// Confirmed contract: backend/CAMPAIGNS_API.md.
 export function CampaignsTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState({ busy: false, message: "" });
   const page = useRequest(
     async () => {
-      const [campaigns, types] = await Promise.all([orPlanned(() => listCampaigns(event.id)), listTicketTypes(event.id)]);
+      const [campaigns, types] = await Promise.all([listCampaigns(event.id), listTicketTypes(event.id)]);
       return { campaigns, types };
     },
     [event.id],
@@ -27,45 +27,43 @@ export function CampaignsTab({ event }: { event: EventView }) {
     setState({ busy: true, message: "" });
     try {
       await createCampaign(event.id, input);
-      notify("Campaign created.");
+      notify(t("org.campaign_created"));
       setState({ busy: false, message: "" });
       page.reload();
+      return true;
     } catch (failure) {
       setState({ busy: false, message: describeError(failure) });
+      return false;
     }
   };
 
-  if (page.loading && !page.data) return <Loading label="Loading campaigns…" />;
-  if (page.error || !page.data) return <ErrorPanel title="We couldn’t load campaigns." message={page.error ?? ""} onRetry={page.reload} />;
+  if (page.loading && !page.data) return <Loading label={t("org.campaign_loading")} />;
+  if (page.error || !page.data) return <ErrorPanel title={t("org.campaign_error")} message={page.error ?? ""} onRetry={page.reload} />;
   const { campaigns, types } = page.data;
-  const planned = campaigns.planned;
 
   return (
     <div className="stack">
       <Panel>
         <PanelHeading
-          title="Promo campaigns"
-          subtitle="Discount links and codes for this event. A campaign QR opens the promo link; it never admits anyone."
-          trailing={!planned ? <StatusPill tone="neutral">{campaigns.value.length} campaigns</StatusPill> : null}
+          title={t("org.campaign_heading")}
+          subtitle={t("org.campaign_hint")}
+          trailing={<StatusPill tone="neutral">{campaigns.length}{" "}{t("word.campaigns")}</StatusPill>}
         />
-        {planned ? (
-          <NotAvailableYet feature="Promo campaigns" />
-        ) : campaigns.value.length === 0 ? (
-          <EmptyState>No campaigns yet. Create one below.</EmptyState>
+        {campaigns.length === 0 ? (
+          <EmptyState>{t("org.no_campaigns")}</EmptyState>
         ) : (
           <div className="list">
-            {campaigns.value.map((campaign) => (
+            {campaigns.map((campaign) => (
               <CampaignRow key={campaign.id} eventId={event.id} campaign={campaign} types={types} onChanged={page.reload} />
             ))}
           </div>
         )}
       </Panel>
       <Panel>
-        <PanelHeading title="Create a campaign" subtitle="Percent or fixed KZT discount, a time window, an optional redemption limit and code." />
+        <PanelHeading title={t("org.create_campaign_heading")} subtitle={t("org.campaign_form_hint")} />
         <CampaignForm
           types={types}
-          submitLabel="Create campaign"
-          disabled={planned}
+          submitLabel={t("org.create_campaign")}
           busy={state.busy}
           message={state.message}
           onSubmit={create}

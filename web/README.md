@@ -27,11 +27,15 @@ as the mobile app (shared colours, type scale and components).
   tickets (QR, PDF, delivery, entry confirmation), orders, calendar export, event reports,
   support, notifications, organizer workspace and event management, check-in history, paid-sales
   activation, seating setup and the platform admin portal.
-- **Five areas are built against planned APIs** and show a "Not available yet" state until the
-  backend ships them: promo campaigns and codes, analytics, finance, refund/cancellation actions
-  and event image upload.
-- **Missing:** Kazakh and Russian interface text, an accessibility pass, end-to-end tests and
-  page-level tests for most pages.
+- **Campaigns, promo checkout and refunds** now follow the merged backend contracts, including
+  server pricing, zero-total checkout, campaign reports and refund support-case links.
+- **Three areas still need backend endpoints:** analytics, finance and event image upload.
+- **Kazakh, Russian and English** interface catalogs, profile language selection and localized
+  dates, money, categories, statuses and notifications are implemented. The shared mobile handoff
+  is [translations/core.tsv](translations/core.tsv).
+- **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
+  and native modal action dialogs. Browser/screen-reader acceptance and live Docker verification
+  remain outstanding; see the checklists below.
 
 ---
 
@@ -151,22 +155,19 @@ The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitati
 
 ## Screens waiting for the backend
 
-These screens are finished on the web side and call the endpoints below. Until the backend
-implements them they show "Not available yet". **The request/response shapes were designed on
-the web side and must be confirmed (or adjusted) when the backend is built.**
+These three screens still use planned contracts and show "Not available yet" until their
+endpoints exist. Their shapes must be confirmed when the backend is implemented. The fetched
+`origin/main` at `eec9a75` contains campaigns and refunds, but no `ANALYTICS_API.md`, final finance
+contract or event-image upload route. See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md).
 
 | Screen | Endpoints it calls |
 |---|---|
-| Promo code at checkout | `GET /events/{id}/promo-codes/{code}/preview`; `promo_code` in the hold request |
-| Campaign QR link | `GET /campaign-links/{token}` → `{event_id, code}` |
-| Organizer *Campaigns* tab | `GET/POST /events/{id}/campaigns`, `PUT …/{cid}`, `POST …/{cid}/disable`, `GET …/{cid}/qr.svg`, `GET …/{cid}/report` |
 | Organizer *Analytics* tab | `GET /events/{id}/analytics?from=&to=&ticket_type_id=&campaign_id=`, `GET /events/{id}/analytics/sales-series?bucket=day\|hour` |
 | Organizer *Finance* tab | `GET /events/{id}/finance` |
-| Refund / cancel (attendee order page) | `POST /orders/{id}/refund-requests`, `POST /orders/{id}/cancel` with `{reason}` |
-| Refund / cancel (organizer attendees) | `POST /orders/{id}/refunds`, `POST /events/{id}/tickets/{ticket_id}/cancel` with `{reason}` |
 | Event image upload | `POST /events/{id}/images` |
 
-Exact types are in `src/api/types/{promo,campaigns,analytics,finance}.ts`.
+Planned types are in `src/api/types/{analytics,finance}.ts`; the image type is beside its API
+function. Confirmed promo/campaign/checkout/refund contracts are in `src/api/types/`.
 
 ---
 
@@ -176,36 +177,101 @@ Exact types are in `src/api/types/{promo,campaigns,analytics,finance}.ts`.
 npm test
 ```
 
-There are 331 tests in 43 files, next to the code they test (`*.test.ts(x)`); shared fixtures
+There are 391 tests in 55 files, next to the code they test (`*.test.ts(x)`); shared fixtures
 are in `tests/helpers/`. They cover the API client and error messages, formatting, checkout rules
 and components (steps, seating, payment) and the checkout flow hook, seat and promo helpers,
 payment states, the auth context and route guards, QR codes, support threads, the notification
 bell, organizer forms, charts and pagination, admin settings, the request and countdown hooks, the
-app shell, and one page-level test for the orders page.
+app shell, the orders page, campaign workspace, promo redirect/sign-in, refund actions,
+zero-total checkout, accessible dialogs, contrast, all locale catalogs and interface-string auditing.
 
-There are no end-to-end browser tests yet. Apart from the orders page, pages have no page-level
-tests, including the organizer tabs, support, admin, event and ticket pages.
+There are no full browser end-to-end tests yet. Component and source checks do not certify
+screen-reader behaviour or a running deployment.
 
 The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
 that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
 `npm run typecheck`, `npm test` and `npx vite build`.
 
+The fetched main branch also has Adil's `Smoke` workflow: it builds Compose and runs free
+admission, duplicate rejection, paid activation/payment, campaign discount/report and refund
+flows. It was reviewed rather than duplicated. Both scripts passed against the local Compose
+stack on 2026-11-09 over HTTP, despite direct Docker engine access being denied. The proxy was
+serving the current production build. GitHub job status and browser/screen-reader acceptance
+remain unverified; see [the live validation record](CONTRACT_REVIEW.md#live-validation-and-ci).
+
 ---
 
 ## What is left to do
 
-- **Translations:** all interface text is English. Add Kazakh and Russian (with English as the
-  extra locale), use the saved profile language, and show category names in the chosen language.
-- **Accessibility (WCAG 2.1 AA):** check contrast, focus order and labels across the new screens;
-  replace `window.confirm` with an accessible dialog.
-- **Tests:** page-level tests for checkout, the organizer tabs, support, admin, event and ticket pages;
-  end-to-end tests for the core flow (create event → register → ticket → scan).
-- **Backend-dependent:** once the endpoints in the table above exist, confirm the shapes and remove
-  any adjustments; then test promo, analytics, finance and refunds end to end.
-- **Small clean-ups:** merge the two blob-download helpers (`api/download.ts` and `api/files.ts`);
-  event status labels and idempotency headers are implemented (see below).
-- **Not yet clicked through manually:** paid checkout with the simulator, the seat map, PDF/CSV
-  downloads.
+- **Browser verification:** API smoke flows have passed; exercise the actual checkout screens,
+  downloads and all locales in a browser. Chrome/Edge automation could not attach successfully
+  in this session, so no browser acceptance is claimed.
+- **Accessibility:** complete the browser and screen-reader column of the checklist below.
+- **Backend-dependent:** integrate analytics, finance and image upload when final contracts land.
+- **HTTPS:** install and validate the staged configuration with the operations owner. The current
+  directory restriction prevents editing `proxy/` or the repository-level operations docs.
+- **Browser tests:** add full browser automation alongside the existing API smoke coverage.
+
+## Translation setup
+
+The 1,365 shared keys and en/ru/kk wording are in [translations/core.tsv](translations/core.tsv).
+The generated catalogs are `src/i18n/locales/{en,ru,kk}.json`; see the
+[translation handoff](translations/README.md) for Adil and future changes.
+
+```bash
+npm run translations:build
+npm run translations:audit
+```
+
+The audit currently finds no unreviewed interface literals. Reviewed exceptions identify code,
+route/header names, brands, example addresses and formatting. They are not untranslated UI copy.
+User-authored text and unknown future server content remain original data. Known notifications
+are rendered in the currently selected language even if stored in an older profile language.
+
+Profile language takes precedence after sign-in; anonymous choices are cached locally. Switching
+language preserves edited fields and active holds. Tests verify catalog parity, placeholders,
+Russian plural forms, persistent language selection, existing error messages, notification copy
+and unchanged API enum values while the interface is translated.
+
+## Accessibility checklist
+
+"Source checked" means labels, native control order, focus styles and shared components were
+reviewed in code. It does not mean a browser or screen reader was exercised. No browser acceptance
+boxes are marked complete without that evidence.
+
+| Pages | Source checked / fixes | Browser + screen reader |
+|---|---|---|
+| Sign-in, registration, verification, reset, invitations | Labelled fields, translated notices, visible focus, readable supporting copy | Pending |
+| Discover and event details | Labelled search/filter/calendar/report controls; skip link targets a focusable main landmark | Pending |
+| Checkout, campaign redirect, payment | Promo label separated from action buttons; labelled recipients; server quote; status feedback | Pending |
+| Attendee seat map | Tab/Enter/Space plus arrow keys and Home/End; unavailable seats skipped; full spoken labels | Pending |
+| Tickets, QR, entry confirmation, delivery | QR labels and state text; labelled download and refresh controls | Pending |
+| Orders and refund requests | Cancellation modal with Escape/cancel, safe initial focus and focus restoration | Pending |
+| Account, sessions and language | Profile labels, saved language, modal for signing out every session | Pending |
+| Organizer workspace and team | Labelled creation/invitation forms; modal for removing members/invitations | Pending |
+| Organizer details and ticket types | Labelled forms, native focus order, visible focus | Pending |
+| Organizer seating | Native seat buttons with location/state labels and pressed state | Pending |
+| Organizer paid sales and staff | Labelled actions; modal for revoking assignments | Pending |
+| Organizer attendees and check-ins | Reason modal for cancellations/refunds; labelled filters and conflict forms | Pending |
+| Organizer campaigns and reports | Disable confirmation modal; QR alt text; report labels | Pending |
+| Organizer analytics and finance | Focusable chart bars and table alternative; labelled filters; planned API states retained | Pending |
+| Support lists, new case and thread | Form/composer/file controls labelled; state feedback preserved | Pending |
+| Notifications | Labelled inbox/filter controls; translated archived content | Pending |
+| Admin users/events/orders/tickets/reports/settings/exports/moderation | Labelled searches, forms and actions; readable pills | Pending |
+
+Shared colour tests require at least 4.5:1 for body/meta/placeholder/error text and all pill tones,
+and at least 3:1 for control borders and focus outlines. The focus ring uses two colours so it is
+visible on dark and light surfaces. All native `window.confirm` / `window.prompt` calls were
+replaced with one modal dialog implementation. The 18 colour tests and keyboard/dialog tests pass.
+
+## HTTPS handoff
+
+The staged [Caddyfile](operations/Caddyfile.demo) and
+[operations guide](docs/operations/https.md) include HTTPS on `DEMO_HOST`, HSTS on HTTPS only,
+CSP, frame restrictions, referrer policy and MIME sniffing protection. They preserve local HTTP
+on port 8080 and allow same-origin APIs, system fonts, inline SVG and blob QR previews.
+They have not been installed or validated in the running proxy.
+The observed local proxy currently sends none of the four non-HSTS security headers.
 
 
 ## Downloads and idempotency

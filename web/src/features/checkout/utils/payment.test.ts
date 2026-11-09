@@ -17,6 +17,10 @@ const base: Order = {
   confirmed_at: null,
   created_at: "2026-11-01T10:00:00Z",
   items: [],
+  promo: null,
+  payment: null,
+  refunds: [],
+  quote_expires_at: "2026-11-01T12:10:00Z",
 };
 
 const payment = (status: string): PaymentSummary => ({ id: "p1", status, charged_minor: 0, environment: "simulation", provider_payment_id: null, simulated: true });

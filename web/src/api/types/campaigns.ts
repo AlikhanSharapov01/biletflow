@@ -1,5 +1,4 @@
-// PLANNED contract (plan section 3, decision 0001): promo campaigns. The
-// backend does not serve these yet; screens show "Not available yet".
+// backend/CAMPAIGNS_API.md and app/campaign_schemas.py.
 
 export type DiscountKind = "percent" | "fixed";
 
@@ -16,11 +15,12 @@ export interface CampaignInput {
   code: string | null;
 }
 
-export interface Campaign extends CampaignInput {
+export interface Campaign extends Omit<CampaignInput, "code"> {
   id: string;
   event_id: string;
   created_at: string;
-  status: "scheduled" | "active" | "ended" | "disabled" | string;
+  code: string;
+  status: "scheduled" | "active" | "ended" | "disabled";
   redemptions_used: number;
   // Public promo link (/c/{token}); never an admission ticket.
   link_url: string;
@@ -31,8 +31,13 @@ export interface CampaignReport {
   redemptions: number;
   orders: number;
   tickets: number;
+  tickets_refunded: number;
+  tickets_kept: number;
   gross_minor: number;
   discount_minor: number;
+  collected_minor: number;
+  refunds_minor: number;
+  fees_minor: number;
   net_minor: number;
   generated_at: string;
 }

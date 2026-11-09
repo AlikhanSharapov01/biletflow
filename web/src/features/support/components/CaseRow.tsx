@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { Link } from "react-router";
 import type { SupportCase } from "../../../api/types/support";
 import { ListRow, StatusPill } from "../../../components/ui";
@@ -11,11 +12,12 @@ interface CaseRowProps {
 }
 
 export function CaseRow({ supportCase, showRequester = false }: CaseRowProps) {
+  useLocale();
   const path = `/support/cases/${encodeURIComponent(supportCase.id)}`;
   const people = [
-    showRequester ? `From ${supportCase.requester.display_name}` : null,
-    supportCase.assigned_to ? `Assigned to ${supportCase.assigned_to.display_name}` : null,
-    supportCase.escalated_at ? "Escalated" : null,
+    showRequester ? t("support.from", { p0: supportCase.requester.display_name }) : null,
+    supportCase.assigned_to ? t("support.assigned_name", { p0: supportCase.assigned_to.display_name }) : null,
+    supportCase.escalated_at ? t("support.escalated") : null,
   ].filter(Boolean);
   return (
     <ListRow
@@ -26,7 +28,7 @@ export function CaseRow({ supportCase, showRequester = false }: CaseRowProps) {
           <StatusPill tone={supportStatusTone(supportCase.status)}>{supportStatusLabel(supportCase.status)}</StatusPill>
         </>
       }
-      meta={`${categoryLabel(supportCase.category)} · updated ${dateLabel(supportCase.updated_at)}`}
+      meta={t("support.updated_meta", { p0: categoryLabel(supportCase.category), p1: dateLabel(supportCase.updated_at) })}
       note={people.length ? people.join(" · ") : undefined}
     />
   );

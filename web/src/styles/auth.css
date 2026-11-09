@@ -20,7 +20,7 @@
 .auth-box { width: min(100%, 420px); animation: rise-in .45s ease both; }
 .auth-box > .eyebrow { margin-bottom: 8px; }
 .auth-box h2, .token-title { margin: 0 0 10px; font-size: 34px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
-.auth-subtitle { margin: 0 0 28px; color: #75817b; font-size: 15px; line-height: 1.5; }
+.auth-subtitle { margin: 0 0 28px; color: var(--subtitle); font-size: 15px; line-height: 1.5; }
 .auth-box > .tabs { margin-bottom: 24px; }
 .auth-row { display: flex; justify-content: flex-end; margin-top: -4px; }
 .auth-message { min-height: 21px; margin-top: -4px; color: var(--error); font-size: var(--text-body-sm); line-height: 1.5; }
@@ -29,9 +29,9 @@
 .google-button { display: flex; width: 100%; min-height: var(--control-height); align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); cursor: pointer; font-size: 15px; font-weight: 700; }
 .google-button:hover:not(:disabled) { border-color: var(--hover-line); background: #fff; }
 .google-mark { color: #4285f4; font-size: 18px; font-weight: 800; }
-.divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: #9ba29c; font-size: 12px; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--muted); font-size: 12px; }
 .divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
-.auth-legal { margin-top: 24px; color: #9ba29c; font-size: 12px; line-height: 1.6; }
+.auth-legal { margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 .token-screen { display: grid; min-height: 100vh; place-items: center; padding: 40px 24px; }
 .token-screen .auth-box > .brand { margin-bottom: 26px; }

@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { getAnalytics, getSalesSeries } from "../../../api/analytics";
 import { listTicketTypes } from "../../../api/catalog";
@@ -14,6 +15,7 @@ import { StatTiles } from "./analytics/StatTiles";
 
 // Read-only event analytics on the PLANNED contract (plan section 3).
 export function AnalyticsTab({ event }: { event: EventView }) {
+  useLocale();
   const [filters, setFilters] = useState<AnalyticsFilters>({});
   const [bucket, setBucket] = useState<SeriesBucket>("day");
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
@@ -33,9 +35,9 @@ export function AnalyticsTab({ event }: { event: EventView }) {
     <div className="stack">
       <Panel>
         <PanelHeading
-          title="Analytics"
-          subtitle={result && !result.planned ? `Times in ${result.value.summary.timezone} · generated ${dateLabel(result.value.summary.generated_at)}` : "Sales, revenue and attendance for this event."}
-          trailing={<StatusPill tone="pending">Demonstration figures</StatusPill>}
+          title={t("organizer.analytics")}
+          subtitle={result && !result.planned ? t("org.analytics_meta", { p0: result.value.summary.timezone, p1: dateLabel(result.value.summary.generated_at) }) : t("org.analytics_intro")}
+          trailing={<StatusPill tone="pending">{t("org.finance_demo")}</StatusPill>}
         />
         <AnalyticsFilterBar
           types={types.data ?? []}
@@ -47,14 +49,14 @@ export function AnalyticsTab({ event }: { event: EventView }) {
             setBucket(nextBucket);
           }}
         />
-        {report.loading ? <Loading label="Loading analytics…" /> : null}
-        {report.error ? <ErrorPanel title="We couldn’t load analytics." message={report.error} onRetry={report.reload} /> : null}
-        {result?.planned && !report.loading ? <NotAvailableYet feature="Analytics" /> : null}
+        {report.loading ? <Loading label={t("org.loading_analytics")} /> : null}
+        {report.error ? <ErrorPanel title={t("org.analytics_error")} message={report.error} onRetry={report.reload} /> : null}
+        {result?.planned && !report.loading ? <NotAvailableYet feature={t("organizer.analytics")} /> : null}
         {result && !result.planned && !report.loading ? (
           <>
             <StatTiles data={result.value.summary} />
             {result.value.series.points.length === 0 ? (
-              <EmptyState>No sales in this range yet.</EmptyState>
+              <EmptyState>{t("org.no_sales")}</EmptyState>
             ) : (
               <SalesChart points={result.value.series.points} bucket={result.value.series.bucket} />
             )}

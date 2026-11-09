@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { duplicateEvent, listOrganizationEvents, publishEvent, unpublishEvent } from "../../../api/eventAdmin";
@@ -16,6 +17,7 @@ interface EventsPanelProps {
 // The workspace's events, grouped into Active / Upcoming / Completed /
 // Cancelled from the server's time status and publication state.
 export function EventsPanel({ organization, venues }: EventsPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const navigate = useNavigate();
   const events = useRequest(() => listOrganizationEvents(organization.id), [organization.id]);
@@ -39,7 +41,7 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
     setPendingId(event.id);
     try {
       const copy = await duplicateEvent(event.id);
-      notify("Draft copied. Adjust its dates before publishing.");
+      notify(t("org.draft_copied"));
       navigate(`/organizer/events/${encodeURIComponent(copy.id)}`);
     } catch (failure) {
       notify(describeError(failure));
@@ -53,16 +55,16 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
 
   return (
     <Panel>
-      <PanelHeading title="Your events" trailing={<StatusPill tone="neutral">{events.data?.length ?? 0} total</StatusPill>} />
-      {events.loading ? <Loading label="Loading events…" /> : null}
-      {events.error ? <ErrorPanel title="We couldn’t load your events." message={events.error} onRetry={events.reload} /> : null}
+      <PanelHeading title={t("org.your_events")} trailing={<StatusPill tone="neutral">{events.data?.length ?? 0}{" "}{t("word.total")}</StatusPill>} />
+      {events.loading ? <Loading label={t("discover.loading")} /> : null}
+      {events.error ? <ErrorPanel title={t("org.events_error")} message={events.error} onRetry={events.reload} /> : null}
       {events.data ? (
         events.data.length === 0 ? (
-          <EmptyState>No events in this workspace yet. Create a draft to get started.</EmptyState>
+          <EmptyState>{t("org.no_events")}</EmptyState>
         ) : (
           <>
             <Tabs
-              label="Event groups"
+              label={t("org.event_groups")}
               items={EVENT_GROUPS.map((item) => ({ id: item.id, label: `${item.label} · ${groups[item.id].length}` }))}
               value={group}
               onChange={setChosen}
@@ -82,7 +84,7 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
                         venue={venues.find((item) => item.id === event.venue_id)}
                         busy={pendingId === event.id}
                         onTogglePublish={() =>
-                          void run(event, () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? "Event unpublished." : "Event published.")
+                          void run(event, () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))
                         }
                         onDuplicate={() => void duplicate(event)}
                       />

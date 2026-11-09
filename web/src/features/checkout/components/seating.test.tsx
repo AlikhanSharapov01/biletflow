@@ -22,9 +22,9 @@ describe("SeatButton", () => {
   it("announces location, price and state, and toggles when available", () => {
     const onToggle = vi.fn();
     const seat = makeSeat({ section_label: "B", row_label: "3", seat_label: "7" });
-    render(<SeatButton seat={seat} look="available" priceText="Standard, ₸5000.00" selectable onToggle={onToggle} />);
+    render(<SeatButton seat={seat} look="available" priceText="Standard, ₸5,000.00" selectable onToggle={onToggle} />);
 
-    const button = screen.getByRole("button", { name: "Section B, row 3, seat 7, Standard, ₸5000.00, Available" });
+    const button = screen.getByRole("button", { name: "Section B, row 3, seat 7, Standard, ₸5,000.00, Available" });
     expect((button as HTMLButtonElement).disabled).toBe(false);
     expect(pressed(button)).toBe("false");
     fireEvent.click(button);
@@ -59,6 +59,29 @@ describe("SeatButton", () => {
 });
 
 describe("SeatMap", () => {
+  it("moves focus with arrows, Home and End, skipping unavailable seats", () => {
+    const seats = [
+      makeSeat({ id: "s1", row_label: "1", seat_label: "1" }),
+      makeSeat({ id: "s2", row_label: "1", seat_label: "2", status: "sold" }),
+      makeSeat({ id: "s3", row_label: "1", seat_label: "3" }),
+      makeSeat({ id: "s4", row_label: "2", seat_label: "1" }),
+    ];
+    const onToggle = vi.fn();
+    render(<SeatMap sections={groupSeats(seats)} selected={new Set()} priceText={() => "GA"} canSelect={() => true} onToggle={onToggle} />);
+    const buttons = screen.getAllByRole("button");
+    buttons[0]?.focus();
+    fireEvent.keyDown(buttons[0]!, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(buttons[2]);
+    fireEvent.keyDown(buttons[2]!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(buttons[3]);
+    fireEvent.keyDown(buttons[3]!, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(buttons[0]);
+    fireEvent.keyDown(buttons[0]!, { key: "End" });
+    expect(document.activeElement).toBe(buttons[2]);
+    fireEvent.keyDown(buttons[2]!, { key: "Home" });
+    expect(document.activeElement).toBe(buttons[0]);
+    expect(onToggle).not.toHaveBeenCalled();
+  });
   it("groups seats into labelled sections and rows", () => {
     const seats = [
       makeSeat({ id: "b1", section_label: "B", row_label: "1", seat_label: "1" }),
@@ -146,7 +169,7 @@ describe("SeatPicker", () => {
     fireEvent.click(seatButton("1"));
     fireEvent.click(seatButton("4"));
 
-    expect(screen.getByText("Ticket subtotal").nextElementSibling?.textContent).toBe("₸15000.00");
+    expect(screen.getByText("Ticket subtotal").nextElementSibling?.textContent).toBe("₸15,000.00");
     fireEvent.click(screen.getByRole("button", { name: "Reserve 2 seats" }));
     expect(onReserve).toHaveBeenCalledWith([
       { ticket_type_id: "std", quantity: 1, seat_ids: ["s1"] },

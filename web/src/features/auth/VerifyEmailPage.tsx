@@ -1,3 +1,4 @@
+import { t, translate, useLocale } from "../../i18n";
 import { useState } from "react";
 import * as authApi from "../../api/auth";
 import { describeError } from "../../api/errors";
@@ -7,6 +8,7 @@ import { MissingToken, TokenLayout } from "./components/TokenLayout";
 import { TOKEN_FLOW_IDLE, useHashToken, type TokenFlowState } from "./useHashToken";
 
 export function VerifyEmailPage() {
+  useLocale();
   const token = useHashToken();
   const { status, setProfile } = useAuth();
   const [state, setState] = useState<TokenFlowState>(TOKEN_FLOW_IDLE);
@@ -16,30 +18,28 @@ export function VerifyEmailPage() {
     try {
       await authApi.verifyEmail(token);
       if (status === "authenticated") setProfile(await authApi.getProfile());
-      setState({ busy: false, done: true, message: "Your email is verified. You can sign in now." });
+      setState({ busy: false, done: true, message: t("auth.verified") });
     } catch (failure) {
       setState({ busy: false, done: false, message: describeError(failure) });
     }
   };
 
   return (
-    <TokenLayout eyebrow="Account verification" title="Verify your email">
+    <TokenLayout eyebrow={t("auth.verification")} title={t("auth.verify_your_email")}>
       {!token ? (
-        <MissingToken action="verify your email" />
+        <MissingToken action={t("auth.action_verify")} />
       ) : (
         <>
-          <p className="auth-subtitle">Press the button to confirm this email address for your BiletFlow account.</p>
+          <p className="auth-subtitle">{t("auth.verify_instruction")}</p>
           {state.done ? (
-            <ButtonLink variant="primary" to="/sign-in">
-              Continue to sign in
-            </ButtonLink>
+            <ButtonLink variant="primary" to="/sign-in">{t("auth.continue_sign_in")}{" "}</ButtonLink>
           ) : (
             <Button variant="primary" disabled={state.busy} onClick={() => void verify()}>
-              {state.busy ? "Verifying…" : "Verify email"}
+              {state.busy ? t("auth.verifying") : t("auth.verify_email")}
             </Button>
           )}
           <p className={`auth-message ${state.done ? "success" : ""}`} role="status">
-            {state.message}
+            {translate(state.message)}
           </p>
         </>
       )}

@@ -15,7 +15,7 @@ describe("dateLabel", () => {
 describe("money", () => {
   it("labels zero as free and converts tiyn to tenge", () => {
     expect(priceLabel(0)).toBe("Free");
-    expect(priceLabel(850000)).toBe("₸8500.00");
+    expect(priceLabel(850000)).toBe("₸8,500.00");
   });
 
   it("converts tenge input to minor units and rejects garbage", () => {

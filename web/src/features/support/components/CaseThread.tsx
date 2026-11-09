@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useEffect, useRef } from "react";
 import type { SupportThreadItem } from "../../../api/types/support";
 import { dateLabel } from "../../../utils/format";
@@ -12,6 +13,7 @@ interface CaseThreadProps {
 // Messages and history in `seq` order. New items are announced politely and
 // the newest one is scrolled into view.
 export function CaseThread({ items, viewerId }: CaseThreadProps) {
+  useLocale();
   const end = useRef<HTMLLIElement | null>(null);
   const count = items.length;
 
@@ -20,7 +22,7 @@ export function CaseThread({ items, viewerId }: CaseThreadProps) {
   }, [count]);
 
   return (
-    <ol className="support-thread" aria-live="polite" aria-label="Case messages">
+    <ol className="support-thread" aria-live="polite" aria-label={t("support.case_messages")}>
       {items.map((item) =>
         item.type === "message" ? (
           <MessageBubble key={`m-${item.seq}`} message={item} own={item.author.id === viewerId} />

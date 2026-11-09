@@ -27,7 +27,7 @@ describe("toCampaignInput", () => {
   });
 
   it("round-trips an existing fixed campaign back to tenge in the form", () => {
-    const values = campaignFormValues({ ...toCampaignInputFixture(), id: "c1", event_id: "e1", created_at: "", status: "active", redemptions_used: 3, link_url: "/c/x" });
+    const values = campaignFormValues({ ...toCampaignInputFixture(), code: "FIXED", id: "c1", event_id: "e1", created_at: "", status: "active", redemptions_used: 3, link_url: "/c/x" });
     expect(values.value).toBe("1000");
   });
 });
@@ -48,7 +48,7 @@ function toCampaignInputFixture() {
 describe("labels", () => {
   it("describes discounts and usage", () => {
     expect(discountLabel({ discount_kind: "percent", value: 10 })).toBe("10% off");
-    expect(discountLabel({ discount_kind: "fixed", value: 100000 })).toBe("₸1000.00 off");
+    expect(discountLabel({ discount_kind: "fixed", value: 100000 })).toBe("₸1,000.00 off");
     expect(usageLabel(3, 100)).toBe("3 of 100 used");
     expect(usageLabel(3, null)).toBe("3 used · no limit");
   });

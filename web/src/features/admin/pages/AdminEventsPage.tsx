@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { Link } from "react-router";
 import { moderateEvent, searchEvents } from "../../../api/admin";
@@ -12,24 +13,25 @@ import { useAdminSearch } from "../hooks/useAdminSearch";
 // Suspension closes sales and admission; it never cancels, refunds or voids
 // tickets — those stay explicit business actions.
 export function AdminEventsPage() {
+  useLocale();
   const { notify } = useToast();
   const events = useAdminSearch(searchEvents);
   const [openId, setOpenId] = useState("");
 
   return (
     <Panel>
-      <PanelHeading title="Events" subtitle="Search by title, event id or organization id." />
+      <PanelHeading title={t("common.events")} subtitle={t("admin.event_search_hint")} />
       <AdminSearchForm
-        label="Event search"
-        placeholder="Event title or id"
-        statusLabel="Moderation"
+        label={t("admin.event_search")}
+        placeholder={t("admin.event_search_placeholder")}
+        statusLabel={t("admin.moderation")}
         statuses={[
-          { value: "normal", label: "Normal" },
-          { value: "suspended", label: "Suspended" },
+          { value: "normal", label: t("admin.normal") },
+          { value: "suspended", label: t("org.suspended") },
         ]}
         onApply={events.apply}
       />
-      <SearchResults noun="events" {...events} onPage={events.setOffset}>
+      <SearchResults noun={t("word.events")} {...events} onPage={events.setOffset}>
         {(items) => (
           <div className="list">
             {items.map((event) => {
@@ -42,26 +44,26 @@ export function AdminEventsPage() {
                     <>
                       <Link to={`/events/${encodeURIComponent(event.id)}`}>{event.title}</Link>
                       <StatusPill tone={publicationTone(event.publication_state)}>{statusLabel(event.publication_state)}</StatusPill>
-                      {suspended ? <StatusPill tone="blocked">Suspended</StatusPill> : null}
+                      {suspended ? <StatusPill tone="blocked">{t("org.suspended")}</StatusPill> : null}
                     </>
                   }
-                  meta={`${dateLabel(event.starts_at)} · ${event.visibility} · capacity ${event.capacity}`}
-                  note={`Event ${event.id} · organization ${event.organization_id}`}
+                  meta={t("admin.capacity_meta", { p0: dateLabel(event.starts_at), p1: event.visibility, p2: event.capacity })}
+                  note={t("admin.event_org", { p0: event.id, p1: event.organization_id })}
                   actions={
                     <Button size="sm" variant={suspended ? "subtle" : "danger"} onClick={() => setOpenId(openId === event.id ? "" : event.id)}>
-                      {openId === event.id ? "Close" : suspended ? "Reinstate" : "Suspend"}
+                      {openId === event.id ? t("common.close") : suspended ? t("admin.reinstate") : t("admin.suspend")}
                     </Button>
                   }
                 >
                   {openId === event.id ? (
                     <ReasonForm
-                      label={suspended ? "Reason for reinstating" : "Reason for suspending (closes sales and admission)"}
-                      submitLabel={suspended ? "Reinstate event" : "Suspend event"}
+                      label={suspended ? t("admin.reason_reinstate") : t("admin.reason_suspend_event")}
+                      submitLabel={suspended ? t("admin.reinstate_event") : t("admin.suspend_event")}
                       danger={!suspended}
                       onCancel={() => setOpenId("")}
                       onSubmit={async (reason) => {
                         await moderateEvent(event.id, suspended ? "reinstate" : "suspend", reason);
-                        notify(suspended ? "Event reinstated." : "Event suspended.");
+                        notify(suspended ? t("admin.event_reinstated") : t("admin.event_suspended"));
                         setOpenId("");
                         events.reload();
                       }}

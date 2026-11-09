@@ -1,3 +1,5 @@
+import { t, useLocale } from "../../i18n";
+import { confirmAction } from "../../components/ui/ActionDialog";
 import * as authApi from "../../api/auth";
 import { describeError } from "../../api/errors";
 import { Button, ErrorPanel, Loading, PageHeading, Panel, PanelHeading, useToast } from "../../components/ui";
@@ -7,6 +9,7 @@ import { ProfileForm } from "./components/ProfileForm";
 import { SessionList } from "./components/SessionList";
 
 export function AccountPage() {
+  useLocale();
   const { profile, setProfile, signOut, signOutEverywhere } = useAuth();
   const { notify } = useToast();
   const sessions = useRequest(() => authApi.listSessions(), []);
@@ -14,26 +17,24 @@ export function AccountPage() {
   if (!profile) return <Loading />;
 
   const handleSignOutEverywhere = async () => {
-    if (!window.confirm("Sign out of every active BiletFlow session? This device will also be signed out.")) return;
+    if (!await confirmAction(t("auth.sign_out_confirm"))) return;
     try {
       await signOutEverywhere();
     } catch (failure) {
-      notify(`Could not sign out everywhere: ${describeError(failure)}`);
+      notify(t("account.sign_out_error", { p0: describeError(failure) }));
     }
   };
 
   return (
     <>
       <PageHeading
-        eyebrow="Your account"
-        title="Profile & sessions."
-        subtitle="Review your profile and keep track of where you’re signed in."
+        eyebrow={t("account.your_account")}
+        title={t("account.profile_sessions")}
+        subtitle={t("account.review")}
         actions={
           <>
-            <Button onClick={() => void signOut()}>Sign out</Button>
-            <Button variant="danger" onClick={() => void handleSignOutEverywhere()}>
-              Sign out everywhere
-            </Button>
+            <Button onClick={() => void signOut()}>{t("auth.sign_out")}</Button>
+            <Button variant="danger" onClick={() => void handleSignOutEverywhere()}>{t("auth.sign_out_everywhere")}</Button>
           </>
         }
       />
@@ -41,16 +42,14 @@ export function AccountPage() {
         <ProfileForm profile={profile} onSaved={setProfile} />
         <Panel>
           <PanelHeading
-            title="Signed-in sessions"
-            subtitle="Revoke a device you no longer use."
+            title={t("account.sessions")}
+            subtitle={t("account.revoke_device")}
             trailing={
-              <Button variant="text" onClick={sessions.reload}>
-                Refresh
-              </Button>
+              <Button variant="text" onClick={sessions.reload}>{t("common.refresh")}</Button>
             }
           />
-          {sessions.loading ? <Loading label="Loading sessions…" /> : null}
-          {sessions.error ? <ErrorPanel title="We couldn’t load sessions." message={sessions.error} onRetry={sessions.reload} /> : null}
+          {sessions.loading ? <Loading label={t("account.loading_sessions")} /> : null}
+          {sessions.error ? <ErrorPanel title={t("account.sessions_error")} message={sessions.error} onRetry={sessions.reload} /> : null}
           {sessions.data ? <SessionList sessions={sessions.data} onChanged={sessions.reload} /> : null}
         </Panel>
       </div>

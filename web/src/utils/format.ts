@@ -1,12 +1,14 @@
+import { getLocale, t } from "../i18n";
+import { localizedStatus } from "../i18n/status";
 import type { SeatSnapshot } from "../api/types";
 
 const DEFAULT_DATE: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
 
 export function dateLabel(value: string | null | undefined, options: Intl.DateTimeFormatOptions = DEFAULT_DATE): string {
-  if (!value) return "Not available";
+  if (!value) return t("common.not_available");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
-  return new Intl.DateTimeFormat(undefined, options).format(date);
+  if (Number.isNaN(date.getTime())) return t("common.not_available");
+  return new Intl.DateTimeFormat(getLocale(), options).format(date);
 }
 
 export function dayNumber(value: string): string {
@@ -19,8 +21,8 @@ export function monthShort(value: string): string {
 
 // Prices are stored in tiyn (minor units of KZT).
 export function priceLabel(priceMinor: number): string {
-  if (priceMinor === 0) return "Free";
-  return `₸${(priceMinor / 100).toFixed(2)}`;
+  if (priceMinor === 0) return t("common.free");
+  return new Intl.NumberFormat(getLocale(), { style: "currency", currency: "KZT", currencyDisplay: "narrowSymbol" }).format(priceMinor / 100);
 }
 
 export function tengeToMinor(tenge: string | number): number {
@@ -65,12 +67,12 @@ export function browserTimeZone(): string {
 }
 
 export function seatLabel(seat: SeatSnapshot | null | undefined): string {
-  if (!seat) return "General admission";
-  return `Section ${seat.section_label} · Row ${seat.row_label} · Seat ${seat.seat_label}`;
+  if (!seat) return t("checkout.general_admission");
+  return t("format.section_row_seat", { section: seat.section_label, row: seat.row_label, seat: seat.seat_label });
 }
 
 export function statusLabel(status: string): string {
-  return status.replace(/_/g, " ");
+  return localizedStatus(status);
 }
 
 // Reads `#token=…` from the address bar once and removes it, so the token

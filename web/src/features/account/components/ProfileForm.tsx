@@ -1,3 +1,4 @@
+import { setLocale, t, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import * as authApi from "../../../api/auth";
 import { describeError } from "../../../api/errors";
@@ -16,6 +17,7 @@ const LOCALES: Array<[Locale, string]> = [
 ];
 
 export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile: Profile) => void }) {
+  useLocale();
   const { notify } = useToast();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: "", success: false });
@@ -32,8 +34,9 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
         analytics_consent: data.get("analytics_consent") === "on",
       });
       onSaved(updated);
-      notify("Profile updated.");
-      setMessage({ text: "Saved.", success: true });
+      setLocale(updated.locale);
+      notify(t("account.updated"));
+      setMessage({ text: t("common.saved"), success: true });
     } catch (failure) {
       setMessage({ text: describeError(failure), success: false });
     } finally {
@@ -44,28 +47,26 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
   return (
     <Panel>
       <PanelHeading
-        title="Your profile"
+        title={t("account.profile")}
         trailing={
           <StatusPill tone={profile.email_verified_at ? "positive" : "pending"}>
-            {profile.email_verified_at ? "Email verified" : "Email not verified"}
+            {profile.email_verified_at ? t("account.verified") : t("account.not_verified")}
           </StatusPill>
         }
       />
       <p className="account-email">{profile.email}</p>
       <form className="form-stack" onSubmit={(event) => void handleSubmit(event)}>
-        <TextField label="Display name" name="display_name" required minLength={1} maxLength={100} defaultValue={profile.display_name} />
-        <SelectField label="Language" name="locale" defaultValue={profile.locale}>
+        <TextField label={t("account.display_name")} name="display_name" required minLength={1} maxLength={100} defaultValue={profile.display_name} />
+        <SelectField key={profile.locale} label={t("account.language")} name="locale" defaultValue={profile.locale}>
           {LOCALES.map(([code, label]) => (
             <option key={code} value={code}>
               {label}
             </option>
           ))}
         </SelectField>
-        <CheckboxField label="Allow optional traffic analytics on public event pages" name="analytics_consent" defaultChecked={profile.analytics_consent} />
+        <CheckboxField label={t("account.analytics_consent")} name="analytics_consent" defaultChecked={profile.analytics_consent} />
         <FormMessage message={message.text} success={message.success} />
-        <Button variant="primary" type="submit" disabled={saving}>
-          Save profile
-        </Button>
+        <Button variant="primary" type="submit" disabled={saving}>{t("account.save")}</Button>
       </form>
     </Panel>
   );

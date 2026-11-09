@@ -4,7 +4,7 @@ import type { Campaign, CampaignInput, CampaignReport } from "./types/campaigns"
 
 const id = encodeURIComponent;
 
-// PLANNED contract: promo campaigns per event (plan section 3).
+// Confirmed contract: backend/CAMPAIGNS_API.md.
 
 function base(eventId: string): string {
   return `/api/v1/events/${id(eventId)}/campaigns`;

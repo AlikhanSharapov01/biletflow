@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../i18n";
 import { NavLink, Outlet } from "react-router";
 import { EmptyState, Loading, PageHeading, Panel } from "../../components/ui";
 import { ADMIN_SECTIONS } from "./adminPaths";
@@ -5,17 +6,16 @@ import { useIsPlatformAdmin } from "./useIsPlatformAdmin";
 
 // Shell for every admin page: heading, section links and the permission gate.
 export function AdminLayout() {
+  useLocale();
   const { isAdmin, checking } = useIsPlatformAdmin();
 
-  if (checking) return <Loading label="Checking admin access…" />;
+  if (checking) return <Loading label={t("admin.checking")} />;
   if (!isAdmin) {
     return (
       <>
-        <PageHeading eyebrow="Platform administration" title="Admins only" />
+        <PageHeading eyebrow={t("admin.eyebrow")} title={t("admin.only")} />
         <Panel>
-          <EmptyState>
-            This area is for BiletFlow platform administrators. Your account does not have that role. Organizer ownership or staff access does not include it.
-          </EmptyState>
+          <EmptyState>{t("admin.access_hint")}</EmptyState>
         </Panel>
       </>
     );
@@ -24,11 +24,11 @@ export function AdminLayout() {
   return (
     <>
       <PageHeading
-        eyebrow="Platform administration"
-        title="Keep BiletFlow safe."
-        subtitle="Search accounts, events, orders and tickets, review reports, and change platform settings. Every decision is recorded."
+        eyebrow={t("admin.eyebrow")}
+        title={t("admin.title")}
+        subtitle={t("admin.subtitle")}
       />
-      <nav className="admin-nav" aria-label="Admin sections">
+      <nav className="admin-nav" aria-label={t("admin.sections")}>
         {ADMIN_SECTIONS.map((section) => (
           <NavLink key={section.to} to={section.to} className="admin-nav-link">
             {section.label}

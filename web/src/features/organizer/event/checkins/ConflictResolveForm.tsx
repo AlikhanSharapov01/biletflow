@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../../i18n";
 import { useState, type FormEvent } from "react";
 import { resolveSyncConflict } from "../../../../api/admissionHistory";
 import { describeError } from "../../../../api/errors";
@@ -12,6 +13,7 @@ interface ConflictResolveFormProps {
 // Records the decision; optionally reverses the conflicting admission in the
 // same action (needs the "Undo check-ins" capability).
 export function ConflictResolveForm({ conflict, onResolved }: ConflictResolveFormProps) {
+  useLocale();
   const { notify } = useToast();
   const [note, setNote] = useState("");
   const [reverse, setReverse] = useState(false);
@@ -22,11 +24,11 @@ export function ConflictResolveForm({ conflict, onResolved }: ConflictResolveFor
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!note.trim()) {
-      setState({ busy: false, message: "Add a note describing what happened at the gate." });
+      setState({ busy: false, message: t("org.resolution_hint") });
       return;
     }
     if (reverse && !reason.trim()) {
-      setState({ busy: false, message: "Give a reason for reversing the existing admission." });
+      setState({ busy: false, message: t("org.reversal_reason_required") });
       return;
     }
     setState({ busy: true, message: "" });
@@ -35,7 +37,7 @@ export function ConflictResolveForm({ conflict, onResolved }: ConflictResolveFor
         note: note.trim(),
         ...(reverse ? { reverse_existing_check_in: true, reversal_reason: reason.trim() } : {}),
       });
-      notify(result.reversed_check_in_id ? "Conflict resolved and the earlier admission reversed." : "Conflict resolved.");
+      notify(result.reversed_check_in_id ? t("org.conflict_resolved_reversed") : t("org.conflict_resolved"));
       onResolved();
     } catch (failure) {
       setState({ busy: false, message: describeError(failure) });
@@ -44,16 +46,14 @@ export function ConflictResolveForm({ conflict, onResolved }: ConflictResolveFor
 
   return (
     <form className="form-stack inline-form" onSubmit={(event) => void submit(event)}>
-      <TextAreaField label="Resolution note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} required />
+      <TextAreaField label={t("org.resolution_note")} value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={1000} required />
       {canReverse ? (
-        <CheckboxField label="Also reverse the existing admission" checked={reverse} onChange={(e) => setReverse(e.target.checked)} />
+        <CheckboxField label={t("org.also_reverse")} checked={reverse} onChange={(e) => setReverse(e.target.checked)} />
       ) : null}
-      {reverse ? <TextField label="Reversal reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required /> : null}
+      {reverse ? <TextField label={t("org.reversal_reason")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required /> : null}
       <FormMessage message={state.message} />
       <div className="form-actions">
-        <Button variant="primary" size="sm" type="submit" disabled={state.busy}>
-          Resolve conflict
-        </Button>
+        <Button variant="primary" size="sm" type="submit" disabled={state.busy}>{t("org.resolve_conflict")}</Button>
       </div>
     </form>
   );

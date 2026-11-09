@@ -1,5 +1,6 @@
 import { request } from "./client";
 import { uploadFile } from "./files";
+import type { RefundStarted, TicketCancelled } from "./types/payments";
 import type {
   Attendee,
   EventCapability,
@@ -89,15 +90,15 @@ export function listAttendees(eventId: string): Promise<Attendee[]> {
   return request<Attendee[]>(`/api/v1/events/${id(eventId)}/attendees`, { query: { limit: 100 } });
 }
 
-// ------------------------------------------------- planned (not served yet)
-// These follow the planned commerce contract; screens catch isNotImplemented.
+// -------------------------------------------- refunds and cancellation
+// Confirmed in backend/REFUNDS_API.md.
 
-export function cancelTicket(eventId: string, ticketId: string, reason: string): Promise<unknown> {
-  return request(`/api/v1/events/${id(eventId)}/tickets/${id(ticketId)}/cancel`, { method: "POST", body: { reason } });
+export function cancelTicket(eventId: string, ticketId: string, reason: string): Promise<TicketCancelled> {
+  return request<TicketCancelled>(`/api/v1/events/${id(eventId)}/tickets/${id(ticketId)}/cancel`, { method: "POST", body: { reason } });
 }
 
-export function refundOrder(orderId: string, reason: string): Promise<unknown> {
-  return request(`/api/v1/orders/${id(orderId)}/refunds`, { method: "POST", body: { reason } });
+export function refundOrder(orderId: string, reason: string): Promise<RefundStarted> {
+  return request<RefundStarted>(`/api/v1/orders/${id(orderId)}/refunds`, { method: "POST", body: { reason } });
 }
 
 export interface EventImage {

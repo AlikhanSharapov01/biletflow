@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useEffect, useState } from "react";
 import { listCategories, listVenues } from "../../../api/catalog";
 import { listOrganizations } from "../../../api/organizations";
@@ -10,6 +11,7 @@ import { EventsPanel } from "./EventsPanel";
 import { TeamPanel } from "./TeamPanel";
 
 function OrganizerNote({ eyebrow, title, children }: { eyebrow: string; title: string; children: string }) {
+  useLocale();
   return (
     <Panel as="aside" tone="note" className="organizer-note">
       <p className="eyebrow">{eyebrow}</p>
@@ -20,6 +22,7 @@ function OrganizerNote({ eyebrow, title, children }: { eyebrow: string; title: s
 }
 
 export function OrganizerPage() {
+  useLocale();
   const { profile } = useAuth();
   const [organizationId, setOrganizationId] = useState("");
 
@@ -39,9 +42,9 @@ export function OrganizerPage() {
     }
   }, [base.data, organizationId]);
 
-  if (base.loading) return <Loading label="Loading organizer workspace…" />;
+  if (base.loading) return <Loading label={t("org.loading_workspace")} />;
   if (base.error || !base.data) {
-    return <ErrorPanel title="We couldn’t load the organizer workspace." message={base.error ?? ""} onRetry={base.reload} />;
+    return <ErrorPanel title={t("org.workspace_error")} message={base.error ?? ""} onRetry={base.reload} />;
   }
 
   const { organizations, categories, venues } = base.data;
@@ -51,15 +54,15 @@ export function OrganizerPage() {
   return (
     <>
       <PageHeading
-        eyebrow="Organizer workspace"
-        title="Bring people together."
-        subtitle="Create an organization, prepare events, and publish your next gathering."
+        eyebrow={t("nav.workspace")}
+        title={t("org.bring_people")}
+        subtitle={t("org.create_intro")}
       />
       {organization ? (
         <>
           <div className="org-toolbar">
             {organizations.length > 1 ? (
-              <SelectField label="Workspace" className="org-picker" value={organizationId} onChange={(event) => setOrganizationId(event.target.value)}>
+              <SelectField label={t("org.workspace")} className="org-picker" value={organizationId} onChange={(event) => setOrganizationId(event.target.value)}>
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
                     {org.name}
@@ -70,7 +73,7 @@ export function OrganizerPage() {
               <div className="org-heading">
                 <strong>{organization.name}</strong>
                 <span>
-                  {organization.contact_email} · {isOwner ? "You own this workspace" : "You are a team member"}
+                  {organization.contact_email} · {isOwner ? t("org.owner") : t("org.team_member")}
                 </span>
               </div>
             )}
@@ -81,9 +84,7 @@ export function OrganizerPage() {
               <CreateEventPanel organization={organization} categories={categories} venues={venues} />
             </div>
             <div className="stack">
-              <OrganizerNote eyebrow="A good first step" title="Make the details easy to find.">
-                Choose a venue and category, set your event dates, then publish when your listing is ready for guests.
-              </OrganizerNote>
+              <OrganizerNote eyebrow={t("org.first_step")} title={t("org.details_intro")}>{t("org.create_event_intro")}</OrganizerNote>
               <TeamPanel organization={organization} isOwner={isOwner} />
             </div>
           </div>
@@ -97,9 +98,7 @@ export function OrganizerPage() {
               base.reload();
             }}
           />
-          <OrganizerNote eyebrow="Organizer workspace" title="Your events start here.">
-            Create your organization to manage event listings and bring your community together.
-          </OrganizerNote>
+          <OrganizerNote eyebrow={t("nav.workspace")} title={t("org.your_events_title")}>{t("org.create_workspace_intro")}</OrganizerNote>
         </div>
       )}
     </>

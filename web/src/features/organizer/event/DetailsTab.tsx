@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
 import { updateEvent } from "../../../api/eventAdmin";
 import { describeError } from "../../../api/errors";
@@ -15,6 +16,7 @@ interface DetailsTabProps {
 }
 
 export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState<FormState>(IDLE);
 
@@ -22,8 +24,8 @@ export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabPro
     setState({ busy: true, message: "", success: false });
     try {
       await updateEvent(event.id, input);
-      notify("Event saved.");
-      setState({ busy: false, message: "Saved.", success: true });
+      notify(t("org.event_saved"));
+      setState({ busy: false, message: t("common.saved"), success: true });
       onSaved();
     } catch (failure) {
       setState({ busy: false, message: describeError(failure), success: false });
@@ -34,15 +36,15 @@ export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabPro
     <div className="stack">
       <Panel>
         <PanelHeading
-          title="Event details"
-          trailing={<StatusPill tone="neutral">{event.seating_mode === "assigned" ? "Assigned seating" : "General admission"}</StatusPill>}
+          title={t("org.event_details")}
+          trailing={<StatusPill tone="neutral">{event.seating_mode === "assigned" ? t("event.assigned_seating") : t("checkout.general_admission")}</StatusPill>}
         />
-        <p className="form-intro">Saving replaces the whole configuration. Published events must stay publishable.</p>
+        <p className="form-intro">{t("org.save_configuration_hint")}</p>
         <EventForm
           initial={event}
           categories={categories}
           venues={venues}
-          submitLabel="Save changes"
+          submitLabel={t("org.save_changes")}
           busy={state.busy}
           message={state.message}
           success={state.success}

@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { assignStaff } from "../../../api/eventAdmin";
@@ -13,6 +14,7 @@ interface StaffAssignFormProps {
 }
 
 export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFormProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState({ busy: false, message: "" });
   const [memberId, setMemberId] = useState("");
@@ -24,17 +26,17 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
   const assign = async (formEvent: FormEvent<HTMLFormElement>) => {
     formEvent.preventDefault();
     if (!memberId) {
-      setState({ busy: false, message: "Choose a team member." });
+      setState({ busy: false, message: t("org.choose_team_member_error") });
       return;
     }
     if (capabilities.length === 0) {
-      setState({ busy: false, message: "Choose at least one capability." });
+      setState({ busy: false, message: t("org.choose_capability_error") });
       return;
     }
     setState({ busy: true, message: "" });
     try {
       await assignStaff(event.id, memberId, capabilities);
-      notify("Staff assignment saved.");
+      notify(t("org.assignment_saved"));
       setState({ busy: false, message: "" });
       onAssigned();
     } catch (failure) {
@@ -44,15 +46,13 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
 
   return (
     <Panel>
-      <PanelHeading title="Assign a team member" />
+      <PanelHeading title={t("org.assign_team_member")} />
       {assignable.length === 0 ? (
-        <p className="form-intro">
-          No assignable team members. Invite people from the <Link to="/organizer">organizer workspace</Link> first; they must accept the invitation before they can be assigned.
-        </p>
+        <p className="form-intro">{t("org.no_assignable_members")}{" "}<Link to="/organizer">{t("org.workspace_lower")}</Link>{" "}{t("org.accept_before_assign")}</p>
       ) : null}
       <form className="form-stack" onSubmit={(formEvent) => void assign(formEvent)}>
-        <SelectField label="Team member" value={memberId} onChange={(e) => setMemberId(e.target.value)} required>
-          <option value="">Choose a member</option>
+        <SelectField label={t("org.team_member_label")} value={memberId} onChange={(e) => setMemberId(e.target.value)} required>
+          <option value="">{t("org.choose_member")}</option>
           {assignable.map((member) => (
             <option key={member.id} value={member.id}>
               {member.display_name} · {member.email}
@@ -60,7 +60,7 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
           ))}
         </SelectField>
         <fieldset className="capability-grid">
-          <legend>Capabilities</legend>
+          <legend>{t("org.capabilities")}</legend>
           {EVENT_CAPABILITIES.map((capability) => (
             <label className="capability" key={capability.id}>
               <input type="checkbox" checked={capabilities.includes(capability.id)} onChange={() => toggle(capability.id)} />
@@ -71,12 +71,10 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
             </label>
           ))}
         </fieldset>
-        <p className="form-intro">Assigning the same member again replaces their capabilities for this event.</p>
+        <p className="form-intro">{t("org.assignment_replace_hint")}</p>
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy || assignable.length === 0}>
-            Save assignment
-          </Button>
+          <Button variant="primary" type="submit" disabled={state.busy || assignable.length === 0}>{t("org.save_assignment")}</Button>
         </div>
       </form>
     </Panel>

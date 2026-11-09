@@ -1,3 +1,5 @@
+import { t, useLocale } from "../../../i18n";
+import { confirmAction } from "../../../components/ui/ActionDialog";
 import { useState, type FormEvent } from "react";
 import { describeError } from "../../../api/errors";
 import { inviteMember, listInvitations, listMembers, revokeInvitation, revokeMember } from "../../../api/organizations";
@@ -13,6 +15,7 @@ interface TeamPanelProps {
 }
 
 export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState<FormState>(IDLE);
   const team = useRequest(
@@ -30,7 +33,7 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
     setState({ ...IDLE, busy: true });
     try {
       await inviteMember(organization.id, email);
-      notify(`Invitation emailed to ${email}.`);
+      notify(t("org.invitation_sent", { p0: email }));
       form.reset();
       setState(IDLE);
       team.reload();
@@ -40,10 +43,10 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
   };
 
   const remove = async (label: string, action: () => Promise<unknown>) => {
-    if (!window.confirm(`Remove ${label}?`)) return;
+    if (!await confirmAction(t("org.remove_confirm", { p0: label }))) return;
     try {
       await action();
-      notify("Removed.");
+      notify(t("org.removed"));
       team.reload();
     } catch (failure) {
       notify(describeError(failure));
@@ -52,9 +55,9 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
 
   return (
     <Panel>
-      <PanelHeading title="Team" subtitle="Invite staff by email, then assign them to events with the capabilities they need." />
-      {team.loading ? <Loading label="Loading team…" /> : null}
-      {team.error ? <p className="form-intro">{team.error} Only the owner and staff managers can see the team.</p> : null}
+      <PanelHeading title={t("organizer.team")} subtitle={t("org.team_hint")} />
+      {team.loading ? <Loading label={t("org.loading_team")} /> : null}
+      {team.error ? <p className="form-intro">{team.error}{" "}{t("org.team_owner_only")}</p> : null}
       {team.data ? (
         <>
           <div className="list">
@@ -68,17 +71,15 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
                   title={
                     <>
                       {member.display_name}
-                      {owner ? <StatusPill>Owner</StatusPill> : null}
-                      {!active ? <StatusPill tone="neutral">Revoked</StatusPill> : null}
+                      {owner ? <StatusPill>{t("organizer.owner")}</StatusPill> : null}
+                      {!active ? <StatusPill tone="neutral">{t("organizer.revoked")}</StatusPill> : null}
                     </>
                   }
                   meta={member.email}
-                  note={owner ? "All permissions" : member.capabilities.length ? member.capabilities.map(statusLabel).join(", ") : "No workspace permissions"}
+                  note={owner ? t("organizer.all_permissions") : member.capabilities.length ? member.capabilities.map(statusLabel).join(", ") : t("organizer.no_permissions")}
                   actions={
                     !owner && active && isOwner ? (
-                      <Button variant="danger" size="sm" onClick={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))}>
-                        Remove
-                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))}>{t("common.remove")}</Button>
                     ) : null
                   }
                 />
@@ -90,29 +91,25 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
                 icon="✉"
                 title={
                   <>
-                    {invitation.email} <StatusPill tone="pending">Invited</StatusPill>
+                    {invitation.email} <StatusPill tone="pending">{t("organizer.invited")}</StatusPill>
                   </>
                 }
-                meta={`Expires ${dateLabel(invitation.expires_at)}`}
+                meta={t("account.expires_at", { p0: dateLabel(invitation.expires_at) })}
                 actions={
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => void remove(`the invitation for ${invitation.email}`, () => revokeInvitation(organization.id, invitation.id))}
-                  >
-                    Revoke
-                  </Button>
+                    onClick={() => void remove(t("org.invitation_for", { p0: invitation.email }), () => revokeInvitation(organization.id, invitation.id))}
+                  >{t("organizer.revoke")}</Button>
                 }
               />
             ))}
           </div>
           <form className="form-stack invite-form" onSubmit={(event) => void invite(event)}>
-            <TextField label="Invite by email" name="email" type="email" required maxLength={254} placeholder="colleague@example.com" />
+            <TextField label={t("organizer.invite_email")} name="email" type="email" required maxLength={254} placeholder="colleague@example.com" />
             <FormMessage message={state.message} />
             <div className="form-actions">
-              <Button type="submit" disabled={state.busy}>
-                Send invitation
-              </Button>
+              <Button type="submit" disabled={state.busy}>{t("organizer.send_invitation")}</Button>
             </div>
           </form>
         </>

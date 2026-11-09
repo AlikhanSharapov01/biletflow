@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../../i18n";
 import { useState, type FormEvent } from "react";
 import { describeError } from "../../../api/errors";
 import { createOrganization } from "../../../api/organizations";
@@ -11,6 +12,7 @@ interface CreateOrganizationFormProps {
 }
 
 export function CreateOrganizationForm({ defaultEmail, onCreated }: CreateOrganizationFormProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState<FormState>(IDLE);
 
@@ -24,7 +26,7 @@ export function CreateOrganizationForm({ defaultEmail, onCreated }: CreateOrgani
         contact_email: text(data, "contact_email"),
         contact_phone: text(data, "contact_phone") || null,
       });
-      notify("Organizer workspace created.");
+      notify(t("org.workspace_created"));
       onCreated(organization);
     } catch (failure) {
       setState({ message: describeError(failure), success: false, busy: false });
@@ -33,17 +35,15 @@ export function CreateOrganizationForm({ defaultEmail, onCreated }: CreateOrgani
 
   return (
     <Panel>
-      <PanelHeading title="Create your organizer workspace" />
-      <p className="form-intro">Set up an organization before creating events.</p>
+      <PanelHeading title={t("org.create_workspace_title")} />
+      <p className="form-intro">{t("org.setup_first")}</p>
       <form className="form-stack" onSubmit={(event) => void handleSubmit(event)}>
-        <TextField label="Organization name" name="name" required maxLength={200} placeholder="e.g. Northline Collective" />
-        <TextField label="Contact email" name="contact_email" type="email" defaultValue={defaultEmail} required maxLength={254} />
-        <TextField label="Contact phone" hint="Optional" name="contact_phone" maxLength={32} placeholder="+7 …" />
+        <TextField label={t("org.organization_name")} name="name" required maxLength={200} placeholder={t("org.organization_example")} />
+        <TextField label={t("org.contact_email")} name="contact_email" type="email" defaultValue={defaultEmail} required maxLength={254} />
+        <TextField label={t("org.contact_phone")} hint={t("common.optional")} name="contact_phone" maxLength={32} placeholder="+7 …" />
         <FormMessage message={state.message} success={state.success} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy}>
-            Create workspace
-          </Button>
+          <Button variant="primary" type="submit" disabled={state.busy}>{t("org.create_workspace")}{" "}</Button>
         </div>
       </form>
     </Panel>

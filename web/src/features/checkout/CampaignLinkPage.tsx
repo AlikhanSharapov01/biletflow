@@ -1,15 +1,17 @@
+import { t, useLocale } from "../../i18n";
 import { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router";
-import { describeError, isNotImplemented } from "../../api/errors";
+import { describeError } from "../../api/errors";
 import { resolveCampaignLink } from "../../api/promo";
-import { ButtonLink, ErrorPanel, Loading, NotAvailableYet, PageHeading } from "../../components/ui";
+import { ButtonLink, ErrorPanel, Loading, PageHeading } from "../../components/ui";
 import { stashPromo } from "./utils/promo";
 
-type State = { kind: "loading" } | { kind: "redirect"; to: string } | { kind: "planned" } | { kind: "error"; message: string };
+type State = { kind: "loading" } | { kind: "redirect"; to: string } | { kind: "error"; message: string };
 
 // /c/:token — a campaign QR or link. Resolves to its event and promo code and
 // forwards there. Campaign links never admit anyone: they are not tickets.
 export function CampaignLinkPage() {
+  useLocale();
   const { token = "" } = useParams();
   const [state, setState] = useState<State>({ kind: "loading" });
 
@@ -25,7 +27,7 @@ export function CampaignLinkPage() {
       })
       .catch((failure: unknown) => {
         if (!active) return;
-        setState(isNotImplemented(failure) ? { kind: "planned" } : { kind: "error", message: describeError(failure) });
+        setState({ kind: "error", message: describeError(failure) });
       });
     return () => {
       active = false;
@@ -36,15 +38,10 @@ export function CampaignLinkPage() {
 
   return (
     <>
-      <PageHeading eyebrow="Campaign link" title="Opening your event." />
-      {state.kind === "loading" ? <Loading label="Opening the event…" /> : null}
-      {state.kind === "planned" ? (
-        <NotAvailableYet feature="Campaign links">
-          This link will open its event with the promo code applied once campaigns are released. You can still browse events.
-        </NotAvailableYet>
-      ) : null}
-      {state.kind === "error" ? <ErrorPanel title="This campaign link doesn’t work." message={state.message} /> : null}
-      {state.kind !== "loading" ? <ButtonLink to="/discover">Browse events</ButtonLink> : null}
+      <PageHeading eyebrow={t("checkout.campaign_link")} title={t("checkout.opening_title")} />
+      {state.kind === "loading" ? <Loading label={t("checkout.opening_event")} /> : null}
+      {state.kind === "error" ? <ErrorPanel title={t("checkout.campaign_link_error")} message={state.message} /> : null}
+      {state.kind !== "loading" ? <ButtonLink to="/discover">{t("nav.browse")}</ButtonLink> : null}
     </>
   );
 }

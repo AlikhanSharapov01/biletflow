@@ -1,3 +1,4 @@
+import { t } from "../../../i18n";
 import type { EventSeat, HoldLine, SeatStatus } from "../../../api/types/checkout";
 
 export interface SeatRow {
@@ -36,13 +37,13 @@ export function groupSeats(seats: EventSeat[]): SeatSection[] {
 export type SeatLook = SeatStatus | "selected";
 
 export const SEAT_LOOKS: Record<SeatLook, { label: string; glyph: string }> = {
-  available: { label: "Available", glyph: "" },
-  selected: { label: "Selected", glyph: "✓" },
-  held: { label: "Held by another buyer", glyph: "◔" },
-  sold: { label: "Sold", glyph: "×" },
-  refund_pending: { label: "Sold (refund pending)", glyph: "×" },
-  blocked: { label: "Not for sale", glyph: "–" },
-  unavailable: { label: "Unavailable", glyph: "–" },
+  available: { get label() { return t("checkout.available"); }, glyph: "" },
+  selected: { get label() { return t("checkout.selected"); }, glyph: "✓" },
+  held: { get label() { return t("checkout.held_other"); }, glyph: "◔" },
+  sold: { get label() { return t("checkout.sold"); }, glyph: "×" },
+  refund_pending: { get label() { return t("checkout.sold_refund_pending"); }, glyph: "×" },
+  blocked: { get label() { return t("checkout.not_for_sale"); }, glyph: "–" },
+  unavailable: { get label() { return t("checkout.unavailable"); }, glyph: "–" },
 };
 
 export function seatLook(seat: EventSeat, selected: ReadonlySet<string>): SeatLook {

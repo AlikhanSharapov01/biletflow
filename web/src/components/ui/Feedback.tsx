@@ -1,3 +1,4 @@
+import { t, translate, useLocale } from "../../i18n";
 import type { ReactNode } from "react";
 import { Button } from "./Button";
 
@@ -7,7 +8,8 @@ interface LoadingProps {
   label?: string;
 }
 
-export function Loading({ label = "Loading…" }: LoadingProps) {
+export function Loading({ label = t("common.loading") }: LoadingProps) {
+  useLocale();
   return (
     <div className="loading-state" role="status">
       <span className="loading-spinner" />
@@ -23,11 +25,12 @@ interface ErrorPanelProps {
 }
 
 export function ErrorPanel({ title, message, onRetry }: ErrorPanelProps) {
+  useLocale();
   return (
     <section className="panel error-panel" role="alert">
       <strong>{title}</strong>
-      <p>{message}</p>
-      {onRetry ? <Button onClick={onRetry}>Try again</Button> : null}
+      <p>{translate(message)}</p>
+      {onRetry ? <Button onClick={onRetry}>{t("common.try_again")}</Button> : null}
     </section>
   );
 }
@@ -39,6 +42,7 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ children, wide = false }: EmptyStateProps) {
+  useLocale();
   return <div className={`empty-state ${wide ? "empty-wide" : ""}`}>{children}</div>;
 }
 
@@ -48,9 +52,10 @@ interface FormMessageProps {
 }
 
 export function FormMessage({ message, success = false }: FormMessageProps) {
+  useLocale();
   return (
     <p className={`form-message ${success ? "success" : ""}`} role="status">
-      {message}
+      {translate(message)}
     </p>
   );
 }
