@@ -203,7 +203,47 @@ that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `np
 - **Backend-dependent:** once the endpoints in the table above exist, confirm the shapes and remove
   any adjustments; then test promo, analytics, finance and refunds end to end.
 - **Small clean-ups:** merge the two blob-download helpers (`api/download.ts` and `api/files.ts`);
-  show the event status on the public event page as a readable label; send an `Idempotency-Key`
-  header on holds, checkout and activation once `request()` supports custom headers.
+  event status labels and idempotency headers are implemented (see below).
 - **Not yet clicked through manually:** paid checkout with the simulator, the seat map, PDF/CSV
   downloads.
+
+
+## Downloads and idempotency
+
+All binary transfers use `src/api/files.ts`, including PDF and calendar downloads,
+CSV exports, campaign QR images and uploads. It handles authentication refresh,
+server-provided filenames (including UTF-8 filenames), and browser downloads.
+
+Holds, free confirmation, paid checkout, activation and payment retries send an
+`Idempotency-Key` header. Each API invocation generates a fresh UUID, which is
+preserved through the automatic authentication retry. These functions also accept
+an explicit key: reuse the original key when retrying the same action; use a new
+key when the action or payload changes.
+
+The public event page displays readable publication labels: Draft, Published,
+Unpublished and Cancelled.
+
+## Optional GA4 traffic collection
+
+GA4 (Google Analytics 4) measures website traffic; it does not replace the
+organizer sales and attendance reports calculated from BiletFlow records.
+
+Set `VITE_GA4_MEASUREMENT_ID=G-...` in the web build environment and rebuild.
+Users opt in or revoke consent through the optional traffic analytics checkbox
+in Account. Without a valid measurement ID or saved consent, no Google script
+is loaded. Anonymous visitors are not tracked.
+
+Only Discover and event-detail route templates are sent. Event IDs, query
+strings, hashes, search terms and original referrers are excluded. Account,
+order, ticket, support, authentication and admin routes are not tracked.
+
+In the GA4 web stream, **disable Enhanced Measurement entirely** so automatic
+history, form, outbound-click and other events cannot bypass the sanitized
+manual page views. Do not install a second GA/GTM tag. See Google's
+[manual pageview documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?technology=websites).
+
+Verify collection in GA4 Realtime with a consenting test account, then revoke
+consent and verify collection stops. Live collection has not been verified with
+a configured property. Traffic is viewed in GA4; an organizer traffic dashboard
+still requires backend reporting integration. Never put service-account
+credentials or API secrets in Vite environment variables.

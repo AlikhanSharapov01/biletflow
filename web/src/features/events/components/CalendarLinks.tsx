@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { downloadIcs, getCalendarLinks } from "../../../api/calendar";
-import { saveFile } from "../../../api/download";
+import { saveFile } from "../../../api/files";
 import { describeError, errorCodeOf } from "../../../api/errors";
 import { Button, FormMessage, PanelHeading, buttonClass } from "../../../components/ui";
 import { useRequest } from "../../../hooks/useRequest";

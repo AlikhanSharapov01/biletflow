@@ -57,6 +57,24 @@ describe("request", () => {
     expect(new Headers(fetchMock.mock.calls[2]![1]?.headers).get("Authorization")).toBe("Bearer fresh");
   });
 
+  it("preserves custom headers and the idempotency key through token refresh", async () => {
+    session.set("stale");
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, {}))
+      .mockResolvedValueOnce(jsonResponse(200, { access_token: "fresh" }))
+      .mockResolvedValueOnce(jsonResponse(200, {}));
+    await request("/api/v1/holds/h/checkout", {
+      method: "POST", body: {}, idempotencyKey: "operation-123",
+      headers: { "X-Example": "value" },
+    });
+    for (const index of [0, 2]) {
+      const headers = new Headers(fetchMock.mock.calls[index]![1]?.headers);
+      expect(headers.get("Idempotency-Key")).toBe("operation-123");
+      expect(headers.get("X-Example")).toBe("value");
+    }
+    expect(new Headers(fetchMock.mock.calls[1]![1]?.headers).has("Idempotency-Key")).toBe(false);
+  });
+
   it("signals session expiry when the refresh cookie is gone", async () => {
     session.set("stale");
     const expired = vi.fn();

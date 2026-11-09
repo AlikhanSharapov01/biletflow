@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { saveFile } from "../../../api/download";
+import { saveFile } from "../../../api/files";
 import { describeError } from "../../../api/errors";
 import { downloadTicketPdf } from "../../../api/tickets";
 import { Button, useToast } from "../../../components/ui";

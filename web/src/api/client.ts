@@ -7,6 +7,8 @@ const REFRESH_PATH = "/api/v1/auth/refresh";
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  headers?: HeadersInit;
+  idempotencyKey?: string;
   query?: Record<string, string | number | undefined>;
 }
 
@@ -45,7 +47,9 @@ function withQuery(path: string, query?: RequestOptions["query"]): string {
 }
 
 async function send(path: string, options: RequestOptions, token: string): Promise<Response> {
-  const headers = new Headers({ Accept: "application/json" });
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+  if (options.idempotencyKey) headers.set("Idempotency-Key", options.idempotencyKey);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
   try {

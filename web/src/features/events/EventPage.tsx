@@ -48,7 +48,7 @@ export function EventPage() {
         eyebrow={category?.name_en ?? "Event"}
         title={event.title}
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
-        actions={<StatusPill tone={publicationTone(event.publication_state)}>{event.publication_state}</StatusPill>}
+        actions={<StatusPill tone={publicationTone(event.publication_state)}>{{ draft: "Draft", published: "Published", unpublished: "Unpublished", cancelled: "Cancelled" }[event.publication_state]}</StatusPill>}
       />
       <div className="content-grid">
         <Panel>
