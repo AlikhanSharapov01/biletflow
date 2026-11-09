@@ -1,0 +1,59 @@
+name: Backup
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "tools/backup.sh"
+      - "tools/restore.sh"
+      - "docker-compose.yml"
+      - ".github/workflows/backup.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "tools/backup.sh"
+      - "tools/restore.sh"
+      - "docker-compose.yml"
+      - ".github/workflows/backup.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGISTER_URL: http://127.0.0.1:8000/api/v1/auth/register
+      PASSWORD: correct horse battery staple
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose up -d --build
+      - name: Create data to protect
+        run: |
+          curl -fsS -o /dev/null -H 'Content-Type: application/json' \
+            -d "{\"email\":\"before@example.com\",\"password\":\"$PASSWORD\",\"display_name\":\"Before\"}" "$REGISTER_URL"
+          docker compose exec -T api sh -c 'echo restored-ok > /app/var/storage/drill-marker.txt'
+      - run: bash tools/backup.sh
+      - name: Destroy the stack
+        run: docker compose down --volumes
+      - name: Restore into a fresh stack
+        run: bash tools/restore.sh --yes backups/biletflow-*.tar
+      - name: Check the data came back
+        run: |
+          count="$(docker compose exec -T db psql -U biletflow_owner -d biletflow -tA \
+            -c "SELECT count(*) FROM biletflow.app_user WHERE email = 'before@example.com'")"
+          test "$count" = 1
+          test "$(docker compose exec -T api cat /app/var/storage/drill-marker.txt)" = restored-ok
+      - name: Check the app can write to the restored database
+        run: |
+          curl -fsS -o /dev/null -H 'Content-Type: application/json' \
+            -d "{\"email\":\"after@example.com\",\"password\":\"$PASSWORD\",\"display_name\":\"After\"}" "$REGISTER_URL"
+      - name: Compose logs
+        if: failure()
+        run: docker compose logs --no-color

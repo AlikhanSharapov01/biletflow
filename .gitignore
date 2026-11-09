@@ -28,3 +28,4 @@ mobile/.expo/
 node_modules/
 .idea/
 *.pdf
+backups/

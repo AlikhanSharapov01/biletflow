@@ -34,7 +34,7 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 | Database (`backend/migrations/`) | Most of the MVP | 12 migrations, 58 tables. Campaign tables are the main missing piece. |
 | Web (`web/`) | UI complete for current scope | Every screen exists. Screens whose backend exists are fully wired; promo, analytics, finance, refunds and event images show a "not available yet" state until their API ships. Kazakh/Russian translations are missing. |
 | Mobile app (`mobile/`) | Full app + scanner | Every web feature on iOS/Android (see [decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), plus the scanner with entry confirmation and manual guest search. The same features as the web wait for the backend. |
-| Environment | Local demo works | Docker Compose runs the full stack. No backups, no TLS. CI checks the backend and the mobile app, not yet the web. |
+| Environment | Local demo works | Docker Compose runs the full stack, with [backup and restore](docs/operations/backup.md). No TLS. CI checks the backend and the mobile app, not yet the web. |
 | Tests | Backend strong, clients growing | 238 backend tests (real PostgreSQL), 87 web unit tests, 163 mobile tests (screens with a mocked API, helpers, scanner flow), no automated end-to-end tests. |
 
 ### Feature progress against the SRS
