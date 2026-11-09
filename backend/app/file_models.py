@@ -45,6 +45,12 @@ class StoredFile(Row, Base):
         CheckConstraint("size_bytes >= 0", name="stored_file_ck3"),
         restrict(["uploaded_by_user_id"], ["biletflow.app_user.id"], "fk_stored_file_uploader"),
         Index("ix_stored_file_uploader", "uploaded_by_user_id", "created_at"),
+        Index(
+            "ix_event_image_cleanup",
+            "cleanup_after",
+            "id",
+            postgresql_where=text("purpose = 'event_image' AND status IN ('pending','deleted')"),
+        ),
     )
     uploaded_by_user_id: Mapped[UUID | None] = mapped_column(PGUUID)
     object_key: Mapped[str] = mapped_column(Text)
@@ -55,6 +61,7 @@ class StoredFile(Row, Base):
     original_filename: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(Text, server_default=text("'pending'"))
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SupportAttachment(Row, Base):

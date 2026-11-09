@@ -76,14 +76,28 @@ Knowing an image ID or retaining an old URL grants no access after revocation/un
 Storage lifecycle reserves a pending `stored_file`, writes the generated UUID key outside
 the business transaction, then reauthorizes and attaches it as clean under an event lock.
 Failed finalize/commit compensates only that upload's object. Delete commits removal and
-deleted metadata before physical deletion. Disk cleanup failures leave inaccessible objects
-with retained pending/deleted metadata for reconciliation; automated crash/orphan cleanup
-is not implemented. No support attachment or existing gallery object is deleted on upload failure.
+deleted metadata before physical deletion. The existing worker reconciles pending/deleted
+event-image metadata every hold-sweep interval (15 seconds), claiming at most 50 due files.
+Implementation defaults: pending uploads have one hour of grace, and cleanup claims advance
+the durable `cleanup_after` timestamp by five minutes before object IO. Failed deletes or
+worker interruption therefore retry on later passes. Legacy NULL schedules are recovered
+without a bulk backfill. Clean files and all existing event/support/ticket references are protected.
+
+Cleanup atomically fences stale pending metadata as deleted; upload finalization locks that
+metadata and requires pending status, so a cleanup winner cannot be attached/published.
+All object IO happens after the short claiming transaction has committed. Deleted tombstones
+stay periodically scheduled even after successful deletion: this reclaims a slow interrupted
+object write that finishes after an earlier cleanup pass. A cleanup worker never holds an
+event/organization/advisory lock or database connection during storage IO. Recovery requires
+the worker to run and storage/database availability to return; storage deletion is idempotent.
+No support attachment or existing gallery object is deleted on upload failure.
 Schema migration `0015_event_images` adds `event_media`; its down migration drops gallery
-links and cannot restore those links/data. Stored file metadata and objects remain separate.
+links and cannot restore those links/data. `0016_image_cleanup` adds the nullable durable
+schedule and concurrent partial index; its downgrade removes scheduling, preserving image
+links/file metadata. Stored file metadata and objects remain separate.
 
 Errors include 401 authentication, 403 insufficient event capability, 404 unrelated/inaccessible
-event or image, 409 gallery full/event not editable, 413 too large, 415 unsupported type,
+event or image, 409 gallery full/event not editable/upload expired during cleanup, 413 too large, 415 unsupported type,
 422 invalid bytes/order/input, 429 upload rate limit, and 503 storage/database unavailable.
 
 ## Discovery and event lifecycle

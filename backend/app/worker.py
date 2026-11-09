@@ -17,6 +17,7 @@ from .checkout_expiry import sweep_expired_holds
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
+from .event_image_service import reconcile_images
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .payments_service import dispatch_refund_once, initialize_once, process_received_once
@@ -248,6 +249,10 @@ def main():
                     sweep_expired_holds(factory)
                 except Exception:
                     pass  # the next pass retries; expiry state lives in the database
+                try:
+                    reconcile_images(factory, storage)
+                except Exception:
+                    pass  # durable image schedules retry after restart or temporary failure
             try:
                 busy = (
                     initialize_once(factory)

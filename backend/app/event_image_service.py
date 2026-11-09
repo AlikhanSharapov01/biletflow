@@ -3,23 +3,28 @@
 import hashlib
 import logging
 import warnings
+from datetime import timedelta
 from io import BytesIO
 from uuid import uuid4
 
 from PIL import Image, ImageOps, UnidentifiedImageError
-from sqlalchemy import select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from .admin_service import effective_setting
 from .attachment_service import ALLOWED_TYPES, clean_filename
 from .catalog_models import Organization
 from .catalog_service import catalog_audit, changed, editable, event_guard
-from .file_models import EventMedia, StoredFile
+from .checkout_models import Ticket
+from .file_models import EventMedia, StoredFile, SupportAttachment
 from .security import fail, now
 from .service import valid_session
 
 MAX_IMAGES = 10
 MAX_PIXELS = 16_000_000
+UPLOAD_GRACE = timedelta(hours=1)
+CLEANUP_RETRY = timedelta(minutes=5)
+CLEANUP_BATCH = 50
 IMAGE_TYPES = {key: ALLOWED_TYPES[key] for key in ("image/png", "image/jpeg")}
 logger = logging.getLogger(__name__)
 
@@ -123,6 +128,7 @@ def upload(factory, storage, settings, ids, event_id, filename, alt_text, conten
                 sha256=hashlib.sha256(data).hexdigest(),
                 original_filename=clean_filename(filename),
                 status="pending",
+                cleanup_after=now() + UPLOAD_GRACE,
             )
         )
     try:
@@ -132,8 +138,10 @@ def upload(factory, storage, settings, ids, event_id, filename, alt_text, conten
             rows = gallery(db, event_id)
             if len(rows) >= MAX_IMAGES:
                 fail("image_limit_reached", 409)
-            file = db.get(StoredFile, file_id)
-            file.status, file.scanned_at = "clean", now()
+            file = db.scalar(select(StoredFile).where(StoredFile.id == file_id).with_for_update())
+            if file.status != "pending":
+                fail("image_upload_expired", 409)
+            file.status, file.scanned_at, file.cleanup_after = "clean", now(), None
             row = EventMedia(
                 event_id=event_id, file_id=file_id, sort_order=len(rows), alt_text=alt_text
             )
@@ -146,7 +154,8 @@ def upload(factory, storage, settings, ids, event_id, filename, alt_text, conten
         # Only this upload's object is compensated, never an existing gallery image.
         try:
             with factory.begin() as db:
-                db.get(StoredFile, file_id).status = "deleted"
+                file = db.get(StoredFile, file_id)
+                file.status, file.cleanup_after = "deleted", now()
         except SQLAlchemyError:
             logger.warning(
                 "Event image metadata cleanup failed; pending key retained for reconciliation"
@@ -181,8 +190,57 @@ def remove(db, user, event, image_id):
         fail("image_not_found", 404)
     file = db.get(StoredFile, row.file_id)
     file.status = "deleted"
+    file.cleanup_after = now()
     db.delete(row)
     for position, remaining in enumerate(item for item in rows if item.id != image_id):
         remaining.sort_order = position
     audit(db, user, event, "event.image_deleted", row)
     return file.object_key
+
+
+def reconcile_images(factory, storage, batch_size=CLEANUP_BATCH):
+    """Fence orphan writes in a short TX, then retry idempotent deletion outside it.
+
+    Deleted tombstones stay scheduled: an interrupted upload may finish its object write
+    after cleanup, even though its fenced metadata can never be finalized as clean.
+    """
+    current = now()
+    with factory.begin() as db:
+        files = list(
+            db.scalars(
+                select(StoredFile)
+                .where(
+                    StoredFile.purpose == "event_image",
+                    StoredFile.status.in_(["pending", "deleted"]),
+                    or_(
+                        StoredFile.cleanup_after <= current,
+                        StoredFile.cleanup_after.is_(None)
+                        & (
+                            (StoredFile.status == "deleted")
+                            | (StoredFile.created_at <= current - UPLOAD_GRACE)
+                        ),
+                    ),
+                    ~exists(select(EventMedia.id).where(EventMedia.file_id == StoredFile.id)),
+                    ~exists(
+                        select(SupportAttachment.id).where(
+                            SupportAttachment.file_id == StoredFile.id
+                        )
+                    ),
+                    ~exists(select(Ticket.id).where(Ticket.pdf_file_id == StoredFile.id)),
+                )
+                .order_by(StoredFile.cleanup_after.asc().nullsfirst(), StoredFile.id)
+                .limit(max(1, min(batch_size, CLEANUP_BATCH)))
+                .with_for_update(skip_locked=True)
+            )
+        )
+        keys = []
+        for file in files:
+            file.status = "deleted"
+            file.cleanup_after = current + CLEANUP_RETRY
+            keys.append(file.object_key)
+    for key in keys:
+        try:
+            storage.delete(key)
+        except OSError:
+            logger.warning("Event image cleanup failed; durable retry remains scheduled")
+    return len(keys)
