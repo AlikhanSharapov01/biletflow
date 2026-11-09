@@ -1,10 +1,13 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Header, Query, Response
+from sqlalchemy import select, text
 
 from . import admin_schemas as s
+from .activation_schemas import Checklist
+from .activation_service import checklist, reinstate, suspend
+from .admin_commerce import COMMERCE_KINDS, commerce_filters
 from .admin_models import EventReport, ModerationAction, SettingVersion
 from .admin_service import (
     EXPORT_MAX_ROWS,
@@ -22,6 +25,8 @@ from .admin_service import (
     setting_view,
     submit_report,
 )
+from .catalog_models import Event
+from .idempotency import checked_key, fingerprint, guard, remember, remembered
 from .security import fail
 from .service import valid_session
 
@@ -37,7 +42,7 @@ OrderStatus = Literal[
 ]
 TicketStatus = Literal["valid", "checked_in", "refund_pending", "refunded", "cancelled"]
 ReportStatus = Literal["open", "reviewing", "resolved"]
-Kind = Literal["users", "events", "orders", "tickets"]
+Kind = Literal["users", "events", "orders", "tickets", "payments", "failed-payments", "refunds"]
 
 
 def router(factory, settings, principal):
@@ -131,6 +136,109 @@ def router(factory, settings, principal):
             )
 
     # ------------------------------------------------------------ moderation
+    @routes.get(ADMIN + "/events/{event_id}/paid-sales", response_model=Checklist)
+    def paid_sales(event_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            admin_guard(db, ids)
+            event = db.get(Event, event_id)
+            if not event:
+                fail("event_not_found", 404)
+            return checklist(db, event)
+
+    def moderate_paid_sales(event_id, data, ids, raw_key, suspended):
+        key = checked_key(raw_key)
+        operation = "admin.paid_sales_suspended" if suspended else "admin.paid_sales_reinstated"
+        request_hash = fingerprint({"event_id": str(event_id), "reason": data.reason})
+        with factory.begin() as db:
+            if key:
+                guard(db, ids[0], operation, key)
+            admin = admin_guard(db, ids)
+            event = db.get(Event, event_id)
+            if not event:
+                fail("event_not_found", 404)
+            if key and remembered(db, admin.id, operation, key, request_hash):
+                return checklist(db, event)
+            activation = (
+                suspend(db, event_id, data.reason) if suspended else reinstate(db, event_id)
+            )
+            admin_audit(
+                db,
+                admin,
+                operation,
+                "sales_activation",
+                activation.id,
+                event=event,
+                safe_change={
+                    "reason": data.reason,
+                    "before": "active" if suspended else "suspended",
+                    "after": activation.status,
+                },
+            )
+            if key:
+                remember(
+                    db,
+                    admin.id,
+                    operation,
+                    key,
+                    request_hash,
+                    "sales_activation",
+                    activation.id,
+                    200,
+                )
+            return checklist(db, event)
+
+    @routes.post(ADMIN + "/events/{event_id}/paid-sales/suspend", response_model=Checklist)
+    def suspend_paid_sales(
+        event_id: UUID,
+        data: s.ReasonInput,
+        ids=Depends(principal),
+        idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    ):
+        return moderate_paid_sales(event_id, data, ids, idempotency_key, True)
+
+    @routes.post(ADMIN + "/events/{event_id}/paid-sales/reinstate", response_model=Checklist)
+    def reinstate_paid_sales(
+        event_id: UUID,
+        data: s.ReasonInput,
+        ids=Depends(principal),
+        idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    ):
+        return moderate_paid_sales(event_id, data, ids, idempotency_key, False)
+
+    def commerce_page(kind, ids, filters, limit, offset):
+        with factory() as db:
+            db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
+            db.execute(text("SET LOCAL statement_timeout = '5s'"))
+            admin_guard(db, ids)
+            return search_page(db, kind, limit, offset, **filters)
+
+    @routes.get(ADMIN + "/payments", response_model=s.Page)
+    def payments(
+        ids=Depends(principal),
+        filters=Depends(commerce_filters),
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return commerce_page("payments", ids, filters, limit, offset)
+
+    @routes.get(ADMIN + "/failed-payments", response_model=s.Page)
+    def failed_payments(
+        ids=Depends(principal),
+        filters=Depends(commerce_filters),
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return commerce_page("failed-payments", ids, filters, limit, offset)
+
+    @routes.get(ADMIN + "/refunds", response_model=s.Page)
+    def refunds(
+        ids=Depends(principal),
+        filters=Depends(commerce_filters),
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return commerce_page("refunds", ids, filters, limit, offset)
+
     @routes.post(ADMIN + "/users/{user_id}/suspend", response_model=s.ModerationView)
     def suspend_user(user_id: UUID, data: s.ReasonInput, ids=Depends(principal)):
         with factory.begin() as db:
@@ -274,18 +382,22 @@ def router(factory, settings, principal):
         kind: Kind,
         ids=Depends(principal),
         q: str | None = Q,
-        status: str | None = Query(None, max_length=32),
-        event_id: UUID | None = None,
+        commerce=Depends(commerce_filters),
         limit: int = Query(1000, ge=1, le=EXPORT_MAX_ROWS),
     ):
         if kind not in SEARCHES:
             fail("export_not_found", 404)
+        status, event_id = commerce["status"], commerce["event_id"]
         filters = {"q": q, "status": status}
         if kind == "events":
             filters = {"q": q, "moderation_state": status}
         elif kind in ("orders", "tickets"):
             filters["event_id"] = event_id
-        if status and kind != "events":
+        if kind in COMMERCE_KINDS:
+            if q:
+                fail("invalid_filter", 422)
+            filters = commerce
+        if status and kind not in COMMERCE_KINDS and kind != "events":
             allowed = {
                 "users": ("active", "suspended"),
                 "orders": OrderStatus.__args__,
@@ -296,6 +408,7 @@ def router(factory, settings, principal):
         if status and kind == "events" and status not in ("normal", "suspended"):
             fail("invalid_filter", 422)
         with factory.begin() as db:
+            db.execute(text("SET LOCAL statement_timeout = '5s'"))
             admin = admin_guard(db, ids)
             body = export_csv(db, kind, limit, **filters)
             admin_audit(

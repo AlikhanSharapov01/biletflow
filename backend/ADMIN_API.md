@@ -1,8 +1,8 @@
 # Platform administration API
 
 Stage E, platform-admin scope (SRS 4.12, backend plan BF-21). Covers the admin role, search,
-user/event suspension, event reports, platform settings and CSV export. Commerce areas (paid
-activation, payments, refunds, campaigns, analytics) are not built here; see
+user/event and paid-sales suspension, event reports, platform settings, payment/refund inspection
+and CSV export. Other operational views remain outside this increment; see
 [Not yet implemented](#not-yet-implemented).
 
 All endpoints need a verified signed-in account (`Authorization: Bearer`) and return errors as
@@ -34,6 +34,9 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 | `GET /admin/events` | Search. Filters `q` (title, event id or organization id), `moderation_state`, `publication_state`, `organization_id` |
 | `GET /admin/orders` | Search. Filters `q` (buyer email, order id or buyer id), `status`, `event_id`, `buyer_user_id` |
 | `GET /admin/tickets` | Search. Filters `q` (recipient email, ticket id or order id), `status`, `event_id`, `order_id` |
+| `GET /admin/payments`, `GET /admin/failed-payments`, `GET /admin/refunds` | Paginated authoritative commerce records; filters below |
+| `GET /admin/events/{event_id}/paid-sales` | Activation checklist, saved fee, latest payment, missing prerequisites and suspension reason |
+| `POST /admin/events/{event_id}/paid-sales/suspend`, `.../reinstate` | Body `{"reason"}` (trimmed, 1-500 characters); optional `Idempotency-Key` |
 | `POST /admin/users/{id}/suspend`, `.../reinstate` | Body `{"reason"}` (1-500 characters) |
 | `POST /admin/events/{id}/suspend`, `.../reinstate` | Body `{"reason"}` |
 | `GET /admin/moderation-actions` | Append-only decisions; filters `user_id`, `event_id` |
@@ -44,15 +47,66 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 | `GET /admin/settings` | Every setting with current value, version, bounds and any scheduled change |
 | `PUT /admin/settings/{key}` | Body `{"value", "expected_version", "effective_at"?, "reason"?}` |
 | `GET /admin/settings/{key}/history` | Versions, newest first |
-| `GET /admin/exports/{users\|events\|orders\|tickets}.csv` | CSV download; filters `q`, `status`, `event_id` (orders and tickets), `limit` (1-5000, default 1000) |
+| `GET /admin/exports/{kind}.csv` | Kinds `users`, `events`, `orders`, `tickets`, `payments`, `failed-payments`, `refunds`; `limit` 1-5000, default 1000 |
 
 Search lists return `{"items": [...], "total", "limit", "offset"}` with `limit` 1-100 (default 50)
 and a deterministic order (newest first, ties by id). Search text is matched literally: `%` and
 `_` are not wildcards. Responses never include password hashes, token hashes or QR material.
-Order and ticket search show the same fields an organizer already sees; payments, refunds and
-support cases are not stored yet, so they cannot be searched.
+Order and ticket search show the same fields an organizer already sees. Support-case search
+remains outside this API.
+
+## Payment and refund inspection
+
+All three commerce lists and their CSV exports accept exact `event_id`, `organization_id`,
+`order_id`, `payer_user_id`, `purpose` (`ticket_order` or `activation`), `environment`
+(`simulation` or `sandbox`), and `status`. Filters combine with AND; mismatched organization/event
+or order/event filters return an empty page. `failed-payments` always restricts payment attempts
+to `failed`; a different status is `422 invalid_filter`. Payment statuses are `created`, `pending`,
+`failed`, `succeeded`; refund statuses are `requested`, `pending`, `failed`, `succeeded`.
+
+Optional `from` (inclusive) and `to` (exclusive) are offset-bearing instants applied to the listed
+record's `created_at`; naive timestamps and reversed/equal ranges are `422 invalid_date_range`.
+Invalid UUIDs, enums and pagination bounds return `422`. Lists use the usual page envelope,
+`limit` 1-100, `offset` 0-100000, newest first then id. Count and rows share a read-only repeatable
+read snapshot, take no row locks, and have a transaction-local five-second statement timeout.
+
+Payment rows identify the attempt, intent, event, organization, order or activation, payer, purpose,
+environment, provider and provider payment reference; expose status, expected and captured amounts,
+currency, saved processing fee, created/confirmed/reconciliation times, and explicit `simulated`.
+Refund rows identify the logical full-refund obligation and original charge with the same context,
+amount, reason, status, created/succeeded time and latest refund-attempt status. Each row remains
+one attempt or one logical refund: retries do not multiply rows or money. A failed payment attempt
+can later succeed authoritatively and consequently leave the failure list. Collected charges and
+compensating refunds remain visible even when no order was fulfilled. No admin endpoint rewrites
+payment state. Provider payloads, request/merchant keys, payout details and secrets are omitted.
+
+Commerce exports accept exactly the same documented filters as their lists (no text `q`), use the
+same column allowlist and deterministic ordering, and write the existing `admin.export` audit.
+They are bounded snapshots of the first `limit` matching rows, not an unbounded export or a promise
+of a complete result. Existing users/events/orders/tickets CSV filters remain `q`, `status`, and
+`event_id` for orders/tickets.
 
 ## Suspension
+
+- **Paid sales.** Independently changes activation `active -> suspended` or `suspended -> active`
+  under the existing event/activation locks. This leaves event moderation unchanged. New paid
+  holds and checkout of existing originally-paid holds fail `409 paid_sales_inactive`, including
+  fully discounted paid types; eligible free registrations still complete. A charge confirmed
+  while suspended remains a recorded successful payment, issues no ticket, and creates the
+  existing `blocked_fulfillment` compensation refund. Suspending alone never initiates refunds
+  for previously fulfilled orders or changes their records.
+  Reinstatement rechecks paid type, payout, verification, terms and successful activation payment;
+  missing prerequisites give `409 activation_incomplete`. It does not override other event gates.
+  Missing event is `404 event_not_found`; invalid transitions are `409 paid_sales_not_active` or
+  `paid_sales_not_suspended`. Each successful decision writes an admin-actor audit row
+  `admin.paid_sales_suspended` / `admin.paid_sales_reinstated`, entity `sales_activation`, reason and
+  before/after states, in the same transaction. Existing service-level activation audit is retained.
+  These decisions do not create whole-event `moderation_action` rows; inspect the event audit
+  history for paid-sales decisions. Optional `Idempotency-Key` uses the existing 8-128 character
+  commerce key format and 24-hour retention; identical retries reauthorize and return the current
+  checklist without repeating the transition/audit. Changed event or reason under the same
+  actor/operation/key gives `409 idempotency_key_reused`. Without a key, repeated transitions
+  return the state conflict, including concurrent duplicates.
 
 - **User.** Sets `status = 'suspended'` and revokes every session in the same transaction. The
   user can no longer sign in, refresh, or use an existing access token. Reinstating allows a fresh
@@ -127,14 +181,15 @@ treat user-supplied text as text. Output is capped at 5000 rows and each export 
 | `moderation_action` | Append-only suspend/reinstate decisions (user or event target) |
 | `platform_setting_version` | Append-only setting history |
 
-The database atlas also lists a `target_activation_id` column on `moderation_action`; it is added
-together with the paid-sales activation tables. The migration downgrade deliberately raises, like
-earlier migrations.
+The database atlas also designs a `target_activation_id` column on `moderation_action`; the current
+deployed moderation table still has user/event targets only. Paid-sales decisions use the existing
+immutable audit table, with an explicit activation entity and admin actor, rather than adding
+schema or mislabelling them as whole-event moderation. The original moderation migration downgrade
+deliberately raises, like earlier migrations.
 
 ## Not yet implemented
 
-- Paid-sales suspension/reinstatement, activation inspection, payment, refund, dispute, campaign,
-  job/notification and offline-conflict views (the underlying tables do not exist yet).
+- Dispute, campaign, job/notification and offline-conflict admin views.
 - Admin search/inspection of support cases (escalation itself exists: `POST /support/cases/{id}/escalation`).
 - User-facing notices to affected users (BF-15); the audit trail already records each decision.
 - Public platform settings endpoint for clients.

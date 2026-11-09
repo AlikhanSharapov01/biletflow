@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException
 from sqlalchemy import case, func, literal, or_, select, text
 
+from .admin_commerce import failed_payments_query, payments_query, refunds_query
 from .admin_models import EventReport, ModerationAction, PlatformAdmin, SettingVersion
 from .admin_schemas import SETTINGS
 from .catalog_models import Event, Organization
@@ -186,6 +187,9 @@ SEARCHES = {
     "events": events_query,
     "orders": orders_query,
     "tickets": tickets_query,
+    "payments": payments_query,
+    "failed-payments": failed_payments_query,
+    "refunds": refunds_query,
 }
 
 
