@@ -2,9 +2,10 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import AwareDatetime
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, text
 
 from . import catalog_schemas as s
+from .analytics_service import ticket_type_counts
 from .catalog_models import (
     AccessGrant,
     Allocation,
@@ -428,7 +429,9 @@ def router(factory, settings, principal):
             result = event_record(event)
         return result
 
-    @routes.post("/events/{event_id}/ticket-types", response_model=s.TicketView, status_code=201)
+    @routes.post(
+        "/events/{event_id}/ticket-types", response_model=s.OrganizerTicketView, status_code=201
+    )
     def create_type(event_id: UUID, data: s.TicketInput, ids=Depends(principal)):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
@@ -447,19 +450,28 @@ def router(factory, settings, principal):
                 event,
                 ticket,
             )
-        return ticket
+            result = record(ticket) | ticket_type_counts(db, event.id)[ticket.id]
+        return result
 
-    @routes.get("/events/{event_id}/ticket-types", response_model=list[s.TicketView])
+    @routes.get(
+        "/events/{event_id}/ticket-types", response_model=list[s.OrganizerTicketView | s.TicketView]
+    )
     def list_types(event_id: UUID, request: Request):
         with factory() as db:
+            db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
             user = viewer(db, request)
             event = event_guard(db, user, event_id)
             query = select(TicketType).where(TicketType.event_id == event.id)
             if not user or "event_edit" not in event_caps(db, user, event):
                 query = query.where(TicketType.is_hidden.is_(False))
-            return list(db.scalars(query.order_by(TicketType.created_at, TicketType.id)))
+            tickets = list(db.scalars(query.order_by(TicketType.created_at, TicketType.id)))
+            if user and event_caps(db, user, event) & {"event_edit", "reports"}:
+                db.execute(text("SET LOCAL statement_timeout = '5s'"))
+                counts = ticket_type_counts(db, event.id)
+                return [record(ticket) | counts[ticket.id] for ticket in tickets]
+            return tickets
 
-    @routes.put("/events/{event_id}/ticket-types/{type_id}", response_model=s.TicketView)
+    @routes.put("/events/{event_id}/ticket-types/{type_id}", response_model=s.OrganizerTicketView)
     def edit_type(event_id: UUID, type_id: UUID, data: s.TicketInput, ids=Depends(principal)):
         with factory.begin() as db:
             user, _ = valid_session(db, *ids, lock=True)
@@ -492,7 +504,8 @@ def router(factory, settings, principal):
                 event,
                 ticket,
             )
-        return ticket
+            result = record(ticket) | ticket_type_counts(db, event.id)[ticket.id]
+        return result
 
     @routes.post("/events/{event_id}/seats/configure", response_model=s.ConfiguredSeats)
     def configure_seats(event_id: UUID, data: s.SeatSetup, ids=Depends(principal)):
@@ -796,16 +809,31 @@ def router(factory, settings, principal):
         ids=Depends(principal),
         limit: int = Query(50, ge=1, le=100),
         offset: int = Query(0, ge=0),
+        actor: UUID | None = None,
+        action: str | None = Query(None, min_length=1, max_length=128),
+        from_: AwareDatetime | None = Query(None, alias="from"),
+        to: AwareDatetime | None = None,
     ):
+        if from_ is not None and to is not None and from_ >= to:
+            fail("invalid_range", 422)
+        if action is not None and not action.strip():
+            fail("invalid_history_filter", 422)
         with factory() as db:
             user, _ = valid_session(db, *ids)
             event_guard(db, user, event_id, "reports")
+            query = select(AuditLog).where(AuditLog.event_id == event_id)
+            if actor is not None:
+                query = query.where(AuditLog.actor_user_id == actor)
+            if action is not None:
+                query = query.where(AuditLog.action == action)
+            if from_ is not None:
+                query = query.where(AuditLog.created_at >= from_)
+            if to is not None:
+                query = query.where(AuditLog.created_at < to)
             return [
                 record(row)
                 for row in db.scalars(
-                    select(AuditLog)
-                    .where(AuditLog.event_id == event_id)
-                    .order_by(AuditLog.created_at.desc(), AuditLog.id)
+                    query.order_by(AuditLog.created_at.desc(), AuditLog.id)
                     .limit(limit)
                     .offset(offset)
                 )

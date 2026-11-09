@@ -129,6 +129,36 @@ def validate_filters(db, event, filters):
             fail("invalid_analytics_filter", 422)
 
 
+def ticket_type_counts(db, event_id):
+    """Current occupied/held units plus historical refunded tickets, without money joins."""
+    inventory = db.execute(
+        text(INVENTORY), {"event_id": event_id, "ticket_type_id": None}
+    ).mappings()
+    counts = {
+        row["id"]: {
+            "sold": row["occupied"],
+            "reserved": row["held"],
+            "refunded": 0,
+            "checked_in": 0,
+        }
+        for row in bounded(inventory)
+    }
+    for row in db.execute(
+        text("""
+        SELECT i.ticket_type_id,
+          count(*) FILTER (WHERE t.status='refunded') AS refunded,
+          count(*) FILTER (WHERE t.status IN ('valid','checked_in') AND ci.id IS NOT NULL) AS checked_in
+        FROM biletflow.ticket t
+        JOIN biletflow.order_item i ON i.id=t.order_item_id
+        LEFT JOIN biletflow.check_in ci ON ci.ticket_id=t.id AND ci.reversed_at IS NULL
+        WHERE t.event_id=:event_id GROUP BY i.ticket_type_id
+    """),
+        {"event_id": event_id},
+    ).mappings():
+        counts[row["ticket_type_id"]].update(refunded=row["refunded"], checked_in=row["checked_in"])
+    return counts
+
+
 def bounded(rows):
     rows = list(rows)
     if len(rows) > LIMIT:

@@ -157,6 +157,13 @@ class TicketView(Record, TicketInput):
     event_id: UUID
 
 
+class OrganizerTicketView(TicketView):
+    sold: int
+    reserved: int
+    refunded: int
+    checked_in: int
+
+
 class CodeView(BaseModel):
     code: str
 
