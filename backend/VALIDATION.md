@@ -1,5 +1,70 @@
 # Backend validation
 
+## Backend issues #38–44 — 9 November 2026
+
+Scope: operational analytics, simulated finance/payouts, organizer ticket-type counters/history
+filters, admin paid-sales/commerce monitoring, protected event images/recovery, backend localization
+and reconciliation of implementation documentation. These are backend contracts and tests; full
+product acceptance and client integration remain incomplete.
+
+| Check | Result / evidence |
+|---|---|
+| Full PostgreSQL suite | **523 collected: 522 passed, 1 failed, 0 errors, 0 skipped**, 1118.02 seconds (18m38s), at product HEAD `9d26749`. The only failure is the pre-existing Windows Unicode PDF font case; no new regression failures observed |
+| Known failure / warning | `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`: required DejaVu font missing on Windows, reproduced in the pre-change baseline. One existing Starlette/httpx TestClient deprecation warning. The suite is **not fully green** |
+| Statement coverage | **7413/7711 statements (96.1354%; displayed 96%)**, 298 missing; supporting evidence, not full-product acceptance |
+| Schema inventory | Dedicated disposable `biletflow_daulet_issues_test` inspected at `0016_image_cleanup`: 16 revisions, 66 `biletflow` tables, excluding `public.alembic_version`. Static migration table names independently match the count |
+| Reference comparison | Reference also has 66 tables, with a different set: GA4 connection/export/cache and separate claim table are design-only; four authentication extension tables are implementation-only. Authenticated claiming works on `ticket` fields; see [matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation) |
+| Finance migration | `0014_finance` down/up passed on the disposable database; prior `ticket_order` preserved, new finance tables restored |
+| Image migrations | `0015_event_images` and `0016_image_cleanup` up/down/up passed on the disposable database; prior stored-file/finance/media tables preserved as applicable, cleanup concurrent index verified valid |
+| Static checks | Controller full Ruff lint passed; full format check reported 132 files already formatted. Documentation `git diff --check` and local Markdown file-target checks passed |
+| Real local SMTP | Three verification messages (kk/ru/en) passed localized subject/body/expiry/link assertions through real SMTP and isolated Mailpit HTTP; evidence: `tmp/locale-mailpit-validation.json`. No external delivery or visual inbox inspection claimed |
+
+Focused integration evidence (each batch is independent; counts must not be added as unique tests):
+
+- Analytics: 21 passed, covering exact revenue/refund/rebuy/extra-charge reconciliation, filters,
+  timezone buckets, access and a report succeeding while another connection holds the event lock.
+- Finance: 89 passed across finance and affected commerce/notification/analytics selections;
+  includes 13 finance scenarios, concurrent reservations, refund/send race and immutable history.
+- Counts/history: 34 passed including existing catalog regression; final 12-case focused rerun
+  verifies authorized counters, failed-refund occupancy, filter validation and public privacy.
+- Admin commerce: final 5 passed; earlier combined attempt had 62 passes and 4 fixture setup errors,
+  corrected before the final focused pass. Covers permission, suspension/fulfillment, prerequisites,
+  concurrency/idempotency, bounded filters/CSV and safe selected columns.
+- Event galleries: 60 passed across image/catalog/counts/support selection, then 2 changed/additional
+  validation cases passed. Recovery/worker/image selection: 28 passed, including stale persisted
+  metadata, failed delete/retry, bounded batches, late writes and released DB locks during storage IO.
+- Localization: 147 passed in the final selected regression, plus 2 absent/unverified-recipient
+  fallback cases passed separately. Covers direct auth/staff/ticket/support mail, existing notice
+  families, category names, English fallback and preservation of links/user content.
+
+Evidence is retained in the local ignored `.superpowers/sdd/backend-issues-plan/task-1-report.md`
+through `task-6-report.md`. The controller ran the final full suite once after the product changes, using the same dedicated
+disposable PostgreSQL database. Machine-readable evidence is in local ignored
+`tmp/backend-issues-results.xml` and `tmp/backend-issues-coverage.json`; terminal output is in
+`tmp/backend-issues-full-suite.log`. Repeatable command from the repository root:
+
+```text
+backend/.venv/Scripts/python.exe tmp/run_backend_tests.py -q --tb=short --cov=app --cov-report=term-missing --cov-report=json:../tmp/backend-issues-coverage.json --junitxml=../tmp/backend-issues-results.xml
+```
+
+The local launcher loads credentials internally, selects the disposable feature database and
+uses isolated temporary storage. It is local execution evidence, not a hosted CI result.
+
+Image recovery tests replay durable interruption states and late writes; they do not kill a process.
+Recovery requires a running worker and available database/storage. New migration rollbacks remove
+new finance history or gallery links; disposable round trips do not prove production rollback safety.
+Payout eligibility after event end and cleanup grace/retry/batch limits are implementation defaults,
+not newly confirmed product decisions. Notification language fallback is English; account default
+remains Russian, and user-authored content is not translated.
+
+Not verified by this increment: frontend/mobile end-to-end flows, hosted CI execution, live Google
+consent/payment provider/GA4, external email, remote object storage, production deployment,
+backup/restore, actual process-kill recovery or declared latency/load targets. Existing Windows
+Unicode PDF font failure and the Starlette/httpx TestClient deprecation are tracked explicitly in
+the full-suite result. Earlier dated evidence below describes earlier scope, not current omissions.
+
+---
+
 ## Promo campaigns, refunds and order notifications — 8 November 2026
 
 Scope: SRS 4.14 promo codes and Campaign QR, SRS 4.9 refunds and cancellations, the purchase,
@@ -62,11 +127,17 @@ Catalogue tests exercise concurrent invitation acceptance, wrong recipient/repla
 
 The only pytest warning is an upstream Starlette deprecation notice for its `httpx` test-client adapter. Tests pass; runtime Google HTTP requests still use `httpx`.
 
-See [the repeatable commands](README.md#tests), [authentication smoke results](../docs/database/auth_smoke_validation.json), and [catalogue/migration smoke results](../docs/database/catalog_smoke_validation.json). Coverage is supporting evidence, not a claim of production security certification. Real Google consent and frontend/mobile integration remain to be exercised with their configuration and clients.
+See [the repeatable commands](README.md#tests-and-checks), [authentication smoke results](../docs/database/auth_smoke_validation.json), and [catalogue/migration smoke results](../docs/database/catalog_smoke_validation.json). Coverage is supporting evidence, not a claim of production security certification. Real Google consent and frontend/mobile integration remain to be exercised with their configuration and clients.
 
 The live catalogue smoke used the restricted application role through the running API and background worker. It left a clearly fictional published event with 12 free configured seats for browsing. It created no order, ticket or payment, and revoked the two smoke accounts' sessions afterwards. The repeatable seed contains two categories and one fictional venue/layout; paid-price fixtures remain for the commerce stage.
 
-## Current local services
+## Historical local-service notes — 24 September 2026
+
+These describe the September session, not verified current service availability. On 9 November
+2026 only local PostgreSQL was restored for isolated tests; no API/worker deployment was verified.
+The separate temporary Mailpit instance used for the three-language SMTP smoke was stopped after
+validation. The addresses/process files below are historical references; inspect current processes
+and configuration before relying on them.
 
 - API documentation: <http://localhost:8000/docs>
 - Local email inbox: <http://localhost:8025>

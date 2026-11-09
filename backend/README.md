@@ -30,7 +30,7 @@ The web and mobile clients both talk to this one backend.
 |---|---|
 | Accounts | Email registration and verification, sign-in/out, password reset, Google sign-in, rotating refresh tokens, revocable sessions, rate limits |
 | Organizers | Workspaces, team invitations, organization and per-event staff permissions |
-| Events | Draft → publish/unpublish → cancel, duplicate, public/unlisted/private, registration and admission windows, capacity, refund policy, history timeline |
+| Events | Draft → publish/unpublish → cancel, duplicate, public/unlisted/private, registration and admission windows, capacity, refund policy, filtered history timeline, protected ordered PNG/JPEG gallery |
 | Tickets | Free and paid ticket types, sales windows, per-order limits, hidden types, inventory protection under concurrency |
 | Seating | Predefined venue layout, seat configuration, ten-minute seat holds, no double selling |
 | Checkout | Free orders; simulated paid checkout with a 3% processing fee, retries, late/duplicate payment compensation refunds |
@@ -38,11 +38,14 @@ The web and mobile clients both talk to this one backend.
 | Tickets after purchase | Signed QR payload, stored PDF, email delivery with resend, recipient claim |
 | Admission | Scanner event list, atomic one-time check-in, reversal, counts, manual search, verification preview, entry confirmation, offline package and sync, conflict review, organizer check-in history and CSV |
 | Support | Cases from event/order/ticket, organizer → platform cases, threads, assignment, escalation, statuses, attachments, polling cursor and WebSocket |
-| Notifications | In-app inbox; emails for verification, ticket delivery, event updates/cancellation and support |
+| Notifications | In-app inbox; localized account/staff/ticket/support mail and event/purchase/payment/refund/simulated-payout notices; kk/ru/en with English fallback |
+| Campaigns | Promo codes, campaign links/QR, atomic allowance reservations/redemptions and retained attribution |
+| Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
+| Reporting and finance | Scoped operational analytics/time series; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
-| Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports |
+| Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
-**Not built yet** — see [What is left to do](#what-is-left-to-do).
+**Backend scope still open** — see [What is left to do](#what-is-left-to-do).
 
 ---
 
@@ -139,6 +142,10 @@ remaining scope.
 | [CHECKOUT_API.md](CHECKOUT_API.md) | Holds, free orders, ticket claims, QR payload, attendee list |
 | [PAID_SALES_API.md](PAID_SALES_API.md) | Simulated paid-sales activation |
 | [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
+| [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting |
+| [REFUNDS_API.md](REFUNDS_API.md) | Full refunds, retry, free cancellation and event cancellation |
+| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports and sales series |
+| [FINANCE_API.md](FINANCE_API.md) | Finance summary, simulated payouts and retained adjustments |
 | [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
 | [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
 | [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments, WebSocket |
@@ -151,19 +158,25 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py` + a hand-written `NNNN_name.sql`.
-  There are **12 migrations and 58 tables** in the `biletflow` schema:
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 uses inline SQL).
+  There are **16 migrations and 66 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
-  `0012_paid_orders`.
+  `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
+  `0016_image_cleanup`.
+  This revision/count was verified on the disposable feature test database on 9 November 2026;
+  check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
-- There are no downgrades. To start over locally, use `docker compose down --volumes`.
+- Historical migrations intentionally reject downgrade. New `0014`–`0016` provide scoped
+  downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
+  new history/links. Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
-- `docs/database/` holds a larger 66-table **reference design**. It is a target, not the deployed
-  schema — never run its DDL against this database.
+- `docs/database/` holds a 66-table **reference design**. Its table set differs from the implemented
+  schema (GA4/claim tables versus authentication extensions); see the
+  [design/implementation matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation). It is a target — never run its DDL against this database.
 
 ---
 
@@ -175,7 +188,13 @@ retries with back-off and marks a job `dead` after 5 attempts. It handles:
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds every 15 seconds.
+- releasing expired holds and reconciling orphan event images every 15 seconds.
+
+Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
+five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
+writes; eventual deletion requires the worker and storage/database availability. See
+[the gallery contract](CATALOG_API.md). Email templates support kk/ru/en with English fallback;
+user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
 
@@ -242,10 +261,12 @@ uv run ruff check app tests migrations
 uv run ruff format --check app tests migrations
 ```
 
-There are 238 tests in 24 files, covering every implemented area, including concurrency
-(overselling, double check-in, racing payments) and permission isolation. CI
-(`.github/workflows/backend-auth.yml`) runs the same commands on PostgreSQL 17 for every push and
-pull request.
+On 9 November 2026 the full PostgreSQL suite collected **523 cases: 522 passed, 1 failed**
+(the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
+Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
+Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
+(`.github/workflows/backend-auth.yml`) configures automated checks; its presence is not evidence
+of a hosted CI run for these changes.
 
 End-to-end smoke tests against a running Docker stack live in `../tools/`:
 
@@ -258,31 +279,24 @@ uv run python ../tools/smoke_paid_checkout.py
 
 ## What is left to do
 
-**Required for the MVP**
-- **Promo campaigns and Campaign QR** (SRS 4.14): campaign, code, reservation and redemption
-  tables; discount in holds and orders; atomic redemption limit; campaign report; QR image.
-- **Organizer analytics** (SRS 4.15): capacity, sold/remaining, revenue, sales over time, by ticket
-  type and campaign, attendance, with event/date/ticket-type filters. Read-only queries that never
-  block checkout.
-- **Refunds and cancellations** (SRS 4.9): organizer-initiated full refunds, cancelling free
-  registrations, refunds when an event with sales is cancelled (currently
-  `409 commerce_cancellation_required`), ticket invalidation.
-- **Organizer finance view** (SRS 4.6): gross, fees, refunds, estimated payout.
-- **Per-ticket-type counts**: available, reserved, sold, refunded, checked-in.
-- **Event images** (SRS 4.2).
-- **Admin gaps** (SRS 4.12): endpoint to suspend/reinstate paid sales, views of payments,
-  refunds, failures, activation records and promo activity. Commerce code should read the
-  activation fee and hold time from admin settings instead of constants.
-- **Missing notifications** (SRS 4.10): purchase confirmation, payment failure, refund completed,
-  payout status.
-- **Event history filters** on the server (date range, action type).
+The agreed scope includes all required and bonus features; see the shared
+[requirements and acceptance matrix](../docs/BiletFlow_Backend_Requirements.md).
+Backend endpoints alone do not complete the integrated product.
 
-The web client already has screens for promo codes, campaigns, analytics, finance,
-refund/cancel and image upload. Agree their exact request/response shapes with the web owner and
-document them in new `*_API.md` guides before implementing.
+- GA4 consent-aware collection/export, authorized provider aggregates/cache and disconnected states.
+- Remaining admin operational views (campaign/job/offline-conflict/support search and related notices)
+  and commerce consumption of versioned settings; see [ADMIN_API.md](ADMIN_API.md#not-yet-implemented).
+- Frontend/mobile integration of the documented APIs and complete acceptance journeys.
+- Provider sandbox extension once credentials/access are available; no live financial operation.
+- Deployment/recovery, backup/restore and measured workload targets still need their own evidence.
+- Optional S3-compatible storage, asynchronous malware scanning, and deployment security headers
+  remain separate work; local protected file storage is implemented.
 
-**Quality and operations**
-- Kazakh and Russian email templates.
-- Content-Security-Policy and HSTS headers for HTTPS deployments.
-- Optional S3-compatible storage backend (local disk today).
-- Update `VALIDATION.md` with current evidence.
+Promo campaigns, operational analytics, refunds/cancellations, simulated finance/payouts,
+organizer ticket-type counters, event history filters, event images with bounded recurring cleanup,
+admin commerce monitoring, and backend email/category localization are implemented. See their
+API guides for exact bounds, permissions, defaults and remaining scope. Public ticket-type responses
+exclude organizer counters. `sold` includes refund quarantine; `refunded` is historical;
+`checked_in` is current eligible unreversed attendance. These counts must not be added as disjoint
+historical totals. Payout eligibility/sending after event end is an implementation default consistent
+with activation terms, not a newly confirmed product decision.

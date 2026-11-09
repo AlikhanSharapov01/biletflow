@@ -1,6 +1,6 @@
 # BiletFlow: complete backend requirements and delivery plan
 
-Status: shared requirements baseline; BF-01 authentication and the Stage B organizer/event setup increment are implemented in `../backend` on 24 September 2026. The latter covers workspaces/invitations, scoped permissions, event discovery/lifecycle, ticket-type configuration and predefined seating; see [API scope and remaining work](../backend/CATALOG_API.md). Free checkout, online admission, BF-11 entry confirmation, BF-12 offline sync ([admission API](../backend/ADMISSION_API.md)), BF-10 ticket PDF/delivery presentation, BF-15 notifications, BF-17 calendar and BF-21 platform admin are implemented in part or in full (see each BF section); payment/refund processing and later modules remain planned. Event images and downstream event notifications also remain. Live Google consent requires OAuth credentials; client UI integration remains separate.  
+Status: shared requirements baseline. As of 9 November 2026, `../backend` implements identity, organizer/event setup, free and simulated paid checkout/activation, campaigns, full simulated refunds/cancellation, ticket delivery/PDF, online/offline admission APIs, support, notifications/calendar and partial platform administration. Operational analytics, simulated finance/payout tracking, organizer ticket-type counts/history filters, admin commerce monitoring, protected event images with recurring cleanup, and kk/ru/en backend email/category localization are implemented; see [backend contracts](../backend/README.md) and [executed validation](../backend/VALIDATION.md). GA4 integration remains planned; live Google consent and payment-provider access require credentials. Client integration and the full acceptance matrix remain separate, incomplete work.
 Stack: FastAPI + PostgreSQL.  
 Scope: backend services and contracts used by attendee/organizer web, platform-admin web, and the iOS/Android scanner app.  
 Source: `BiletFlow_SRS_Initial_Draft.pdf`, version 0.3, supplemented by the user's confirmed decisions.  
@@ -116,7 +116,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** unverified/anonymous checkout is rejected; expired and reused reset tokens fail; a revoked session cannot create a new order or check-in confirmation; failed login does not expose whether an email exists.
 
-**Current implementation (24 September 2026):** `backend/` provides registration, verification/resend, email/password and Google sign-in, explicit authenticated Google account linking, refresh rotation/replay detection, logout/all-session revocation, password recovery, profile updates, session listing/revocation, durable email delivery, shared rate limits and PostgreSQL migrations/tests. See [backend setup and API contract](../backend/README.md). Access JWTs last ten minutes by default; session lifetime is thirty days without sliding extension. Web refresh tokens use HttpOnly cookies and origin checks; scanner refresh tokens use protected device storage. Matching a Google email never silently merges accounts. Google-only users have a nullable password hash and may add a password through email recovery. These are implementation defaults, distinct from confirmed product decisions. Checkout/admission services and client screens are still unimplemented; their future use of the verified-account/session guard must be tested when those modules are added.
+**Current implementation (24 September 2026):** `backend/` provides registration, verification/resend, email/password and Google sign-in, explicit authenticated Google account linking, refresh rotation/replay detection, logout/all-session revocation, password recovery, profile updates, session listing/revocation, durable email delivery, shared rate limits and PostgreSQL migrations/tests. See [backend setup and API contract](../backend/README.md). Access JWTs last ten minutes by default; session lifetime is thirty days without sliding extension. Web refresh tokens use HttpOnly cookies and origin checks; scanner refresh tokens use protected device storage. Matching a Google email never silently merges accounts. Google-only users have a nullable password hash and may add a password through email recovery. These are implementation defaults, distinct from confirmed product decisions. Update (9 November 2026): checkout/admission services now use verified-account/session guards with PostgreSQL tests; client integration remains separate.
 
 ### BF-02. Organizer workspace, profiles, and staff
 
@@ -151,6 +151,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Flow:** organizer saves draft -> configures venue and tickets -> previews -> publishes -> permitted visitors discover/open it -> sales follow configured windows -> event becomes active/completed -> history remains accessible. Cancellation follows BF-13.
 
 **Completion checks:** private/unlisted events do not leak through catalog search; drafts cannot be purchased; unpublishing preserves existing orders/tickets but stops new sales; duplication creates a new draft without old transactions, staff assignments, active campaigns, activation payment, or support cases.
+
+**Implementation update (9 November 2026):** event setup includes protected ordered PNG/JPEG galleries, cover/reorder/delete/content routes, visibility rechecks and recurring bounded orphan cleanup. Upload defaults and eventual-recovery limits are documented in [the catalogue API](../backend/CATALOG_API.md). Client integration remains separate.
 
 ### BF-04. Venues, assigned seating, and capacity
 
@@ -187,6 +189,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Flow:** select quantity/seats -> server validates account, event, ticket type, limits, price and capacity -> reserve atomically -> return hold ID and expiry -> commit to an order on successful free registration/payment, or release on expiry/cancellation.
 
 **Completion checks:** simultaneous purchases of the last general-admission place never oversell; repeated requests with the same operation key do not create extra holds; expired holds cannot issue tickets; inventory is correct after restart.
+
+**Implementation update (9 November 2026):** authorized organizer ticket-type responses add `sold` (current sold/refund-quarantine allocations), `reserved` (unexpired active holds), `refunded` (historical retained refunded tickets) and `checked_in` (current eligible unreversed admission). Public responses omit these counters. Operational analytics exposes additional inventory definitions; see [catalogue](../backend/CATALOG_API.md) and [analytics](../backend/ANALYTICS_API.md) contracts.
 
 ### BF-06. Paid-sales activation and payout profile
 
@@ -263,6 +267,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** concurrent checkouts cannot exceed campaign allowance; modified URL discount values have no effect; mixed eligible/ineligible tickets discount only eligible items; a campaign QR never admits a person.
 
+**Implementation update (9 November 2026):** campaign/code management, campaign link/QR, protected resolution, reservation/redemption limits, discounts and attribution reporting are implemented; see [campaign contract](../backend/CAMPAIGNS_API.md). No client integration or GA4 completion is implied.
+
 ### BF-10. Digital tickets, account assignment, PDF and delivery
 
 **Purpose:** issue one canonical ticket per admission, available electronically and on paper.
@@ -281,13 +287,13 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** order fulfills -> canonical ticket records created -> recipients are linked/invited -> delivery/PDF jobs run -> attendee signs in to view/download -> attendee prepares entry confirmation for BF-11.
 
-**Current implementation (11 October 2026):** free-order tickets, claim and email delivery exist (see the checkout guide). Presentation is added in [Ticket PDF and delivery API](../backend/TICKET_PDF_API.md): recipient-only A4 grayscale PDF whose vector QR encodes exactly the canonical `qr_payload` and which holds no payment data; refunded/cancelled/refund-pending tickets refuse download (`409 ticket_not_valid`); buyer/recipient delivery status; and a rate-limited, audited resend that queues an outbox job without rotating the token. Update (26 October 2026): the rendered PDF is now stored privately (`stored_file`, purpose `ticket_pdf`), attached to the ticket delivery email and served from the stored copy for valid tickets; resends reuse it and the email still goes out without it if rendering fails. Paid-order issuance and refund transitions belong to the commerce modules.
+**Current implementation (11 October 2026):** free-order tickets, claim and email delivery exist (see the checkout guide). Presentation is added in [Ticket PDF and delivery API](../backend/TICKET_PDF_API.md): recipient-only A4 grayscale PDF whose vector QR encodes exactly the canonical `qr_payload` and which holds no payment data; refunded/cancelled/refund-pending tickets refuse download (`409 ticket_not_valid`); buyer/recipient delivery status; and a rate-limited, audited resend that queues an outbox job without rotating the token. Update (26 October 2026): the rendered PDF is now stored privately (`stored_file`, purpose `ticket_pdf`), attached to the ticket delivery email and served from the stored copy for valid tickets; resends reuse it and the email still goes out without it if rendering fails. Paid-order issuance and refund transitions are implemented in the commerce modules; see the paid checkout and refund guides.
 
 **Completion checks:** one order item quantity maps to exactly that many tickets; PDF QR matches the canonical ticket; unauthorized downloads fail; old copies of refunded tickets are rejected online; a delivery failure does not cancel a successful order.
 
 ### BF-11. Online scanner verification and signed-in attendee admission
 
-**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** online scan/manual check-in, one-time admission under races, reversal with reason and history, counts, minimal manual attendee search, and signed-in attendee entry confirmation (short-lived, signed, single-use, ticket- and event-bound, with an 8-digit code for printed tickets; consumed atomically with the check-in; switchable by `ADMISSION_REQUIRE_ENTRY_CONFIRMATION`, default on). Refund interaction awaits BF-13. Since 26 October 2026 scanners can also preview a check-in without side effects (`POST /scanner/events/{event_id}/verifications`) and attendees can read their ticket's admission status (`GET /tickets/{ticket_id}/admission`); see [ADMISSION_API.md](../backend/ADMISSION_API.md#verification-preview).
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** online scan/manual check-in, one-time admission under races, reversal with reason and history, counts, minimal manual attendee search, and signed-in attendee entry confirmation (short-lived, signed, single-use, ticket- and event-bound, with an 8-digit code for printed tickets; consumed atomically with the check-in; switchable by `ADMISSION_REQUIRE_ENTRY_CONFIRMATION`, default on). Refund invalidation/quarantine and scanner rejection are implemented with BF-13. Since 26 October 2026 scanners can also preview a check-in without side effects (`POST /scanner/events/{event_id}/verifications`) and attendees can read their ticket's admission status (`GET /tickets/{ticket_id}/admission`); see [ADMISSION_API.md](../backend/ADMISSION_API.md#verification-preview).
 
 **Purpose:** admit the correct registered attendee exactly once through an authorized scanner.
 
@@ -309,7 +315,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 ### BF-12. Offline verification and synchronization
 
-**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** device registration, expiring event-specific signed verification package with snapshot version and revocations, idempotent batch sync with per-operation outcomes (accepted, duplicate, conflict, rejected), separate device and server times, and organizer review of stored conflicts. Mobile queue/storage/verification UI and refund-driven revocations (BF-13) are outside this increment. Since 26 October 2026 organizers can also reverse the conflicting admission while resolving a stored conflict (`reverse_existing_check_in` with a reason; see [ADMISSION_API.md](../backend/ADMISSION_API.md#reversing-from-the-conflict-review)).
+**Status (implemented in `backend/`, see [ADMISSION_API.md](../backend/ADMISSION_API.md)):** device registration, expiring event-specific signed verification package with snapshot version and revocations, idempotent batch sync with per-operation outcomes (accepted, duplicate, conflict, rejected), separate device and server times, and organizer review of stored conflicts. Mobile queue/storage/verification UI remains separate; current refund/cancellation validity is enforced by server synchronization. Since 26 October 2026 organizers can also reverse the conflicting admission while resolving a stored conflict (`reverse_existing_check_in` with a reason; see [ADMISSION_API.md](../backend/ADMISSION_API.md#reversing-from-the-conflict-review)).
 
 **Purpose:** demonstrate controlled disconnected operation and reconciliation, without claiming impossible real-time guarantees.
 
@@ -352,6 +358,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** seat cannot be rebought while refund is pending/failed; repeated refund requests or callbacks do not double-refund/release; old ticket cannot enter after refund starts; a successful refund after sales close does not reopen checkout.
 
+**Implementation update (9 November 2026):** free cancellation, full simulated refunds/retries and event cancellation are implemented with ticket invalidation and inventory quarantine before dispatch; release follows confirmed success. See [refund contract](../backend/REFUNDS_API.md). Real provider integration remains conditional.
+
 ### BF-14. Organizer finance and simulated payout tracking
 
 **Purpose:** explain where demonstration money comes from and its current status.
@@ -368,6 +376,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Flow:** completed orders accrue proceeds -> subtract saved fees and confirmed refunds -> show pending refund exposure separately -> determine demonstrable payout amount -> simulator records a payout result -> notify organizer -> retain history.
 
 **Completion checks:** totals reconcile to order/payment/refund records; replaying payout simulation cannot pay twice; staff without finance permission cannot read payout profile data.
+
+**Implementation update (9 November 2026):** scoped finance summaries and controlled simulated payout reservations/results retain immutable transfer/adjustment evidence, exclude unresolved refund exposure and reconcile canonical money records. Eligibility/sending requires event end as an implementation default consistent with activation terms, not a newly confirmed decision. No real bank transfer occurs; see [finance contract](../backend/FINANCE_API.md).
 
 ### BF-15. Transactional notifications
 
@@ -446,6 +456,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** seeded examples reconcile manually; refund/rebuy does not inflate occupied capacity; campaign totals reconcile to order totals; event staff cannot query other organizers by changing filters.
 
+**Implementation update (9 November 2026):** reports-scoped operational summary and day/hour sales series aggregate authoritative PostgreSQL records with event/date/ticket-type/campaign filters, integer monetary reconciliation and separate current inventory versus historical revenue/attribution. Read-only snapshots use bounded query timeouts without event row locks. See [analytics contract](../backend/ANALYTICS_API.md); no load-target, GA4 or client-integration completion is claimed.
+
 ### BF-19. Advanced GA4 traffic/funnel integration
 
 **Purpose:** supplement exact sales reports with traffic and funnel measurements.
@@ -481,7 +493,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** duplication preserves original event records; audit cannot be modified through ordinary APIs; history permissions match event permissions; background changes identify their service actor.
 
-**Current implementation (26 October 2026):** organizers with the `attendees` capability can read an event's check-in history (filters by date, source, state, ticket type and attendee name; deterministic pagination; reversals retained) and export it as an audited, formula-safe CSV; see [ADMISSION_API.md](../backend/ADMISSION_API.md#organizer-admission-history). It complements the event activity history and duplication in the [catalogue guide](../backend/CATALOG_API.md).
+**Current implementation (26 October 2026):** organizers with the `attendees` capability can read an event's check-in history (filters by date, source, state, ticket type and attendee name; deterministic pagination; reversals retained) and export it as an audited, formula-safe CSV; see [ADMISSION_API.md](../backend/ADMISSION_API.md#organizer-admission-history). It complements the event activity history and duplication in the [catalogue guide](../backend/CATALOG_API.md). Update (9 November 2026): activity history additionally accepts exact actor/action and offset-aware half-open date filters before deterministic pagination; unknown valid actor/action values return an empty list within authorized event scope.
 
 ### BF-21. Platform administration, moderation, and settings
 
@@ -502,7 +514,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** ordinary organizer cannot call admin functions; suspended event cannot accept payment fulfillment/admission unnoticed; changed fees do not rewrite past financial records; exports do not leak unrelated private data.
 
-**Current implementation (partial, 11 October 2026):** `backend/` provides the platform-admin role (database grant managed only by an operator CLI), paginated user/event/order/ticket search, user and event suspension/reinstatement with immutable moderation records and same-transaction audit (user suspension revokes sessions; event suspension is honoured by holds, free-checkout confirmation and admission), deduplicated and rate-limited event reports with an admin review queue, versioned prospective platform settings (hold minutes, demo activation fee, processing rate, upload limit) and formula-safe CSV export. See [platform administration API](../backend/ADMIN_API.md). Still open: paid-sales suspension, payment/refund/dispute/campaign/job/offline-conflict inspection, support-case search, user notices, and wiring the settings into commerce code (the free checkout still uses a fixed ten-minute hold).
+**Current implementation (partial, 11 October 2026):** `backend/` provides the platform-admin role (database grant managed only by an operator CLI), paginated user/event/order/ticket search, user and event suspension/reinstatement with immutable moderation records and same-transaction audit (user suspension revokes sessions; event suspension is honoured by holds, free-checkout confirmation and admission), deduplicated and rate-limited event reports with an admin review queue, versioned prospective platform settings (hold minutes, demo activation fee, processing rate, upload limit) and formula-safe CSV export. See [platform administration API](../backend/ADMIN_API.md). Update (9 November 2026): audited admin paid-sales suspend/reinstate, activation checklist inspection, paginated payment/refund/failure lists and bounded formula-safe commerce CSV are implemented. Paid fulfillment rechecks suspension; eligible free registration remains independent. Paid-sales decisions use immutable admin audit evidence rather than a reference-design activation target on moderation_action. Still open: remaining dispute/campaign/job/offline-conflict inspection, support-case search, user notices, and wiring versioned settings into commerce code.
 
 ### BF-22. Deployment, operations, security, and integration readiness
 
@@ -786,7 +798,7 @@ The database design elaborates this requirements baseline without promoting prop
 - [Editable draw.io database atlas](database/BiletFlow_Database.drawio): domain tables, complete foreign-key diagrams, invariants, lifecycle operations and state transitions.
 - [Database specification](database/BiletFlow_Database_Specification.md): full data dictionary, cardinalities, constraints, locking rules, transaction effects, permissions and retention boundaries.
 - [PostgreSQL reference DDL](database/BiletFlow_PostgreSQL_Schema.sql): structural database constraints and immutable-history protection. This is a design script, not a migration already deployed.
-- [Backend implementation](../backend/README.md): 27 tables across the identity and event-setup migrations; executable BF-01 plus the documented [organizer/event API increment](../backend/CATALOG_API.md). Nullable Google-only passwords, identity/refresh/OAuth/rate-limit tables and permission revocation timestamps extend the original atlas. Shared audit/outbox now have scoped organization/event FKs. The full 66-table DDL is not deployed; hold/allocation tables currently support capacity guards, with checkout services still pending.
+- [Backend implementation](../backend/README.md): 16 migrations through `0016_image_cleanup`, with 66 `biletflow` tables verified on a disposable feature test database on 9 November 2026. This does not establish deployment state elsewhere. Campaign, finance and event-media tables are migrated; operational services now implement checkout/refund/admission transaction rules. The reference also has 66 tables but differs: `ticket_claim` is represented by implemented authenticated claim fields/services on `ticket`; `ga4_connection`, `analytics_export`, `ga4_cache` remain design-only. Authentication adds `auth_rate_bucket`, `external_identity`, `oauth_attempt`, `refresh_token`. See the [schema comparison](database/README.md#how-the-design-relates-to-the-implementation); matching names/counts do not prove identical constraints or full acceptance.
 - [Browser preview](database/BiletFlow_Database_Preview.html): rendered atlas with page selection and zoom.
 
 Read the database specification before schema or transaction implementation. Cross-row rules marked TX still require the documented transactional service implementation; a valid schema alone does not implement checkout, refunds or access control.

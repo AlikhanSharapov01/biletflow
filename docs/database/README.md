@@ -5,7 +5,8 @@ diagrams, a data dictionary, reference SQL and validation evidence. It is a plan
 document, **not** the database the application runs on.
 
 > **Deployed schema vs this design.** The running application uses the schema created by
-> `backend/migrations/` — currently 12 migrations and 58 tables (see
+> `backend/migrations/` — 16 migrations and 66 tables in the verified disposable test database at
+> `0016_image_cleanup` on 9 November 2026 (see
 > [`backend/README.md`](../../backend/README.md#database-and-migrations)). Never run
 > `BiletFlow_PostgreSQL_Schema.sql` against the application database.
 
@@ -48,21 +49,28 @@ The deployed migrations follow this design area by area, with small, documented 
 example a nullable password hash for Google-only accounts and a few supporting authentication
 tables).
 
-**Designed here but not deployed yet** — these are the next parts to migrate when the matching
-features are built:
+The following matrix compares actual migration table names with the reference design (9 November
+2026). The dedicated test database was inspected at `0016_image_cleanup`; this is not evidence
+that every developer or production database has been upgraded. Both inventories happen to contain
+66 tables, but they are different sets and their columns/constraints are not identical.
 
-| Design area | Tables | Feature |
+| Design area | Implementation status | Tables / difference |
 |---|---|---|
-| Promo campaigns | `campaign`, `campaign_ticket_type`, `promo_code`, `promo_reservation`, `promo_redemption` | SRS 4.14 promo codes and Campaign QR |
-| Finance and payouts | `finance_entry`, `demo_payout` | SRS 4.6 organizer finance view |
-| Analytics | `analytics_export` | SRS 4.15 analytics (the figures themselves can be computed from existing tables) |
-| Event media | `event_media` | SRS 4.2 event images |
+| Promo campaigns | Migrated in `0013_campaigns`; campaign/discount services implemented | `campaign`, `campaign_ticket_type`, `promo_code`, `promo_reservation`, `promo_redemption` |
+| Finance and payouts | Migrated in `0014_finance`; simulated finance/payout services implemented | `finance_entry`, `demo_payout`; canonical commerce records supply totals, ledger rows retain payout debits and adjustments rather than duplicating every commerce entry |
+| Event media | Migrated in `0015_event_images`; protected gallery API implemented | `event_media`; `0016_image_cleanup` adds `stored_file.cleanup_after` and cleanup index, no table |
+| GA4 / analytics integration | Designed, not migrated or implemented | `ga4_connection`, `analytics_export`, `ga4_cache`; operational analytics is computed from authoritative commerce/inventory/admission tables |
+| Ticket claims | No separate deployed table | `ticket_claim` is design-only; recipient claims are stored on `ticket` |
+| Authentication extensions | Migrated beyond the reference table inventory | `auth_rate_bucket`, `external_identity`, `oauth_attempt`, `refresh_token`; Google-only passwords are nullable |
 
-`ticket_claim` is also not deployed as a separate table: recipient claims are stored on the
-ticket itself in the deployed schema.
+The other 62 reference table names occur in migrations; matching names do not establish identical
+schemas or complete feature acceptance. For example, deployed `moderation_action` has user/event
+targets; paid-sales moderation uses immutable `audit_log` evidence, unlike the reference activation
+target. See [admin contract](../../backend/ADMIN_API.md) and [validation](../../backend/VALIDATION.md).
+Application transaction contracts remain separate from database constraints.
 
 When adding a migration based on this design, copy the relevant table definitions and constraints
-into a new `backend/migrations/versions/NNNN_name.sql`, add matching models, and keep the
+into a new `backend/migrations/versions/NNNN_name.py` (with SQL alongside when appropriate), add matching models, and keep the
 transaction rules marked **TX** in the specification in the service code — SQL constraints alone
 do not enforce rules such as campaign limits, aggregate capacity or refund sequencing.
 
