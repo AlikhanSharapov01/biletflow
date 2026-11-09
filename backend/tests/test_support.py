@@ -503,7 +503,7 @@ def test_outbox_notifications_and_worker(client, world, factory, settings):
     messages = []
     while deliver_once(factory, settings, messages.append):
         pass
-    support = [m for m in messages if "support" in m["Subject"].lower()]
+    support = [m for m in messages if m["Subject"].startswith("BiletFlow: ")]
     assert support and all(case_id in m.get_content() for m in support)
     assert all("secret text" not in m.get_body().get_content() for m in messages)
     # An unauthorised recipient (access revoked before delivery) is never emailed.

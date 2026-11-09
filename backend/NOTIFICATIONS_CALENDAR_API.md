@@ -116,7 +116,20 @@ worker (python -m app.worker)
 ### Recipient locale
 
 The notification stores the recipient's `app_user.locale` when it is one of `kk`, `ru`, `en`,
-otherwise the fallback `ru` (the account default). Email is rendered from the stored locale.
+otherwise the fallback `en`. Email is rendered from the stored locale. The account default
+remains `ru`; this is distinct from fallback for missing or unsupported locale values.
+
+Direct verification/reset, staff invitation, ticket delivery and support emails also support
+`kk`, `ru`, `en` with English fallback. Auth/support use the intended account's locale.
+Staff invitations and ticket deliveries use an active verified account matching the recipient
+mailbox, otherwise English; this lookup never claims tickets or links/merges accounts.
+User-authored names, titles, locations and ticket types are preserved; tokens and URLs are
+unchanged. Support email includes a localized update and sign-in link, never case content.
+
+`GET /api/v1/categories?locale=kk|ru|en` returns additive `name` in the requested locale,
+alongside unchanged `name_kk`, `name_ru`, `name_en` and other existing fields. Omitted or
+unsupported `locale` selects English. This endpoint accepts an explicit query parameter;
+it does not interpret `Accept-Language` or account locale.
 
 ### Hook for the support module
 

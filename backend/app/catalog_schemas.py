@@ -208,6 +208,7 @@ class InvitationView(Record):
 
 
 class CategoryView(Record):
+    name: str
     code: str
     name_kk: str
     name_ru: str

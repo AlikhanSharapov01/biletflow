@@ -25,7 +25,7 @@ from .security import now
 
 FANOUT_KIND = "notification_fanout"
 LOCALES = ("kk", "ru", "en")
-FALLBACK_LOCALE = "ru"
+FALLBACK_LOCALE = "en"
 MAX_ATTEMPTS = 5
 LEASE_SECONDS = 120
 
@@ -228,7 +228,7 @@ PAYOUT_STATUSES = {
 
 
 def resolve_locale(value):
-    """User locale when supported, otherwise the documented fallback (ru)."""
+    """User locale when supported, otherwise English."""
     return value if value in LOCALES else FALLBACK_LOCALE
 
 

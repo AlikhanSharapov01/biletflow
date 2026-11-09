@@ -172,3 +172,9 @@ Errors use `{"detail":{"code":"..."}}` for business failures and FastAPI's valid
 ## Remaining work in the overall plan
 
 Stage B's basic publication/authorization/capacity checks are implemented. Downstream event-change notifications, live availability broadcasts, moderation UI/API and full finance/payout profiles remain. Stage C adds authenticated holds and expiry, orders, free issuance, activation, simulated payments/refunds, campaigns and ticket delivery. Subsequent stages add admission/offline synchronization, support, reporting, calendar and administration. These API boundaries do not mark all BF-02–BF-05 requirements or the overall acceptance matrix complete.
+
+## Category localization
+
+`GET /api/v1/categories?locale=kk|ru|en` preserves existing fields and adds `name`,
+selected from the requested language. Missing/unsupported locale falls back to English.
+Use the explicit `locale` query parameter; `Accept-Language` is not interpreted.

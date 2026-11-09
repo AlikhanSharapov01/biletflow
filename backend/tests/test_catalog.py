@@ -202,7 +202,7 @@ def test_invitation_wrong_user_replay_expiry_and_email_delivery(
     messages = []
     while deliver_once(factory, settings, messages.append):
         pass
-    invite = next(m for m in messages if m["Subject"] == "BiletFlow organizer invitation")
+    invite = next(m for m in messages if m["Subject"] == "Приглашение организатора BiletFlow")
     assert value in invite.get_content() and invite["To"] == email
     assert (
         client.post(
@@ -655,7 +655,7 @@ def test_inviter_permission_loss_invalidates_pending_invites(
     while deliver_once(factory, settings, messages.append):
         pass
     assert not any(
-        m["To"] == email and m["Subject"] == "BiletFlow organizer invitation" for m in messages
+        m["To"] == email and m["Subject"] == "Приглашение организатора BiletFlow" for m in messages
     )
     assert (
         client.post(

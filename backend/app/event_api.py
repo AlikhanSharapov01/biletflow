@@ -39,7 +39,7 @@ from .catalog_service import (
     set_capabilities,
 )
 from .models import AuditLog, User
-from .notification_service import enqueue_event_notice
+from .notification_service import enqueue_event_notice, resolve_locale
 from .refund_service import settle_event_cancellation
 from .security import decode_access, fail, now
 from .service import rate_limit, valid_session
@@ -248,9 +248,12 @@ def router(factory, settings, principal, storage):
             fail("usable_seats_required", 409)
 
     @routes.get("/categories", tags=["venues"], response_model=list[s.CategoryView])
-    def categories():
+    def categories(locale: str | None = Query(None, max_length=20)):
         with factory() as db:
-            return [record(row) for row in db.scalars(select(Category).order_by(Category.code))]
+            return [
+                {**record(row), "name": getattr(row, "name_" + resolve_locale(locale))}
+                for row in db.scalars(select(Category).order_by(Category.code))
+            ]
 
     @routes.get("/venues", tags=["venues"], response_model=list[s.VenueView])
     def venues(

@@ -136,8 +136,8 @@ def test_recipient_locale_and_fallback(client, setup, account, factory, settings
     sent = drain(factory, settings)
     assert sent and sent[0]["Subject"].startswith("Іс-шара өзгерді")
     assert inbox(client, holder, unread_only=True)[0]["locale"] in ("kk",)
-    assert resolve_locale("en") == "en" and resolve_locale("fr") == "ru"
-    assert resolve_locale(None) == "ru"
+    assert resolve_locale("en") == "en" and resolve_locale("fr") == "en"
+    assert resolve_locale(None) == "en"
 
 
 def test_replay_creates_no_second_intent(client, setup, account, factory, settings):
