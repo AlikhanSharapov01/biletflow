@@ -148,3 +148,36 @@ and configuration before relying on them.
 Because Docker Desktop could not start, this session uses EDB's portable PostgreSQL binaries and Mailpit's official Windows binary. No Windows database service was installed. PostgreSQL is under `%TEMP%/biletflow-auth-postgres-01a0c53f`; its data remains there until explicitly removed. Preserve it or take a database backup before clearing temporary files. This is a local demonstration; use the documented Compose volume for the team setup.
 
 The API, worker and Mailpit were started as hidden background processes. Their process IDs are in the project-local `tmp/auth-processes.json`; their startup logs are in `tmp/auth-*.log`. To stop them, first inspect each recorded process ID's executable and command line, then stop only the matching BiletFlow process (Windows can reuse old IDs). Stop PostgreSQL with its `pg_ctl.exe -D <runtime-directory>/data stop`. The helper `tmp/setup_auth_postgres.py` can restart this local database while the downloaded runtime remains present. Standard ongoing startup is documented in the backend README.
+
+
+## Final review fix checks — 9 November 2026
+
+Application working tree after d34ca8e: uncertain image-finalization compensation,
+cancellation reservation reconciliation batching, and indexed PNG alpha preservation.
+Earlier full-suite/coverage evidence above remains evidence for its recorded revision;
+no full current-tree suite or new coverage measurement was run in this fix wave.
+
+Focused command (existing internal-env helper, isolated biletflow_daulet_issues_test,
+fresh unique temporary storage roots):
+
+```text
+backend/.venv/Scripts/python.exe tmp/run_backend_tests.py -q tests/test_event_image_finalization.py tests/test_event_images.py tests/test_event_image_recovery.py tests/test_cancellation_finance_batch.py tests/test_finance.py tests/test_refunds.py tests/test_paid_orders.py tests/test_paid_activation.py --tb=short
+```
+
+Result: **78 passed in 308.07s**, with the existing Starlette TestClient/httpx deprecation
+warning. New tests raise after a real successful finalization COMMIT and verify clean
+metadata/gallery/GET bytes survive, including unavailable fresh verification. Separate
+rollback and lost orphan-fence acknowledgment cases retain bytes until durable worker
+recovery. Existing deferred rollback and late-writer/recovery guards pass. Real four-order
+cancellation executes one event-wide cash aggregate with a pending reservation and none
+without reservations, while full refund liabilities and reservation state reconcile; this
+is a query-count resource regression, not a throughput benchmark. Actual API-uploaded PNGs
+retain palette-index-zero and partial-alpha-table pixels after storage/content retrieval
+and strip private text metadata. Existing orientation/single-frame checks pass. Finance
+standalone refunds, immutable sent payouts, fee/activation adjustments, refund/send races,
+paid-order and activation checks are included.
+
+Ruff lint and format checks passed for the six changed/new Python files; git diff --check
+passed. No migration, production rollout, process-kill, remote object-store or client
+integration check was performed. Recurring cleanup still requires worker and restored
+database/storage availability.
