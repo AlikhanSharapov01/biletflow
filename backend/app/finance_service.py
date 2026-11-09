@@ -229,10 +229,17 @@ def transition(db, event, payout_id, state, user):
     return payout
 
 
-def refund_changed(db, event, refund, succeeded=False):
-    """Caller holds the common event mutex, including compensation and activation refunds."""
-    payment = db.get(PaymentAttempt, refund.payment_attempt_id)
-    if payment.environment != "simulation":
+def reconcile_reservations(db, event):
+    """Caller holds the event mutex; batch liabilities before checking reserved cash."""
+    reservations = list(
+        db.scalars(
+            select(DemoPayout)
+            .where(DemoPayout.event_id == event.id, DemoPayout.status.in_(("pending", "eligible")))
+            .order_by(DemoPayout.created_at, DemoPayout.id)
+            .with_for_update()
+        )
+    )
+    if not reservations:
         return
     data = totals(db, event)
     remaining = (
@@ -240,18 +247,20 @@ def refund_changed(db, event, refund, succeeded=False):
         - data["pending_refunds_minor"]
         - data["pending_activation_refunds_minor"]
     )
-    reservations = db.scalars(
-        select(DemoPayout)
-        .where(DemoPayout.event_id == event.id, DemoPayout.status.in_(("pending", "eligible")))
-        .order_by(DemoPayout.created_at, DemoPayout.id)
-        .with_for_update()
-    )
     for payout in reservations:
         if payout.amount_minor > remaining:
             payout.status = "failed"
             notice(db, payout, "failed")
         else:
             remaining -= payout.amount_minor
+
+
+def refund_changed(db, event, refund, succeeded=False):
+    """Caller holds the common event mutex, including compensation and activation refunds."""
+    payment = db.get(PaymentAttempt, refund.payment_attempt_id)
+    if payment.environment != "simulation":
+        return
+    reconcile_reservations(db, event)
     if not succeeded:
         return
     payout = db.scalar(

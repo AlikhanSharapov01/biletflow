@@ -300,6 +300,10 @@ def settle_event_cancellation(db, user, event):
                 db, order, [row for row in tickets if row.status in ("valid", "checked_in")]
             )
 
+    from .finance_service import reconcile_reservations
+
+    reconcile_reservations(db, event)
+
 
 def refund_succeeded(db, event, refund):
     """Provider confirmed the money returned. Runs once, on the refund's transition to success."""
