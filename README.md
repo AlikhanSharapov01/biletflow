@@ -223,8 +223,9 @@ In priority order for the MVP. Bonus items come last.
   camera on real iPhone and Android phones; merge the duplicated payment panel (orders vs checkout).
 
 **3. Environment and quality**
-- CI: add web typecheck/tests/build; run the smoke tests.
-- HTTPS and security headers for any shared demo; restart policies and a worker health check.
+- Backup and restore scripts with a short runbook (SRS requires backups).
+- CI: add web typecheck/tests/build.
+- HTTPS and security headers for any shared demo.
 - Update `backend/VALIDATION.md` with current test evidence.
 
 **4. Bonus**
