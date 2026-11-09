@@ -34,6 +34,58 @@ Invitation flow: invite by email → worker delivers a link → recipient regist
 
 The implementation uses a seven-day invitation lifetime as a default, not a new user-confirmed requirement. Tokens are purpose-bound, stored as digests, and reconstructed only for delivery. Replaced, revoked, expired, already accepted or wrong-account tokens cannot join the workspace. Acceptance and delivery recheck the inviter's current authority. Invitation creation and acceptance use the existing shared rate limiter. Concurrent acceptance produces one membership and one successful acceptance.
 
+## Event images (9 November 2026)
+
+Event responses include ordered `images` and nullable `cover_image_url`. Each image has
+`id`, `url`, `mime_type`, `size_bytes`, `alt_text`, `sort_order`, and `is_cover`.
+The first image is the cover; deleting it promotes the next image. URLs point to the
+API and never expose storage keys. Existing web/mobile upload response fields are preserved.
+
+| Method and path | Required access | Result |
+|---|---|---|
+| `POST /events/{event_id}/images` | `event_edit` or owner | Raw image body; 201 image metadata |
+| `PUT /events/{event_id}/images/order` | `event_edit` or owner | JSON `{"image_ids":["uuid", "uuid"]}`; complete gallery permutation, 200 ordered metadata |
+| `PUT /events/{event_id}/images/{image_id}/cover` | `event_edit` or owner | Move image to first position, preserve remaining relative order; 200 ordered metadata |
+| `DELETE /events/{event_id}/images/{image_id}` | `event_edit` or owner | Remove image and compact order; 204 |
+| `GET /events/{event_id}/images/{image_id}/content` | Current permitted event viewer | Validated image bytes, `private, no-store` and `nosniff` |
+
+Upload uses exact `Content-Type: image/png` or `image/jpeg`; multipart, SVG, PDF,
+animated images, malformed/truncated bytes and mismatched types are rejected.
+Query `filename` is optional (default `image`); it is sanitized metadata and never
+part of the object key. `alt_text` is optional for existing clients (default `Event image`),
+nonblank and at most 500 characters. Supply a descriptive value when possible.
+The effective byte ceiling is the smaller of `ATTACHMENT_MAX_BYTES` and the current
+platform `upload_max_mb` setting, applying to received and normalized bytes.
+Streaming requests are bounded even without Content-Length; supplied lengths must match.
+Images are fully decoded, bounded to 16 million pixels, EXIF orientation applied, and
+re-encoded without source metadata/appended content. `size_bytes` describes stored bytes.
+Pillow already arrives through the existing ReportLab dependency; no new package is added.
+
+Implementation defaults: ten images per event, contiguous positions 0–9, and 20 upload
+attempts per account per minute (coarse IP cap 200). Reordering must name every current
+same-event image once; duplicate, foreign or missing IDs fail with 422. Concurrent gallery
+mutations serialize on the existing event/organization guards, backed by unique bounded
+database positions. Mutations are audited with the event version change in one transaction.
+Cancelled or moderated events cannot be edited. Image changes alone do not send event notices.
+
+Every content request rechecks live event visibility, account/session and access grants.
+Published unlisted links work directly but never enter discovery. Private events require
+current staff/grant access; draft/unpublished images are available only to authorized staff.
+Knowing an image ID or retaining an old URL grants no access after revocation/unpublication.
+
+Storage lifecycle reserves a pending `stored_file`, writes the generated UUID key outside
+the business transaction, then reauthorizes and attaches it as clean under an event lock.
+Failed finalize/commit compensates only that upload's object. Delete commits removal and
+deleted metadata before physical deletion. Disk cleanup failures leave inaccessible objects
+with retained pending/deleted metadata for reconciliation; automated crash/orphan cleanup
+is not implemented. No support attachment or existing gallery object is deleted on upload failure.
+Schema migration `0015_event_images` adds `event_media`; its down migration drops gallery
+links and cannot restore those links/data. Stored file metadata and objects remain separate.
+
+Errors include 401 authentication, 403 insufficient event capability, 404 unrelated/inaccessible
+event or image, 409 gallery full/event not editable, 413 too large, 415 unsupported type,
+422 invalid bytes/order/input, 429 upload rate limit, and 503 storage/database unavailable.
+
 ## Discovery and event lifecycle
 
 | Method and path | Required access | Result / flow |
@@ -105,4 +157,4 @@ Errors use `{"detail":{"code":"..."}}` for business failures and FastAPI's valid
 
 ## Remaining work in the overall plan
 
-Stage B's basic publication/authorization/capacity checks are implemented. Event images, downstream event-change notifications, live availability broadcasts, moderation UI/API and full finance/payout profiles remain. Stage C adds authenticated holds and expiry, orders, free issuance, activation, simulated payments/refunds, campaigns and ticket delivery. Subsequent stages add admission/offline synchronization, support, reporting, calendar and administration. These API boundaries do not mark all BF-02–BF-05 requirements or the overall acceptance matrix complete.
+Stage B's basic publication/authorization/capacity checks are implemented. Downstream event-change notifications, live availability broadcasts, moderation UI/API and full finance/payout profiles remain. Stage C adds authenticated holds and expiry, orders, free issuance, activation, simulated payments/refunds, campaigns and ticket delivery. Subsequent stages add admission/offline synchronization, support, reporting, calendar and administration. These API boundaries do not mark all BF-02–BF-05 requirements or the overall acceptance matrix complete.

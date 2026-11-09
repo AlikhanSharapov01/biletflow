@@ -522,7 +522,7 @@ def create_app(settings: Settings | None = None):
     from .ticket_document_api import router as ticket_document_router
 
     app.include_router(organization_router(factory, settings, principal))
-    app.include_router(event_router(factory, settings, principal))
+    app.include_router(event_router(factory, settings, principal, storage=app.state.storage))
     app.include_router(checkout_router(factory, settings, principal))
     app.include_router(
         ticket_document_router(factory, settings, principal, storage=app.state.storage)

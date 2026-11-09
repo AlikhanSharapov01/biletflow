@@ -20,7 +20,7 @@ def record(row, omit=()):
     return {c.name: getattr(row, c.name) for c in row.__table__.columns if c.name not in omit}
 
 
-def event_record(event):
+def event_record(event, db=None):
     result = record(event)
     current = now()
     result["time_status"] = (
@@ -30,6 +30,11 @@ def event_record(event):
         if current >= event.starts_at
         else "upcoming"
     )
+    if db is not None:
+        from .event_image_service import image_records
+
+        result["images"] = image_records(db, event.id)
+        result["cover_image_url"] = result["images"][0]["url"] if result["images"] else None
     return result
 
 

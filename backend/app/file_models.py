@@ -13,12 +13,13 @@ from sqlalchemy import (
     DateTime,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Text,
     UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .models import Base, Row
 
@@ -74,3 +75,21 @@ class SupportAttachment(Row, Base):
     message_id: Mapped[UUID] = mapped_column(PGUUID)
     file_id: Mapped[UUID] = mapped_column(PGUUID)
     original_filename: Mapped[str] = mapped_column(Text)
+
+
+class EventMedia(Row, Base):
+    __tablename__ = "event_media"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id", "sort_order", name="event_media_uq1", deferrable=True, initially="DEFERRED"
+        ),
+        UniqueConstraint("event_id", "file_id", name="event_media_uq2"),
+        CheckConstraint("sort_order >= 0 AND sort_order < 10", name="event_media_ck1"),
+        restrict(["event_id"], ["biletflow.event.id"], "fk_event_media_event"),
+        restrict(["file_id"], ["biletflow.stored_file.id"], "fk_event_media_file"),
+    )
+    event_id: Mapped[UUID] = mapped_column(PGUUID)
+    file_id: Mapped[UUID] = mapped_column(PGUUID)
+    sort_order: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    alt_text: Mapped[str] = mapped_column(Text)
+    file: Mapped[StoredFile] = relationship(lazy="joined")

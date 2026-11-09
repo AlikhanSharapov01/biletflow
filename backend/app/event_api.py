@@ -1,10 +1,12 @@
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import AwareDatetime
 from sqlalchemy import exists, func, select, text
+from starlette.concurrency import run_in_threadpool
 
 from . import catalog_schemas as s
+from . import event_image_service as images
 from .analytics_service import ticket_type_counts
 from .catalog_models import (
     AccessGrant,
@@ -40,14 +42,17 @@ from .models import AuditLog, User
 from .notification_service import enqueue_event_notice
 from .refund_service import settle_event_cancellation
 from .security import decode_access, fail, now
-from .service import valid_session
+from .service import rate_limit, valid_session
 
 # Attendee-visible fields: a change to any of them notifies ticket holders.
 NOTIFY_FIELDS = ("title", "description", "starts_at", "ends_at", "time_zone", "venue_id")
 
 
-def router(factory, settings, principal):
+def router(factory, settings, principal, storage):
     routes = APIRouter(prefix="/api/v1", tags=["events"])
+    upload_limits = settings.model_copy(
+        update={"rate_identity_limit": 20, "rate_ip_limit": 200, "rate_window_seconds": 60}
+    )
 
     def viewer(db, request):
         header = request.headers.get("authorization")
@@ -57,6 +62,116 @@ def router(factory, settings, principal):
         if scheme.lower() != "bearer" or len(value) > 8192:
             fail()
         return valid_session(db, *decode_access(settings, value))[0]
+
+    def image_upload_check(ids, event_id):
+        with factory() as db:
+            images.editor(db, ids, event_id)
+            return images.image_limit(db, settings)
+
+    @routes.post("/events/{event_id}/images", response_model=s.EventImageView, status_code=201)
+    async def upload_image(
+        event_id: UUID,
+        request: Request,
+        alt_text: str = Query("Event image", min_length=1, max_length=500, pattern=r"\S"),
+        filename: str = Query("image", max_length=200),
+        ids=Depends(principal),
+    ):
+        limit = await run_in_threadpool(image_upload_check, ids, event_id)
+        await run_in_threadpool(
+            rate_limit,
+            factory,
+            upload_limits,
+            request.client.host if request.client else "unknown",
+            "event_image_upload",
+            str(ids[0]),
+        )
+        content_type = request.headers.get("content-type", "").strip().lower()
+        if content_type not in images.IMAGE_TYPES:
+            fail("unsupported_media_type", 415)
+        images.clean_filename(filename)
+        declared = request.headers.get("content-length")
+        if declared is not None:
+            if not declared.isdigit():
+                fail("invalid_content_length", 422)
+            if int(declared) > limit:
+                fail("image_too_large", 413)
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > limit:
+                fail("image_too_large", 413)
+            chunks.append(chunk)
+        if declared is not None and int(declared) != size:
+            fail("invalid_content_length", 422)
+        return await run_in_threadpool(
+            images.upload,
+            factory,
+            storage,
+            settings,
+            ids,
+            event_id,
+            filename,
+            alt_text,
+            content_type,
+            b"".join(chunks),
+        )
+
+    @routes.put("/events/{event_id}/images/order", response_model=list[s.EventImageView])
+    def order_images(event_id: UUID, data: s.ImageOrder, ids=Depends(principal)):
+        with factory.begin() as db:
+            user, event = images.editor(db, ids, event_id, lock=True)
+            return images.reorder(db, user, event, data.image_ids)
+
+    @routes.put("/events/{event_id}/images/{image_id}/cover", response_model=list[s.EventImageView])
+    def cover_image(event_id: UUID, image_id: UUID, ids=Depends(principal)):
+        with factory.begin() as db:
+            user, event = images.editor(db, ids, event_id, lock=True)
+            identifiers = [row.id for row in images.gallery(db, event.id)]
+            if image_id not in identifiers:
+                fail("image_not_found", 404)
+            return images.reorder(
+                db, user, event, [image_id] + [item for item in identifiers if item != image_id]
+            )
+
+    @routes.delete("/events/{event_id}/images/{image_id}", status_code=204)
+    def delete_image(event_id: UUID, image_id: UUID, ids=Depends(principal)):
+        with factory.begin() as db:
+            user, event = images.editor(db, ids, event_id, lock=True)
+            key = images.remove(db, user, event, image_id)
+        try:
+            storage.delete(key)
+        except OSError:
+            # Metadata is already deleted; retained key permits later physical cleanup.
+            images.logger.warning(
+                "Event image delete failed; deleted metadata retained for reconciliation"
+            )
+        return Response(status_code=204)
+
+    @routes.get("/events/{event_id}/images/{image_id}/content")
+    def image_content(event_id: UUID, image_id: UUID, request: Request):
+        with factory() as db:
+            event_guard(db, viewer(db, request), event_id)
+            row = db.get(images.EventMedia, image_id)
+            file = (
+                db.get(images.StoredFile, row.file_id) if row and row.event_id == event_id else None
+            )
+            if file is None or file.purpose != "event_image" or file.status != "clean":
+                fail("image_not_found", 404)
+            key, mime_type = file.object_key, file.mime_type
+        try:
+            content = storage.get(key)
+        except FileNotFoundError:
+            fail("image_not_found", 404)
+        except OSError:
+            fail("storage_unavailable", 503)
+        return Response(
+            content,
+            media_type=mime_type,
+            headers={
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     def references(db, data):
         if not db.get(Category, data.category_id) or not db.get(Venue, data.venue_id):
@@ -204,7 +319,7 @@ def router(factory, settings, principal):
             db.flush()
             assign_creator(db, user, org, event)
             catalog_audit(db, user, "event.created", org, event)
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.get("/organizations/{org_id}/events", response_model=list[s.EventView])
@@ -232,7 +347,7 @@ def router(factory, settings, principal):
                 )
                 query = query.where(Event.id.in_(allowed))
             return [
-                event_record(e)
+                event_record(e, db)
                 for e in db.scalars(
                     query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset)
                 )
@@ -296,7 +411,7 @@ def router(factory, settings, principal):
                     price = price.where(TicketType.kind == ("free" if free else "paid"))
                 query = query.where(exists(price))
             return [
-                event_record(e)
+                event_record(e, db)
                 for e in db.scalars(
                     query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset)
                 )
@@ -305,7 +420,7 @@ def router(factory, settings, principal):
     @routes.get("/events/{event_id}", response_model=s.EventView)
     def detail(event_id: UUID, request: Request):
         with factory() as db:
-            return event_record(event_guard(db, viewer(db, request), event_id))
+            return event_record(event_guard(db, viewer(db, request), event_id), db)
 
     @routes.put("/events/{event_id}", response_model=s.EventView)
     def edit(event_id: UUID, data: s.EventInput, ids=Depends(principal)):
@@ -340,7 +455,7 @@ def router(factory, settings, principal):
             catalog_audit(
                 db, user, "event.updated", db.get(Organization, event.organization_id), event
             )
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.post("/events/{event_id}/publish", response_model=s.EventView)
@@ -356,7 +471,7 @@ def router(factory, settings, principal):
                 catalog_audit(
                     db, user, "event.published", db.get(Organization, event.organization_id), event
                 )
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.post("/events/{event_id}/unpublish", response_model=s.EventView)
@@ -377,7 +492,7 @@ def router(factory, settings, principal):
                     db.get(Organization, event.organization_id),
                     event,
                 )
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.post("/events/{event_id}/cancel", response_model=s.EventView)
@@ -395,7 +510,7 @@ def router(factory, settings, principal):
                 catalog_audit(
                     db, user, "event.cancelled", db.get(Organization, event.organization_id), event
                 )
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.post("/events/{event_id}/duplicate", response_model=s.EventView, status_code=201)
@@ -426,7 +541,7 @@ def router(factory, settings, principal):
                 )
             assign_creator(db, user, org, event)
             catalog_audit(db, user, "event.duplicated", org, event)
-            result = event_record(event)
+            result = event_record(event, db)
         return result
 
     @routes.post(
