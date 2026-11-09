@@ -261,7 +261,7 @@ uv run ruff check app tests migrations
 uv run ruff format --check app tests migrations
 ```
 
-On 9 November 2026 the full PostgreSQL suite collected **523 cases: 522 passed, 1 failed**
+On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 530 passed, 1 failed**
 (the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
 Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
 Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow

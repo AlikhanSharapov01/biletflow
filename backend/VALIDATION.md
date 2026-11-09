@@ -1,6 +1,27 @@
 # Backend validation
 
-## Backend issues #38–44 — 9 November 2026
+## Final reviewed code — 9 November 2026
+
+The full PostgreSQL suite was rerun after the whole-branch review fixes, at application
+revision `8dd56d5`: **531 collected, 530 passed, 1 failed, 0 errors, 0 skipped**, in
+1697.06 seconds (28m17s). The only failure remains the pre-existing Windows DejaVu-font
+case, `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`. One existing
+Starlette/httpx TestClient deprecation warning remains. The suite is **not fully green**;
+no new regression failures were observed.
+
+Statement coverage is **7433/7728 (96.1827%; displayed 96%)**, with 295 missing statements.
+Full backend Ruff lint passed, all **134 Python files** passed formatting, and the complete
+change range passed whitespace checks. Final scoped review addressed both Important
+findings (uncertain-commit upload compensation and repeated cancellation finance aggregates)
+and the indexed-PNG alpha finding; the directly affected PostgreSQL run passed **78 tests**.
+
+Local ignored evidence: `tmp/backend-issues-final-full-suite.log`,
+`tmp/backend-issues-final-results.xml`, and `tmp/backend-issues-final-coverage.json`.
+The test command was the earlier full-suite command below with `final` artifact filenames.
+The local three-locale SMTP check and migration round trips below remain applicable;
+no client, provider, production rollout, remote-storage or load acceptance is implied.
+
+## Initial feature-tree validation (#38–44) — 9 November 2026
 
 Scope: operational analytics, simulated finance/payouts, organizer ticket-type counters/history
 filters, admin paid-sales/commerce monitoring, protected event images/recovery, backend localization
