@@ -13,6 +13,7 @@ import {
   isEntryConfirmation,
 } from "@/features/scanner/outcomes";
 import type { Admission, PendingScan, Phase, ResultPhase } from "@/features/scanner/scanTypes";
+import type { OfflineScanning } from "@/features/scanner/useOfflineScanning";
 
 const NOT_A_CONFIRMATION =
   "That isn’t an entry confirmation. Ask the guest to open their ticket and tap “Show entry confirmation”.";
@@ -22,7 +23,8 @@ const NOT_A_CONFIRMATION =
 export function useScanSession(
   eventId: string,
   event: AssignedEvent | null | undefined,
-  refreshCounts: () => void
+  refreshCounts: () => void,
+  offline?: Pick<OfflineScanning, "decide" | "pending" | "sync">
 ) {
   const [phase, setPhase] = useState<Phase>({ name: "scanning" });
   const [reason, setReason] = useState("");
@@ -47,6 +49,12 @@ export function useScanSession(
       // Session couldn't be renewed: AuthContext is already redirecting to login.
       if (err instanceof SessionExpiredError) return;
       outcome = { kind: "network" as const };
+    }
+    if (outcome.kind === "network") {
+      outcome = (await offline?.decide(scan)) ?? outcome;
+    } else if (offline?.pending) {
+      // The server answered, so the connection is back.
+      void offline.sync(true);
     }
     const view = describeOutcome(outcome, timeZone);
     if (outcome.kind === "admitted" && outcome.replayed) {

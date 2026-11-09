@@ -44,7 +44,7 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
-| Offline scanning (bonus) | Not done (the backend supports it) |
+| Offline scanning (bonus) | Done (QR scans only) |
 | Google sign-in | Web only |
 | Kazakh and Russian text | Not done (English only, like the web) |
 
@@ -220,6 +220,11 @@ shortcuts on the Tickets tab and the bell).
 5. **Find guest by name:** searches `GET /scanner/events/{id}/attendees` (name or exact email)
    and checks in by ticket id, with the same rules as a scan.
 6. *Undo* calls `POST /scanner/check-ins/{id}/reverse` with a reason.
+7. **Offline:** while online, *Prepare for offline* registers the phone and saves the event's
+   signed list. If a scan then can't reach the server, the app checks the ticket and the guest's
+   entry confirmation QR on the phone and queues the scan. Queued scans upload with
+   `POST /scanner/offline/sync` on *Sync now*, or by themselves once the server answers again. An
+   offline result is provisional until then. Typed codes, guest search and undo need a connection.
 
 Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
 [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
@@ -236,6 +241,4 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 - **Clean-ups:** the order screen's payment panel duplicates checkout's (`orders/components/OrderPayment.tsx`
   vs `checkout/components/PaymentStep.tsx`), so merge them. Rename the session kind `scanner`
   to something like `native` in the backend.
-- **Bonus:** offline scanning (device registration, event package, queued scans and sync;
-  see the offline section of `backend/ADMISSION_API.md`), push notifications, Google sign-in on
-  mobile.
+- **Bonus:** push notifications, Google sign-in on mobile.

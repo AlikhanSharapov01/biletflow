@@ -8,10 +8,12 @@ import { CameraPermissionGate } from "@/features/scanner/CameraPermissionGate";
 import { AttendeeSearchPanel } from "@/features/scanner/AttendeeSearchPanel";
 import { CheckingPanel } from "@/features/scanner/CheckingPanel";
 import { ConfirmationPanel } from "@/features/scanner/ConfirmationPanel";
+import { OfflineBar } from "@/features/scanner/OfflineBar";
 import { ResultPanel } from "@/features/scanner/ResultPanel";
 import { ScanHeader } from "@/features/scanner/ScanHeader";
 import { ScannerCamera } from "@/features/scanner/ScannerCamera";
 import { UndoPanel } from "@/features/scanner/UndoPanel";
+import { useOfflineScanning } from "@/features/scanner/useOfflineScanning";
 import { useScannerEvent } from "@/features/scanner/useScannerEvent";
 import { useScanSession } from "@/features/scanner/useScanSession";
 import { colors, fonts } from "@/theme";
@@ -21,8 +23,13 @@ import { colors, fonts } from "@/theme";
 export function ScanScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
-  const { event, loadError, counts, refreshCounts } = useScannerEvent(eventId);
-  const session = useScanSession(eventId, event, refreshCounts);
+  const { event: liveEvent, loadError: liveError, counts, refreshCounts } = useScannerEvent(eventId);
+  const offline = useOfflineScanning(eventId, refreshCounts);
+  // With no connection the event comes from the saved offline list.
+  const savedEvent = liveError ? offline.savedEvent : null;
+  const event = savedEvent ?? liveEvent;
+  const loadError = savedEvent || !offline.loaded ? null : liveError;
+  const session = useScanSession(eventId, event, refreshCounts, offline);
   const { phase } = session;
 
   function goBack() {
@@ -53,6 +60,7 @@ export function ScanScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <ScanHeader event={event} counts={counts} onBack={goBack} />
+      <OfflineBar offline={offline} event={event} />
 
       <KeyboardAvoidingView
         style={styles.cameraArea}

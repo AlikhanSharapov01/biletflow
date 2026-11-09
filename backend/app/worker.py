@@ -4,6 +4,7 @@ import smtplib
 import time
 from datetime import datetime, timedelta
 from email.message import EmailMessage
+from pathlib import Path
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -26,6 +27,8 @@ from .support_service import case_roles
 from .ticket_file_service import ensure_ticket_pdf
 
 HOLD_SWEEP_SECONDS = 15
+# Touched on every loop; the Compose health check reads its age.
+HEARTBEAT_FILE = Path("/tmp/biletflow-worker-heartbeat")
 
 
 def ticket_message(db, settings, identifier, ticket_id, pdf=None):
@@ -238,6 +241,7 @@ def main():
     next_sweep = 0.0
     try:
         while True:
+            HEARTBEAT_FILE.touch()
             if time.monotonic() >= next_sweep:
                 next_sweep = time.monotonic() + HOLD_SWEEP_SECONDS
                 try:

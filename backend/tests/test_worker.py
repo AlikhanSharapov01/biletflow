@@ -1,10 +1,35 @@
 from datetime import timedelta
+from unittest.mock import MagicMock
 
+import pytest
 from sqlalchemy import select, update
 
 from app.models import OutboxJob
 from app.security import now
-from app.worker import deliver_once
+from app.worker import deliver_once, main
+
+
+def test_main_loop_touches_heartbeat(monkeypatch, tmp_path):
+    heartbeat = tmp_path / "heartbeat"
+    monkeypatch.setattr("app.worker.HEARTBEAT_FILE", heartbeat)
+    monkeypatch.setattr("app.worker.Settings", MagicMock())
+    monkeypatch.setattr("app.worker.database", lambda url: (MagicMock(), MagicMock()))
+    monkeypatch.setattr("app.worker.storage_from_settings", MagicMock())
+    monkeypatch.setattr("app.worker.sweep_expired_holds", MagicMock())
+    for idle in (
+        "initialize_once",
+        "dispatch_refund_once",
+        "process_received_once",
+        "deliver_once",
+        "deliver_notifications_once",
+    ):
+        monkeypatch.setattr(f"app.worker.{idle}", MagicMock(return_value=False))
+
+    # time.sleep runs only once a full idle pass has finished.
+    monkeypatch.setattr("app.worker.time.sleep", MagicMock(side_effect=KeyboardInterrupt))
+    with pytest.raises(KeyboardInterrupt):
+        main()
+    assert heartbeat.exists()
 
 
 def test_delivery_generates_token_only_at_dispatch(client, factory, settings):
