@@ -103,7 +103,8 @@ Local ignored evidence: `tmp/backend-issues-final-full-suite.log`,
 `tmp/backend-issues-final-results.xml`, and `tmp/backend-issues-final-coverage.json`.
 The test command was the earlier full-suite command below with `final` artifact filenames.
 The local three-locale SMTP check and migration round trips below remain applicable;
-no client, provider, production rollout, remote-storage or load acceptance is implied.
+no client, provider, production rollout or remote-storage acceptance is implied. Local load
+measurements are recorded separately in the 12 November 2026 section above.
 
 ## Initial feature-tree validation (#38–44) — 9 November 2026
 
@@ -164,7 +165,8 @@ remains Russian, and user-authored content is not translated.
 
 Not verified by this increment: frontend/mobile end-to-end flows, hosted CI execution, live Google
 consent/payment provider/GA4, external email, remote object storage, production deployment,
-backup/restore, actual process-kill recovery or declared latency/load targets. Existing Windows
+backup/restore or actual process-kill recovery. Latency/load targets were not measured in this
+increment; see the 12 November 2026 load section. Existing Windows
 Unicode PDF font failure and the Starlette/httpx TestClient deprecation are tracked explicitly in
 the full-suite result. Earlier dated evidence below describes earlier scope, not current omissions.
 
@@ -276,7 +278,8 @@ rollback and lost orphan-fence acknowledgment cases retain bytes until durable w
 recovery. Existing deferred rollback and late-writer/recovery guards pass. Real four-order
 cancellation executes one event-wide cash aggregate with a pending reservation and none
 without reservations, while full refund liabilities and reservation state reconcile; this
-is a query-count resource regression, not a throughput benchmark. Actual API-uploaded PNGs
+is a query-count resource regression, not a throughput benchmark (end-to-end checkout and
+admission latency is measured in the 12 November 2026 load section). Actual API-uploaded PNGs
 retain palette-index-zero and partial-alpha-table pixels after storage/content retrieval
 and strip private text metadata. Existing orientation/single-frame checks pass. Finance
 standalone refunds, immutable sent payouts, fee/activation adjustments, refund/send races,

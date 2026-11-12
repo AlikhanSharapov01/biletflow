@@ -348,6 +348,14 @@ uv run python ../tools/smoke_admission.py
 uv run python ../tools/smoke_paid_checkout.py
 ```
 
+Measured checkout/admission load with concurrent analytics (opt-in; starts its own API and worker
+against a `_test` database; method and results in [VALIDATION.md](VALIDATION.md)):
+
+```bash
+LOAD_DATABASE_URL=postgresql+psycopg://user@127.0.0.1:5432/biletflow_load_test \
+  uv run python -m tests.load.load_harness --runs 3
+```
+
 ---
 
 ## What is left to do

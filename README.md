@@ -247,6 +247,9 @@ only; partial refunds are out of scope.
     [backend/VALIDATION.md](backend/VALIDATION.md#worker-crash-recovery-harness--12-november-2026)
   - web: `npm run typecheck && npm test && npm run build`
   - mobile: `npm run typecheck && npm test`
+  - backend load (opt-in, before changing checkout, admission or analytics):
+    `LOAD_DATABASE_URL=<..._test database> uv run python -m tests.load.load_harness` — see
+    `backend/VALIDATION.md`
 - **Never commit** `.env` files, `node_modules`, `.venv`, `web/dist` or `mobile/.expo`.
 
 ---
