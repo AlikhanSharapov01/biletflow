@@ -36,12 +36,17 @@ def main():
         # The only row the application removes: a campaign's eligible-type selection.
         connection.execute("GRANT DELETE ON biletflow.campaign_ticket_type TO biletflow_app")
     from .db import database
-    from .seed import seed_catalog, seed_demo_campaigns
+    from .seed import MESSAGES, DemoBuildError, DemoRefused, seed_catalog, seed_demo_fixtures
 
     engine, factory = database(settings.database_url.get_secret_value())
     try:
         seed_catalog(factory)
-        seed_demo_campaigns(factory, settings)
+        try:
+            # Builds the demo fixtures only when absent, so restarts keep demo activity.
+            print(MESSAGES[seed_demo_fixtures(factory, settings)])
+        except (DemoRefused, DemoBuildError) as error:
+            # Demo data is optional: the stack still starts, and the message says why.
+            print(f"Demo fixtures not built: {error}")
     finally:
         engine.dispose()
 

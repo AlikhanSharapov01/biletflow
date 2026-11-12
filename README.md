@@ -166,6 +166,35 @@ uv run python ../tools/smoke_paid_checkout.py
 
 ---
 
+## Demo data
+
+In development the first start also builds fictional **lifecycle demo fixtures**: one organizer
+workspace with a mixed free/paid concert with promo codes, a sold-out theatre, an assigned-seat
+gala, a meetup happening now with a checked-in ticket, a private workshop and a cancelled
+festival, plus refunded, refund-pending, expired-hold and exhausted-campaign examples. Sign in
+with any of these accounts (password `BiletFlow-demo-2026`, development only):
+
+| Account | Use it to |
+|---|---|
+| `demo-organizer@example.com` | Manage the events, campaigns, refunds, analytics and finance |
+| `demo-attendee@example.com` | See orders and tickets, including the private event |
+| `demo-guest@example.com` | See a refunded order and an expired checkout |
+| `demo-scanner@example.com` | Scan in the mobile app (assigned to the concert and the live meetup) |
+| `demo-admin@example.com` | Use the Admin tab |
+
+Dates are relative to the build, so refresh them (and discard changes made inside the demo
+workspace) with an explicit reset. It never runs in production and touches nothing outside the
+demo workspace:
+
+```bash
+docker compose run --rm migrate python -m app.seed --reset --yes-reset-demo
+```
+
+Details, the native command and exactly what a reset removes are in
+[backend/README.md](backend/README.md#demo-data).
+
+---
+
 ## Working on one part
 
 Each part has its own README with setup, structure, conventions and remaining work:
