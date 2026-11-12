@@ -67,8 +67,12 @@ jobs:
           BACKUP_TEST_HOOK: cd backend && uv run python ../tools/backup_drill.py delete-image c
         run: |
           bash tools/backup.sh --online backups-online
-          if bash tools/verify_backup.sh backups-online/biletflow-*.tar | tee verify-online.txt; then
-            echo "The online backup should have linked a missing image."
+          # No pipe here: the default shell has no pipefail, so `| tee` would hide the status.
+          status=0
+          bash tools/verify_backup.sh backups-online/biletflow-*.tar >verify-online.txt 2>&1 || status=$?
+          cat verify-online.txt
+          if [ "$status" -ne 1 ]; then
+            echo "verify_backup.sh exited $status; the online backup should have been inconsistent (1)."
             exit 1
           fi
           grep -q '^MISSING event_image ' verify-online.txt
