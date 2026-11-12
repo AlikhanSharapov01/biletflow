@@ -18,6 +18,12 @@ from app.seed import seed_catalog, seed_id
 API = "/api/v1"
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "crash: process-kill recovery harness in tests/crash (RUN_CRASH_TESTS=1)"
+    )
+
+
 @pytest.fixture(scope="session")
 def settings():
     url = os.environ.get("TEST_DATABASE_URL")

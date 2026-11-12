@@ -45,6 +45,10 @@ The web and mobile clients both talk to this one backend.
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
 | Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
+"Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
+web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
+per area in the [integration status](../docs/integration/status.md).
+
 **Backend scope still open** — see [What is left to do](#what-is-left-to-do).
 
 ---
@@ -102,7 +106,7 @@ the `file_storage` volume in Docker). The API and worker must share it.
 | Setting | Meaning |
 |---|---|
 | `ENVIRONMENT` | `development` enables the payment simulator endpoints; `production` enforces HTTPS URLs and secure cookies |
-| `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` | `true` requires the attendee's short-lived entry confirmation at the door. Set `false` for demos until the mobile app supports it |
+| `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` | `true` requires the attendee's short-lived entry confirmation at the door. The mobile scanner supports it; set `false` only for quicker demos |
 | `FRONTEND_URL` | Base URL used in emailed links |
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
@@ -331,8 +335,11 @@ On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 53
 (the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
 Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
 Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
-(`.github/workflows/backend-auth.yml`) configures automated checks; its presence is not evidence
-of a hosted CI run for these changes.
+(`.github/workflows/backend-auth.yml`) configures automated checks; the hosted *Backend API*,
+*Smoke* and *Backup* runs on `main` at `7dd19e0` (PR #64 merged) succeeded.
+
+Process-kill crash recovery (opt-in, POSIX): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`;
+see [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026).
 
 End-to-end smoke tests against a running Docker stack live in `../tools/`:
 
@@ -349,14 +356,25 @@ The agreed scope includes all required and bonus features; see the shared
 [requirements and acceptance matrix](../docs/BiletFlow_Backend_Requirements.md).
 Backend endpoints alone do not complete the integrated product.
 
-- GA4 consent-aware collection/export, authorized provider aggregates/cache and disconnected states.
-- Remaining admin operational views (campaign/job/offline-conflict/support search and related notices)
-  and commerce consumption of versioned settings; see [ADMIN_API.md](ADMIN_API.md#not-yet-implemented).
-- Frontend/mobile integration of the documented APIs and complete acceptance journeys.
-- Provider sandbox extension once credentials/access are available; no live financial operation.
-- Deployment/recovery, backup/restore and measured workload targets still need their own evidence.
-- Optional S3-compatible storage, asynchronous malware scanning, and deployment security headers
-  remain separate work; local protected file storage is implemented.
+Open backend work, from the audit in #85, in dependency order (see the
+[integration status](../docs/integration/status.md#remaining-work-in-dependency-order)):
+
+1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
+   database and file backups (#69, with operations).
+2. Campaign revalidation at paid fulfilment (#66) and report reconciliation (#67); platform
+   settings applied to checkout and activation (#70); attachment malware scanning and quarantine
+   (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
+3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
+   notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
+   protected storage exists today), correlation IDs and metrics (#78).
+4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
+   (#79), Kazakh/Russian PDF text on native installs (#82).
+5. Measured load (#80) and real process-kill recovery (#83).
+
+Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,
+HTTPS and security headers for the shared demo (#49), and the provider sandbox once merchant
+access exists (no live financial operation). Refunds are full-order only by design; partial refunds
+are excluded by the requirements.
 
 Promo campaigns, operational analytics, refunds/cancellations, simulated finance/payouts,
 organizer ticket-type counters, event history filters, event images with bounded recurring cleanup,

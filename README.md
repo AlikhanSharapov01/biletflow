@@ -28,40 +28,22 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 
 ## Project status
 
+As of `main` at PR #64 (12 November 2026). The detailed, per-requirement view is in
+[`docs/integration/status.md`](docs/integration/status.md). It keeps four states apart: the API
+is complete, it is merged, each client is integrated, and the journey is acceptance-verified.
+
 | Part | State | Summary |
 |---|---|---|
-| Backend (`backend/`) | Most of the MVP | Accounts, events, seating, free and simulated paid checkout, QR tickets and PDFs, online and offline admission, support, notifications, calendar export and platform administration are implemented and tested. Promo campaigns, analytics, organizer refunds and the finance view are not built yet. |
-| Database (`backend/migrations/`) | Most of the MVP | 12 migrations, 58 tables. Campaign tables are the main missing piece. |
-| Web (`web/`) | UI complete for current scope | Every screen exists. Screens whose backend exists are fully wired; promo, analytics, finance, refunds and event images show a "not available yet" state until their API ships. Kazakh/Russian translations are missing. |
-| Mobile app (`mobile/`) | Full app + scanner | Every web feature on iOS/Android (see [decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), plus the scanner with entry confirmation and manual guest search. The same features as the web wait for the backend. |
-| Environment | Local demo works | Docker Compose runs the full stack, with [backup and restore](docs/operations/backup.md). No TLS. CI checks the backend and the mobile app, not yet the web. |
-| Tests | Backend strong, clients growing | 238 backend tests (real PostgreSQL), 87 web unit tests, 163 mobile tests (screens with a mocked API, helpers, scanner flow), no automated end-to-end tests. |
+| Backend (`backend/`) | API for every SRS area except GA4 | Accounts, events and images, seating, free and simulated paid checkout, promo campaigns and Campaign QR, full-order refunds and cancellations, QR tickets and PDFs, online and offline admission, support, notifications (kk/ru/en), calendar, analytics, simulated finance and payouts, and platform administration. Open gaps and defects are tracked in #85. |
+| Database (`backend/migrations/`) | Current | 16 migrations, 66 tables (through `0016_image_cleanup`). |
+| Web (`web/`) | Mostly integrated | Campaigns, promo checkout and refunds use the final contracts; Kazakh/Russian/English interface. Analytics, finance and image upload still call their planned contracts and need checking against the merged API (#45). |
+| Mobile app (`mobile/`) | Full app + scanner, integration behind | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning. Promo, campaigns, analytics, finance, refunds and images are not connected on `main` (#51); no Kazakh/Russian yet (#52). |
+| Environment | Local demo works | Docker Compose with health checks and restart policies, [backup and restore](docs/operations/backup.md). No TLS yet (#49). Files are on a local volume; the required S3-compatible storage is not provided yet (#77). |
+| Tests and CI | Backend strong, no browser/device end-to-end | Backend PostgreSQL suite (see [`backend/VALIDATION.md`](backend/VALIDATION.md)); web and mobile unit tests; CI runs backend, web, mobile, API smoke flows and a backup/restore check. No browser or real-device end-to-end tests. |
 
-### Feature progress against the SRS
-
-"Done" means usable end to end. "Waiting for backend" means the web screen exists but the API
-does not yet.
-
-| SRS area | Backend | Web | Mobile |
-|---|---|---|---|
-| 4.1 Accounts, verification, password reset, Google sign-in | Done | Done | Done (Google is web only) |
-| 4.2 Events: create, edit, publish, duplicate, cancel, visibility | Done (no images) | Done (images waiting for backend) | Done (images waiting for backend) |
-| 4.3 Ticket types and inventory | Done (no per-type sold/refunded counts) | Done | Done |
-| 4.3.1 Assigned seating (bonus) | Done | Done (seat map + organizer setup) | Done (seat map + organizer setup) |
-| 4.4 Free registration | Done | Done | Done |
-| 4.5 Paid-sales activation (simulated) | Done (no admin suspend endpoint) | Done | Done |
-| 4.6 Checkout and payments (simulated) | Done (no organizer finance view) | Done (finance waiting for backend) | Done (finance waiting for backend) |
-| 4.7 Digital tickets, PDF, email delivery | Done | Done | Done (PDF via share sheet) |
-| 4.8 Scanner check-in | Done | Check-in history + CSV | Done (scan, entry confirmation, manual search, undo, history) |
-| 4.9 Orders, cancellations, refunds | Partial (automatic refunds only) | Done (refund/cancel waiting for backend) | Done (refund/cancel waiting for backend) |
-| 4.10 Notifications | Partial (5 of 9 types) | Done | Done (inbox + badge) |
-| 4.11 Calendar export (bonus) | Done | Done | Done |
-| 4.12 Platform administration | Partial (no payment/refund monitoring) | Done | Done |
-| 4.13 Support cases | Done (incl. attachments) | Done | Done |
-| 4.14 Promo codes and Campaign QR | Not started (scanner already rejects campaign QR) | Waiting for backend | Waiting for backend (scanner rejects campaign QR) |
-| 4.15 Organizer analytics | Not started | Waiting for backend | Waiting for backend |
-| 4.16 Event history and audit trail | Done (no server-side filters) | Done | Done |
-| 7 Localization (Kazakh, Russian, English) | Partial (some notifications) | Not started | Not started |
+No SRS journey is acceptance-verified end to end on both clients yet. API smoke tests in CI
+cover free registration and admission, paid checkout, campaign discounts and refunds at the API
+level only.
 
 ---
 
@@ -229,37 +211,25 @@ is run from inside each part's folder.
 
 ## What is left to do
 
-In priority order for the MVP. Bonus items come last.
+In dependency order (from the audit in #85); each step builds on the ones before it. Client work
+for areas already merged does not have to wait for steps 1–3.
 
-**1. Backend features both clients are already waiting for**
-- Promo campaigns and Campaign QR (SRS 4.14): campaign tables, discount at checkout, atomic
-  redemption limits, campaign report.
-- Organizer analytics (SRS 4.15): capacity, sales over time, by ticket type, campaigns,
-  attendance, with filters.
-- Organizer refunds and cancellation of free registrations (SRS 4.9).
-- Organizer finance view: gross, fees, refunds, estimated payout (SRS 4.6).
-- Per-ticket-type counts, event images, admin endpoint to suspend paid sales, admin views of
-  payments/refunds/failures, the missing notifications (purchase confirmation, payment failure,
-  refund completed, payout status).
-- Before building them, confirm the request/response shapes the web expects (see
-  [`web/README.md`](web/README.md#screens-waiting-for-the-backend)) and document them in a
-  new `backend/*_API.md`.
+1. **Backend defects:** stale refund callbacks (#65), PDF objects after uncertain commits (#68),
+   consistent database and file backups (#69).
+2. **Campaigns, settings, uploads:** revalidate campaigns at paid fulfilment (#66), reconcile
+   campaign reports (#67), apply platform settings to checkout and activation (#70), attachment
+   malware quarantine (#75), recovery of abandoned uploads (#76).
+3. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
+   moderation notices (#74), S3-compatible storage (#77), correlation IDs and metrics (#78).
+4. **Reporting, fixtures and clients:** GA4 (#71), analytics export (#81), demo fixtures (#79),
+   Kazakh/Russian PDF text (#82); web integration (#45); mobile integration (#51), translations
+   (#52) and payment-panel clean-up (#55); HTTPS for the shared demo (#49).
+5. **Acceptance:** load (#80), crash recovery (#83), restore, real devices (#53) and builds (#54);
+   then record the results in the integration status and `backend/VALIDATION.md`.
 
-**2. Clients**
-- Web: Kazakh and Russian translations; accessibility pass (WCAG 2.1 AA); page-level and
-  end-to-end tests.
-- Mobile: Kazakh and Russian translations; click through the share sheet, document picker and
-  camera on real iPhone and Android phones; merge the duplicated payment panel (orders vs checkout).
-
-**3. Environment and quality**
-- Backup and restore scripts with a short runbook (SRS requires backups).
-- CI: add web typecheck/tests/build.
-- HTTPS and security headers for any shared demo.
-- Update `backend/VALIDATION.md` with current test evidence.
-
-**4. Bonus**
-- Offline scanning in the mobile app (the backend already supports it).
-- GA4 traffic analytics.
+Open product questions (offline entry rules and the proposed defaults the code already uses) are
+listed in [decision 0002](docs/decisions/0002-decisions-to-confirm.md). Refunds stay full-order
+only; partial refunds are out of scope.
 
 ---
 
@@ -273,6 +243,8 @@ In priority order for the MVP. Bonus items come last.
 - **Never edit an applied migration** — add a new one.
 - **Run the checks before opening a PR:**
   - backend: `uv run ruff check app tests migrations && uv run pytest -q`
+  - backend crash recovery (opt-in): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`, see
+    [backend/VALIDATION.md](backend/VALIDATION.md#worker-crash-recovery-harness--12-november-2026)
   - web: `npm run typecheck && npm test && npm run build`
   - mobile: `npm run typecheck && npm test`
 - **Never commit** `.env` files, `node_modules`, `.venv`, `web/dist` or `mobile/.expo`.
@@ -286,7 +258,8 @@ In priority order for the MVP. Bonus items come last.
 | [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_Requirements.md) | Agreed scope, business rules and acceptance criteria |
 | [`docs/CLIENT_HANDOFF_NOTES.md`](docs/CLIENT_HANDOFF_NOTES.md) | Backend → web/mobile hand-off notes per increment |
 | [`backend/*_API.md`](backend/) | One contract per API area (catalog, checkout, paid sales, admission, support, …) |
-| [`backend/VALIDATION.md`](backend/VALIDATION.md) | Recorded validation evidence (needs updating) |
+| [`docs/integration/status.md`](docs/integration/status.md) | Per-requirement status (API, merged, web, mobile, acceptance) and the ordered backlog |
+| [`backend/VALIDATION.md`](backend/VALIDATION.md) | Recorded validation evidence |
 | [`docs/database/`](docs/database/README.md) | 66-table reference design — a target, not the deployed schema |
-| [`docs/decisions/`](docs/decisions/) | Architecture decisions (0001: the mobile app covers the whole product) |
+| [`docs/decisions/`](docs/decisions/) | Decisions (0001: the mobile app covers the whole product; 0002: decisions still to confirm) |
 | [`docs/parallel-work/`](docs/parallel-work/) | Past increment plans, kept for history |
