@@ -26,7 +26,11 @@ def deliver_all(factory, settings, storage, messages):
 
 
 def ticket_email(messages):
-    return [m for m in messages if m["Subject"].startswith("Your BiletFlow ticket")]
+    return [
+        m
+        for m in messages
+        if m["Subject"].startswith(("Your BiletFlow ticket", "Ваш билет BiletFlow"))
+    ]
 
 
 def attachments(message):
@@ -72,7 +76,7 @@ def test_delivery_attaches_stored_pdf_and_resend_reuses_it(
     [attached] = attachments(message)
     assert attached.get_filename() == f"biletflow-ticket-{ticket['id']}.pdf"
     assert ticket["id"] in pdf_text(attached.get_content())
-    assert "Your printable ticket is attached" in message.get_body().get_content()
+    assert "Билет для печати прикреплён" in message.get_body().get_content()
     [row] = stored_rows(factory)
     with factory() as db:
         assert db.get(Ticket, ticket["id"]).pdf_file_id == row.id

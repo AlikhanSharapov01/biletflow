@@ -106,7 +106,7 @@ def test_free_registration_issues_tickets_claims_and_delivers(
     sent = []
     while deliver_once(factory, settings, send=sent.append):
         pass
-    tickets = [m for m in sent if m["Subject"].startswith("Your BiletFlow ticket")]
+    tickets = [m for m in sent if m["Subject"].startswith("Ваш билет BiletFlow")]
     assert sorted(m["To"] for m in tickets) == sorted([buyer_email, friend_email])
     assert own["ticket"]["id"] in "".join(m.get_body().get_content() for m in tickets)
     assert "biletflow:ticket:" not in "".join(m.get_body().get_content() for m in tickets)

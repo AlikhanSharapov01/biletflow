@@ -126,6 +126,11 @@ def create_refund(db, event, attempt, reason, requested_by=None):
     )
     db.add(refund)
     db.flush()
+    from .finance_service import refund_changed
+
+    # Event cancellation reconciles once after persisting all order liabilities.
+    if reason != "event_cancelled":
+        refund_changed(db, event, refund)
     schedule_refund(db, refund, 1)
     audit(db, event, "payments.refund_requested", refund, {"reason": reason})
     return refund
@@ -362,6 +367,9 @@ def apply_refund_result(db, event, inbox):
             from .refund_service import refund_succeeded
 
             refund_succeeded(db, event, refund)
+            from .finance_service import refund_changed
+
+            refund_changed(db, event, refund, succeeded=True)
     elif outcome == "failed":
         if attempt.status not in ("succeeded", "failed"):
             attempt.status, attempt.resolved_at = "failed", now()
