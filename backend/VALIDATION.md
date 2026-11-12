@@ -1,5 +1,43 @@
 # Backend validation
 
+## Stale refund callbacks and inbox recovery — 13 November 2026
+
+Issue #65 (BF-08, BF-13; AC-07, AC-16, AC-26). `tests/test_refund_retries.py` (10 PostgreSQL
+cases) covers: a distinct late `failed` for attempt 1 while attempt 2 is `pending`, `unknown` or
+`succeeded` (no state change, no second `refund-dispatch:{id}:2` job, one
+`payments.refund_stale_result_ignored` audit row per event); replay of one `external_event_id`
+and a conflicting body (`409 provider_event_conflict`); idempotent scheduling of the same
+attempt; two workers applying two failures for the current attempt, then two dispatchers racing
+a late attempt-1 failure (one attempt 2, refund stays `pending`); a malformed older inbox row
+quarantined as `rejected` (`apply_failed:KeyError`) while the later success still applies; a
+database error that leaves the row `received` for retry; request keys stable per
+(refund, attempt) across a rolled-back dispatch; and one `activation_refund` finance entry after
+late and duplicate callbacks. Order refunds release stock once (`refund_succeeded`), with one
+`payments.refund_succeeded` audit row and one `refund_completed` notice. The crash harness
+`job_before_commit` refund case now also asserts that the restarted worker sends the same
+provider request key the killed run had flushed.
+
+Evidence, base revision `2488857`, macOS 15.7.4, Python 3.12.15, PostgreSQL 16.15, disposable
+`biletflow_refund_test`:
+
+- Against the previous `payments_service.py` (sensitivity check, not committed), 7 of the 10 new
+  cases failed; the stale failure returned `503 database_unavailable` from the duplicate outbox
+  key. With a random request key restored, the crash refund case failed on the key comparison.
+- `uv run pytest -q tests/test_refund_retries.py`: 10 passed.
+- Related files (`test_refund_retries`, `test_paid_orders`, `test_refunds`, `test_paid_activation`,
+  `test_worker`, `test_finance`, `test_order_notifications`, `test_cancellation_finance_batch`,
+  `test_admin_payments`): 74 passed.
+- `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`: 9 passed.
+- Full suite (`uv run pytest -q`): 561 collected, 550 passed, 10 skipped (opt-in crash and load
+  tests), 1 failed: the existing `test_pdf_keeps_unicode_attendee_names` font gap (#82).
+- `uv run ruff check app tests migrations` passed; `ruff format --check` reported 141 files
+  already formatted.
+
+Limitations: quarantined rows have no admin view or automatic retry (an operator sets them back
+to `received`); a late `succeeded` for a replaced attempt still completes the refund while the
+newer attempt may be in flight, which a real provider integration would have to reconcile; the
+provider is still the in-process simulator.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
@@ -73,7 +111,9 @@ Findings, owner `@backend` (not fixed here; no test is weakened):
 - `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
   the in-transaction simulator this is safe (proved above), but a real provider call made before
   that commit would retry with a new key after a crash, so the provider could not deduplicate it.
-  A real adapter needs the key persisted before the external call.
+  A real adapter needs the key persisted before the external call. *Resolved 13 November 2026
+  (#65): the key is derived from the refund id and attempt number, so a retried dispatch sends
+  the same key.*
 - An in-flight email job or delivery is retried only after its 120-second lease, so recovery of
   that one message is delayed by up to two minutes after a crash.
 
