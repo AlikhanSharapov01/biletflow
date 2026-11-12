@@ -367,8 +367,8 @@ Backend endpoints alone do not complete the integrated product.
 Open backend work, from the audit in #85, in dependency order (see the
 [integration status](../docs/integration/status.md#remaining-work-in-dependency-order)):
 
-1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
-   database and file backups (#69, with operations).
+1. Defects: PDF objects after uncertain commits (#68), consistent database and file backups
+   (#69, with operations).
 2. Campaign revalidation at paid fulfilment (#66) and report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.

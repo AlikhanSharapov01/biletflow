@@ -72,7 +72,13 @@ requested --worker--> pending --succeeded--> succeeded (final)
 ```
 
 A timeout or failure never creates a second logical refund; retries add `refund_attempt` rows to
-the same refund. Compensation refunds never invalidate tickets of a legitimately fulfilled order.
+the same refund. Only the newest attempt moves the refund: a late `failed` or `unknown` for an
+attempt that a retry has replaced is stored, acknowledged and audited as
+`payments.refund_stale_result_ignored`, and changes nothing. A late `succeeded` for an older
+attempt still completes the refund, because the provider says the money was returned. Each
+attempt number has one dispatch job (`refund-dispatch:{refund_id}:{n}`), and scheduling it again
+is a no-op. The provider request key is derived from the refund id and attempt number, so a
+dispatch repeated after a crash sends the same key. Compensation refunds never invalidate tickets of a legitimately fulfilled order.
 Voluntary refunds and cancellations follow in B4.
 
 ## Recovery
@@ -80,6 +86,11 @@ Voluntary refunds and cancellations follow in B4.
 - Payment initialization and refund dispatch are outbox jobs, retried by the worker.
 - Provider notifications are stored in `provider_event` before they are applied; a row left
   unapplied by an interrupted request is applied by the worker.
+- A row that fails to apply for a reason other than a database error (for example a malformed
+  payload) is set to `rejected` with `rejection_reason = apply_failed:<error>` and audited as
+  `payments.provider_event_quarantined`, so later notifications still apply. Nothing from it is
+  applied; setting it back to `received` makes the worker try it again. A database error such as a
+  lock timeout leaves the row `received` for the next worker pass.
 
 ## Demo
 
@@ -108,7 +119,8 @@ on the discounted amount. Voluntary refunds, cancellations and event-cancellatio
 
 ## Known limits
 
-- A stale refund callback can move an active retry back to a failed state (#65).
+- Quarantined provider events have no admin view or automatic retry; they are found in
+  `provider_event` and the audit log.
 - Live payment-provider sandbox: conditional on merchant access; the simulator is the supported
   path.
 
