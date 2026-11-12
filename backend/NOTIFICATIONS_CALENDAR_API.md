@@ -81,6 +81,7 @@ goes through that record's own endpoint and permission check.
 | `payment_failed` | a payment attempt fails while its order can still be paid | in-app, email |
 | `refund_started`, `refund_completed` | an order refund starts; any refund to a ticket buyer is confirmed | in-app, email |
 | `order_cancelled` | a free order or ticket is cancelled | in-app, email |
+| `payout_status` | a simulated payout changes state ([FINANCE_API.md](FINANCE_API.md)) | in-app, email |
 
 The order kinds use `target: {type: "order", id}` and are sent once per order, attempt, refund or
 ticket, however many times the provider or client repeats the operation.
@@ -166,11 +167,16 @@ The calendar needs no table. Both tables follow `docs/database`. The migration h
 ## Known limits
 
 - Fan-out expands the whole audience in one transaction; very large events would benefit from batching.
-- Resending a delivery and an admin view of exhausted failures are not implemented (there is no
-  platform-admin module yet); failed rows are queryable in `notification_delivery`.
-- Payment, refund, payout and registration-confirmation notices, and the SRS "payment failure
-  must not contradict a later success" check, belong to the commerce modules and are not wired.
-- Cancelling an event with sold tickets is still refused by the catalogue until refunds exist,
-  so `event_cancelled` currently reaches holders only of events cancelled without sales; the
-  fan-out already handles refund states.
+- The platform-admin module ([ADMIN_API.md](ADMIN_API.md)) has no view of exhausted fan-out jobs
+  or failed email deliveries yet (#73); failed rows are queryable in `notification_delivery`.
+  Apart from the ticket email resend (`POST /tickets/{id}/delivery/resend`, see
+  [TICKET_PDF_API.md](TICKET_PDF_API.md)), a failed notification delivery cannot be resent.
+- Users affected by a moderation decision (suspension, reinstatement, report outcome) are not
+  notified yet (#74).
 - Order/ticket-scoped calendar URLs are not separate: ticket holders use the event endpoints.
+
+The commerce notices (`purchase_confirmed`, `payment_failed`, `refund_started`,
+`refund_completed`, `order_cancelled`) and the simulated `payout_status` notice are wired in the
+paid-checkout, refund and finance modules. `POST /events/{id}/cancel` also works for events with
+sales: it starts the refunds in the same transaction and `event_cancelled` reaches holders of
+refund-state tickets ([REFUNDS_API.md](REFUNDS_API.md#cancelling-an-event)).
