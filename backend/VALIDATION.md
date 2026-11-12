@@ -44,6 +44,13 @@ Evidence on 13 November 2026, macOS 15, Python 3.12, local PostgreSQL 16.15, dis
 The Compose path (real containers, `docker compose stop/start/run`, the restore into a fresh
 stack) is exercised by the `Backup` workflow only; Docker was not available for this session.
 
+That workflow found that the runtime role `biletflow_app` could not delete `event_media` rows, so
+`DELETE /events/{id}/images/{image_id}` answered `503 database_unavailable` in the Compose stack
+(tests and the local replay connect as the owner). `app.bootstrap` now grants it on every start.
+`tests/test_bootstrap_grants.py` runs bootstrap twice on the test database and checks the role's
+privileges: it failed before the grant (`event_media` DELETE was false) and passes with it. It
+creates the cluster role `biletflow_app` if absent, as the Compose `migrate` service does.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
