@@ -1,5 +1,89 @@
 # Backend validation
 
+## Worker crash recovery harness — 12 November 2026
+
+Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
+this harness kills real processes. `tests/crash/crash_runner.py` runs the real worker loop
+(`app.worker.main`) or the real API (uvicorn + `create_app`) as a child process. A kill point
+wraps one real function at a side-effect boundary; when reached, the child writes a marker
+file and calls `os._exit(137)` (no `finally`, no rollback beyond PostgreSQL dropping the
+connection), or stops itself with `SIGSTOP`. The parent then starts a fresh process and checks
+PostgreSQL, the private storage directory and a local SMTP sink written in the test
+(`tests/crash/crash_harness.py`; nothing is relayed). Production code is unchanged.
+
+| Scenario (kill point) | What it proves |
+|---|---|
+| API killed after the provider notification is committed to the inbox, before it is applied (`api_after_inbox_commit`) | The restarted worker applies the inbox row; the order is confirmed with 2 tickets. Replaying the same `external_event_id` to a restarted API returns the same inbox row; a late extra success changes nothing |
+| API killed after fulfilment commits, before the HTTP response (`api_after_apply_commit`) | Tickets survive the crash; provider retry and a late duplicate success create no ticket, order, refund, outbox job, notification or audit row |
+| Worker killed inside `refund_dispatch` after flushing, before COMMIT (`job_before_commit`) | PostgreSQL discards the half-written refund attempt; the restarted worker creates exactly one |
+| API killed after a refund success commits, before the response (`api_after_apply_commit`) | Replay, a late success and a stale `failed` keep one refund, one refund attempt, one `payments.refund_succeeded` audit row, refunded tickets, one `refund_completed` notification and one email; finance rows unchanged |
+| Worker killed after the notification fan-out commits, before the job is acknowledged (`fanout_after_commit`) | The restarted worker finishes all other work but does **not** take the unexpired lease; after lease expiry the retry deduplicates to one notification and one email |
+| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object is left orphaned (see findings) |
+| Worker killed after the PDF row commits, before SMTP (`pdf_after_commit`) | Retry reuses the same row, key, bytes and inode (no re-render); one email with that attachment |
+| Worker killed after SMTP accepted the message, before acknowledgement (`smtp_after_send`, outbox ticket email and notification email) | **The same Message-ID is delivered twice** (at-least-once email). Business results stay single: one ticket, one stored PDF, one notification; the job/delivery ends `done`/`sent` with `attempt_count` 2 |
+| Worker A frozen (`SIGSTOP`) before SMTP; its lease expires and worker B completes the job; A resumes (`smtp_before_send` + stop) | A's stale send is a second delivery of the same Message-ID, but its acknowledgement is fenced: B's `done` state, `completed_at` and attempt count are unchanged |
+
+Every scenario also asserts no duplicate ticket per order item, order per hold, refund per
+captured charge, finance effect per refund, notification per deduplication key, and no `dead`
+job. Lease expiry is simulated by moving `outbox_job.lease_until` (or a pending
+`notification_delivery.next_attempt_at`) one second into the past instead of waiting the
+120-second lease; the lease check itself is the production query.
+
+Commands (from `backend/`; the database name must end in `_test` and is truncated):
+
+```bash
+createdb -h /tmp biletflow_crash_test
+export TEST_DATABASE_URL=postgresql+psycopg://$USER@127.0.0.1:5432/biletflow_crash_test
+RUN_CRASH_TESTS=1 uv run pytest -q tests/crash          # opt-in; skipped without the variable
+RUN_CRASH_TESTS=1 uv run pytest -v --durations=0 tests/crash
+```
+
+Evidence observed on 12 November 2026, base revision `7dd19e0`, macOS 15.7, Python 3.12.15,
+local PostgreSQL 16.15, disposable `biletflow_crash_test`:
+
+- `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`: **9 passed in 26.43 s** (earlier repeated
+  runs: 25.51–25.92 s, all 9 passed). Without `RUN_CRASH_TESTS`: 9 skipped.
+- `uv run pytest -q tests/test_worker.py tests/test_auth.py`: 34 passed.
+- Full suite with the harness enabled (`RUN_CRASH_TESTS=1 uv run pytest -q`): **540 collected,
+  539 passed, 1 failed** in 276.04 s. The failure is the existing
+  `test_pdf_keeps_unicode_attendee_names` case: no DejaVu font is installed on this macOS machine
+  (the same font gap recorded for Windows below). The suite is not fully green.
+- Sensitivity check on a scratch copy of the backend (not committed): removing the worker's
+  acknowledgement fence failed the stalled-worker test; ignoring an already stored ticket PDF
+  failed the `pdf_after_commit` test. The unmodified tree passes both.
+- `uv run ruff check app tests migrations` passed; `ruff format --check` reported 137 files
+  already formatted.
+
+Cleanup (each test uses pytest temporary directories for storage, process logs and markers;
+every child, including a stopped one, is SIGKILLed at teardown):
+
+```bash
+dropdb -h /tmp biletflow_crash_test
+pgrep -fl crash_runner.py     # should print nothing; otherwise: pkill -9 -f crash_runner.py
+```
+
+Findings, owner `@backend` (not fixed here; no test is weakened):
+
+- A crash between `storage.put` and the `stored_file` commit in `ensure_ticket_pdf` leaves an
+  unreferenced object under `tickets/<ticket_id>/` permanently; nothing is lost, but no sweeper
+  removes it (event images have `reconcile_images`; ticket PDFs do not). A fix would record a
+  pending row before the write or sweep row-less ticket keys.
+- Email is at-least-once by design: a crash or stall after SMTP acceptance resends the same
+  Message-ID. Clients may or may not collapse it; Mailpit and this sink show two messages.
+- `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
+  the in-transaction simulator this is safe (proved above), but a real provider call made before
+  that commit would retry with a new key after a crash, so the provider could not deduplicate it.
+  A real adapter needs the key persisted before the external call.
+- An in-flight email job or delivery is retried only after its 120-second lease, so recovery of
+  that one message is delayed by up to two minutes after a crash.
+
+Limitations: local processes, not containers, so the Compose restart policy and health checks are
+not exercised; kills are injected at chosen code boundaries with `os._exit`, not a host power
+loss or a kill in the middle of a storage write (`LocalFileStorage.put` is an atomic rename and
+was not interrupted); lease expiry is simulated in the database; the payment and refund provider
+is the in-process simulator, so no real external financial side effect exists; POSIX only (the
+harness is skipped on Windows); no remote object storage, real SMTP provider or load.
+
 ## Final reviewed code — 9 November 2026
 
 The full PostgreSQL suite was rerun after the whole-branch review fixes, at application

@@ -268,6 +268,9 @@ Tests cover PostgreSQL concurrency and permission isolation across implemented a
 (`.github/workflows/backend-auth.yml`) configures automated checks; its presence is not evidence
 of a hosted CI run for these changes.
 
+Process-kill crash recovery (opt-in, POSIX): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`;
+see [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026).
+
 End-to-end smoke tests against a running Docker stack live in `../tools/`:
 
 ```bash
