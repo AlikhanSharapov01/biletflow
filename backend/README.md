@@ -248,6 +248,72 @@ uv run python -m app.admin_cli grant someone@example.com                     # n
 
 ---
 
+## Demo data
+
+`app/seed.py` has two parts:
+
+- **Catalog** (always, also in production): the two categories, *BiletFlow Demo Hall* and its
+  12-seat layout (row A premium, row B standard). Insert-only.
+- **Lifecycle demo fixtures** (development and test only): fictional accounts, one organization
+  and six events covering every example listed in section 6.2 of the
+  [requirements](../docs/BiletFlow_Backend_Requirements.md). They are built through the public
+  API in-process (payments and refunds through the simulator), so inventory, orders, campaign
+  usage, finance, audit and outbox rows follow the same rules as real traffic. All dates are
+  relative to the moment of the build.
+
+`python -m app.bootstrap` builds the fixtures only when they are absent, so restarting the stack
+keeps whatever was done with them. Commands (run as the database **owner**, because a reset
+deletes rows and lifts the append-only guards for one transaction):
+
+```bash
+# Docker, from the repository root (the migrate service has the owner connection)
+docker compose run --rm migrate python -m app.seed                                   # add if absent
+docker compose run --rm migrate python -m app.seed --reset --yes-reset-demo          # rebuild, fresh dates
+docker compose run --rm migrate python -m app.seed --reset --yes-reset-demo --empty  # remove only
+
+# Native, from backend/: point DATABASE_URL at the owner role for this one command
+DATABASE_URL=postgresql+psycopg://biletflow_owner:<POSTGRES_PASSWORD>@localhost:5433/biletflow \
+  uv run python -m app.seed --reset --yes-reset-demo
+```
+
+Reset safety:
+
+- It refuses without `--yes-reset-demo` and always refuses when `ENVIRONMENT=production`; plain
+  seeding never deletes anything and skips the fixtures in production.
+- The demo scope is every organization owned by a demo account plus every row that references
+  it through a foreign key (events, orders, tickets, payments, refunds, campaigns, check-ins,
+  support cases, audit and outbox rows), found from the live database constraints. Nothing else
+  is changed. The demo accounts are kept, and so is anything they did in other organizations.
+- Anything a person adds inside the demo organization (for example an extra event) is part of
+  the scope and is removed by a reset. Stored PDF files of removed tickets stay on disk.
+
+Accounts (password `BiletFlow-demo-2026` for all, fictional, development only):
+
+| Email | Role |
+|---|---|
+| `demo-organizer@example.com` | Owner of *BiletFlow Demo Productions* |
+| `demo-scanner@example.com` | Member with `scan` and `reverse_checkin` on the concert and the meetup |
+| `demo-attendee@example.com` | Attendee with most orders; invited to the private event |
+| `demo-guest@example.com` | Second attendee |
+| `demo-admin@example.com` | Platform admin |
+
+Events and what they demonstrate (prices in KZT):
+
+| Event | Demonstrates |
+|---|---|
+| Demo Concert (+30 days) | Mixed free *Community pass* / *Standard* 10,000 / *Premium* 30,000; `DEMO10` (10%, 100 uses), `DEMO1000` (1,000 off, 50 uses) and `DEMOLAST` (one use, exhausted); confirmed discounted, mixed and free orders; one refunded and one refund-pending order; an unpaid checkout whose hold expired |
+| Demo Theatre: Sold Out (+14 days) | Capacity 4, *Theatre seat* 2,500, every unit sold |
+| Demo Seated Gala (+21 days) | Assigned seating: premium 30,000 / standard 3,000; seats A3, A4 and B1 sold |
+| Demo Meetup (live now) | Free event in progress, admission open: one ticket checked in, one not yet |
+| Demo Private Workshop (+10 days) | Private event, hidden from the catalog, attendee has access and a ticket |
+| Demo Festival (cancelled, +45 days) | Event cancelled after a free registration; ticket and order cancelled |
+
+The three paid events each paid the KZT 5,000 simulated activation fee. The live meetup ends a
+few hours after the build; rebuild to get fresh dates. The identifiers of the current build are
+in the `demo.fixtures_built` audit row of the demo organization (`app.seed.demo_fixtures()`).
+
+---
+
 ## Tests and checks
 
 Tests run against a **real, empty PostgreSQL database whose name ends in `_test`** — the suite
