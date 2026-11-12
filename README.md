@@ -246,6 +246,9 @@ In priority order for the MVP. Bonus items come last.
   - backend: `uv run ruff check app tests migrations && uv run pytest -q`
   - web: `npm run typecheck && npm test && npm run build`
   - mobile: `npm run typecheck && npm test`
+  - backend load (opt-in, before changing checkout, admission or analytics):
+    `LOAD_DATABASE_URL=<..._test database> uv run python -m tests.load.load_harness` — see
+    `backend/VALIDATION.md`
 - **Never commit** `.env` files, `node_modules`, `.venv`, `web/dist` or `mobile/.expo`.
 
 ---
