@@ -1,8 +1,8 @@
 # BiletFlow: complete backend requirements and delivery plan
 
-Status: shared requirements baseline. As of 9 November 2026, `../backend` implements identity, organizer/event setup, free and simulated paid checkout/activation, campaigns, full simulated refunds/cancellation, ticket delivery/PDF, online/offline admission APIs, support, notifications/calendar and partial platform administration. Operational analytics, simulated finance/payout tracking, organizer ticket-type counts/history filters, admin commerce monitoring, protected event images with recurring cleanup, and kk/ru/en backend email/category localization are implemented; see [backend contracts](../backend/README.md) and [executed validation](../backend/VALIDATION.md). GA4 integration remains planned; live Google consent and payment-provider access require credentials. Client integration and the full acceptance matrix remain separate, incomplete work.
+Status: shared requirements baseline. As of 12 November 2026 (`main` after PR #64), `../backend` implements identity, organizer/event setup, free and simulated paid checkout/activation, campaigns, full-order simulated refunds/cancellation, ticket delivery/PDF, online/offline admission APIs, support, notifications/calendar and partial platform administration. Operational analytics, simulated finance/payout tracking, organizer ticket-type counts/history filters, admin commerce monitoring, protected event images with recurring cleanup, and kk/ru/en backend email/category localization are implemented; see [backend contracts](../backend/README.md) and [executed validation](../backend/VALIDATION.md). Still missing against this baseline: GA4 (#71), the S3-compatible storage service (#77), attachment malware quarantine (#75) and the other gaps listed by the audit in #85. Live Google consent and payment-provider access require credentials. Client integration and the full acceptance matrix remain separate, incomplete work. Per-area status, kept as separate API-complete, merged, client-integrated and acceptance-verified states, is in the [integration status](integration/status.md).
 Stack: FastAPI + PostgreSQL.  
-Scope: backend services and contracts used by attendee/organizer web, platform-admin web, and the iOS/Android scanner app.  
+Scope: backend services and contracts used by attendee/organizer web, platform-admin web, and the iOS/Android app, which offers every web feature plus the staff scanner ([decision 0001](decisions/0001-mobile-app-full-scope.md)).  
 Source: `BiletFlow_SRS_Initial_Draft.pdf`, version 0.3, supplemented by the user's confirmed decisions.  
 Prepared: 22 September 2026.
 
@@ -46,6 +46,8 @@ These make the specification concrete. They are proposed product rules, not clai
 | Offline admission | Provisional verification and queued operations; final admission waits for connectivity under the confirmed signed-in admission rule |
 | Audit retention | Retain academic event/transaction/audit history through the project lifecycle; production retention remains a separate policy decision |
 
+The implementation now uses concrete values for several of these proposals (hold length, fees, confirmation and package lifetimes, payout timing and others). Those values are still proposals. They, and the open offline-entry questions under BF-12, are listed in [decision 0002 — decisions to confirm](decisions/0002-decisions-to-confirm.md) until the project owner confirms them.
+
 ### 1.2 Still excluded
 
 Real-money payouts and production financial operation; production KYC/KYB; arbitrary venue imports and visual layout designer; production-grade offline guarantees; advanced disputes/chargebacks and partial refunds; app-store publication; resale/transfer marketplace; affiliates; recurring events; advanced marketing automation; entry hardware; multi-organizer payout splits; tax/accounting automation; full field-level version history and rollback.
@@ -62,6 +64,8 @@ Initial recipient assignment is included to satisfy signed-in admission for mult
 - **Object storage:** event images, PDFs, and protected support attachments. Use an S3-compatible service for the Docker demonstration.
 - **Email delivery:** transactional provider or an explicitly labelled local mail viewer in demonstrations.
 - **Docker Compose:** API, worker, database, storage, and demo email service, with documented environment configuration.
+
+**Current implementation (12 November 2026):** event images, ticket PDFs and support attachments are stored privately through the `FileStorage` interface (`backend/app/storage.py`), but only the local-filesystem backend exists and Compose mounts it as the `file_storage` volume. The S3-compatible storage service required above is not provided yet; it is tracked in #77 and is required, not optional.
 
 Use module boundaries inside one application, not separately deployed microservices. Shared transaction handling is particularly important for inventory, campaigns, payments, refunds, and check-in.
 
@@ -333,7 +337,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** online sign-in and event preparation -> snapshot download -> network lost -> locally validate ticket plus entry confirmation -> queue provisional check-in -> reconnect -> upload -> server accepts, deduplicates, or flags conflict -> refresh package and counts.
 
-**Boundary:** disconnected scanners cannot know a refund, account logout, or admission made elsewhere after their last synchronization. To preserve the confirmed signed-in admission rule and prevent global duplicate admission, the proposed baseline requires online confirmation before physical entry. Offline preparation, local verification, queuing and synchronization are included; unrestricted disconnected admission is not promised. Allowing provisional physical entry would be a separate product-policy change that accepts stale-state risk.
+**Boundary:** disconnected scanners cannot know a refund, account logout, or admission made elsewhere after their last synchronization. To preserve the confirmed signed-in admission rule and prevent global duplicate admission, the proposed baseline requires online confirmation before physical entry. Offline preparation, local verification, queuing and synchronization are included; unrestricted disconnected admission is not promised. Allowing provisional physical entry would be a separate product-policy change that accepts stale-state risk. This is not settled: the mobile app currently labels a passing offline scan "Accepted offline", and the sync rules for people already let in are open questions. Both are recorded in [decision 0002](decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics); until it is answered, this paragraph remains the baseline.
 
 **Completion checks:** same operation uploaded twice changes counts once; two devices accepting the same ticket produce one central admission and one visible conflict; refunds since snapshot are rejected on sync; expired offline authorization fails closed.
 
@@ -359,6 +363,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Completion checks:** seat cannot be rebought while refund is pending/failed; repeated refund requests or callbacks do not double-refund/release; old ticket cannot enter after refund starts; a successful refund after sales close does not reopen checkout.
 
 **Implementation update (9 November 2026):** free cancellation, full simulated refunds/retries and event cancellation are implemented with ticket invalidation and inventory quarantine before dispatch; release follows confirmed success. See [refund contract](../backend/REFUNDS_API.md). Real provider integration remains conditional.
+
+**Scope note (12 November 2026):** refunds are full-order only, returning the amount actually paid; a paid order cannot be refunded or cancelled ticket by ticket (`409 full_order_refund_required`). Partial refunds and refund deductions stay excluded (§1.1, §1.2), even though the original wording of issue #35 asked for "full or partial" refunds. Open defect: stale refund callbacks can regress an active retry (#65).
 
 ### BF-14. Organizer finance and simulated payout tracking
 
@@ -394,7 +400,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** business transaction creates notification intent -> worker renders correct template -> sends email/in-app record -> marks outcome -> retries temporary failure -> authorized user may resend appropriate delivery.
 
-**Implementation status (partial):** in-app inbox (read/unread, pagination), event updated/cancelled, ticket delivered and support reply/status in-app notices (email for support comes from the support worker) through the outbox, deduplication keys and bounded email retries are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md). As of 9 November 2026 (#43), existing notification and direct auth/staff/ticket/support email templates support `kk`, `ru`, `en` using the recipient locale with English fallback, as explicitly requested for backend localization. The account default remains Russian. Category responses add a selected `name` through the explicit `locale` query parameter with English fallback; original language fields and user-authored content are preserved. Payment, refund, payout and purchase-confirmation notices are localized in their existing modules; resend and the admin failure view remain with their owning modules.
+**Implementation status (partial):** in-app inbox (read/unread, pagination), event updated/cancelled, ticket delivered and support reply/status in-app notices (email for support comes from the support worker) through the outbox, deduplication keys and bounded email retries are implemented; see [`../backend/NOTIFICATIONS_CALENDAR_API.md`](../backend/NOTIFICATIONS_CALENDAR_API.md). As of 9 November 2026 (#43), existing notification and direct auth/staff/ticket/support email templates support `kk`, `ru`, `en` using the recipient locale with English fallback, as explicitly requested for backend localization. The account default remains Russian. Category responses add a selected `name` through the explicit `locale` query parameter with English fallback; original language fields and user-authored content are preserved. Payment, refund, payout and purchase-confirmation notices are localized in their existing modules; resend and the admin failure view remain with their owning modules. Still open: admin visibility of exhausted jobs and deliveries (#73) and notices to users affected by moderation decisions (#74).
 
 **Completion checks:** worker outage does not lose notifications; replayed payment callbacks do not create extra delivery intents; notification links enforce target-record permissions.
 
@@ -418,7 +424,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** unrelated users cannot read thread, attachment, or WebSocket events; reconnect recovers missed messages; revoked staff lose live access; invalid uploads never become available for download.
 
-**Implementation status (BF-16):** implemented. Cases from an event, own order or assigned ticket, organizer-to-platform cases, categories, statuses with requester-reply reopening, assignment, escalation, idempotent persisted messages, `seq` cursor polling and an authenticated WebSocket (`/api/v1/support/ws`) with per-delivery authorization are in `../backend`; audit and notification outbox rows are written in the business transaction. Protected PNG/JPEG/PDF attachments (26 October 2026) are uploaded per case, validated by content and size, stored privately (`stored_file`, `support_attachment`), linked to follow-up messages and downloaded only through short-lived signed links; asynchronous malware scanning remains later work. See [the support API guide](../backend/SUPPORT_API.md).
+**Implementation status (BF-16):** implemented except attachment malware/quarantine handling and upload recovery (see the end of this note). Cases from an event, own order or assigned ticket, organizer-to-platform cases, categories, statuses with requester-reply reopening, assignment, escalation, idempotent persisted messages, `seq` cursor polling and an authenticated WebSocket (`/api/v1/support/ws`) with per-delivery authorization are in `../backend`; audit and notification outbox rows are written in the business transaction. Protected PNG/JPEG/PDF attachments (26 October 2026) are uploaded per case, validated by content and size, stored privately (`stored_file`, `support_attachment`), linked to follow-up messages and downloaded only through short-lived signed links. The malware/quarantine handling required above is not implemented: files go `pending` -> `clean` after content and size checks only (#75). Interrupted or abandoned uploads are not recovered (#76). See [the support API guide](../backend/SUPPORT_API.md).
 
 ### BF-17. Calendar exports and links
 
@@ -476,6 +482,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** sensitive fields/tokens never appear in captured analytics payloads; disabling GA4 cannot break purchases; a provider outage produces an unavailable panel rather than incorrect zero sales; requests are scoped to permitted events.
 
+**Current implementation (12 November 2026):** not implemented in the backend (#71); the `ga4_*` tables exist only in the reference design. The web client has optional, consent-aware page-view collection (see `web/README.md`), which is not a substitute for the server-side integration. Analytics export is tracked in #81.
+
 ### BF-20. Event history, duplication, and audit trail
 
 **Purpose:** retain operational history and make important changes accountable.
@@ -514,7 +522,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** ordinary organizer cannot call admin functions; suspended event cannot accept payment fulfillment/admission unnoticed; changed fees do not rewrite past financial records; exports do not leak unrelated private data.
 
-**Current implementation (partial, 11 October 2026):** `backend/` provides the platform-admin role (database grant managed only by an operator CLI), paginated user/event/order/ticket search, user and event suspension/reinstatement with immutable moderation records and same-transaction audit (user suspension revokes sessions; event suspension is honoured by holds, free-checkout confirmation and admission), deduplicated and rate-limited event reports with an admin review queue, versioned prospective platform settings (hold minutes, demo activation fee, processing rate, upload limit) and formula-safe CSV export. See [platform administration API](../backend/ADMIN_API.md). Update (9 November 2026): audited admin paid-sales suspend/reinstate, activation checklist inspection, paginated payment/refund/failure lists and bounded formula-safe commerce CSV are implemented. Paid fulfillment rechecks suspension; eligible free registration remains independent. Paid-sales decisions use immutable admin audit evidence rather than a reference-design activation target on moderation_action. Still open: remaining dispute/campaign/job/offline-conflict inspection, support-case search, user notices, and wiring versioned settings into commerce code.
+**Current implementation (partial, 11 October 2026):** `backend/` provides the platform-admin role (database grant managed only by an operator CLI), paginated user/event/order/ticket search, user and event suspension/reinstatement with immutable moderation records and same-transaction audit (user suspension revokes sessions; event suspension is honoured by holds, free-checkout confirmation and admission), deduplicated and rate-limited event reports with an admin review queue, versioned prospective platform settings (hold minutes, demo activation fee, processing rate, upload limit) and formula-safe CSV export. See [platform administration API](../backend/ADMIN_API.md). Update (9 November 2026): audited admin paid-sales suspend/reinstate, activation checklist inspection, paginated payment/refund/failure lists and bounded formula-safe commerce CSV are implemented. Paid fulfillment rechecks suspension; eligible free registration remains independent. Paid-sales decisions use immutable admin audit evidence rather than a reference-design activation target on moderation_action. Still open: remaining dispute/campaign/job/offline-conflict inspection and support-case search (#72, #73), user notices (#74), and wiring versioned settings into commerce code (#70).
 
 ### BF-22. Deployment, operations, security, and integration readiness
 
@@ -535,6 +543,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 **Flow:** teammate obtains repo/config -> starts containers -> applies migrations/seeds -> uses API docs/test accounts -> connects web/mobile -> runs end-to-end demonstration -> restarts/restores deployment without corrupting durable state.
 
 **Completion checks:** clean environment can run the backend with documented commands; secrets are absent from repo; migration/restore tests pass; background work survives restart; published contracts match tested behavior.
+
+**Current implementation (12 November 2026):** Compose stack with health checks and restart policies, smoke and backup/restore workflows in CI (#57, #56), and local private file storage. Open: HTTPS for the shared demo (#49), mutually consistent database/file backups (#69), the S3-compatible storage service (#77), correlation IDs and metrics (#78), reproducible demo fixtures and reset (#79), measured load (#80) and real process-kill recovery (#83).
 
 ## 5. Business states and invariants
 
@@ -692,6 +702,8 @@ Backend ownership is divided by coherent business areas. Both developers review 
 
 Stages show dependencies, not rigid serial assignments. For example, support can begin once identity/context rules exist, and reporting schemas can be agreed while checkout is being built. No feature is complete merely because an isolated endpoint returns success.
 
+Stages A–E have API implementations on `main`; the remaining backend, client and acceptance work is ordered by dependency, without dates, in the [integration status](integration/status.md#remaining-work-in-dependency-order) (from the audit in #85).
+
 ### 9.1 Suggested long-term backend ownership
 
 - **Backend developer 1:** identity, organizer/staff authorization, events/discovery, ticket presentation/recipient access, online/offline admission APIs, support/live delivery, notifications, calendar, admin/history, API foundations.
@@ -705,10 +717,10 @@ This is an initial allocation, not a requirement to keep identical task counts. 
 | Teammate | Backend must provide | Client/deployment responsibility |
 |---|---|---|
 | Frontend developer | OpenAPI, event/seat availability schemas, account/recipient and admission-confirmation flow, checkout errors, support/live events, reporting definitions and fixtures | Attendee/organizer/admin web screens, seat map rendering, accessibility, localized interface, consent-aware analytics capture |
-| Mobile + Docker developer | Scanner auth/events/check-in API, deterministic scanner fixtures, health endpoints, migration/worker/storage setup instructions | Scanner integration plus Docker/service configuration, environment wiring, recovery walkthrough |
-| Mobile developer | Offline package/token formats, operation schemas, conflict outcomes, signed-in attendee confirmation verification contract | Camera/scanner UX, protected local storage, offline queue/sync and device-level tests |
+| Mobile + Docker developer | The same contracts and fixtures as the frontend, plus scanner auth/events/check-in API, health endpoints, migration/worker/storage setup instructions | The full mobile client (every web feature, per decision 0001) plus Docker/service configuration, environment wiring, recovery walkthrough |
+| Mobile developer | The same contracts as the frontend, plus offline package/token formats, operation schemas, conflict outcomes, signed-in attendee confirmation verification contract | The full mobile client, including camera/scanner UX, protected local storage, offline queue/sync and device-level tests |
 
-Attendee sign-in and entry confirmation work in the responsive web application and, since decision [0001](decisions/0001-mobile-app-full-scope.md), also in the mobile app, which offers every web feature plus the scanner. Frontend/admin screens are part of the overall project but are not implemented by this backend plan.
+Since decision [0001](decisions/0001-mobile-app-full-scope.md) the mobile app is not only a scanner: it offers every web feature (attendee, organizer and platform-admin) plus the scanner, through the same `/api/v1` contracts, and `@mobile` owns all of it. A backend feature that has a user-facing flow therefore needs both the web and the mobile integration before it is done. Frontend, mobile and admin screens are part of the overall project but are not implemented by this backend plan.
 
 ## 10. Acceptance matrix: when the backend is complete
 
@@ -782,12 +794,21 @@ Attendee sign-in and entry confirmation work in the responsive web application a
 
 A feature is done when its documented flow, permission checks, state rules, audit/notification effects, meaningful automated tests, OpenAPI/events documentation, and required client integration all agree. A backend-only feature can be marked API-complete before its client UI is finished, but the end-to-end journey remains incomplete until integrated.
 
+Track these states separately; none implies the next:
+
+1. **API-complete:** backend behaviour, contract document and backend tests exist.
+2. **Merged:** that work is on `main`.
+3. **Web-integrated** and **mobile-integrated:** each client on `main` calls the final contract (decision 0001 requires both).
+4. **Acceptance-verified:** the relevant AC scenarios have been shown on the integrated stack.
+
+The current state per area is in the [integration status](integration/status.md). Update it only after the state has actually been checked.
+
 External dependencies to track without blocking simulation-based work:
 
 1. A chosen provider's merchant sandbox access, documented callback verification, refund success semantics, and test credentials.
 2. A GA4 property and authorized credentials for live advanced reporting; integration must still have deterministic test fixtures and a clear disconnected state.
 3. Email delivery domain/provider credentials for external delivery, plus storage/deployment secrets for shared demonstrations.
-4. Final review of proposed defaults: exact demo fees, refund cutoff, attendee entry-confirmation lifetime, hold limits, offline-package lifetime, and academic retention period. These are configuration/product-review items, not dates in the delivery plan.
+4. Final review of proposed defaults: exact demo fees, refund cutoff, attendee entry-confirmation lifetime, hold limits, offline-package lifetime, and academic retention period. These are configuration/product-review items, not dates in the delivery plan. The values the code uses today, and the open offline-entry questions, are listed in [decision 0002](decisions/0002-decisions-to-confirm.md).
 
 The first implementation artifact should be the shared schema/state/API contract for identity, events, inventory, orders, tickets and refunds. Those definitions determine how both backend developers and all client developers can work together without incompatible assumptions.
 
