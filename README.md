@@ -28,18 +28,18 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 
 ## Project status
 
-As of `main` at PR #64 (12 November 2026). The detailed, per-requirement view is in
+As of `main` after PRs #86–#95 (13 November 2026). The detailed, per-requirement view is in
 [`docs/integration/status.md`](docs/integration/status.md). It keeps four states apart: the API
 is complete, it is merged, each client is integrated, and the journey is acceptance-verified.
 
 | Part | State | Summary |
 |---|---|---|
 | Backend (`backend/`) | API for every SRS area except GA4 | Accounts, events and images, seating, free and simulated paid checkout, promo campaigns and Campaign QR, full-order refunds and cancellations, QR tickets and PDFs, online and offline admission, support, notifications (kk/ru/en), calendar, analytics, simulated finance and payouts, and platform administration. Open gaps and defects are tracked in #85. |
-| Database (`backend/migrations/`) | Current | 16 migrations, 66 tables (through `0016_image_cleanup`). |
+| Database (`backend/migrations/`) | Current | 17 migrations, 66 tables (through `0017_ticket_pdf_cleanup`). |
 | Web (`web/`) | Mostly integrated | Campaigns, promo checkout and refunds use the final contracts; Kazakh/Russian/English interface. Analytics, finance and image upload still call their planned contracts and need checking against the merged API (#45). |
 | Mobile app (`mobile/`) | Full app + scanner, integration behind | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning. Promo, campaigns, analytics, finance, refunds and images are not connected on `main` (#51); no Kazakh/Russian yet (#52). |
-| Environment | Local demo works | Docker Compose with health checks and restart policies, [backup and restore](docs/operations/backup.md). No TLS yet (#49). Files are on a local volume; the required S3-compatible storage is not provided yet (#77). |
-| Tests and CI | Backend strong, no browser/device end-to-end | Backend PostgreSQL suite (see [`backend/VALIDATION.md`](backend/VALIDATION.md)); web and mobile unit tests; CI runs backend, web, mobile, API smoke flows and a backup/restore check. No browser or real-device end-to-end tests. |
+| Environment | Local demo works | Docker Compose with health checks and restart policies, demo data with a guarded reset, and [backup and restore](docs/operations/backup.md) that briefly stops the API and worker so the database and files match. No TLS yet (#49). Files are on a local volume; the required S3-compatible storage is not provided yet (#77). |
+| Tests and CI | Backend strong, no browser/device end-to-end | Backend PostgreSQL suite (see [`backend/VALIDATION.md`](backend/VALIDATION.md)); web and mobile unit tests; CI runs backend, web, mobile, API smoke flows and a backup/restore drill with file checks. Opt-in process-kill recovery and load harnesses run locally. No browser or real-device end-to-end tests. |
 
 No SRS journey is acceptance-verified end to end on both clients yet. API smoke tests in CI
 cover free registration and admission, paid checkout, campaign discounts and refunds at the API
@@ -214,20 +214,24 @@ is run from inside each part's folder.
 ## What is left to do
 
 In dependency order (from the audit in #85); each step builds on the ones before it. Client work
-for areas already merged does not have to wait for steps 1–3.
+for areas already merged does not have to wait for steps 1–2.
 
-1. **Backend defects:** stale refund callbacks (#65), PDF objects after uncertain commits (#68),
-   consistent database and file backups (#69).
-2. **Campaigns, settings, uploads:** revalidate campaigns at paid fulfilment (#66), reconcile
-   campaign reports (#67), apply platform settings to checkout and activation (#70), attachment
-   malware quarantine (#75), recovery of abandoned uploads (#76).
-3. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
+Done on 12–13 November: the docs reconcile (#84), demo fixtures (#79), crash recovery (#83) and
+load (#80) harnesses, stale refund callbacks (#65), campaign revalidation at paid fulfilment
+(#66), committed ticket PDFs and their cleanup (#68), consistent backups (#69) and Kazakh/Russian
+PDF text (#82).
+
+1. **Campaigns, settings, uploads:** reconcile campaign reports (#67), apply platform settings
+   to checkout and activation (#70), attachment malware quarantine (#75), recovery of abandoned
+   uploads (#76).
+2. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
    moderation notices (#74), S3-compatible storage (#77), correlation IDs and metrics (#78).
-4. **Reporting, fixtures and clients:** GA4 (#71), analytics export (#81), demo fixtures (#79),
-   Kazakh/Russian PDF text (#82); web integration (#45); mobile integration (#51), translations
-   (#52) and payment-panel clean-up (#55); HTTPS for the shared demo (#49).
-5. **Acceptance:** load (#80), crash recovery (#83), restore, real devices (#53) and builds (#54);
-   then record the results in the integration status and `backend/VALIDATION.md`.
+3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
+   integration (#51), translations (#52) and payment-panel clean-up (#55); HTTPS for the shared
+   demo (#49).
+4. **Acceptance:** real devices (#53) and builds (#54); rerun the load and crash harnesses and the
+   restore drill once steps 1–2 change the code, then record the results in the integration
+   status and `backend/VALIDATION.md`.
 
 Open product questions (offline entry rules and the proposed defaults the code already uses) are
 listed in [decision 0002](docs/decisions/0002-decisions-to-confirm.md). Refunds stay full-order
