@@ -106,6 +106,10 @@ Promo discounts are described in [CAMPAIGNS_API.md](CAMPAIGNS_API.md): the proce
 on the discounted amount. Voluntary refunds, cancellations and event-cancellation refunds are in
 [REFUNDS_API.md](REFUNDS_API.md).
 
-## Not yet implemented
+## Known limits
 
-Finance ledger and payout simulation.
+- A stale refund callback can move an active retry back to a failed state (#65).
+- Live payment-provider sandbox: conditional on merchant access; the simulator is the supported
+  path.
+
+Finance summaries and simulated payouts are implemented; see [FINANCE_API.md](FINANCE_API.md).

@@ -29,7 +29,11 @@ as the mobile app (shared colours, type scale and components).
   activation, seating setup and the platform admin portal.
 - **Campaigns, promo checkout and refunds** now follow the merged backend contracts, including
   server pricing, zero-total checkout, campaign reports and refund support-case links.
-- **Three areas still need backend endpoints:** analytics, finance and event image upload.
+- **Analytics, finance and event images** now have merged backend contracts (PR #64:
+  `backend/ANALYTICS_API.md`, `FINANCE_API.md`, `CATALOG_API.md`). The web still calls them with
+  the planned types; checking them against the final contracts, plus finance payouts and gallery
+  reorder/cover/delete, is open in #45. The admin paid-sales suspension and payment/refund
+  monitoring from #64 are not in the admin portal yet.
 - **Kazakh, Russian and English** interface catalogs, profile language selection and localized
   dates, money, categories, statuses and notifications are implemented. The shared mobile handoff
   is [translations/core.tsv](translations/core.tsv).
@@ -155,10 +159,10 @@ The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitati
 
 ## Screens waiting for the backend
 
-These three screens still use planned contracts and show "Not available yet" until their
-endpoints exist. Their shapes must be confirmed when the backend is implemented. The fetched
-`origin/main` at `eec9a75` contains campaigns and refunds, but no `ANALYTICS_API.md`, final finance
-contract or event-image upload route. See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md).
+These three screens were written against planned contracts. Since PR #64 (`main` at `7dd19e0`)
+the backend serves all three routes, documented in `backend/ANALYTICS_API.md`,
+`backend/FINANCE_API.md` and `backend/CATALOG_API.md` (event gallery). The screens have not been
+checked against those final contracts yet (#45). See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md).
 
 | Screen | Endpoints it calls |
 |---|---|
@@ -207,8 +211,10 @@ remain unverified; see [the live validation record](CONTRACT_REVIEW.md#live-vali
   downloads and all locales in a browser. Chrome/Edge automation could not attach successfully
   in this session, so no browser acceptance is claimed.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.
-- **Backend-dependent:** integrate analytics, finance and image upload when final contracts land.
-- **HTTPS:** install and validate the staged configuration with the operations owner. The current
+- **Merged contracts (#45):** align analytics, finance (summary and payouts) and the event gallery
+  with the contracts merged in PR #64; add the admin paid-sales and payment/refund monitoring
+  screens from `backend/ADMIN_API.md`.
+- **HTTPS (#49):** install and validate the staged configuration with the operations owner. The current
   directory restriction prevents editing `proxy/` or the repository-level operations docs.
 - **Browser tests:** add full browser automation alongside the existing API smoke coverage.
 
@@ -311,5 +317,5 @@ manual page views. Do not install a second GA/GTM tag. See Google's
 Verify collection in GA4 Realtime with a consenting test account, then revoke
 consent and verify collection stops. Live collection has not been verified with
 a configured property. Traffic is viewed in GA4; an organizer traffic dashboard
-still requires backend reporting integration. Never put service-account
+still requires backend reporting integration (#71). Never put service-account
 credentials or API secrets in Vite environment variables.
