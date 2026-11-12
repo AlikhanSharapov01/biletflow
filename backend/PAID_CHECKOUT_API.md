@@ -42,7 +42,9 @@ POST /orders/{order_id}/payment-attempts            retry after a failed attempt
 
 A successful payment issues tickets only if, under the event lock, all of these hold: the amount
 and currency equal the quote, the order is still `pending`, its hold is active and not overdue,
-its allocations are still held, the event is on sale and paid sales are `active`. Tickets are
+its allocations are still held, the event is on sale and paid sales are `active`, and, for an order
+with a promo code, the campaign still offers exactly the quoted discount (see
+[CAMPAIGNS_API.md](CAMPAIGNS_API.md#revalidation-before-tickets-are-issued)). Tickets are
 issued by the same code as free orders: one ticket and one delivery email per order item.
 
 | What happened | Result |
@@ -53,6 +55,7 @@ issued by the same code as free orders: one ticket and one delivery email per or
 | Second successful attempt for a confirmed order | Refund `duplicate_charge`; the legitimate tickets stay valid |
 | Wrong amount or currency | Refund `blocked_fulfillment` of the captured amount, no ticket |
 | Paid sales suspended or event off sale | Refund `blocked_fulfillment`, no ticket |
+| Promo campaign disabled, ended, not yet started, or its discount or eligible types changed since the quote | Refund `blocked_fulfillment`, no ticket, promo allowance released; the order stays `pending` and a retry answers `409 promo_requote_required` |
 | Failure | Order stays `pending`; the buyer may retry while the quote lasts |
 | Failure after success | Ignored: a success is never downgraded |
 | `pending` outcome | Stays pending for reconciliation; never treated as failure |
