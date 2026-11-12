@@ -189,7 +189,10 @@ deliberately raises, like earlier migrations.
 
 ## Not yet implemented
 
-- Dispute, campaign, job/notification and offline-conflict admin views.
-- Admin search/inspection of support cases (escalation itself exists: `POST /support/cases/{id}/escalation`).
-- User-facing notices to affected users (BF-15); the audit trail already records each decision.
-- Public platform settings endpoint for clients.
+- Dispute, campaign and offline-conflict admin views, and admin search/inspection of support
+  cases (escalation itself exists: `POST /support/cases/{id}/escalation`) (#72).
+- Views of exhausted jobs and failed notification deliveries (#73).
+- User-facing notices to affected users (BF-15); the audit trail already records each decision (#74).
+- Applying the versioned hold, activation-fee and processing-rate settings to new checkouts and
+  activations; today only event images read the upload limit from settings (#70).
+- Public platform settings endpoint for clients (#70).

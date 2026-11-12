@@ -157,7 +157,10 @@ No e-mail, order, buyer or payment data. Check in with `{"ticket_id": ...}` as a
 
 Offline preparation, local verification, queuing and sync are supported; physical entry still
 requires the online confirmation rule (see the requirements' boundary note). Results computed on
-the device are provisional until synced.
+the device are provisional until synced. Whether staff may admit on a provisional result, and the
+sync rules described below for people already let in, are open product questions in
+[decision 0002](../docs/decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics); this
+contract does not change until they are answered.
 
 | Method and path | Purpose |
 |---|---|

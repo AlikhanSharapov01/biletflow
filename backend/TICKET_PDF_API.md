@@ -99,5 +99,9 @@ best-effort), and do not link to storage paths.
 
 ## Not covered
 
-In-app notifications (BF-15) and the recipient-invitation email for non-account holders remain
-future work.
+- There is no separate invitation email for recipients without an account. The ticket delivery
+  email goes to the recipient's address in any case and asks them to sign in with it. The in-app
+  `ticket_delivered` notice exists ([NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md)).
+- A stored PDF object can be lost when its database commit outcome is uncertain (#68).
+- Kazakh and Russian text in the PDF needs the DejaVu font, present in the Docker image but not
+  on every native install (#82).

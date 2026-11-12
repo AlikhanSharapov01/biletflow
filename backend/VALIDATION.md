@@ -1,181 +1,88 @@
 # Backend validation
 
-## Measured checkout and admission load with concurrent analytics (#80) — 12 November 2026
+## Worker crash recovery harness — 12 November 2026
 
-Scope: requirements §10.1, BF-18 and BF-22. First measured end-to-end latency evidence for paid
-checkout under constrained inventory and online admission, with and without organizer analytics
-running at the same time. This is local, single-machine evidence for the declared baseline below,
-not a production capacity claim. Distinct from the #48 browser end-to-end and #57 smoke/restart
-checks.
+Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
+this harness kills real processes. `tests/crash/crash_runner.py` runs the real worker loop
+(`app.worker.main`) or the real API (uvicorn + `create_app`) as a child process. A kill point
+wraps one real function at a side-effect boundary; when reached, the child writes a marker
+file and calls `os._exit(137)` (no `finally`, no rollback beyond PostgreSQL dropping the
+connection), or stops itself with `SIGSTOP`. The parent then starts a fresh process and checks
+PostgreSQL, the private storage directory and a local SMTP sink written in the test
+(`tests/crash/crash_harness.py`; nothing is relayed). Production code is unchanged.
 
-**Concurrency baseline: proposed, pending owner confirmation.** The §10.1 example parameters were
-used as the baseline: **50 concurrent checkout attempts against 40 tickets** and **10 concurrent
-scanner clients**. They remain proposals until the project owner selects them.
-
-### Environment
-
-| Item | Value |
+| Scenario (kill point) | What it proves |
 |---|---|
-| Machine | Apple M4, 10 logical CPUs, 16 GiB RAM (`sysctl machdep.cpu.brand_string hw.ncpu hw.memsize`) |
-| OS | macOS 15.7.4 (arm64) |
-| Python / packages | CPython 3.12.15 via uv 0.12.23, locked deps: uvicorn 0.53.0 (asyncio + h11; uvloop/httptools not installed), FastAPI 0.141.1, SQLAlchemy 2.0.54, psycopg 3.3.6, httpx 0.28.1 |
-| PostgreSQL | 16.15 (Homebrew), default configuration (`max_connections` 100, `shared_buffers` 128MB), TCP on 127.0.0.1:5432, disposable database `biletflow_load_test`, local superuser role (not the narrowly privileged `biletflow_app` role) |
-| API | One process, `uvicorn app.main:create_app --factory --no-access-log` as in `backend/Dockerfile`; SQLAlchemy default pool (5 + 10 overflow connections) |
-| Worker | One `python -m app.worker` process, delivering mail to a local SMTP sink started by the harness |
-| Client | Same machine: one asyncio process with `httpx.AsyncClient` over loopback |
-| Code | Application revision `7dd19e0` (`origin/main`); harness in `tests/load/load_harness.py` |
-| Test-only server settings | `RATE_IP_LIMIT=1000000` and `RATE_IDENTITY_LIMIT=1000000` because every simulated client shares 127.0.0.1 (the limiter still runs one extra transaction per limited request, so its cost is included); `ENVIRONMENT=test` for the payment simulator; `ACCESS_MINUTES=30`; `ADMISSION_REQUIRE_ENTRY_CONFIRMATION=true` and `ENTRY_CONFIRMATION_SECONDS=120` (defaults) |
+| API killed after the provider notification is committed to the inbox, before it is applied (`api_after_inbox_commit`) | The restarted worker applies the inbox row; the order is confirmed with 2 tickets. Replaying the same `external_event_id` to a restarted API returns the same inbox row; a late extra success changes nothing |
+| API killed after fulfilment commits, before the HTTP response (`api_after_apply_commit`) | Tickets survive the crash; provider retry and a late duplicate success create no ticket, order, refund, outbox job, notification or audit row |
+| Worker killed inside `refund_dispatch` after flushing, before COMMIT (`job_before_commit`) | PostgreSQL discards the half-written refund attempt; the restarted worker creates exactly one |
+| API killed after a refund success commits, before the response (`api_after_apply_commit`) | Replay, a late success and a stale `failed` keep one refund, one refund attempt, one `payments.refund_succeeded` audit row, refunded tickets, one `refund_completed` notification and one email; finance rows unchanged |
+| Worker killed after the notification fan-out commits, before the job is acknowledged (`fanout_after_commit`) | The restarted worker finishes all other work but does **not** take the unexpired lease; after lease expiry the retry deduplicates to one notification and one email |
+| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object is left orphaned (see findings) |
+| Worker killed after the PDF row commits, before SMTP (`pdf_after_commit`) | Retry reuses the same row, key, bytes and inode (no re-render); one email with that attachment |
+| Worker killed after SMTP accepted the message, before acknowledgement (`smtp_after_send`, outbox ticket email and notification email) | **The same Message-ID is delivered twice** (at-least-once email). Business results stay single: one ticket, one stored PDF, one notification; the job/delivery ends `done`/`sent` with `attempt_count` 2 |
+| Worker A frozen (`SIGSTOP`) before SMTP; its lease expires and worker B completes the job; A resumes (`smtp_before_send` + stop) | A's stale send is a second delivery of the same Message-ID, but its acknowledgement is fenced: B's `done` state, `completed_at` and attempt count are unchanged |
 
-### Dataset
+Every scenario also asserts no duplicate ticket per order item, order per hold, refund per
+captured charge, finance effect per refund, notification per deduplication key, and no `dead`
+job. Lease expiry is simulated by moving `outbox_job.lease_until` (or a pending
+`notification_delivery.next_attempt_at`) one second into the past instead of waiting the
+120-second lease; the lease check itself is the production query.
 
-Everything is created through the public `/api/v1` API. The database is read only to pick up
-e-mail verification and staff-invitation tokens (normally delivered by e-mail) and to check
-invariants.
-
-- Per harness invocation: 81 verified accounts (1 organizer owner, 10 staff with only the `scan`
-  capability, 50 buyers, 20 attendees); one organization with simulated payout profile and
-  identity verification; a **history event** with 400 sold paid tickets (100 simulated-paid
-  orders of 4 at KZT 4,000, half using a 10% campaign code) so analytics has more rows to
-  aggregate.
-- Per run (fresh events, so runs are independent): a **checkout event** — paid ticket type
-  KZT 5,000, event capacity and quantity limit **40**, per-order limit 1, paid sales activated
-  through the simulated fee payment; and an **admission event** — 200 free tickets (20 attendees
-  × 10, claimed by their buyer), admission window open, scanners assigned. Each attendee requests
-  an entry confirmation for each ticket just before the timed phase (not part of the target;
-  p95 78–255 ms per run).
-- The database was dropped and recreated before the main invocation. After it: 81 users,
-  13 events, 460 orders, 1,840 tickets, 1,200 check-ins, 4,458 outbox jobs. The 20-client
-  invocation ran afterwards in the same database (162 users, 26 events, 920 orders, 3,680
-  tickets, 2,400 check-ins at its end). Analytics are event-scoped, so their cost depends mainly
-  on per-event rows (at most 400 tickets here).
-
-### Scenarios
-
-- **A (baseline):** at one start signal, 50 buyers each run hold → paid checkout (quote, pending
-  order, payment attempt) → simulated `succeeded` payment → order read, with a fresh
-  `Idempotency-Key` per action; at the same time 10 scanners each scan sequentially their own
-  20 tickets plus 5 tickets from the next scanner's list, shuffled (250 scans, 50 deliberate
-  cross-scanner duplicates per run). Each scan sends the ticket QR, the attendee's entry
-  confirmation and a new `operation_id`.
-- **B:** the same, while K organizer clients (owner session) loop without pause over the
-  analytics summary and the hourly/daily sales series of the checkout, admission and history
-  events, starting 1 s before the start signal and stopping when the last buyer/scanner finishes.
-  Main invocation K = 5; sensitivity invocation K = 20.
-- Runs are interleaved A1 B1 A2 B2 A3 B3; 3 runs per scenario. Latency is the client-observed
-  HTTP round trip on loopback. Percentiles are nearest-rank over all requests of one run; tables
-  give the **median of the three runs' p95** and the **worst run**. `checkout.flow_e2e` is one
-  buyer's whole journey from hold request to the confirmed order read.
-
-### Commands
+Commands (from `backend/`; the database name must end in `_test` and is truncated):
 
 ```bash
-createdb biletflow_load_test
-cd backend
-export LOAD_DATABASE_URL=postgresql+psycopg://alikhan@127.0.0.1:5432/biletflow_load_test
-uv run python -m tests.load.load_harness --runs 3 --output-dir "$TMPDIR/load-main"
-uv run python -m tests.load.load_harness --runs 3 --analytics-clients 20 --output-dir "$TMPDIR/load-k20"
-RUN_LOAD_TESTS=1 TEST_DATABASE_URL=$LOAD_DATABASE_URL uv run pytest tests/load -q
-dropdb biletflow_load_test
+createdb -h /tmp biletflow_crash_test
+export TEST_DATABASE_URL=postgresql+psycopg://$USER@127.0.0.1:5432/biletflow_crash_test
+RUN_CRASH_TESTS=1 uv run pytest -q tests/crash          # opt-in; skipped without the variable
+RUN_CRASH_TESTS=1 uv run pytest -v --durations=0 tests/crash
 ```
 
-Both harness invocations exited 0 (all invariants held, admission target met) and wrote
-`results.json`, `results.md`, `api.log` and `worker.log` to the output directory (local, not
-committed); the API and worker logs contained no errors or tracebacks. The opt-in pytest wrapper
-(one run per scenario) passed: **1 passed in 24.33 s**. Without `RUN_LOAD_TESTS=1` it is skipped,
-and the normal suite still collects (**532 tests**, the 531 earlier cases plus this wrapper).
+Evidence observed on 12 November 2026, base revision `7dd19e0`, macOS 15.7, Python 3.12.15,
+local PostgreSQL 16.15, disposable `biletflow_crash_test`:
 
-### Results — main invocation (K = 5 analytics clients)
+- `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`: **9 passed in 26.43 s** (earlier repeated
+  runs: 25.51–25.92 s, all 9 passed). Without `RUN_CRASH_TESTS`: 9 skipped.
+- `uv run pytest -q tests/test_worker.py tests/test_auth.py`: 34 passed.
+- Full suite with the harness enabled (`RUN_CRASH_TESTS=1 uv run pytest -q`): **540 collected,
+  539 passed, 1 failed** in 276.04 s. The failure is the existing
+  `test_pdf_keeps_unicode_attendee_names` case: no DejaVu font is installed on this macOS machine
+  (the same font gap recorded for Windows below). The suite is not fully green.
+- Sensitivity check on a scratch copy of the backend (not committed): removing the worker's
+  acknowledgement fence failed the stalled-worker test; ignoring an already stored ticket PDF
+  failed the `pdf_after_commit` test. The unmodified tree passes both.
+- `uv run ruff check app tests migrations` passed; `ruff format --check` reported 137 files
+  already formatted.
 
-| Scenario | Operation | Requests (3 runs) | Non-2xx | 5xx / transport | p50 (median) | p95 (median) | p95 (worst) | p99 (worst) | max (worst) |
-|---|---|---|---|---|---|---|---|---|---|
-| A | `admission.check_in` | 750 | 150 (all `409 already_checked_in`) | 0 | 42.5 ms | **312.2 ms** | 321.1 ms | 525.4 ms | 598.7 ms |
-| A | `checkout.hold` | 150 | 30 (all `409 event_capacity_exceeded`) | 0 | 354.7 ms | 512.6 ms | 547.4 ms | 943.6 ms | 943.6 ms |
-| A | `checkout.checkout` | 120 | 0 | 0 | 371.4 ms | 654.0 ms | 788.4 ms | 1158.5 ms | 1158.5 ms |
-| A | `checkout.payment` | 120 | 0 | 0 | 391.4 ms | 672.5 ms | 722.7 ms | 994.9 ms | 994.9 ms |
-| A | `checkout.order_read` | 120 | 0 | 0 | 64.8 ms | 238.2 ms | 255.1 ms | 385.2 ms | 385.2 ms |
-| A | `checkout.flow_e2e` | 120 | 0 | 0 | 1138.2 ms | **1567.9 ms** | 1581.6 ms | 1648.4 ms | 1648.4 ms |
-| B | `admission.check_in` | 750 | 150 (all `409 already_checked_in`) | 0 | 62.0 ms | **452.8 ms** | 454.2 ms | 895.2 ms | 920.1 ms |
-| B | `checkout.hold` | 150 | 30 (all `409 event_capacity_exceeded`) | 0 | 416.7 ms | 736.9 ms | 794.1 ms | 1210.0 ms | 1210.0 ms |
-| B | `checkout.checkout` | 120 | 0 | 0 | 411.5 ms | 793.0 ms | 1072.2 ms | 1465.4 ms | 1465.4 ms |
-| B | `checkout.payment` | 120 | 0 | 0 | 344.2 ms | 781.4 ms | 818.8 ms | 1062.7 ms | 1062.7 ms |
-| B | `checkout.order_read` | 120 | 0 | 0 | 91.4 ms | 207.3 ms | 231.7 ms | 326.0 ms | 326.0 ms |
-| B | `checkout.flow_e2e` | 120 | 0 | 0 | 1253.4 ms | **1785.6 ms** | 2082.2 ms | 2158.5 ms | 2158.5 ms |
-| B | `analytics.summary` | 267 | 0 | 0 | 50.4 ms | 315.2 ms | 316.4 ms | 816.1 ms | 816.1 ms |
-| B | `analytics.series` | 266 | 0 | 0 | 44.2 ms | 313.3 ms | 346.4 ms | 628.7 ms | 670.3 ms |
+Cleanup (each test uses pytest temporary directories for storage, process logs and markers;
+every child, including a stopped one, is SIGKILLed at teardown):
 
-Per-run admission p95: A 301.0 / 312.2 / 321.1 ms; B 334.8 / 454.2 / 452.8 ms. Timed windows
-(start signal to last client): A 1.97–2.00 s, B 2.72–3.56 s. Admission throughput (scans ÷
-window, median): A 125.5/s, B 82.1/s.
+```bash
+dropdb -h /tmp biletflow_crash_test
+pgrep -fl crash_runner.py     # should print nothing; otherwise: pkill -9 -f crash_runner.py
+```
 
-### Results — sensitivity invocation (K = 20 analytics clients)
+Findings, owner `@backend` (not fixed here; no test is weakened):
 
-| Scenario | Operation | Requests (3 runs) | Non-2xx | 5xx / transport | p50 (median) | p95 (median) | p95 (worst) | p99 (worst) | max (worst) |
-|---|---|---|---|---|---|---|---|---|---|
-| A | `admission.check_in` | 750 | 150 (duplicates) | 0 | 42.8 ms | **298.8 ms** | 305.0 ms | 511.9 ms | 844.3 ms |
-| A | `checkout.flow_e2e` | 120 | 0 | 0 | 1154.7 ms | **1593.9 ms** | 1617.8 ms | 1685.0 ms | 1685.0 ms |
-| B | `admission.check_in` | 750 | 150 (duplicates) | 0 | 158.6 ms | **742.8 ms** | 745.0 ms | 1180.2 ms | 1873.5 ms |
-| B | `checkout.hold` | 150 | 30 (`event_capacity_exceeded`) | 0 | 355.8 ms | 542.5 ms | 557.4 ms | 878.9 ms | 878.9 ms |
-| B | `checkout.checkout` | 120 | 0 | 0 | 402.7 ms | 699.1 ms | 699.4 ms | 1005.6 ms | 1005.6 ms |
-| B | `checkout.payment` | 120 | 0 | 0 | 414.0 ms | 685.6 ms | 877.7 ms | 1132.0 ms | 1132.0 ms |
-| B | `checkout.flow_e2e` | 120 | 0 | 0 | 1349.3 ms | **1892.6 ms** | 2200.9 ms | 2276.9 ms | 2276.9 ms |
-| B | `analytics.summary` | 1038 | 0 | 0 | 129.7 ms | 670.9 ms | 676.6 ms | 1349.8 ms | 2318.2 ms |
-| B | `analytics.series` | 1035 | 0 | 0 | 105.3 ms | 670.3 ms | 687.0 ms | 1211.3 ms | 1770.5 ms |
+- A crash between `storage.put` and the `stored_file` commit in `ensure_ticket_pdf` leaves an
+  unreferenced object under `tickets/<ticket_id>/` permanently; nothing is lost, but no sweeper
+  removes it (event images have `reconcile_images`; ticket PDFs do not). A fix would record a
+  pending row before the write or sweep row-less ticket keys.
+- Email is at-least-once by design: a crash or stall after SMTP acceptance resends the same
+  Message-ID. Clients may or may not collapse it; Mailpit and this sink show two messages.
+- `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
+  the in-transaction simulator this is safe (proved above), but a real provider call made before
+  that commit would retry with a new key after a crash, so the provider could not deduplicate it.
+  A real adapter needs the key persisted before the external call.
+- An in-flight email job or delivery is retried only after its 120-second lease, so recovery of
+  that one message is delayed by up to two minutes after a crash.
 
-Timed windows: A 2.02–2.06 s, B 6.69–7.67 s. Admission throughput (median): A 122.4/s, B 36.1/s.
-
-### Admission target and analytics impact
-
-- **Admission p95 is under the two-second target in every run**: worst 321 ms without analytics,
-  454 ms with 5 analytics clients and 745 ms with 20. The single slowest check-in observed was
-  1,874 ms (K = 20).
-- With 5 analytics clients, admission p95 rose about 45% (312 → 453 ms median) and scan throughput
-  fell about 35%; checkout end-to-end p95 rose about 14% (1,568 → 1,786 ms). With 20 clients,
-  admission p95 rose about 2.5× (299 → 743 ms), scan throughput fell about 70% and the timed window
-  grew from about 2 s to about 7 s.
-- §10.1 declares no checkout latency target. For information: checkout end-to-end p95 was at most
-  1.62 s without analytics and its worst run reached 2.08 s (K = 5) and 2.20 s (K = 20) with
-  analytics. A paid checkout is three writes plus a read; under 50 simultaneous buyers the hold step
-  is serialized on the event row lock by design.
-- Error rates: no 5xx or transport errors in any timed phase. Every non-2xx response was an
-  expected business rejection: exactly 10 sold-out holds per run
-  (`409 event_capacity_exceeded`) and exactly 50 duplicate scans per run, all
-  `409 already_checked_in`.
-- The slowdown was not profiled. The likely cause is CPU contention in the single API process
-  (one Python process serving every client) plus client, worker and PostgreSQL sharing one
-  machine; it should not be read as database lock contention, which analytics avoids by design.
-
-### Invariant checks (every run, both invocations: 12/12 runs passed)
-
-| Check (per run) | Result |
-|---|---|
-| Issued tickets and sold allocations on the checkout event ≤ capacity 40 (no overselling) | 40 every run |
-| Confirmed orders = client flows that ended confirmed; tickets = confirmed orders | 40 = 40 = 40 |
-| All 40 tickets sold to racing buyers; the other 10 rejected with `409 event_capacity_exceeded` | Passed |
-| No live holds left on the checkout event | 0 |
-| Analytics `inventory.sold` = issued tickets and `available` = capacity − sold | 40 and 0 |
-| Every admission ticket admitted exactly once (HTTP) and none twice | 200 / 0 |
-| Current check-ins in the database = 200; tickets with more than one check-in row = 0; tickets in `checked_in` = 200 | Passed |
-| All 50 duplicate scans rejected, all as `409 already_checked_in` | Passed; in 20–23 of the 50 per run the "duplicate" scanner won the race and the owning scanner received the rejection |
-| Scanner counts `admitted` and analytics `attendance.checked_in` = 200 | Passed |
-| No 5xx or transport errors in the timed phase | 0 |
-
-No overselling, duplicate admission or server error was observed, so no production defect is
-reported from this measurement.
-
-### Limitations
-
-- Local process run, not the Docker/Caddy stack: no TLS or reverse-proxy hop, no container
-  limits, and PostgreSQL 16.15 instead of the Compose image's 17. Results describe this machine.
-- Client, API, worker and database share one machine; client CPU and loopback latency are part
-  of the numbers. Real scanner networks (Wi-Fi/mobile) add latency that this does not measure.
-- Rate limits were raised for the test only; production limits would throttle a single address
-  sending this traffic. The API connected as a superuser role rather than `biletflow_app`.
-- Payments use the in-process simulator; real provider latency, webhooks and failures are not
-  included. Only free tickets were admitted, with entry confirmations obtained before the timed
-  phase; offline sync, manual search and reversal were not loaded.
-- Short bursts (2–8 s per run) of the proposed baseline only: no soak test, no ramp to find a
-  breaking point, one API process (more workers were not tried) and a small dataset.
-- Three runs per scenario give a coarse spread, not a statistical confidence interval.
+Limitations: local processes, not containers, so the Compose restart policy and health checks are
+not exercised; kills are injected at chosen code boundaries with `os._exit`, not a host power
+loss or a kill in the middle of a storage write (`LocalFileStorage.put` is an atomic rename and
+was not interrupted); lease expiry is simulated in the database; the payment and refund provider
+is the in-process simulator, so no real external financial side effect exists; POSIX only (the
+harness is skipped on Windows); no remote object storage, real SMTP provider or load.
 
 ## Final reviewed code — 9 November 2026
 

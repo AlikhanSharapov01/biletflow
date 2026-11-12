@@ -45,6 +45,10 @@ The web and mobile clients both talk to this one backend.
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
 | Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
+"Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
+web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
+per area in the [integration status](../docs/integration/status.md).
+
 **Backend scope still open** — see [What is left to do](#what-is-left-to-do).
 
 ---
@@ -102,7 +106,7 @@ the `file_storage` volume in Docker). The API and worker must share it.
 | Setting | Meaning |
 |---|---|
 | `ENVIRONMENT` | `development` enables the payment simulator endpoints; `production` enforces HTTPS URLs and secure cookies |
-| `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` | `true` requires the attendee's short-lived entry confirmation at the door. Set `false` for demos until the mobile app supports it |
+| `ADMISSION_REQUIRE_ENTRY_CONFIRMATION` | `true` requires the attendee's short-lived entry confirmation at the door. The mobile scanner supports it; set `false` only for quicker demos |
 | `FRONTEND_URL` | Base URL used in emailed links |
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
@@ -248,6 +252,72 @@ uv run python -m app.admin_cli grant someone@example.com                     # n
 
 ---
 
+## Demo data
+
+`app/seed.py` has two parts:
+
+- **Catalog** (always, also in production): the two categories, *BiletFlow Demo Hall* and its
+  12-seat layout (row A premium, row B standard). Insert-only.
+- **Lifecycle demo fixtures** (development and test only): fictional accounts, one organization
+  and six events covering every example listed in section 6.2 of the
+  [requirements](../docs/BiletFlow_Backend_Requirements.md). They are built through the public
+  API in-process (payments and refunds through the simulator), so inventory, orders, campaign
+  usage, finance, audit and outbox rows follow the same rules as real traffic. All dates are
+  relative to the moment of the build.
+
+`python -m app.bootstrap` builds the fixtures only when they are absent, so restarting the stack
+keeps whatever was done with them. Commands (run as the database **owner**, because a reset
+deletes rows and lifts the append-only guards for one transaction):
+
+```bash
+# Docker, from the repository root (the migrate service has the owner connection)
+docker compose run --rm migrate python -m app.seed                                   # add if absent
+docker compose run --rm migrate python -m app.seed --reset --yes-reset-demo          # rebuild, fresh dates
+docker compose run --rm migrate python -m app.seed --reset --yes-reset-demo --empty  # remove only
+
+# Native, from backend/: point DATABASE_URL at the owner role for this one command
+DATABASE_URL=postgresql+psycopg://biletflow_owner:<POSTGRES_PASSWORD>@localhost:5433/biletflow \
+  uv run python -m app.seed --reset --yes-reset-demo
+```
+
+Reset safety:
+
+- It refuses without `--yes-reset-demo` and always refuses when `ENVIRONMENT=production`; plain
+  seeding never deletes anything and skips the fixtures in production.
+- The demo scope is every organization owned by a demo account plus every row that references
+  it through a foreign key (events, orders, tickets, payments, refunds, campaigns, check-ins,
+  support cases, audit and outbox rows), found from the live database constraints. Nothing else
+  is changed. The demo accounts are kept, and so is anything they did in other organizations.
+- Anything a person adds inside the demo organization (for example an extra event) is part of
+  the scope and is removed by a reset. Stored PDF files of removed tickets stay on disk.
+
+Accounts (password `BiletFlow-demo-2026` for all, fictional, development only):
+
+| Email | Role |
+|---|---|
+| `demo-organizer@example.com` | Owner of *BiletFlow Demo Productions* |
+| `demo-scanner@example.com` | Member with `scan` and `reverse_checkin` on the concert and the meetup |
+| `demo-attendee@example.com` | Attendee with most orders; invited to the private event |
+| `demo-guest@example.com` | Second attendee |
+| `demo-admin@example.com` | Platform admin |
+
+Events and what they demonstrate (prices in KZT):
+
+| Event | Demonstrates |
+|---|---|
+| Demo Concert (+30 days) | Mixed free *Community pass* / *Standard* 10,000 / *Premium* 30,000; `DEMO10` (10%, 100 uses), `DEMO1000` (1,000 off, 50 uses) and `DEMOLAST` (one use, exhausted); confirmed discounted, mixed and free orders; one refunded and one refund-pending order; an unpaid checkout whose hold expired |
+| Demo Theatre: Sold Out (+14 days) | Capacity 4, *Theatre seat* 2,500, every unit sold |
+| Demo Seated Gala (+21 days) | Assigned seating: premium 30,000 / standard 3,000; seats A3, A4 and B1 sold |
+| Demo Meetup (live now) | Free event in progress, admission open: one ticket checked in, one not yet |
+| Demo Private Workshop (+10 days) | Private event, hidden from the catalog, attendee has access and a ticket |
+| Demo Festival (cancelled, +45 days) | Event cancelled after a free registration; ticket and order cancelled |
+
+The three paid events each paid the KZT 5,000 simulated activation fee. The live meetup ends a
+few hours after the build; rebuild to get fresh dates. The identifiers of the current build are
+in the `demo.fixtures_built` audit row of the demo organization (`app.seed.demo_fixtures()`).
+
+---
+
 ## Tests and checks
 
 Tests run against a **real, empty PostgreSQL database whose name ends in `_test`** — the suite
@@ -265,8 +335,11 @@ On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 53
 (the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
 Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
 Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
-(`.github/workflows/backend-auth.yml`) configures automated checks; its presence is not evidence
-of a hosted CI run for these changes.
+(`.github/workflows/backend-auth.yml`) configures automated checks; the hosted *Backend API*,
+*Smoke* and *Backup* runs on `main` at `7dd19e0` (PR #64 merged) succeeded.
+
+Process-kill crash recovery (opt-in, POSIX): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`;
+see [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026).
 
 End-to-end smoke tests against a running Docker stack live in `../tools/`:
 
@@ -291,14 +364,25 @@ The agreed scope includes all required and bonus features; see the shared
 [requirements and acceptance matrix](../docs/BiletFlow_Backend_Requirements.md).
 Backend endpoints alone do not complete the integrated product.
 
-- GA4 consent-aware collection/export, authorized provider aggregates/cache and disconnected states.
-- Remaining admin operational views (campaign/job/offline-conflict/support search and related notices)
-  and commerce consumption of versioned settings; see [ADMIN_API.md](ADMIN_API.md#not-yet-implemented).
-- Frontend/mobile integration of the documented APIs and complete acceptance journeys.
-- Provider sandbox extension once credentials/access are available; no live financial operation.
-- Deployment/recovery, backup/restore and measured workload targets still need their own evidence.
-- Optional S3-compatible storage, asynchronous malware scanning, and deployment security headers
-  remain separate work; local protected file storage is implemented.
+Open backend work, from the audit in #85, in dependency order (see the
+[integration status](../docs/integration/status.md#remaining-work-in-dependency-order)):
+
+1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
+   database and file backups (#69, with operations).
+2. Campaign revalidation at paid fulfilment (#66) and report reconciliation (#67); platform
+   settings applied to checkout and activation (#70); attachment malware scanning and quarantine
+   (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
+3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
+   notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
+   protected storage exists today), correlation IDs and metrics (#78).
+4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
+   (#79), Kazakh/Russian PDF text on native installs (#82).
+5. Measured load (#80) and real process-kill recovery (#83).
+
+Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,
+HTTPS and security headers for the shared demo (#49), and the provider sandbox once merchant
+access exists (no live financial operation). Refunds are full-order only by design; partial refunds
+are excluded by the requirements.
 
 Promo campaigns, operational analytics, refunds/cancellations, simulated finance/payouts,
 organizer ticket-type counters, event history filters, event images with bounded recurring cleanup,
