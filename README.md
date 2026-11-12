@@ -134,7 +134,9 @@ docker compose up --build
 
 ## First steps after starting
 
-A fresh database has categories and a venue but **no users and no events**.
+In development the first start builds the [demo data](#demo-data), so you can sign in with a
+demo account right away. The steps below create your own account and events from scratch; in
+production a fresh database has categories and a venue but **no users and no events**.
 
 1. **Create an account.** Open <http://localhost:8080>, choose *Create account*, then open
    Mailpit (<http://localhost:8025>) and click the verification link.
