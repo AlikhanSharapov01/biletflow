@@ -1,5 +1,49 @@
 # Backend validation
 
+## Consistent backups — 13 November 2026
+
+Issue #69 (AC-27; BF-22). `tools/backup.sh` used to dump PostgreSQL and then archive the files
+with the API running, so an image deleted in between was linked by the dump but missing from the
+archive. It now stops `api` and `worker` (the only writers), waits until no other database session
+is open, dumps, archives and starts them again (also on failure or interruption); `--online` keeps
+the old behaviour and is marked in the manifest. `tools/check_backup_consistency.py` checks that
+every linked `stored_file` (event images, support attachments, ticket PDFs) has its bytes with the
+recorded size and SHA-256; `tools/verify_backup.sh` runs it against a backup file and
+`tools/restore.sh` after a restore.
+
+`tests/test_backup_consistency.py` (8 tests) runs the real `backup.sh` against a stand-in
+`docker` whose `BACKUP_TEST_HOOK` deletes an image's bytes between the dump and the archive only
+if `api` is running. Normal mode: writers stop before the dump and start after the archive, the
+deletion is refused and the file is archived. `--online`: the deletion happens and the archive
+lacks the file. A failed dump, an open database session and `SIGTERM` all restart the writers and
+write no backup; only writers that were running are restarted. Two tests use the real API and
+test database: the checker reports an image deleted between reading the database and reading the
+files, and changed bytes.
+
+Evidence on 13 November 2026, macOS 15, Python 3.12, local PostgreSQL 16.15, disposable
+`biletflow_backup_dst_test`:
+
+- `uv run pytest -q tests/test_backup_consistency.py`: **8 passed**.
+- Full suite (`uv run pytest -q`): **548 passed, 10 skipped, 1 failed** in 237.93 s. The failure is
+  the existing `test_pdf_keeps_unicode_attendee_names` (no DejaVu font on this macOS machine, as
+  recorded below); the skips are the opt-in crash and load harnesses.
+- `uv run ruff check app tests migrations` and `ruff format --check` passed; `shellcheck` passed on
+  `backup.sh`, `restore.sh` and `verify_backup.sh`; `actionlint` (with shellcheck) passed on
+  `.github/workflows/backup.yml`.
+- Whole drill replayed without Docker (local API and worker processes, a scratch `docker` shim
+  mapping Compose calls to local PostgreSQL and a temporary storage folder, database
+  `biletflow_backup_src_test`): the online backup with image `c` deleted in the window failed
+  `verify_backup.sh` with one `MISSING event_image`, and its restore exited 3 while
+  `GET .../images/c/content` answered `404 image_not_found`; the normal backup refused the deletion
+  of `b` (API unreachable), passed `verify_backup.sh` and, after deleting `b`, destroying and
+  restoring, `backup_drill.py verify` confirmed all orders, tickets, QR token hashes, object keys,
+  audit rows and outbox keys, readable images `a` and `b`, the stored PDF, the attachment and the
+  worker completing the pending job. An open `psql` session aborted a backup with
+  `BACKUP_QUIESCE_TIMEOUT=3`, and a `SIGTERM` in the hook exited 143; both restarted the writers.
+
+The Compose path (real containers, `docker compose stop/start/run`, the restore into a fresh
+stack) is exercised by the `Backup` workflow only; Docker was not available for this session.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
