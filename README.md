@@ -214,6 +214,8 @@ only; partial refunds are out of scope.
 - **Never edit an applied migration** — add a new one.
 - **Run the checks before opening a PR:**
   - backend: `uv run ruff check app tests migrations && uv run pytest -q`
+  - backend crash recovery (opt-in): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`, see
+    [backend/VALIDATION.md](backend/VALIDATION.md#worker-crash-recovery-harness--12-november-2026)
   - web: `npm run typecheck && npm test && npm run build`
   - mobile: `npm run typecheck && npm test`
 - **Never commit** `.env` files, `node_modules`, `.venv`, `web/dist` or `mobile/.expo`.
