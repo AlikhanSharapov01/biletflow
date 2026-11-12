@@ -1,5 +1,32 @@
 # Backend validation
 
+## Lifecycle demo fixtures and demo reset (#79) — 12 November 2026
+
+Local PostgreSQL 16, disposable database `biletflow_fixtures_test`, macOS.
+
+- `uv run pytest -q tests/test_demo_fixtures.py tests/test_campaigns.py tests/test_catalog.py`
+  at `87de00e`: **43 passed**.
+- Full suite (`uv run pytest -q`): **541 collected, 540 passed, 1 failed** in 270 s. The only
+  failure is the existing `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`
+  font case. The run started before a bootstrap-only change (demo build errors no longer stop
+  `app.bootstrap`), which no test imports.
+- `uv run ruff check app tests migrations` passed; `uv run ruff format --check` reported 135 files
+  already formatted.
+- The CLI was exercised against a second disposable database: first `python -m app.seed` built
+  the fixtures, a second run reported them present, `--reset` without `--yes-reset-demo`
+  exited 2, `--reset --yes-reset-demo` removed 341 rows in 31 tables and rebuilt them, and
+  `--empty` removed them again.
+
+`tests/test_demo_fixtures.py` checks every section 6.2 example and its state, sign-in with the
+documented credentials, attendee/guest order and ticket views, private-event catalog hiding,
+the sold-out theatre and gala seat map, the exhausted campaign, concert finance and analytics
+reconciled against the orders (including KZT 5,000 activation), scanner assignment and
+attendance counts, an idempotent second seed, a reset that rebuilds with fresh dates and
+restores the audit guard, a reset that leaves non-demo rows (including a demo account's order
+for another organizer's event) byte-for-byte unchanged, production and unconfirmed refusals,
+and an older or interrupted seed left for an explicit reset. Not covered: the Docker
+`migrate` container path and a reset while API traffic is running.
+
 ## Final reviewed code — 9 November 2026
 
 The full PostgreSQL suite was rerun after the whole-branch review fixes, at application
