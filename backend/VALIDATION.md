@@ -1,5 +1,45 @@
 # Backend validation
 
+## Bundled Unicode font for ticket PDFs — 13 November 2026
+
+Issue #82 (BF-10; Kazakh/Russian locale baseline). DejaVu Sans 2.37 regular and bold are now
+bundled in `app/fonts/` with the upstream license and searched before the Linux system
+directories; with no usable font the PDF is refused (`503 ticket_pdf_unavailable`, logged
+`ticket_pdf_font_unavailable`) instead of printing `?` for Cyrillic text. This resolves the known
+failure recorded in the earlier entries below.
+
+Environment: macOS 15.7.4 with **no DejaVu font installed** (no `/usr/share/fonts`, none in
+`~/Library/Fonts` or `/Library/Fonts`), Python 3.12.15, local PostgreSQL 16.15, disposable
+`biletflow_pdffont_test`.
+
+| Check | Result |
+|---|---|
+| `uv run pytest -q tests/test_ticket_documents.py tests/test_ticket_files.py` | **25 passed** in 16.60 s, including `test_pdf_keeps_unicode_attendee_names` (previously failing on Windows and this machine) |
+| Full suite `uv run pytest -q` | **555 collected: 545 passed, 0 failed, 10 skipped** in 309.79 s. Skips are the opt-in process-kill (9, `RUN_CRASH_TESTS`) and load (1, `RUN_LOAD_TESTS`) harnesses. One existing Starlette/httpx TestClient deprecation warning |
+| `uv run ruff check app tests migrations`; `uv run ruff format --check app tests migrations` | Passed; 140 files already formatted |
+| Glyph coverage | Both bundled faces map ә ғ қ ң ө ұ ү һ і in both cases and the full Russian alphabet (`reportlab` `charToGlyph`, also asserted in a test) |
+| Visual check | A ticket with a Kazakh title, venue, seat, Russian ticket type and Kazakh attendee name, rendered to PNG with macOS `sips`, shows every letter correctly |
+
+New regression cases:
+
+- `test_pdf_keeps_kazakh_and_russian_event_and_attendee_text`: all nine Kazakh-specific letters in
+  the event title (lowercase) and attendee name (uppercase), plus a Russian ticket type, are
+  extracted unchanged; the text has no `?`; the page uses only embedded DejaVu fonts (no
+  Helvetica resource).
+- `test_pdf_refused_with_stable_code_when_no_unicode_font`: with the font lookup pointed at an
+  empty directory, `GET /tickets/{id}/pdf` returns `503 {"detail": {"code":
+  "ticket_pdf_unavailable"}}` with no PDF body and logs `ticket_pdf_font_unavailable`; after the
+  font is restored the same request returns the PDF (the failure is not cached).
+- `test_bundled_font_is_used_without_system_fonts`: the bundled directory alone loads, ships its
+  `LICENSE`, and covers the Kazakh letters.
+- `test_missing_font_sends_the_email_without_attachment_and_stores_nothing`
+  (`test_ticket_files.py`): the worker still delivers the ticket email, without an attachment, and
+  writes no `stored_file` row.
+
+Not verified here: a Windows run (the code path is OS-independent and no longer reads a system
+font, but no Windows machine was used) and a Docker image build (the Docker daemon was not
+running). The Dockerfile still installs `fonts-dejavu-core`, now only a fallback.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
@@ -47,7 +87,8 @@ local PostgreSQL 16.15, disposable `biletflow_crash_test`:
 - Full suite with the harness enabled (`RUN_CRASH_TESTS=1 uv run pytest -q`): **540 collected,
   539 passed, 1 failed** in 276.04 s. The failure is the existing
   `test_pdf_keeps_unicode_attendee_names` case: no DejaVu font is installed on this macOS machine
-  (the same font gap recorded for Windows below). The suite is not fully green.
+  (the same font gap recorded for Windows below). The suite is not fully green. Resolved on
+  13 November 2026 (#82, see the top entry).
 - Sensitivity check on a scratch copy of the backend (not committed): removing the worker's
   acknowledgement fence failed the stalled-worker test; ignoring an already stored ticket PDF
   failed the `pdf_after_commit` test. The unmodified tree passes both.
@@ -116,7 +157,7 @@ product acceptance and client integration remain incomplete.
 | Check | Result / evidence |
 |---|---|
 | Full PostgreSQL suite | **523 collected: 522 passed, 1 failed, 0 errors, 0 skipped**, 1118.02 seconds (18m38s), at product HEAD `9d26749`. The only failure is the pre-existing Windows Unicode PDF font case; no new regression failures observed |
-| Known failure / warning | `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`: required DejaVu font missing on Windows, reproduced in the pre-change baseline. One existing Starlette/httpx TestClient deprecation warning. The suite is **not fully green** |
+| Known failure / warning | `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`: required DejaVu font missing on Windows, reproduced in the pre-change baseline (resolved 13 November 2026 by the bundled font, #82). One existing Starlette/httpx TestClient deprecation warning. The suite is **not fully green** |
 | Statement coverage | **7413/7711 statements (96.1354%; displayed 96%)**, 298 missing; supporting evidence, not full-product acceptance |
 | Schema inventory | Dedicated disposable `biletflow_daulet_issues_test` inspected at `0016_image_cleanup`: 16 revisions, 66 `biletflow` tables, excluding `public.alembic_version`. Static migration table names independently match the count |
 | Reference comparison | Reference also has 66 tables, with a different set: GA4 connection/export/cache and separate claim table are design-only; four authentication extension tables are implementation-only. Authenticated claiming works on `ticket` fields; see [matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation) |

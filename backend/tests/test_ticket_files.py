@@ -5,6 +5,7 @@ import pytest
 from pypdf import PdfReader
 from sqlalchemy import func, select, update
 
+from app import ticket_pdf
 from app.checkout_models import Ticket
 from app.file_models import StoredFile
 from app.models import OutboxJob
@@ -272,6 +273,27 @@ def test_storage_failure_still_sends_the_email_without_attachment(
     assert attachments(message) == []
     assert ticket["id"] in message.get_content()
     assert "attached" not in message.get_content()
+    with factory() as db:
+        job = db.scalar(select(OutboxJob).where(OutboxJob.kind == "ticket_delivery_email"))
+        assert job.status == "done" and job.last_error is None
+        assert db.get(Ticket, ticket["id"]).pdf_file_id is None
+    assert stored_rows(factory) == []
+
+
+def test_missing_font_sends_the_email_without_attachment_and_stores_nothing(
+    issued, factory, settings, storage, monkeypatch, tmp_path
+):
+    ticket, _ = issued
+    monkeypatch.setattr(ticket_pdf, "FONT_DIRS", [tmp_path])  # no Unicode font anywhere
+    ticket_pdf.fonts.cache_clear()
+    try:
+        messages = []
+        deliver_all(factory, settings, storage, messages)
+    finally:
+        ticket_pdf.fonts.cache_clear()
+    [message] = ticket_email(messages)
+    assert attachments(message) == []  # no PDF with "?" in place of Cyrillic text
+    assert ticket["id"] in message.get_content()
     with factory() as db:
         job = db.scalar(select(OutboxJob).where(OutboxJob.kind == "ticket_delivery_email"))
         assert job.status == "done" and job.last_error is None
