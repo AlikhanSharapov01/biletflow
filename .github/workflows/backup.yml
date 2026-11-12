@@ -6,6 +6,9 @@ on:
       - "backend/**"
       - "tools/backup.sh"
       - "tools/restore.sh"
+      - "tools/verify_backup.sh"
+      - "tools/check_backup_consistency.py"
+      - "tools/backup_drill.py"
       - "docker-compose.yml"
       - ".github/workflows/backup.yml"
   pull_request:
@@ -13,6 +16,9 @@ on:
       - "backend/**"
       - "tools/backup.sh"
       - "tools/restore.sh"
+      - "tools/verify_backup.sh"
+      - "tools/check_backup_consistency.py"
+      - "tools/backup_drill.py"
       - "docker-compose.yml"
       - ".github/workflows/backup.yml"
 
@@ -23,33 +29,78 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Restore drill for AC-27 (runbook: docs/operations/backup.md). tools/backup_drill.py creates an
+# order and ticket with a stored PDF, gallery images, a support attachment and their audit rows,
+# using the demo accounts of the development stack.
 jobs:
   restore-drill:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       REGISTER_URL: http://127.0.0.1:8000/api/v1/auth/register
       PASSWORD: correct horse battery staple
+      # The owner role on the published port, with the password from .env.example.
+      DRILL_DATABASE_URL: postgresql://biletflow_owner:biletflow-owner-local-password@127.0.0.1:5433/biletflow
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.4"
       - run: cp .env.example .env
       - run: docker compose up -d --build
+      - name: Wait for a healthy worker
+        run: |
+          worker="$(docker compose ps -q worker)"
+          timeout 120 sh -c "until [ \"\$(docker inspect -f '{{.State.Health.Status}}' $worker)\" = healthy ]; do sleep 2; done"
+      - run: uv sync --frozen --python 3.12
+        working-directory: backend
       - name: Create data to protect
         run: |
           curl -fsS -o /dev/null -H 'Content-Type: application/json' \
             -d "{\"email\":\"before@example.com\",\"password\":\"$PASSWORD\",\"display_name\":\"Before\"}" "$REGISTER_URL"
           docker compose exec -T api sh -c 'echo restored-ok > /app/var/storage/drill-marker.txt'
-      - run: bash tools/backup.sh
+          cd backend && uv run python ../tools/backup_drill.py prepare
+
+      # Negative control: proves the check below detects the problem #69 describes.
+      - name: An online backup misses an image deleted between dump and archive
+        env:
+          BACKUP_TEST_HOOK: cd backend && uv run python ../tools/backup_drill.py delete-image c
+        run: |
+          bash tools/backup.sh --online backups-online
+          if bash tools/verify_backup.sh backups-online/biletflow-*.tar | tee verify-online.txt; then
+            echo "The online backup should have linked a missing image."
+            exit 1
+          fi
+          grep -q '^MISSING event_image ' verify-online.txt
+
+      - name: Queue work the worker has not done yet
+        run: |
+          docker compose stop worker
+          cd backend && uv run python ../tools/backup_drill.py snapshot
+      - name: A backup refuses an image deletion between dump and archive
+        env:
+          BACKUP_TEST_HOOK: cd backend && uv run python ../tools/backup_drill.py delete-image b
+        run: bash tools/backup.sh
+      - name: The backup's database and files match
+        run: bash tools/verify_backup.sh backups/biletflow-*.tar
+      - name: Change data after the backup
+        run: |
+          timeout 120 sh -c 'until curl -fsS -o /dev/null http://127.0.0.1:8000/health/ready; do sleep 2; done'
+          cd backend && uv run python ../tools/backup_drill.py delete-image b
+
       - name: Destroy the stack
         run: docker compose down --volumes
+      # Also checks that every file the restored database links to is present (exit 3 if not).
       - name: Restore into a fresh stack
         run: bash tools/restore.sh --yes backups/biletflow-*.tar
       - name: Check the data came back
         run: |
+          timeout 120 sh -c 'until curl -fsS -o /dev/null http://127.0.0.1:8000/health/ready; do sleep 2; done'
           count="$(docker compose exec -T db psql -U biletflow_owner -d biletflow -tA \
             -c "SELECT count(*) FROM biletflow.app_user WHERE email = 'before@example.com'")"
           test "$count" = 1
           test "$(docker compose exec -T api cat /app/var/storage/drill-marker.txt)" = restored-ok
+          cd backend && uv run python ../tools/backup_drill.py verify
       - name: Check the app can write to the restored database
         run: |
           curl -fsS -o /dev/null -H 'Content-Type: application/json' \
