@@ -197,7 +197,11 @@ def storage_objects(settings):
 
 
 def referenced_ticket_pdfs(factory, settings):
-    """Every ticket PDF the database points at exists in storage with the recorded checksum."""
+    """Every ticket PDF the database points at exists in storage with the recorded checksum.
+
+    Abandoned write intents (pending, or deleted tombstones) may exist beside it; only one clean
+    row per ticket is allowed, and it must be the referenced one.
+    """
     root = Path(settings.storage_root)
     with factory() as db:
         files = list(
@@ -212,7 +216,8 @@ def referenced_ticket_pdfs(factory, settings):
                 select(Ticket.id, func.count(StoredFile.id))
                 .join(
                     StoredFile,
-                    StoredFile.object_key.like(func.concat("tickets/", Ticket.id, "/%")),
+                    StoredFile.object_key.like(func.concat("tickets/", Ticket.id, "/%"))
+                    & (StoredFile.status == "clean"),
                 )
                 .group_by(Ticket.id)
             ).all()
@@ -222,9 +227,30 @@ def referenced_ticket_pdfs(factory, settings):
         assert status == "clean"
         data = (root / key).read_bytes()  # a missing object is a lost file: FileNotFoundError
         assert hashlib.sha256(data).hexdigest() == sha256
-        assert per_ticket[ticket_id] == 1, "more than one stored_file row for one ticket"
+        assert per_ticket[ticket_id] == 1, "more than one clean stored_file row for one ticket"
         keys.add(key)
     return keys
+
+
+def make_ticket_intents_due(factory):
+    """Stand-in for waiting out the one-hour write grace of abandoned ticket PDF intents."""
+    with factory.begin() as db:
+        return db.execute(
+            update(StoredFile)
+            .where(StoredFile.purpose == "ticket_pdf", StoredFile.status == "pending")
+            .values(cleanup_after=now() - timedelta(seconds=1))
+        ).rowcount
+
+
+def ticket_files_status(factory):
+    with factory() as db:
+        return dict(
+            db.execute(
+                select(StoredFile.status, func.count(StoredFile.id))
+                .where(StoredFile.purpose == "ticket_pdf")
+                .group_by(StoredFile.status)
+            ).all()
+        )
 
 
 def job_for_message(message_id):
@@ -473,21 +499,31 @@ def test_worker_killed_after_fanout_commit_respects_lease_then_dedupes(
 # --------------------------------------------------------------------------------------------
 
 
-def test_worker_killed_after_pdf_put_before_row_loses_no_file(
-    client, setup, account, factory, settings, harness, smtp_sink
+@pytest.mark.parametrize("point", ["pdf_after_reserve", "pdf_after_put"])
+def test_worker_killed_before_pdf_finalize_loses_nothing_and_sweeps_orphan(
+    client, setup, account, factory, settings, harness, smtp_sink, point
 ):
     _, order, headers = ready_order(client, setup, account, factory, settings)
     pay(client, headers, order["payment"]["id"], "succeeded")
 
-    worker = harness.worker(kill={"point": "pdf_after_put"})
+    worker = harness.worker(kill={"point": point})
     assert worker.wait_exit() == KILLED
-    killed_key = worker.marker("pdf_after_put")["key"]
+    marker = worker.marker(point)
+    killed_key = marker["key"]
     job = ticket_job(factory)
     with factory() as db:
         ticket = db.scalar(select(Ticket))
         assert ticket.pdf_file_id is None
-        assert db.scalar(select(func.count(StoredFile.id))) == 0
-    assert killed_key in storage_objects(settings)  # bytes written, row never committed
+        # The write intent was committed before any byte was written.
+        [intent] = db.scalars(select(StoredFile))
+        assert (str(intent.id), intent.object_key, intent.status) == (
+            marker["file_id"],
+            killed_key,
+            "pending",
+        )
+        assert intent.cleanup_after > now()
+    # pdf_after_put: bytes written, intent never finalized; pdf_after_reserve: nothing written.
+    assert (killed_key in storage_objects(settings)) == (point == "pdf_after_put")
     assert job.status == "leased"
     assert smtp_sink.with_id(f"<{job.id}@biletflow.local>") == []
 
@@ -496,15 +532,34 @@ def test_worker_killed_after_pdf_put_before_row_loses_no_file(
 
     referenced = referenced_ticket_pdfs(factory, settings)
     assert len(referenced) == 1 and killed_key not in referenced
-    # The killed run's object is left behind (no ticket-PDF orphan sweeper exists); nothing
-    # else is orphaned and nothing referenced is missing.
-    assert storage_objects(settings) - referenced <= {killed_key}
+    # Within the grace period the killed run's intent (and object, if any) is left alone.
+    assert storage_objects(settings) - referenced == (
+        {killed_key} if point == "pdf_after_put" else set()
+    )
+    assert ticket_files_status(factory) == {"clean": 1, "pending": 1}
     job = ticket_job(factory)
     assert (job.status, job.attempt_count) == ("done", 2)
     sent = smtp_sink.with_id(f"<{job.id}@biletflow.local>")
     assert len(sent) == 1
     stored = (Path(settings.storage_root) / next(iter(referenced))).read_bytes()
     assert pdf_attachments(sent) == [stored]
+
+    # After the grace period a restarted worker's sweep removes the orphan and only the orphan.
+    assert make_ticket_intents_due(factory) == 1
+    worker = harness.worker()
+    try:
+        wait_until(
+            lambda: (
+                ticket_files_status(factory) == {"clean": 1, "deleted": 1}
+                and killed_key not in storage_objects(settings)
+            ),
+            30,
+            message="ticket PDF sweep",
+        )
+    finally:
+        worker.stop()
+    assert storage_objects(settings) == referenced
+    assert referenced_ticket_pdfs(factory, settings) == referenced
     assert_no_business_duplicates(factory)
 
 

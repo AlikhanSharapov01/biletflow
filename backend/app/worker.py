@@ -26,7 +26,7 @@ from .security import challenge_value, now
 from .storage import storage_from_settings
 from .support_models import SupportCase
 from .support_service import case_roles
-from .ticket_file_service import ensure_ticket_pdf
+from .ticket_file_service import ensure_ticket_pdf, reconcile_ticket_pdfs
 
 HOLD_SWEEP_SECONDS = 15
 # Touched on every loop; the Compose health check reads its age.
@@ -274,6 +274,10 @@ def main():
                     reconcile_images(factory, storage)
                 except Exception:
                     pass  # durable image schedules retry after restart or temporary failure
+                try:
+                    reconcile_ticket_pdfs(factory, storage)
+                except Exception:
+                    pass  # abandoned ticket PDF writes stay scheduled in stored_file
             try:
                 busy = (
                     initialize_once(factory)

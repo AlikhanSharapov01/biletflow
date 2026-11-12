@@ -1,5 +1,69 @@
 # Backend validation
 
+## Ticket PDF objects after uncertain commits — 13 November 2026
+
+Issue #68 (BF-10, BF-22, AC-26/27). `ensure_ticket_pdf` now commits a `pending` `stored_file`
+write intent before writing the object. After any error it re-reads the intent under a row lock
+before deleting anything. The worker's `reconcile_ticket_pdfs` pass removes unreferenced
+abandoned intents after a one-hour grace, with no storage I/O while row locks are held.
+Migration `0017_ticket_pdf_cleanup` adds only the partial index
+`ix_ticket_pdf_cleanup` (contract: [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)).
+
+New `tests/test_ticket_file_durability.py` (12 tests) wraps the real session factory to inject
+faults into a chosen transaction:
+
+| Scenario | What it proves |
+|---|---|
+| Finalize flushes, then rolls back before COMMIT | The intent is fenced `deleted`, the object is removed, `ticket.pdf_file_id` stays empty; a retry stores one canonical document under a new key |
+| Finalize COMMITs, then raises (lost acknowledgement) | The object is kept and served (the email gets its attachment); one clean referenced row with a matching checksum; later retries and the sweep change nothing |
+| Commit-then-raise, and the follow-up check cannot reach the database | Nothing is deleted; the committed PDF stays readable |
+| Rollback, and the follow-up check cannot reach the database | Object and `pending` intent stay through the grace period; the sweep then deletes the object and tombstones the row |
+| Rollback, cleanup record fails after the delete | The five-minute retry schedule survives; the next pass re-deletes idempotently |
+| Two concurrent writers, both past their object write before either finalizes | Both return identical bytes; one clean referenced row, one `deleted` tombstone, one object on disk |
+| Process interruption after the intent (with and without the object) | The retry stores the canonical PDF; the sweep leaves the abandoned intents alone within the grace period, then removes only their objects |
+| Referenced row forced to look like a due `pending` intent; clean unreferenced row with a due schedule | The sweep selects neither; the bytes are unchanged |
+| A writer stalled past the grace period, so the sweep fences its intent before its object write | The writer cannot finalize; it serves the rendered bytes, removes its own late object, and the next call stores the canonical copy |
+| Delete fails, then succeeds; then a late write appears | Retry after five minutes; one final check 24 hours after the intent removes the late object; the schedule then clears |
+| Batch bound; worker loop wiring | At most `batch_size` rows per pass; `app.worker.main` calls `reconcile_ticket_pdfs(factory, storage)` |
+
+Crash harness (`tests/crash`, opt-in): the `pdf_after_put` scenario is now parametrized with a
+new `pdf_after_reserve` kill point. A real worker killed after the intent commits (before or
+after the object write) leaves exactly one `pending` intent. A restarted worker delivers one
+email with the canonical PDF. After the grace period is simulated by moving `cleanup_after` into
+the past, a restarted real worker's sweep removes the orphan object (if any) and leaves the
+referenced PDF unchanged. `referenced_ticket_pdfs` now allows `deleted`/`pending` rows beside the
+single clean referenced row; the one-clean-row-per-ticket assertion stays.
+
+Updated existing tests (new contract, no assertion removed): a failed object write now leaves a
+`deleted` tombstone and no object (instead of no row), and the race loser's intent stays as a
+`deleted` tombstone while the clean row is referenced.
+
+Evidence observed on 13 November 2026, base `origin/main` `2488857`, macOS 15.7.4, Python 3.12.15,
+local PostgreSQL 16.15, disposable `biletflow_pdfobj_test` (dropped afterwards):
+
+- Focused: `uv run pytest -q tests/test_ticket_file_durability.py tests/test_ticket_files.py
+  tests/test_ticket_documents.py tests/test_worker.py tests/test_event_image_recovery.py
+  tests/test_event_image_finalization.py`: **49 passed, 1 failed**. The failure is the
+  pre-existing `test_pdf_keeps_unicode_attendee_names` (no DejaVu font on this machine; #82).
+- `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`: **10 passed** in 39.84 s (9 earlier
+  scenarios plus the new `pdf_after_reserve` case). Without the variable: 10 skipped.
+- Full suite `uv run pytest -q`: **564 collected: 552 passed, 1 failed, 11 skipped** in
+  265.99 s. The failure is the same font case. The skips are the 10 opt-in crash tests plus the
+  opt-in load harness (`RUN_LOAD_TESTS`). The suite is not fully green.
+- Migration: `alembic downgrade 0016_image_cleanup` then `upgrade head`. The index is absent after
+  the downgrade and valid (`indisvalid`) after the upgrade; still 66 `biletflow` tables.
+- Sensitivity, using temporary edits that were reverted and never committed:
+  - deleting after an error without checking the commit outcome fails the commit-then-raise test;
+  - dropping the reference check from the sweep fails the referenced-row test;
+  - letting finalize ignore the sweep's fence fails the stalled-writer test.
+- `uv run ruff check app tests migrations` passed; `ruff format --check` passed.
+
+Limitations: local filesystem storage only; no remote object store with in-flight writes. Lost
+acknowledgements are injected at the session-factory boundary, not by a real network partition.
+The grace period is simulated in the database. Cleanup needs the worker plus database and storage
+availability. A writer stalled for more than 24 hours that then writes and crashes can still leave
+one object. Tombstone rows are kept as history.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
@@ -18,7 +82,7 @@ PostgreSQL, the private storage directory and a local SMTP sink written in the t
 | Worker killed inside `refund_dispatch` after flushing, before COMMIT (`job_before_commit`) | PostgreSQL discards the half-written refund attempt; the restarted worker creates exactly one |
 | API killed after a refund success commits, before the response (`api_after_apply_commit`) | Replay, a late success and a stale `failed` keep one refund, one refund attempt, one `payments.refund_succeeded` audit row, refunded tickets, one `refund_completed` notification and one email; finance rows unchanged |
 | Worker killed after the notification fan-out commits, before the job is acknowledged (`fanout_after_commit`) | The restarted worker finishes all other work but does **not** take the unexpired lease; after lease expiry the retry deduplicates to one notification and one email |
-| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object is left orphaned (see findings) |
+| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object was left orphaned (see findings; fixed by #68, see the 13 November 2026 entry) |
 | Worker killed after the PDF row commits, before SMTP (`pdf_after_commit`) | Retry reuses the same row, key, bytes and inode (no re-render); one email with that attachment |
 | Worker killed after SMTP accepted the message, before acknowledgement (`smtp_after_send`, outbox ticket email and notification email) | **The same Message-ID is delivered twice** (at-least-once email). Business results stay single: one ticket, one stored PDF, one notification; the job/delivery ends `done`/`sent` with `attempt_count` 2 |
 | Worker A frozen (`SIGSTOP`) before SMTP; its lease expires and worker B completes the job; A resumes (`smtp_before_send` + stop) | A's stale send is a second delivery of the same Message-ID, but its acknowledgement is fenced: B's `done` state, `completed_at` and attempt count are unchanged |
@@ -67,7 +131,9 @@ Findings, owner `@backend` (not fixed here; no test is weakened):
 - A crash between `storage.put` and the `stored_file` commit in `ensure_ticket_pdf` leaves an
   unreferenced object under `tickets/<ticket_id>/` permanently; nothing is lost, but no sweeper
   removes it (event images have `reconcile_images`; ticket PDFs do not). A fix would record a
-  pending row before the write or sweep row-less ticket keys.
+  pending row before the write or sweep row-less ticket keys. **Resolved 13 November 2026
+  (#68):** a pending write intent is now committed first and `reconcile_ticket_pdfs` removes
+  abandoned objects after the grace period; see the entry above.
 - Email is at-least-once by design: a crash or stall after SMTP acceptance resends the same
   Message-ID. Clients may or may not collapse it; Mailpit and this sink show two messages.
 - `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
