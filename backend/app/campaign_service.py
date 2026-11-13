@@ -462,8 +462,17 @@ def active_reservation(db, hold_id):
     )
 
 
-def revalidate(db, reservation):
-    """The saved quote is honoured only while its campaign still says exactly the same thing."""
+def quote_still_valid(db, reservation):
+    """The saved quote is honoured only while its campaign still says exactly the same thing.
+
+    That means: the reservation is still active, campaign and code are enabled, the campaign's
+    current validity window contains this moment, and the discount kind/value and eligible ticket
+    types equal the snapshot taken when the quote was made. Renaming the code is not a change.
+    The redemption limit needs no check: the active reservation already counts against it.
+    Locks the campaign row; the caller holds the event lock.
+    """
+    if reservation is None:
+        return False
     campaign = locked_campaign(db, reservation.campaign_id)
     promo = db.scalar(
         select(PromoCode)
@@ -471,22 +480,18 @@ def revalidate(db, reservation):
         .execution_options(populate_existing=True)
     )
     current = now()
-    if (
-        not campaign.is_enabled
-        or not promo.is_enabled
-        or not campaign.starts_at <= current < campaign.ends_at
-        or snapshot_of(db, campaign, promo)
-        != {**reservation.discount_snapshot, "code": promo.code_normalized}
-    ):
+    return (
+        campaign.is_enabled
+        and promo.is_enabled
+        and campaign.starts_at <= current < campaign.ends_at
+        and snapshot_of(db, campaign, promo)
+        == {**reservation.discount_snapshot, "code": promo.code_normalized}
+    )
+
+
+def revalidate(db, reservation):
+    if not quote_still_valid(db, reservation):
         fail("promo_requote_required", 409)
-
-
-def still_enabled(db, reservation):
-    """Fulfilment check: a captured charge is refunded if its campaign was switched off."""
-    if reservation is None:
-        return False
-    campaign = locked_campaign(db, reservation.campaign_id)
-    return campaign.is_enabled and db.get(PromoCode, reservation.promo_code_id).is_enabled
 
 
 def redeem(db, order, reservation):
