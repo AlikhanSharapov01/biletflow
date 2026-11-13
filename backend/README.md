@@ -378,7 +378,7 @@ Open backend work, from the audit in #85, in dependency order (see the
 
 1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
    database and file backups (#69, with operations).
-2. Campaign revalidation at paid fulfilment (#66) and report reconciliation (#67); platform
+2. Campaign report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
 3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
