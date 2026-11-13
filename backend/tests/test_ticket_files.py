@@ -277,7 +277,9 @@ def test_storage_failure_still_sends_the_email_without_attachment(
         job = db.scalar(select(OutboxJob).where(OutboxJob.kind == "ticket_delivery_email"))
         assert job.status == "done" and job.last_error is None
         assert db.get(Ticket, ticket["id"]).pdf_file_id is None
-    assert stored_rows(factory) == []
+    # The write intent recorded before the failed put is fenced as a tombstone, never clean.
+    assert [row.status for row in stored_rows(factory)] == ["deleted"]
+    assert list(storage.root.rglob("*.pdf")) == []
 
 
 def test_missing_font_sends_the_email_without_attachment_and_stores_nothing(
@@ -331,6 +333,11 @@ def test_race_loser_deletes_its_orphan_and_uses_the_winner(issued, factory, sett
             storage.delete(key)
 
     data, _ = ensure_ticket_pdf(factory, settings, Racing(), ticket["id"])
-    [row] = stored_rows(factory)
+    rows = stored_rows(factory)
+    [row] = [r for r in rows if r.status == "clean"]
+    # The loser's write intent stays as a tombstone; its object is gone.
+    assert sorted(r.status for r in rows) == ["clean", "deleted"]
+    with factory() as db:
+        assert db.get(Ticket, ticket["id"]).pdf_file_id == row.id
     assert hashlib.sha256(data).hexdigest() == row.sha256
     assert [p.name for p in storage.root.rglob("*.pdf")] == [f"{row.id}.pdf"]

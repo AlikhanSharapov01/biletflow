@@ -93,7 +93,7 @@ PostgreSQL, the private storage directory and a local SMTP sink written in the t
 | Worker killed inside `refund_dispatch` after flushing, before COMMIT (`job_before_commit`) | PostgreSQL discards the half-written refund attempt; the restarted worker creates exactly one |
 | API killed after a refund success commits, before the response (`api_after_apply_commit`) | Replay, a late success and a stale `failed` keep one refund, one refund attempt, one `payments.refund_succeeded` audit row, refunded tickets, one `refund_completed` notification and one email; finance rows unchanged |
 | Worker killed after the notification fan-out commits, before the job is acknowledged (`fanout_after_commit`) | The restarted worker finishes all other work but does **not** take the unexpired lease; after lease expiry the retry deduplicates to one notification and one email |
-| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object is left orphaned (see findings) |
+| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object was left orphaned (see findings; fixed by #68, see the 13 November 2026 entry) |
 | Worker killed after the PDF row commits, before SMTP (`pdf_after_commit`) | Retry reuses the same row, key, bytes and inode (no re-render); one email with that attachment |
 | Worker killed after SMTP accepted the message, before acknowledgement (`smtp_after_send`, outbox ticket email and notification email) | **The same Message-ID is delivered twice** (at-least-once email). Business results stay single: one ticket, one stored PDF, one notification; the job/delivery ends `done`/`sent` with `attempt_count` 2 |
 | Worker A frozen (`SIGSTOP`) before SMTP; its lease expires and worker B completes the job; A resumes (`smtp_before_send` + stop) | A's stale send is a second delivery of the same Message-ID, but its acknowledgement is fenced: B's `done` state, `completed_at` and attempt count are unchanged |
@@ -143,7 +143,9 @@ Findings, owner `@backend` (not fixed here; no test is weakened):
 - A crash between `storage.put` and the `stored_file` commit in `ensure_ticket_pdf` leaves an
   unreferenced object under `tickets/<ticket_id>/` permanently; nothing is lost, but no sweeper
   removes it (event images have `reconcile_images`; ticket PDFs do not). A fix would record a
-  pending row before the write or sweep row-less ticket keys.
+  pending row before the write or sweep row-less ticket keys. **Resolved 13 November 2026
+  (#68):** a pending write intent is now committed first and `reconcile_ticket_pdfs` removes
+  abandoned objects after the grace period; see the entry above.
 - Email is at-least-once by design: a crash or stall after SMTP acceptance resends the same
   Message-ID. Clients may or may not collapse it; Mailpit and this sink show two messages.
 - `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With

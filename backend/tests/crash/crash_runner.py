@@ -70,13 +70,21 @@ def install_kill_point():
         notification_service.expand = expand
         event.listen(Session, "after_commit", after_commit)
 
-    elif point in ("pdf_after_put", "pdf_after_commit"):
-        # pdf_after_put: the object is in storage but its stored_file row is not committed.
-        # pdf_after_commit: the stored_file row and ticket.pdf_file_id are committed, the email
-        # has not been sent and the outbox job is still leased.
+    elif point in ("pdf_after_reserve", "pdf_after_put", "pdf_after_commit"):
+        # pdf_after_reserve: the pending stored_file write intent is committed, no object yet.
+        # pdf_after_put: the object is in storage; its write intent is committed but still
+        # pending (not finalized, not referenced by the ticket).
+        # pdf_after_commit: the stored_file row is clean and ticket.pdf_file_id is committed, the
+        # email has not been sent and the outbox job is still leased.
         from app import ticket_file_service
 
+        real_reserve = ticket_file_service.reserve
         real_write_row = ticket_file_service.write_row
+
+        def reserve(factory, ticket_id, file_id, key, data):
+            real_reserve(factory, ticket_id, file_id, key, data)
+            if point == "pdf_after_reserve" and once():
+                reached({"key": key, "ticket_id": str(ticket_id), "file_id": str(file_id)})
 
         def write_row(factory, storage, ticket_id, file_id, key, data, previous_id=None):
             if point == "pdf_after_put" and once():
@@ -86,6 +94,7 @@ def install_kill_point():
                 reached({"key": key, "ticket_id": str(ticket_id), "file_id": str(file_id)})
             return result
 
+        ticket_file_service.reserve = reserve
         ticket_file_service.write_row = write_row
 
     elif point in ("smtp_after_send", "smtp_before_send"):

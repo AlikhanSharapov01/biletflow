@@ -169,18 +169,18 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 uses inline SQL).
-  There are **16 migrations and 66 tables** in the `biletflow` schema:
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 and 0017 use inline SQL).
+  There are **17 migrations and 66 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
-  `0016_image_cleanup`.
-  This revision/count was verified on the disposable feature test database on 9 November 2026;
+  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only).
+  This revision/count was verified on a disposable test database on 13 November 2026;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
-- Historical migrations intentionally reject downgrade. New `0014`–`0016` provide scoped
+- Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
   downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
   new history/links. Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
@@ -199,12 +199,15 @@ retries with back-off and marks a job `dead` after 5 attempts. It handles:
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds and reconciling orphan event images every 15 seconds.
+- releasing expired holds and reconciling orphan event images and abandoned ticket PDF writes
+  every 15 seconds.
 
 Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
 five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
 writes; eventual deletion requires the worker and storage/database availability. See
-[the gallery contract](CATALOG_API.md). Email templates support kk/ru/en with English fallback;
+[the gallery contract](CATALOG_API.md). Ticket PDF recovery uses the same limits for unreferenced
+pending write intents, then one final late-write check 24 hours after the intent; a clean or
+referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)). Email templates support kk/ru/en with English fallback;
 user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
