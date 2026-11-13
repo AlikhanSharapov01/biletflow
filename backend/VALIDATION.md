@@ -1,5 +1,41 @@
 # Backend validation
 
+## Campaign revalidation at paid fulfilment — 13 November 2026
+
+Issue #66 (BF-09, AC-09/10). `tests/test_campaign_fulfillment.py` quotes a 10% discounted paid
+order (one reserved redemption out of `max_redemptions = 1`), changes the campaign while the
+payment is pending, then reports a successful charge for exactly the quoted amount through the
+simulator.
+
+| Change between quote and payment success | Result checked |
+|---|---|
+| None | Order confirmed at the quoted price, tickets issued, one redemption, campaign report matches |
+| Campaign name, code, later end date (window still contains now), higher limit | Same as unchanged: not material |
+| Time passed `ends_at`; end date edited into the past; start date moved into the future; campaign disabled | No ticket, order `pending` with unchanged quote and intent amount, reservation `released`, no redemption, one `blocked_fulfillment` refund of the captured amount, retry `409 promo_requote_required` |
+| Percentage raised or lowered; switched to a fixed amount; eligible types narrowed to another type or widened to all | Same as above: never issued at the old price or re-priced |
+| Expired campaign, finance | While the refund is pending: `collected` = charge, `pending_refunds` = charge, no gross/discount/fulfilled amounts, estimated payout unchanged, campaign report shows no redemption. After the refund succeeds: `refunds` = charge, fees 0, balance back to its pre-order value |
+| Lowered discount, then a new hold with the same code | Allowance is available again and the new hold shows the new, higher price before any payment |
+
+Commands (from `backend/`, PostgreSQL 16, disposable database):
+
+```bash
+createdb -h 127.0.0.1 biletflow_campaignfx_test
+export TEST_DATABASE_URL=postgresql+psycopg://$USER@127.0.0.1:5432/biletflow_campaignfx_test
+uv run pytest -q tests/test_campaign_fulfillment.py
+uv run pytest -q tests/test_campaign_fulfillment.py tests/test_campaigns.py tests/test_paid_orders.py tests/test_promo_checkout.py
+uv run pytest -q
+uv run ruff check app tests migrations && uv run ruff format --check app tests migrations
+```
+
+Results: new file **13 passed**; with the related campaign, promo-checkout and paid-order
+files **62 passed**. Against the previous `still_enabled` check, 10 of the 13 new tests fail
+(every case except disabled, unchanged and non-material edits), which is the gap this issue
+describes. Full suite: **553 passed, 10 skipped, 1 failed** in 321 s; the failure is the
+known, unrelated `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`
+(PDF font on this machine, tracked in #82). The skips are the opt-in crash and load tests. Ruff lint and format checks passed. No migration: the reservation's
+saved `discount_snapshot` already holds the discount and eligibility to compare, and the
+validity window is read from the campaign at fulfilment.
+
 ## Worker crash recovery harness — 12 November 2026
 
 Issue #83 (AC-26; BF-08, BF-15, BF-22). Earlier entries below replay interruption *states*;
