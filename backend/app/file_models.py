@@ -51,6 +51,16 @@ class StoredFile(Row, Base):
             "id",
             postgresql_where=text("purpose = 'event_image' AND status IN ('pending','deleted')"),
         ),
+        # 0017: ticket PDF write intents and tombstones awaiting the worker's reconcile pass.
+        Index(
+            "ix_ticket_pdf_cleanup",
+            "cleanup_after",
+            "id",
+            postgresql_where=text(
+                "purpose = 'ticket_pdf' AND status IN ('pending','deleted') "
+                "AND cleanup_after IS NOT NULL"
+            ),
+        ),
     )
     uploaded_by_user_id: Mapped[UUID | None] = mapped_column(PGUUID)
     object_key: Mapped[str] = mapped_column(Text)

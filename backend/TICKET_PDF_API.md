@@ -33,8 +33,31 @@ Anyone else (other attendees, the organizer, an unclaimed recipient) gets
   (`token_version`, `qr_token_hash` unchanged), and every copy encodes the same QR. A PDF proves
   possession only; admission still checks current server state and the attendee's sign-in
   (see [ADMISSION_API.md](ADMISSION_API.md)).
-* Fonts: DejaVu Sans (Kazakh/Russian glyphs) when installed, otherwise built-in Helvetica, where
-  characters outside Latin-1 print as `?`. The Dockerfile installs `fonts-dejavu-core`.
+* Text uses DejaVu Sans, so Kazakh and Russian event titles, venues, ticket types and attendee
+  names are embedded as real Unicode text (see [Fonts](#fonts)).
+
+### Fonts
+
+* DejaVu Sans 2.37 regular and bold are bundled in `app/fonts/` (`DejaVuSans.ttf`,
+  `DejaVuSans-Bold.ttf`) with the upstream `LICENSE`. They come unchanged from the official
+  release archive `dejavu-fonts-ttf-2.37.zip` at
+  <https://github.com/dejavu-fonts/dejavu-fonts/releases/tag/version_2_37>. The Bitstream Vera /
+  Arev license allows redistribution with the software if the license accompanies it and the
+  fonts are not renamed or sold on their own; DejaVu's changes are public domain.
+* Both faces cover the Russian alphabet and the Kazakh letters ә ғ қ ң ө ұ ү һ і in both cases.
+  The font is subset into each PDF, so the text extracts and prints correctly.
+* No setup is needed on Windows, macOS, Linux or Docker: the bundled directory is searched first,
+  then the usual Linux DejaVu directories (`/usr/share/fonts/truetype/dejavu`,
+  `/usr/share/fonts/dejavu`, `/usr/share/fonts/TTF`). The backend runs from source (`uv sync`
+  installs dependencies only; there is no wheel), and the Docker image copies `app/` including
+  `app/fonts/`.
+* **Missing font:** if no DejaVu Sans pair can be loaded, nothing is rendered. There is no Latin-1
+  fallback, so a Cyrillic name can never be printed as `?`. The server logs
+  `ticket_pdf_font_unavailable` with the searched directories, and:
+  * `GET /tickets/{ticket_id}/pdf` returns `503 ticket_pdf_unavailable` when it would have to
+    render (a stored PDF of a `valid` ticket is still served). Retrying is safe once the font is
+    restored; the failure is not cached.
+  * The worker sends the ticket email without the attachment, as for any rendering failure.
 
 ### Refunded, cancelled and refund-pending tickets
 
@@ -97,11 +120,51 @@ Web client handoff: keep using `GET /tickets/{ticket_id}/pdf` for the download b
 changes in the request or response. Do not expect the attachment on every email (it is
 best-effort), and do not link to storage paths.
 
+### Stored PDF lifecycle and recovery
+
+Server-internal (#68; BF-10, BF-22, AC-26/27); no endpoint, request or response changes. A
+storage write cannot join a PostgreSQL transaction, so a new object is written in three steps,
+and no storage I/O ever happens while a row lock is held:
+
+1. **Write intent.** A `stored_file` row (purpose `ticket_pdf`, status `pending`, its final key
+   and checksum, `cleanup_after` = now + 1 hour) is committed before any byte is written.
+2. **Object.** The PDF is written under that key, outside any transaction.
+3. **Finalize.** Under a lock on the ticket and the intent row, the intent becomes `clean` and
+   `ticket.pdf_file_id` points at it, in one transaction. If another writer finished first, this
+   intent is marked `deleted` instead and the winner's object is served. An intent the sweep has
+   already fenced (no longer `pending`) is never finalized: the rendered bytes are used for this
+   one delivery, the writer removes its own object, and the next request stores a fresh copy.
+
+If step 2 or 3 raises, the commit outcome is unknown (a lost COMMIT acknowledgement looks like any
+other error). The writer re-reads the intent in a new transaction with a row lock, which waits for
+an in-flight transaction on that row to commit or roll back:
+
+| Re-read outcome | Action |
+|---|---|
+| Intent is `clean` and referenced (the commit landed) | Keep the object; the email gets the attachment |
+| Intent is unreferenced `pending`/`deleted` (rolled back or never finalized) | Commit it as `deleted`, then delete the object |
+| Re-read fails (database unreachable) | Delete nothing; the worker sweep handles it after the grace period |
+
+The worker runs `reconcile_ticket_pdfs` with the hold sweep (every 15 seconds). It claims at most
+50 unreferenced `pending`/`deleted` ticket-PDF rows whose `cleanup_after` has passed (`FOR UPDATE
+SKIP LOCKED`), marks them `deleted` with a five-minute retry time, commits, re-checks that each row
+is still deleted and unreferenced, and only then deletes the objects. After a successful delete
+one last idempotent delete is scheduled 24 hours after the intent was created, to catch a
+stalled writer that resumes late; after that the tombstone stays with no schedule. A failed delete
+keeps the five-minute retry. A row referenced by a ticket, gallery image or support attachment, or
+any `clean` row, is never selected. Tombstone rows are kept as history; the service never deletes
+`stored_file` rows. Migration `0017_ticket_pdf_cleanup` only adds the partial index
+`ix_ticket_pdf_cleanup` for this pass; its downgrade drops the index and keeps every row.
+
+Effect: a process stop at any point leaves either a committed referenced PDF or a scheduled
+intent, never an untracked object; retries end with exactly one `clean`, referenced, readable
+document per ticket (abandoned intents remain as `deleted` rows).
+
 ## Not covered
 
 - There is no separate invitation email for recipients without an account. The ticket delivery
   email goes to the recipient's address in any case and asks them to sign in with it. The in-app
   `ticket_delivered` notice exists ([NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md)).
 - A stored PDF object can be lost when its database commit outcome is uncertain (#68).
-- Kazakh and Russian text in the PDF needs the DejaVu font, present in the Docker image but not
-  on every native install (#82).
+- Characters outside DejaVu Sans (for example emoji or CJK) still print as the font's missing-glyph
+  box; Kazakh, Russian and Latin text is covered.

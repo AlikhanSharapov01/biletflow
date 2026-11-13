@@ -50,6 +50,80 @@ That workflow found that the runtime role `biletflow_app` could not delete `even
 `tests/test_bootstrap_grants.py` runs bootstrap twice on the test database and checks the role's
 privileges: it failed before the grant (`event_media` DELETE was false) and passes with it. It
 creates the cluster role `biletflow_app` if absent, as the Compose `migrate` service does.
+## Bundled Unicode font for ticket PDFs — 13 November 2026
+
+Issue #82 (BF-10; Kazakh/Russian locale baseline). DejaVu Sans 2.37 regular and bold are now
+bundled in `app/fonts/` with the upstream license and searched before the Linux system
+directories; with no usable font the PDF is refused (`503 ticket_pdf_unavailable`, logged
+`ticket_pdf_font_unavailable`) instead of printing `?` for Cyrillic text. This resolves the known
+failure recorded in the earlier entries below.
+
+Environment: macOS 15.7.4 with **no DejaVu font installed** (no `/usr/share/fonts`, none in
+`~/Library/Fonts` or `/Library/Fonts`), Python 3.12.15, local PostgreSQL 16.15, disposable
+`biletflow_pdffont_test`.
+
+| Check | Result |
+|---|---|
+| `uv run pytest -q tests/test_ticket_documents.py tests/test_ticket_files.py` | **25 passed** in 16.60 s, including `test_pdf_keeps_unicode_attendee_names` (previously failing on Windows and this machine) |
+| Full suite `uv run pytest -q` | **555 collected: 545 passed, 0 failed, 10 skipped** in 309.79 s. Skips are the opt-in process-kill (9, `RUN_CRASH_TESTS`) and load (1, `RUN_LOAD_TESTS`) harnesses. One existing Starlette/httpx TestClient deprecation warning |
+| `uv run ruff check app tests migrations`; `uv run ruff format --check app tests migrations` | Passed; 140 files already formatted |
+| Glyph coverage | Both bundled faces map ә ғ қ ң ө ұ ү һ і in both cases and the full Russian alphabet (`reportlab` `charToGlyph`, also asserted in a test) |
+| Visual check | A ticket with a Kazakh title, venue, seat, Russian ticket type and Kazakh attendee name, rendered to PNG with macOS `sips`, shows every letter correctly |
+
+New regression cases:
+
+- `test_pdf_keeps_kazakh_and_russian_event_and_attendee_text`: all nine Kazakh-specific letters in
+  the event title (lowercase) and attendee name (uppercase), plus a Russian ticket type, are
+  extracted unchanged; the text has no `?`; the page uses only embedded DejaVu fonts (no
+  Helvetica resource).
+- `test_pdf_refused_with_stable_code_when_no_unicode_font`: with the font lookup pointed at an
+  empty directory, `GET /tickets/{id}/pdf` returns `503 {"detail": {"code":
+  "ticket_pdf_unavailable"}}` with no PDF body and logs `ticket_pdf_font_unavailable`; after the
+  font is restored the same request returns the PDF (the failure is not cached).
+- `test_bundled_font_is_used_without_system_fonts`: the bundled directory alone loads, ships its
+  `LICENSE`, and covers the Kazakh letters.
+- `test_missing_font_sends_the_email_without_attachment_and_stores_nothing`
+  (`test_ticket_files.py`): the worker still delivers the ticket email, without an attachment, and
+  writes no `stored_file` row.
+
+Not verified here: a Windows run (the code path is OS-independent and no longer reads a system
+font, but no Windows machine was used) and a Docker image build (the Docker daemon was not
+running). The Dockerfile still installs `fonts-dejavu-core`, now only a fallback.
+## Campaign revalidation at paid fulfilment — 13 November 2026
+
+Issue #66 (BF-09, AC-09/10). `tests/test_campaign_fulfillment.py` quotes a 10% discounted paid
+order (one reserved redemption out of `max_redemptions = 1`), changes the campaign while the
+payment is pending, then reports a successful charge for exactly the quoted amount through the
+simulator.
+
+| Change between quote and payment success | Result checked |
+|---|---|
+| None | Order confirmed at the quoted price, tickets issued, one redemption, campaign report matches |
+| Campaign name, code, later end date (window still contains now), higher limit | Same as unchanged: not material |
+| Time passed `ends_at`; end date edited into the past; start date moved into the future; campaign disabled | No ticket, order `pending` with unchanged quote and intent amount, reservation `released`, no redemption, one `blocked_fulfillment` refund of the captured amount, retry `409 promo_requote_required` |
+| Percentage raised or lowered; switched to a fixed amount; eligible types narrowed to another type or widened to all | Same as above: never issued at the old price or re-priced |
+| Expired campaign, finance | While the refund is pending: `collected` = charge, `pending_refunds` = charge, no gross/discount/fulfilled amounts, estimated payout unchanged, campaign report shows no redemption. After the refund succeeds: `refunds` = charge, fees 0, balance back to its pre-order value |
+| Lowered discount, then a new hold with the same code | Allowance is available again and the new hold shows the new, higher price before any payment |
+
+Commands (from `backend/`, PostgreSQL 16, disposable database):
+
+```bash
+createdb -h 127.0.0.1 biletflow_campaignfx_test
+export TEST_DATABASE_URL=postgresql+psycopg://$USER@127.0.0.1:5432/biletflow_campaignfx_test
+uv run pytest -q tests/test_campaign_fulfillment.py
+uv run pytest -q tests/test_campaign_fulfillment.py tests/test_campaigns.py tests/test_paid_orders.py tests/test_promo_checkout.py
+uv run pytest -q
+uv run ruff check app tests migrations && uv run ruff format --check app tests migrations
+```
+
+Results: new file **13 passed**; with the related campaign, promo-checkout and paid-order
+files **62 passed**. Against the previous `still_enabled` check, 10 of the 13 new tests fail
+(every case except disabled, unchanged and non-material edits), which is the gap this issue
+describes. Full suite: **553 passed, 10 skipped, 1 failed** in 321 s; the failure is the
+known, unrelated `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`
+(PDF font on this machine, tracked in #82). The skips are the opt-in crash and load tests. Ruff lint and format checks passed. No migration: the reservation's
+saved `discount_snapshot` already holds the discount and eligibility to compare, and the
+validity window is read from the campaign at fulfilment.
 
 ## Worker crash recovery harness — 12 November 2026
 
@@ -69,7 +143,7 @@ PostgreSQL, the private storage directory and a local SMTP sink written in the t
 | Worker killed inside `refund_dispatch` after flushing, before COMMIT (`job_before_commit`) | PostgreSQL discards the half-written refund attempt; the restarted worker creates exactly one |
 | API killed after a refund success commits, before the response (`api_after_apply_commit`) | Replay, a late success and a stale `failed` keep one refund, one refund attempt, one `payments.refund_succeeded` audit row, refunded tickets, one `refund_completed` notification and one email; finance rows unchanged |
 | Worker killed after the notification fan-out commits, before the job is acknowledged (`fanout_after_commit`) | The restarted worker finishes all other work but does **not** take the unexpired lease; after lease expiry the retry deduplicates to one notification and one email |
-| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object is left orphaned (see findings) |
+| Worker killed after the ticket PDF is written to storage, before its `stored_file` row commits (`pdf_after_put`) | Retry stores and references a new object whose bytes match the checksum and the email attachment; no referenced file is missing. The killed run's object was left orphaned (see findings; fixed by #68, see the 13 November 2026 entry) |
 | Worker killed after the PDF row commits, before SMTP (`pdf_after_commit`) | Retry reuses the same row, key, bytes and inode (no re-render); one email with that attachment |
 | Worker killed after SMTP accepted the message, before acknowledgement (`smtp_after_send`, outbox ticket email and notification email) | **The same Message-ID is delivered twice** (at-least-once email). Business results stay single: one ticket, one stored PDF, one notification; the job/delivery ends `done`/`sent` with `attempt_count` 2 |
 | Worker A frozen (`SIGSTOP`) before SMTP; its lease expires and worker B completes the job; A resumes (`smtp_before_send` + stop) | A's stale send is a second delivery of the same Message-ID, but its acknowledgement is fenced: B's `done` state, `completed_at` and attempt count are unchanged |
@@ -98,7 +172,8 @@ local PostgreSQL 16.15, disposable `biletflow_crash_test`:
 - Full suite with the harness enabled (`RUN_CRASH_TESTS=1 uv run pytest -q`): **540 collected,
   539 passed, 1 failed** in 276.04 s. The failure is the existing
   `test_pdf_keeps_unicode_attendee_names` case: no DejaVu font is installed on this macOS machine
-  (the same font gap recorded for Windows below). The suite is not fully green.
+  (the same font gap recorded for Windows below). The suite is not fully green. Resolved on
+  13 November 2026 (#82, see the top entry).
 - Sensitivity check on a scratch copy of the backend (not committed): removing the worker's
   acknowledgement fence failed the stalled-worker test; ignoring an already stored ticket PDF
   failed the `pdf_after_commit` test. The unmodified tree passes both.
@@ -118,13 +193,17 @@ Findings, owner `@backend` (not fixed here; no test is weakened):
 - A crash between `storage.put` and the `stored_file` commit in `ensure_ticket_pdf` leaves an
   unreferenced object under `tickets/<ticket_id>/` permanently; nothing is lost, but no sweeper
   removes it (event images have `reconcile_images`; ticket PDFs do not). A fix would record a
-  pending row before the write or sweep row-less ticket keys.
+  pending row before the write or sweep row-less ticket keys. **Resolved 13 November 2026
+  (#68):** a pending write intent is now committed first and `reconcile_ticket_pdfs` removes
+  abandoned objects after the grace period; see the entry above.
 - Email is at-least-once by design: a crash or stall after SMTP acceptance resends the same
   Message-ID. Clients may or may not collapse it; Mailpit and this sink show two messages.
 - `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
   the in-transaction simulator this is safe (proved above), but a real provider call made before
   that commit would retry with a new key after a crash, so the provider could not deduplicate it.
-  A real adapter needs the key persisted before the external call.
+  A real adapter needs the key persisted before the external call. *Resolved 13 November 2026
+  (#65): the key is derived from the refund id and attempt number, so a retried dispatch sends
+  the same key.*
 - An in-flight email job or delivery is retried only after its 120-second lease, so recovery of
   that one message is delayed by up to two minutes after a crash.
 
@@ -167,7 +246,7 @@ product acceptance and client integration remain incomplete.
 | Check | Result / evidence |
 |---|---|
 | Full PostgreSQL suite | **523 collected: 522 passed, 1 failed, 0 errors, 0 skipped**, 1118.02 seconds (18m38s), at product HEAD `9d26749`. The only failure is the pre-existing Windows Unicode PDF font case; no new regression failures observed |
-| Known failure / warning | `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`: required DejaVu font missing on Windows, reproduced in the pre-change baseline. One existing Starlette/httpx TestClient deprecation warning. The suite is **not fully green** |
+| Known failure / warning | `tests/test_ticket_documents.py::test_pdf_keeps_unicode_attendee_names`: required DejaVu font missing on Windows, reproduced in the pre-change baseline (resolved 13 November 2026 by the bundled font, #82). One existing Starlette/httpx TestClient deprecation warning. The suite is **not fully green** |
 | Statement coverage | **7413/7711 statements (96.1354%; displayed 96%)**, 298 missing; supporting evidence, not full-product acceptance |
 | Schema inventory | Dedicated disposable `biletflow_daulet_issues_test` inspected at `0016_image_cleanup`: 16 revisions, 66 `biletflow` tables, excluding `public.alembic_version`. Static migration table names independently match the count |
 | Reference comparison | Reference also has 66 tables, with a different set: GA4 connection/export/cache and separate claim table are design-only; four authentication extension tables are implementation-only. Authenticated claiming works on `ticket` fields; see [matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation) |

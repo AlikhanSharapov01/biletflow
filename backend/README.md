@@ -101,6 +101,13 @@ uv run python -m app.worker
 Uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage` natively,
 the `file_storage` volume in Docker). The API and worker must share it.
 
+Ticket PDFs need no system font setup on Windows, macOS or Linux: DejaVu Sans 2.37 (regular and
+bold, which cover Kazakh and Russian Cyrillic) is bundled in `app/fonts/` with its license and is
+used from there first. If those files are removed and no system copy exists in a standard Linux
+DejaVu directory, the API returns `503 ticket_pdf_unavailable` for a PDF it would have to render,
+logs `ticket_pdf_font_unavailable`, and ticket emails go out without the attachment. It never
+substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API.md#fonts).
+
 ### Useful settings (`.env`)
 
 | Setting | Meaning |
@@ -162,18 +169,18 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 uses inline SQL).
-  There are **16 migrations and 66 tables** in the `biletflow` schema:
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 and 0017 use inline SQL).
+  There are **17 migrations and 66 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
-  `0016_image_cleanup`.
-  This revision/count was verified on the disposable feature test database on 9 November 2026;
+  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only).
+  This revision/count was verified on a disposable test database on 13 November 2026;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
-- Historical migrations intentionally reject downgrade. New `0014`–`0016` provide scoped
+- Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
   downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
   new history/links. Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
@@ -192,12 +199,15 @@ retries with back-off and marks a job `dead` after 5 attempts. It handles:
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds and reconciling orphan event images every 15 seconds.
+- releasing expired holds and reconciling orphan event images and abandoned ticket PDF writes
+  every 15 seconds.
 
 Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
 five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
 writes; eventual deletion requires the worker and storage/database availability. See
-[the gallery contract](CATALOG_API.md). Email templates support kk/ru/en with English fallback;
+[the gallery contract](CATALOG_API.md). Ticket PDF recovery uses the same limits for unreferenced
+pending write intents, then one final late-write check 24 hours after the intent; a clean or
+referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)). Email templates support kk/ru/en with English fallback;
 user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
@@ -332,7 +342,9 @@ uv run ruff format --check app tests migrations
 ```
 
 On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 530 passed, 1 failed**
-(the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
+(the Windows DejaVu/Unicode PDF font case), with **96% statement coverage**. With the bundled
+font (#82) the suite on 13 November 2026 had **545 passed, 0 failed, 10 skipped** (opt-in crash
+and load harnesses) on macOS without a system DejaVu font.
 Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
 Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
 (`.github/workflows/backend-auth.yml`) configures automated checks; the hosted *Backend API*,
@@ -369,14 +381,14 @@ Open backend work, from the audit in #85, in dependency order (see the
 
 1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
    database and file backups (#69, with operations).
-2. Campaign revalidation at paid fulfilment (#66) and report reconciliation (#67); platform
+2. Campaign report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
 3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
    notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
    protected storage exists today), correlation IDs and metrics (#78).
 4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
-   (#79), Kazakh/Russian PDF text on native installs (#82).
+   (#79).
 5. Measured load (#80) and real process-kill recovery (#83).
 
 Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,

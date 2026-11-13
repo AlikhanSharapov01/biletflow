@@ -28,7 +28,9 @@ support case, and a second cancellation the same result.
    once. It can be bought again only if the event and its sales window allow it, and a new purchase
    gets a new ticket and QR.
 4. While a refund is pending or failed the tickets stay invalid and the stock stays quarantined. A
-   failed refund is retried automatically.
+   failed refund is retried automatically as a new attempt of the same refund. A late failure
+   for an attempt that a retry has already replaced is ignored (see
+   [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md#refunds-compensation)).
 
 A refund does not give back a promo redemption.
 
