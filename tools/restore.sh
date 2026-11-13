@@ -3,6 +3,7 @@
 # by tools/backup.sh. Runbook: docs/operations/backup.md
 #
 # Usage: tools/restore.sh [--yes] backups/biletflow-<date>.tar
+# Exit status 3: restored and running, but files the database links to are missing or damaged.
 
 set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash would otherwise rewrite container paths
@@ -32,6 +33,10 @@ for part in db.dump files.tar.gz manifest.txt SHA256SUMS; do
 done
 (cd "$work" && sha256sum -c --quiet SHA256SUMS)
 cat "$work/manifest.txt"
+if ! grep -qx 'consistency=quiesced' "$work/manifest.txt"; then
+  echo "WARNING: this backup was taken while api and worker were running (--online, or made" >&2
+  echo "before backups stopped them), so some linked files may be missing. Checked at the end." >&2
+fi
 
 if [ "$assume_yes" != true ]; then
   echo "This DELETES the current database and uploaded files of this stack."
@@ -67,4 +72,17 @@ docker compose run --rm --no-deps -T api sh -c \
 # Runs migrate again, which upgrades a backup taken on an older schema.
 echo "Starting the stack..."
 docker compose up -d
+
+echo "Checking that every file the database links to came back..."
+checked=0
+docker compose run --rm --no-deps -T api python -c "$(cat tools/check_backup_consistency.py)" ||
+  checked=$?
+if [ "$checked" -eq 1 ]; then
+  echo "Restore finished, but the files above are missing or damaged. The stack is running;" >&2
+  echo "see 'Missing files after a restore' in docs/operations/backup.md." >&2
+  exit 3
+elif [ "$checked" -ne 0 ]; then
+  echo "Restore finished, but the file check could not run (above). The stack is running." >&2
+  exit 1
+fi
 echo "Restore finished."

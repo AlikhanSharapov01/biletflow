@@ -33,8 +33,11 @@ def main():
             "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA biletflow TO biletflow_app"
         )
         connection.execute("REVOKE UPDATE ON biletflow.audit_log FROM biletflow_app")
-        # The only row the application removes: a campaign's eligible-type selection.
+        # The only rows the application removes: a campaign's eligible-type selection and an
+        # event gallery entry (its stored_file row stays as a tombstone for storage cleanup).
+        # Granted on every start, so existing deployments get it at their next migrate.
         connection.execute("GRANT DELETE ON biletflow.campaign_ticket_type TO biletflow_app")
+        connection.execute("GRANT DELETE ON biletflow.event_media TO biletflow_app")
     from .db import database
     from .seed import MESSAGES, DemoBuildError, DemoRefused, seed_catalog, seed_demo_fixtures
 
