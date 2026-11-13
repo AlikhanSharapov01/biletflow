@@ -149,7 +149,9 @@ Findings, owner `@backend` (not fixed here; no test is weakened):
 - `dispatch_refund_once` generates `provider_request_key` inside the dispatch transaction. With
   the in-transaction simulator this is safe (proved above), but a real provider call made before
   that commit would retry with a new key after a crash, so the provider could not deduplicate it.
-  A real adapter needs the key persisted before the external call.
+  A real adapter needs the key persisted before the external call. *Resolved 13 November 2026
+  (#65): the key is derived from the refund id and attempt number, so a retried dispatch sends
+  the same key.*
 - An in-flight email job or delivery is retried only after its 120-second lease, so recovery of
   that one message is delayed by up to two minutes after a crash.
 

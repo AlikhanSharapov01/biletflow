@@ -10,9 +10,11 @@ its target always becomes a durable refund obligation that the worker dispatches
 import hashlib
 import json
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4, uuid5
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import OperationalError
 
 from .catalog_models import Event
 from .commerce_models import PaymentAttempt, PaymentIntent, ProviderEvent, Refund, RefundAttempt
@@ -23,6 +25,9 @@ PROVIDER = "biletflow-simulator"
 MERCHANT = "biletflow-demo"
 ENVIRONMENT = "simulation"
 REFUND_RETRY_SECONDS = 30
+# Namespace for refund request keys: one stable key per (refund, attempt number), so a dispatch
+# repeated after a crash before its commit sends the same key and the provider can deduplicate it.
+REFUND_KEY_NAMESPACE = UUID("6f1c9a52-3b7e-4d0a-9a51-2f4e8c7d1b30")
 
 # Target handlers by intent purpose: (lock_target, on_success, on_failure). Registered by the
 # activation and order modules so this boundary never imports them.
@@ -137,14 +142,34 @@ def create_refund(db, event, attempt, reason, requested_by=None):
 
 
 def schedule_refund(db, refund, attempt_number, delay=0):
-    db.add(
-        OutboxJob(
+    # One dispatch job per attempt number; scheduling the same attempt again is a no-op.
+    db.execute(
+        insert(OutboxJob)
+        .values(
+            id=uuid4(),
             event_id=refund.event_id,
             kind="refund_dispatch",
             deduplication_key=f"refund-dispatch:{refund.id}:{attempt_number}",
             payload={"version": 1, "refund_id": str(refund.id)},
             available_at=now() + timedelta(seconds=delay),
         )
+        .on_conflict_do_nothing(index_elements=["deduplication_key"])
+    )
+
+
+def refund_request_key(refund_id, attempt_number):
+    return str(uuid5(REFUND_KEY_NAMESPACE, f"refund:{refund_id}:{attempt_number}"))
+
+
+def current_refund_attempt_number(db, refund_id):
+    """Highest attempt number of a refund; the caller holds the refund row lock."""
+    return (
+        db.scalar(
+            select(func.max(RefundAttempt.attempt_number)).where(
+                RefundAttempt.refund_id == refund_id
+            )
+        )
+        or 0
     )
 
 
@@ -195,13 +220,8 @@ def dispatch_refund_once(factory):
             select(Refund).where(Refund.id == job.payload["refund_id"]).with_for_update()
         )
         if refund and refund.status in ("requested", "failed"):
-            number = 1 + (
-                db.scalar(
-                    select(func.count(RefundAttempt.id)).where(RefundAttempt.refund_id == refund.id)
-                )
-                or 0
-            )
-            key = str(uuid4())
+            number = current_refund_attempt_number(db, refund.id) + 1
+            key = refund_request_key(refund.id, number)
             db.add(
                 RefundAttempt(
                     refund_id=refund.id,
@@ -271,19 +291,21 @@ def locked_inbox(db, inbox_id):
     )
 
 
+def inbox_event_id(db, row):
+    if row.refund_attempt_id:
+        refund_id = db.scalar(
+            select(RefundAttempt.refund_id).where(RefundAttempt.id == row.refund_attempt_id)
+        )
+        return db.scalar(select(Refund.event_id).where(Refund.id == refund_id))
+    return db.scalar(
+        select(PaymentAttempt.event_id).where(PaymentAttempt.id == row.payment_attempt_id)
+    )
+
+
 def process(factory, settings, inbox_id):
     """Apply one inbox row exactly once under the event lock (TX-09 / TX-14)."""
     with factory() as db:
-        row = db.get(ProviderEvent, inbox_id)
-        if row.refund_attempt_id:
-            refund_id = db.scalar(
-                select(RefundAttempt.refund_id).where(RefundAttempt.id == row.refund_attempt_id)
-            )
-            event_id = db.scalar(select(Refund.event_id).where(Refund.id == refund_id))
-        else:
-            event_id = db.scalar(
-                select(PaymentAttempt.event_id).where(PaymentAttempt.id == row.payment_attempt_id)
-            )
+        event_id = inbox_event_id(db, db.get(ProviderEvent, inbox_id))
     with factory.begin() as db:
         event = lock_event(db, event_id)
         inbox = locked_inbox(db, inbox_id)
@@ -356,6 +378,23 @@ def apply_refund_result(db, event, inbox):
         .execution_options(populate_existing=True)
     )
     outcome = inbox.safe_payload["outcome"]
+    current = current_refund_attempt_number(db, refund.id)
+    if outcome != "succeeded" and attempt.attempt_number < current:
+        # A failure or unknown result for an attempt that a newer retry has replaced. The newer
+        # attempt owns the refund state; the late callback is acknowledged and audited only.
+        # A success is still applied below: the provider says the money was returned.
+        audit(
+            db,
+            event,
+            "payments.refund_stale_result_ignored",
+            refund,
+            {
+                "outcome": outcome,
+                "attempt_number": attempt.attempt_number,
+                "current_attempt_number": current,
+            },
+        )
+        return
     if outcome == "succeeded":
         if attempt.status != "succeeded":
             attempt.status, attempt.resolved_at = "succeeded", now()
@@ -385,6 +424,30 @@ def apply_refund_result(db, event, inbox):
         attempt.safe_result = {"outcome": "unknown", "reconcile": True}
 
 
+def quarantine(factory, inbox_id, error):
+    """Move a row that cannot be applied out of the queue so later notifications still apply.
+
+    The rejected row keeps its payload for manual reconciliation; nothing it would have changed
+    is applied. Setting it back to `received` makes the worker try it again.
+    """
+    with factory.begin() as db:
+        inbox = locked_inbox(db, inbox_id)
+        if not inbox or inbox.status != "received":
+            return
+        inbox.status = "rejected"
+        inbox.rejection_reason = f"apply_failed:{type(error).__name__}"
+        event_id = inbox_event_id(db, inbox)
+        event = db.get(Event, event_id) if event_id else None
+        if event:
+            audit(
+                db,
+                event,
+                "payments.provider_event_quarantined",
+                inbox,
+                {"reason": inbox.rejection_reason},
+            )
+
+
 def process_received_once(factory, settings):
     """Worker recovery: apply an inbox row left unprocessed by an interrupted request."""
     with factory() as db:
@@ -396,7 +459,16 @@ def process_received_once(factory, settings):
         )
     if not inbox_id:
         return False
-    process(factory, settings, inbox_id)
+    try:
+        process(factory, settings, inbox_id)
+    except OperationalError:
+        # Lock timeout, deadlock or lost connection: the row stays `received` and the worker
+        # loop retries it after its pause.
+        raise
+    except Exception as error:
+        # Anything else fails the same way on every try; leaving the oldest row `received`
+        # would block every later notification behind it.
+        quarantine(factory, inbox_id, error)
     return True
 
 
