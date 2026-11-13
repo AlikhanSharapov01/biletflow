@@ -134,8 +134,23 @@ def install_kill_point():
         def finish(job):
             if job.kind == KILL.get("job_kind") and once():
                 # Send the pending INSERT/UPDATE statements to PostgreSQL, uncommitted.
-                object_session(job).flush()
-                reached({"job_id": str(job.id), "kind": job.kind})
+                session = object_session(job)
+                session.flush()
+                detail = {"job_id": str(job.id), "kind": job.kind}
+                if job.kind == "refund_dispatch":
+                    from sqlalchemy import select
+
+                    from app.commerce_models import RefundAttempt
+
+                    # The provider request key the killed run would have sent.
+                    detail["request_keys"] = sorted(
+                        session.scalars(
+                            select(RefundAttempt.provider_request_key).where(
+                                RefundAttempt.refund_id == job.payload["refund_id"]
+                            )
+                        )
+                    )
+                reached(detail)
             real_finish(job)
 
         payments_service.finish = finish

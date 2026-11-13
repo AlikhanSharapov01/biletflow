@@ -6,6 +6,7 @@ price, payment or card data.
 """
 
 import io
+import logging
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -18,25 +19,50 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
+logger = logging.getLogger(__name__)
+
 QUIET_MODULES = 4
 QR_BOX = 320  # points, quiet zone included (about 113 mm)
+# DejaVu Sans 2.37 ships with the code (app/fonts, see fonts/LICENSE), so every install renders
+# Kazakh and Russian text the same way. Distribution font directories are only a fallback.
 FONT_DIRS = [
-    "/usr/share/fonts/truetype/dejavu",
-    "/usr/share/fonts/dejavu",
-    "/usr/share/fonts/TTF",
+    Path(__file__).resolve().parent / "fonts",
+    Path("/usr/share/fonts/truetype/dejavu"),
+    Path("/usr/share/fonts/dejavu"),
+    Path("/usr/share/fonts/TTF"),
 ]
+FONT_UNAVAILABLE = "ticket_pdf_font_unavailable"
+
+
+class TicketFontUnavailable(RuntimeError):
+    """No Unicode font could be loaded: refuse to render rather than print corrupted text."""
 
 
 @lru_cache(maxsize=1)
 def fonts():
-    """DejaVu covers Kazakh/Russian; fall back to built-in Helvetica (Latin-1 only)."""
+    """Register DejaVu Sans (covers Kazakh and Russian Cyrillic) and return (regular, bold).
+
+    There is deliberately no Latin-1 fallback: built-in Helvetica would turn Kazakh and Russian
+    attendee or event names into "?". Failures are not cached, so a repaired install recovers.
+    """
     for directory in FONT_DIRS:
-        regular, bold = Path(directory, "DejaVuSans.ttf"), Path(directory, "DejaVuSans-Bold.ttf")
-        if regular.is_file() and bold.is_file():
+        regular, bold = directory / "DejaVuSans.ttf", directory / "DejaVuSans-Bold.ttf"
+        if not (regular.is_file() and bold.is_file()):
+            continue
+        try:
             pdfmetrics.registerFont(TTFont("BiletFlowSans", str(regular)))
             pdfmetrics.registerFont(TTFont("BiletFlowSans-Bold", str(bold)))
-            return "BiletFlowSans", "BiletFlowSans-Bold", True
-    return "Helvetica", "Helvetica-Bold", False
+        except Exception:
+            logger.warning("Unreadable ticket PDF font in %s; trying the next location", directory)
+            continue
+        return "BiletFlowSans", "BiletFlowSans-Bold"
+    logger.error(
+        "%s: no readable DejaVuSans.ttf and DejaVuSans-Bold.ttf pair in %s; ticket PDFs are "
+        "not rendered until the bundled app/fonts directory is restored",
+        FONT_UNAVAILABLE,
+        ", ".join(str(d) for d in FONT_DIRS),
+    )
+    raise TicketFontUnavailable(FONT_UNAVAILABLE)
 
 
 def qr_matrix(payload):
@@ -60,15 +86,11 @@ def event_times(snapshot):
 
 
 def render_ticket_pdf(*, ticket, item, snapshot, payload):
-    regular, bold, unicode_ok = fonts()
-
-    def clean(value):
-        value = str(value)
-        return value if unicode_ok else value.encode("latin-1", "replace").decode("latin-1")
-
+    regular, bold = fonts()
     buffer = io.BytesIO()
     width, height = A4
-    pdf = canvas.Canvas(buffer, pagesize=A4, invariant=1)
+    # The initial font is DejaVu too, so the page references no Latin-1-only font at all.
+    pdf = canvas.Canvas(buffer, pagesize=A4, invariant=1, initialFontName=regular)
     pdf.setTitle(f"Ticket {ticket.id}")
     pdf.setAuthor("BiletFlow")
     pdf.setFillGray(0)
@@ -87,14 +109,14 @@ def render_ticket_pdf(*, ticket, item, snapshot, payload):
     y -= 42
 
     pdf.setFont(bold, 26)
-    for line in simpleSplit(clean(snapshot["title"]), bold, 26, text_width)[:3]:
+    for line in simpleSplit(str(snapshot["title"]), bold, 26, text_width)[:3]:
         pdf.drawString(left, y, line)
         y -= 32
     day, span = event_times(snapshot)
     pdf.setFont(bold, 14)
-    pdf.drawString(left, y - 4, clean(day))
+    pdf.drawString(left, y - 4, day)
     pdf.setFont(regular, 13)
-    pdf.drawString(left, y - 24, clean(span))
+    pdf.drawString(left, y - 24, span)
     y -= 54
 
     rows = [("Venue", f"{snapshot['venue_name']}, {snapshot['venue_city']}")]
@@ -111,7 +133,7 @@ def render_ticket_pdf(*, ticket, item, snapshot, payload):
         pdf.setFont(regular, 10)
         pdf.drawString(left, y, label.upper())
         pdf.setFont(bold, 14)
-        lines = simpleSplit(clean(value), bold, 14, text_width - 110)[:2]
+        lines = simpleSplit(str(value), bold, 14, text_width - 110)[:2]
         for number, line in enumerate(lines):
             pdf.drawString(left + 110, y - number * 17, line)
         y -= 17 * len(lines) + 9

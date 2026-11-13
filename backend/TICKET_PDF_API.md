@@ -33,8 +33,31 @@ Anyone else (other attendees, the organizer, an unclaimed recipient) gets
   (`token_version`, `qr_token_hash` unchanged), and every copy encodes the same QR. A PDF proves
   possession only; admission still checks current server state and the attendee's sign-in
   (see [ADMISSION_API.md](ADMISSION_API.md)).
-* Fonts: DejaVu Sans (Kazakh/Russian glyphs) when installed, otherwise built-in Helvetica, where
-  characters outside Latin-1 print as `?`. The Dockerfile installs `fonts-dejavu-core`.
+* Text uses DejaVu Sans, so Kazakh and Russian event titles, venues, ticket types and attendee
+  names are embedded as real Unicode text (see [Fonts](#fonts)).
+
+### Fonts
+
+* DejaVu Sans 2.37 regular and bold are bundled in `app/fonts/` (`DejaVuSans.ttf`,
+  `DejaVuSans-Bold.ttf`) with the upstream `LICENSE`. They come unchanged from the official
+  release archive `dejavu-fonts-ttf-2.37.zip` at
+  <https://github.com/dejavu-fonts/dejavu-fonts/releases/tag/version_2_37>. The Bitstream Vera /
+  Arev license allows redistribution with the software if the license accompanies it and the
+  fonts are not renamed or sold on their own; DejaVu's changes are public domain.
+* Both faces cover the Russian alphabet and the Kazakh letters ә ғ қ ң ө ұ ү һ і in both cases.
+  The font is subset into each PDF, so the text extracts and prints correctly.
+* No setup is needed on Windows, macOS, Linux or Docker: the bundled directory is searched first,
+  then the usual Linux DejaVu directories (`/usr/share/fonts/truetype/dejavu`,
+  `/usr/share/fonts/dejavu`, `/usr/share/fonts/TTF`). The backend runs from source (`uv sync`
+  installs dependencies only; there is no wheel), and the Docker image copies `app/` including
+  `app/fonts/`.
+* **Missing font:** if no DejaVu Sans pair can be loaded, nothing is rendered. There is no Latin-1
+  fallback, so a Cyrillic name can never be printed as `?`. The server logs
+  `ticket_pdf_font_unavailable` with the searched directories, and:
+  * `GET /tickets/{ticket_id}/pdf` returns `503 ticket_pdf_unavailable` when it would have to
+    render (a stored PDF of a `valid` ticket is still served). Retrying is safe once the font is
+    restored; the failure is not cached.
+  * The worker sends the ticket email without the attachment, as for any rendering failure.
 
 ### Refunded, cancelled and refund-pending tickets
 
@@ -142,8 +165,6 @@ document per ticket (abandoned intents remain as `deleted` rows).
 - There is no separate invitation email for recipients without an account. The ticket delivery
   email goes to the recipient's address in any case and asks them to sign in with it. The in-app
   `ticket_delivered` notice exists ([NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md)).
-- Abandoned ticket PDF writes are removed only while the worker runs and storage and the
-  database are reachable. A writer stalled for more than 24 hours that then writes and crashes
-  can still leave one object behind. Only local storage exists today (#77).
-- Kazakh and Russian text in the PDF needs the DejaVu font, present in the Docker image but not
-  on every native install (#82).
+- A stored PDF object can be lost when its database commit outcome is uncertain (#68).
+- Characters outside DejaVu Sans (for example emoji or CJK) still print as the font's missing-glyph
+  box; Kazakh, Russian and Latin text is covered.

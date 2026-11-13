@@ -360,7 +360,8 @@ def test_refund_survives_worker_and_api_kills_with_single_financial_effect(
     # 1. Worker killed after the refund attempt is flushed but before COMMIT.
     worker = harness.worker(kill={"point": "job_before_commit", "job_kind": "refund_dispatch"})
     assert worker.wait_exit() == KILLED
-    worker.marker("job_before_commit")
+    killed = worker.marker("job_before_commit")
+    assert len(killed["request_keys"]) == 1
     with factory() as db:
         assert db.scalar(select(func.count(RefundAttempt.id))) == 0
         assert db.get(Refund, refund_id).status == "requested"
@@ -372,6 +373,8 @@ def test_refund_survives_worker_and_api_kills_with_single_financial_effect(
         attempts = list(db.scalars(select(RefundAttempt)))
         assert [a.status for a in attempts] == ["pending"]
         assert db.get(Refund, refund_id).status == "pending"
+    # The retry sends the same provider request key the killed run had prepared (#65).
+    assert [a.provider_request_key for a in attempts] == killed["request_keys"]
     refund_attempt = attempts[0].id
 
     # 2. API killed after the refund success is applied and committed, before its response.
