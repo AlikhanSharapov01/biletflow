@@ -101,6 +101,13 @@ uv run python -m app.worker
 Uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage` natively,
 the `file_storage` volume in Docker). The API and worker must share it.
 
+Ticket PDFs need no system font setup on Windows, macOS or Linux: DejaVu Sans 2.37 (regular and
+bold, which cover Kazakh and Russian Cyrillic) is bundled in `app/fonts/` with its license and is
+used from there first. If those files are removed and no system copy exists in a standard Linux
+DejaVu directory, the API returns `503 ticket_pdf_unavailable` for a PDF it would have to render,
+logs `ticket_pdf_font_unavailable`, and ticket emails go out without the attachment. It never
+substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API.md#fonts).
+
 ### Useful settings (`.env`)
 
 | Setting | Meaning |
@@ -332,7 +339,9 @@ uv run ruff format --check app tests migrations
 ```
 
 On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 530 passed, 1 failed**
-(the existing Windows DejaVu/Unicode PDF font case), with **96% statement coverage**.
+(the Windows DejaVu/Unicode PDF font case), with **96% statement coverage**. With the bundled
+font (#82) the suite on 13 November 2026 had **545 passed, 0 failed, 10 skipped** (opt-in crash
+and load harnesses) on macOS without a system DejaVu font.
 Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
 Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
 (`.github/workflows/backend-auth.yml`) configures automated checks; the hosted *Backend API*,
@@ -376,7 +385,7 @@ Open backend work, from the audit in #85, in dependency order (see the
    notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
    protected storage exists today), correlation IDs and metrics (#78).
 4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
-   (#79), Kazakh/Russian PDF text on native installs (#82).
+   (#79).
 5. Measured load (#80) and real process-kill recovery (#83).
 
 Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,
