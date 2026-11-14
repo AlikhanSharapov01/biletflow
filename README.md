@@ -227,7 +227,7 @@ PDF text (#82).
 2. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
    moderation notices (#74), S3-compatible storage (#77), correlation IDs and metrics (#78).
 3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
-   integration (#51) and payment-panel clean-up (#55); HTTPS for the shared
+   integration (#51); HTTPS for the shared
    demo (#49).
 4. **Acceptance:** real devices (#53) and builds (#54); rerun the load and crash harnesses and the
    restore drill once steps 1–2 change the code, then record the results in the integration

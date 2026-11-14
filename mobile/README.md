@@ -116,7 +116,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 53 files. They cover:
+(`*.test.ts(x)`): 54 files. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
   status, support threads, notification targets, organizer forms, charts, history filters,
@@ -259,9 +259,8 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
   camera have been tested with mocks. Click them through on a real iPhone and Android phone.
 - **Installable builds (#54).**
-- **Clean-ups (#55):** the order screen's payment panel duplicates checkout's (`orders/components/OrderPayment.tsx`
-  vs `checkout/components/PaymentStep.tsx`), so merge them. Renaming the session kind `scanner`
-  to something like `native` is an optional backend clean-up (decision 0001).
+- **Optional clean-up:** renaming the session kind `scanner` to something like `native` in the
+  backend (decision 0001).
 - **Offline entry rule:** update the offline result screen once decision 0002 is answered.
 - **Out of scope for now (decision 0001):** push notifications, Google sign-in on mobile, offline
   browsing, app-store publication.

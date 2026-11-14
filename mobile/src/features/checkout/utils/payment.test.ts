@@ -1,6 +1,6 @@
 import type { Order } from "@/api/types/checkout";
 import type { PaymentSummary } from "@/api/types/payments";
-import { orderStatusTone, paymentLabel, paymentStage } from "./payment";
+import { orderStatusTone, paymentLabel, paymentStage, paymentTone } from "./payment";
 
 const base: Order = {
   id: "o1",
@@ -40,5 +40,8 @@ describe("paymentStage", () => {
     expect(paymentLabel({ ...base, payable_minor: 0, payment: null })).toBe("No payment needed");
     expect(orderStatusTone("confirmed")).toBe("positive");
     expect(orderStatusTone("expired")).toBe("neutral");
+    expect(orderStatusTone("cancelled")).toBe("neutral");
+    expect(paymentLabel(base)).toBe("No payment yet");
+    expect(paymentTone({ ...base, payment: payment("succeeded") })).toBe("positive");
   });
 });
