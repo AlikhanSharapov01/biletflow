@@ -1,6 +1,7 @@
 import type { TicketAdmission, TicketDelivery } from "@/api/types/checkout";
 import type { StatusTone } from "@/utils/status";
 import { t } from "@/i18n";
+import { statusLabel } from "@/utils/format";
 
 const DELIVERY: Record<string, { label: string; tone: StatusTone }> = {
   none: { get label() { return t("tickets.not_sent"); }, tone: "neutral" },
@@ -26,7 +27,7 @@ export function admissionSummary(admission: TicketAdmission, now: Date = new Dat
     return { label: t("tickets.checked_in"), tone: "positive", detail: t("tickets.admitted") };
   }
   if (admission.status !== "valid" && admission.status !== "checked_in") {
-    return { label: admission.status.replace(/_/g, " "), tone: "blocked", detail: t("tickets.invalid_entry") };
+    return { label: statusLabel(admission.status), tone: "blocked", detail: t("tickets.invalid_entry") };
   }
   if (admission.reversed_at) {
     return {

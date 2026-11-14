@@ -35,6 +35,22 @@ function looksTechnical(value) {
   );
 }
 
+const RAW_NAMES = /^name_en$/;
+const RAW_CODES = /^(status|state|kind|publication_state|time_status|moderation_state|client_kind|visibility)$/;
+
+// True when the value itself ends up on screen: as JSX text, as a readable
+// prop, or through ?? / || fallbacks into one of those.
+function shownAsText(node) {
+  let current = node;
+  while (ts.isParenthesizedExpression(current.parent) || (ts.isBinaryExpression(current.parent) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(current.parent.operatorToken.kind)) || (ts.isConditionalExpression(current.parent) && current.parent.condition !== current)) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (!ts.isJsxExpression(parent)) return false;
+  if (ts.isJsxAttribute(parent.parent)) return READABLE.has(parent.parent.name.getText());
+  return ts.isJsxElement(parent.parent) || ts.isJsxFragment(parent.parent);
+}
+
 function templateText(node) {
   if (ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
   let text = node.head.text;
@@ -55,6 +71,13 @@ function auditFile(file, found) {
   (function visit(node) {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isTypeNode(node)) return;
     if (ts.isJsxText(node)) return record(node, node.text);
+    // A server code or an English-only name shown as it is: statusLabel() or
+    // categoryName() translates it.
+    if (ts.isPropertyAccessExpression(node) && (RAW_NAMES.test(node.name.text) || (RAW_CODES.test(node.name.text) && shownAsText(node)))) {
+      const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+      const value = `[shown untranslated] ${node.getText(source)}`;
+      found.set(value, [...(found.get(value) ?? []), `${path.relative(SRC, file).split(path.sep).join("/")}:${line}`]);
+    }
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
       const parent = node.parent;
       const value = ts.isStringLiteral(node) ? node.text : templateText(node);

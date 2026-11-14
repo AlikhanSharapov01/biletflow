@@ -1,6 +1,7 @@
 import type { Order } from "@/api/types/checkout";
 import type { StatusTone } from "@/utils/status";
 import { t } from "@/i18n";
+import { statusLabel } from "@/utils/format";
 
 // Where a paid order stands, from the order status and its latest attempt.
 export type PaymentStage = "free" | "awaiting" | "processing" | "failed" | "confirmed" | "closed";
@@ -19,14 +20,15 @@ export function paymentStage(order: Order): PaymentStage {
 const PAYMENT_LABEL: Record<string, string> = {
   get created() { return t("checkout.awaiting_payment"); },
   get pending() { return t("checkout.payment_pending"); },
-  get succeeded() { return t("common.paid"); },
+  // "Paid" as a payment result; common.paid is the ticket kind ("for a fee").
+  get succeeded() { return t("mobile.checkout.payment_paid"); },
   get failed() { return t("checkout.payment_failed"); },
   get unknown() { return t("checkout.payment_checked"); },
 };
 
 export function paymentLabel(order: Order): string {
   if (!order.payment) return order.payable_minor > 0 ? t("checkout.no_payment_yet") : t("checkout.no_payment_needed");
-  return PAYMENT_LABEL[order.payment.status] ?? order.payment.status.replace(/_/g, " ");
+  return PAYMENT_LABEL[order.payment.status] ?? statusLabel(order.payment.status);
 }
 
 export function paymentTone(order: Order): StatusTone {

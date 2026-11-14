@@ -71,6 +71,7 @@
   "mobile.checkout.fewer": "Меньше: {p0}",
   "mobile.checkout.go_to_tickets": "К моим билетам",
   "mobile.checkout.more": "Больше: {p0}",
+  "mobile.checkout.payment_paid": "Оплачено",
   "mobile.checkout.payment_received": "Оплата получена",
   "mobile.checkout.quantity_for": "Количество: {p0}",
   "mobile.checkout.recipient_email": "{p0}, email",

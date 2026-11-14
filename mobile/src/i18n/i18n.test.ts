@@ -1,4 +1,6 @@
-import { pluralForm, quantityLabel, setLocale, t } from "@/i18n";
+import { categoryName, pluralForm, quantityLabel, setLocale, t } from "@/i18n";
+import { paymentLabel } from "@/features/checkout/utils/payment";
+import { sampleCategory, sampleOrder } from "@/features/checkout/testing/fixtures";
 import { amountLabel, priceLabel, statusLabel } from "@/utils/format";
 
 describe("i18n", () => {
@@ -27,5 +29,16 @@ describe("i18n", () => {
     expect(priceLabel(664000)).toBe("6 640,00 ₸");
     expect(amountLabel(0)).toBe("0,00 ₸");
     expect(statusLabel("refund_pending")).not.toBe("refund pending");
+  });
+
+  it("names categories and payment results in the language", () => {
+    expect(categoryName(sampleCategory)).toBe(sampleCategory.name_en);
+    expect(categoryName(null)).toBe("Event");
+    const paid = sampleOrder({ payment: { id: "p1", status: "succeeded", charged_minor: 0, environment: "simulation", provider_payment_id: null, simulated: true } });
+    expect(paymentLabel(paid)).toBe("Paid");
+    setLocale("ru");
+    expect(categoryName(sampleCategory)).toBe(sampleCategory.name_ru);
+    expect(paymentLabel(paid)).toBe("Оплачено");
+    expect(statusLabel("published")).not.toBe("published");
   });
 });

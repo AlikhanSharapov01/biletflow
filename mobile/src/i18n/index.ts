@@ -5,6 +5,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import type { Category } from "@/api/types/catalog";
 import type { Locale } from "@/api/types/common";
 
 import en from "./locales/en.json";
@@ -82,6 +83,11 @@ export function pluralForm(count: number, locale: Locale = current): PluralForm 
     return "many";
   }
   return n === 1 ? "one" : "other";
+}
+
+// A category's name in the current language, as the web shows it.
+export function categoryName(category: Category | null | undefined): string {
+  return category?.[`name_${current}`] || category?.name_en || t("common.event");
 }
 
 // "1 ticket", "2 билета", "5 билетов".

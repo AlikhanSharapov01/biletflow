@@ -11,7 +11,7 @@ import { RowTitle } from "@/features/admin/components/RowTitle";
 import { SearchResults } from "@/features/admin/components/SearchResults";
 import { SectionNote } from "@/features/admin/components/SectionNote";
 import { useAdminSearch } from "@/features/admin/hooks/useAdminSearch";
-import { dateLabel, initials } from "@/utils/format";
+import { dateLabel, initials, statusLabel } from "@/utils/format";
 import { t, useLocale } from "@/i18n";
 
 // Suspending a user revokes every session at once; reinstating allows a
@@ -59,7 +59,7 @@ export function AdminUsersPage() {
                   icon={initials(user.display_name || user.email)}
                   title={
                     <RowTitle text={user.display_name}>
-                      <StatusPill label={user.status} tone={suspended ? "blocked" : "positive"} />
+                      <StatusPill label={statusLabel(user.status)} tone={suspended ? "blocked" : "positive"} />
                       {user.is_platform_admin ? <StatusPill label={t("nav.admin")} tone="neutral" /> : null}
                     </RowTitle>
                   }
