@@ -7,7 +7,8 @@ import { DateTile, EmptyState, ErrorPanel, ListRow, LoadingState, PageHeading, P
 import { useRequest } from "@/hooks/useRequest";
 import { browserTimeZone, dateLabel, priceLabel, statusLabel } from "@/utils/format";
 
-import { orderStart, orderStatusTone, orderTitle, paymentLabel } from "./utils/payment";
+import { orderStatusTone, paymentLabel } from "../checkout/utils/payment";
+import { orderStart, orderTitle } from "./orderSummary";
 import { quantityLabel, t, useLocale } from "@/i18n";
 
 export function OrdersScreen() {

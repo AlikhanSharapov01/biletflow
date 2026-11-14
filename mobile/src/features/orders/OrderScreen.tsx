@@ -12,10 +12,11 @@ import { dateLabel, statusLabel } from "@/utils/format";
 import { SupportLink } from "../support/components/SupportLink";
 import { OrderActions } from "./components/OrderActions";
 import { OrderItemRow } from "./components/OrderItemRow";
-import { OrderPayment } from "./components/OrderPayment";
-import { PriceSummary } from "./components/PriceSummary";
+import { PaymentStep } from "../checkout/components/PaymentStep";
+import { PriceSummary } from "../checkout/components/PriceSummary";
+import { orderStatusTone, paymentLabel, paymentTone } from "../checkout/utils/payment";
 import { RefundList } from "./components/RefundList";
-import { orderStart, orderStatusTone, orderTitle, paymentLabel, paymentTone } from "./utils/payment";
+import { orderStart, orderTitle } from "./orderSummary";
 import { t, useLocale } from "@/i18n";
 
 export function OrderScreen() {
@@ -70,7 +71,11 @@ export function OrderScreen() {
         <Text style={styles.copy}>{t("orders.demo_notice")}</Text>
         <OrderActions order={data} onChanged={order.reload} />
       </Panel>
-      {awaitingPayment ? <OrderPayment order={data} onSettled={order.reload} /> : null}
+      {awaitingPayment ? (
+        <Panel>
+          <PaymentStep order={data} onConfirmed={order.reload} onClosed={order.reload} />
+        </Panel>
+      ) : null}
       {refunds.length > 0 ? (
         <Panel>
           <PanelHeading title={t("event.refunds")} />
