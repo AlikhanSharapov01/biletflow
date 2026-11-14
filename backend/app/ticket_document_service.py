@@ -11,7 +11,7 @@ from .checkout_service import qr_payload, ticket_rows
 from .models import OutboxJob
 from .security import fail, now
 from .ticket_file_service import PDF_STATES, stored_ticket_pdf
-from .ticket_pdf import render_ticket_pdf
+from .ticket_pdf import TicketFontUnavailable, render_ticket_pdf
 
 RESEND_COOLDOWN = timedelta(seconds=60)
 RESEND_LIMIT = 5
@@ -49,12 +49,16 @@ def ticket_pdf(settings, ticket, item, order, db=None, storage=None):
         stored = stored_ticket_pdf(db, storage, ticket)
         if stored is not None:
             return stored
-    return render_ticket_pdf(
-        ticket=ticket,
-        item=item,
-        snapshot=order.event_snapshot,
-        payload=qr_payload(settings, ticket.id),
-    )
+    try:
+        return render_ticket_pdf(
+            ticket=ticket,
+            item=item,
+            snapshot=order.event_snapshot,
+            payload=qr_payload(settings, ticket.id),
+        )
+    except TicketFontUnavailable:
+        # Logged by ticket_pdf; no document beats one with "?" in place of Cyrillic names.
+        fail("ticket_pdf_unavailable", 503)
 
 
 def delivery_jobs(db, ticket_id):

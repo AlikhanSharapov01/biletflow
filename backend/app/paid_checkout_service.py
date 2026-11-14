@@ -10,10 +10,10 @@ from sqlalchemy import select
 from .activation_service import paid_sales_status
 from .campaign_service import (
     active_reservation,
+    quote_still_valid,
     redeem,
     release_reservation,
     revalidate,
-    still_enabled,
 )
 from .catalog_models import Allocation, Hold, Organization
 from .catalog_service import catalog_audit
@@ -172,10 +172,13 @@ def order_paid(db, settings, event, order, intent, attempt, matches):
         create_refund(db, event, attempt, "late_payment")
         return
     reservation = active_reservation(db, hold.id) if order.campaign_id else None
+    # The charge matched the saved quote. A campaign that was disabled, ended or changed since
+    # the quote means that price is no longer offered, and the buyer is never charged more
+    # instead: no tickets, the allowance is released and the charge is refunded.
     if (
         not on_sale(event)
         or paid_sales_status(db, event.id) != "active"
-        or (order.campaign_id and not still_enabled(db, reservation))
+        or (order.campaign_id and not quote_still_valid(db, reservation))
     ):
         release_reservation(db, order.hold_id)
         create_refund(db, event, attempt, "blocked_fulfillment")

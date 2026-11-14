@@ -136,9 +136,34 @@ hold response always includes `pricing`, and `promo` when a code was applied:
 |---|---|
 | Hold expires, is released or replaced | Reservation released; the redemption is available again |
 | Late payment, wrong amount or blocked fulfilment | Reservation released; the charge is refunded |
-| Campaign disabled while the buyer pays | No ticket is issued; the charge is refunded |
+| Campaign disabled, ended or materially changed while the buyer pays | No ticket is issued; reservation released; the charge is refunded (`blocked_fulfillment`) |
 | Order confirmed | Reservation consumed and one immutable redemption recorded |
 | Order later refunded | The redemption stays: a refund does not give it back |
+
+### Revalidation before tickets are issued
+
+The hold's reservation saves a snapshot of the discount it was quoted with: discount kind and
+value, whether every ticket type is eligible, and the eligible ticket type IDs. The order saves the
+resulting amounts. The same check runs at `/checkout`, at a payment retry, and when a successful
+payment is applied, each time under the event lock and with the campaign row locked. The quote is
+honoured only if all of these are still true at that moment:
+
+- the hold's reservation is still `active`;
+- the campaign and its code are enabled;
+- the campaign's current `starts_at <= now < ends_at` (the window is read from the campaign, not
+  the snapshot, so moving dates only matters if the window no longer contains this moment);
+- discount kind and value, and the eligible ticket types, equal the snapshot.
+
+Not material: renaming the code, editing the campaign name, or changing `max_redemptions` (the
+reservation already counts against the limit, and the limit cannot be set below current usage).
+
+When the check fails at `/checkout` or a retry, the answer is `409 promo_requote_required` and no
+payment is opened. When it fails after the provider reports a successful charge, no ticket is
+issued, the reservation is released (the allowance is available again), and one
+`blocked_fulfillment` refund of the full captured amount is recorded in the same commit. The order
+stays `pending` until its hold lapses; a retry answers `409 promo_requote_required`. The charge
+always equals the saved quote, so a buyer is never charged a higher price automatically: a new
+price needs a new hold and quote.
 
 ## Local demonstration data
 

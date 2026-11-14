@@ -4,7 +4,9 @@ The iOS and Android app for BiletFlow. A phone user can do **everything the web 
 discover events, register or buy tickets, show tickets at the door, manage orders, open support
 cases, read notifications, run an organizer workspace and use the platform admin portal. Event
 staff also get the **ticket scanner**. The scope is recorded in
-[`docs/decisions/0001-mobile-app-full-scope.md`](../docs/decisions/0001-mobile-app-full-scope.md).
+[`docs/decisions/0001-mobile-app-full-scope.md`](../docs/decisions/0001-mobile-app-full-scope.md):
+the app is not a scanner-only client, and the mobile owner is responsible for every screen here.
+A backend feature with a user-facing flow is done only once it works in both this app and the web.
 
 Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. It uses the same
 `/api/v1` endpoints, error codes and wording as the web app.
@@ -27,6 +29,11 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 
 ## Status
 
+The backend APIs for promo campaigns, refunds, analytics, finance and event images are now merged
+(PRs #61 and #64). On `main` the app still uses the planned contracts for them, so those rows
+are not integrated until #51 is done. Promo, campaign and refund work exists on the unmerged branch
+`feature/adil-mobile-new-apis`. Whole-project status: [integration status](../docs/integration/status.md).
+
 | Area | State |
 |---|---|
 | Sign in, create account, forgot password, resend verification | Done |
@@ -39,14 +46,16 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 | Support cases: list, new case, thread, attachments, staff actions | Done |
 | Notifications: inbox and unread badge in the top bar | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, every event tab | Done (analytics, finance, image upload "Not available yet" until the backend ships them) |
-| Platform admin portal (8 sections) | Done (shown only to platform admins) |
+| Organizer: workspaces, team, invitations, create event, every event tab | Done, except analytics, finance and image upload: planned contracts, not connected (#51) |
+| Platform admin portal (8 sections) | Done (shown only to platform admins); the paid-sales suspension and payment/refund monitoring added in #64 are not in the app yet |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
-| Offline scanning (bonus) | Done (QR scans only) |
-| Google sign-in | Web only |
-| Kazakh and Russian text | Not done (English only, like the web) |
+| Offline scanning (bonus) | Done (QR scans only). Whether staff may let someone in on an offline result is still open, see below |
+| Google sign-in | Web only (decision 0001) |
+| Kazakh and Russian text | Not done (#52); the web has them |
+
+Nothing here has been checked on a real phone yet (#53).
 
 ---
 
@@ -108,7 +117,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 47 files, 183 tests. They cover:
+(`*.test.ts(x)`): 47 files. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
   status, support threads, notification targets, organizer forms, charts, history filters,
@@ -226,6 +235,12 @@ shortcuts on the Tickets tab and the bell).
    `POST /scanner/offline/sync` on *Sync now*, or by themselves once the server answers again. An
    offline result is provisional until then. Typed codes, guest search and undo need a connection.
 
+   **Open question:** a passing offline scan currently shows "Accepted offline" in the admitted
+   style. The requirements and the backend contract say physical entry still needs online
+   confirmation. Which rule applies, and what a later sync conflict means for someone already let
+   in, is listed in [decision 0002](../docs/decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics).
+   Change the screen once that is answered.
+
 Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
 [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
 
@@ -233,14 +248,18 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Backend-dependent:** analytics, finance and event images start working once their endpoints
-  exist; then test them end to end on a device.
-- **Promo, campaigns and refunds:** connected and covered by tests with a mocked API. Click them
-  through against `docker compose up` on a simulator or phone.
-- **Translations:** Kazakh and Russian, using the saved profile language.
-- **Device checks:** the share sheet (PDF, calendar, CSV), document picker, clipboard and camera
-  have been tested with mocks. Click them through on a real iPhone and Android phone.
-- **Clean-ups:** the order screen's payment panel duplicates checkout's (`orders/components/OrderPayment.tsx`
-  vs `checkout/components/PaymentStep.tsx`), so merge them. Rename the session kind `scanner`
-  to something like `native` in the backend.
-- **Bonus:** push notifications, Google sign-in on mobile.
+- **Connect the merged APIs (#51):** analytics, finance (summary and payouts) and the event
+  gallery, using `backend/ANALYTICS_API.md`, `FINANCE_API.md` and `CATALOG_API.md`. Promo,
+  campaigns and refunds are connected but not yet clicked through against `docker compose up`.
+  Also add the admin paid-sales and payment/refund
+  monitoring screens from `backend/ADMIN_API.md`, which no issue covers yet.
+- **Translations (#52):** Kazakh and Russian, using the saved profile language and the web's keys.
+- **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
+  camera have been tested with mocks. Click them through on a real iPhone and Android phone.
+- **Installable builds (#54).**
+- **Clean-ups (#55):** the order screen's payment panel duplicates checkout's (`orders/components/OrderPayment.tsx`
+  vs `checkout/components/PaymentStep.tsx`), so merge them. Renaming the session kind `scanner`
+  to something like `native` is an optional backend clean-up (decision 0001).
+- **Offline entry rule:** update the offline result screen once decision 0002 is answered.
+- **Out of scope for now (decision 0001):** push notifications, Google sign-in on mobile, offline
+  browsing, app-store publication.

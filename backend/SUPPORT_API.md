@@ -160,7 +160,8 @@ object. The response carries `Content-Type` of the stored type, `Content-Disposi
 `LocalFileStorage`) under `support/<case_id>/<file_id>`, metadata in `stored_file` and
 `support_attachment` (migration `0009_files_admission`). The local backend writes atomically below
 `STORAGE_ROOT` (default `var/storage`, relative to the working directory; use a persistent volume
-in production); an S3-style backend is a future `FileStorage` implementation selected in
+in production); an S3-compatible backend, required for the Docker demonstration by the
+requirements (§2.1) and tracked in #77, will be another `FileStorage` implementation selected in
 `storage_from_settings`. Settings: `STORAGE_ROOT`, `ATTACHMENT_MAX_BYTES` (default 5 MiB),
 `ATTACHMENT_MAX_PER_MESSAGE` (default 5, max 20), `ATTACHMENT_LINK_SECONDS` (default 300).
 Audit: `support.attachment_uploaded` (file id, size and type only). Upload validation is
@@ -236,7 +237,10 @@ Differences from the reference DDL: status value is `waiting_for_customer`; `seq
 
 ## Not implemented
 
-- Asynchronous malware scanning of attachments (uploads are validated by content type and size only; the `pending`/`quarantined` states are kept for a future scanner).
-- Cleanup of uploaded files that are never linked.
+- Malware scanning and quarantine of attachments, which the requirements (BF-16) require: uploads are validated by content type and size only; the `pending`/`quarantined` states are kept for the scanner (#75).
+- Recovery of interrupted uploads and cleanup of uploaded files that are never linked (#76).
+- An S3-compatible storage backend; only `LocalFileStorage` exists (#77).
 - Email-channel notifications through the BF-15 fan-out: support events create in-app inbox entries (`support_reply`, `support_status`) while the email link is sent by the support worker (`support_email`).
-- Locale-specific email text (support emails are English).
+
+Support emails are localized (kk/ru/en with English fallback, using the account's locale); see
+[NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md#recipient-locale).

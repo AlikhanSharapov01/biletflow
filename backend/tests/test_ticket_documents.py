@@ -1,12 +1,18 @@
 import io
+import logging
 import re
 from datetime import timedelta
+from pathlib import Path
 from uuid import UUID
 
+import pytest
 from pypdf import PdfReader
 from reportlab.graphics.barcode import qrencoder
+from reportlab.pdfbase import pdfmetrics
 from sqlalchemy import func, select, update
 
+from app import ticket_pdf
+from app.catalog_models import Event, TicketType
 from app.checkout_models import Ticket
 from app.checkout_service import qr_payload
 from app.models import AuditLog, OutboxJob
@@ -128,6 +134,78 @@ def test_pdf_keeps_unicode_attendee_names(client, setup, account):
     ticket, headers, _ = buy(client, f, account, name="Zhanar Қасымова")
     _, text = pdf_text(client.get(API + f"/tickets/{ticket['id']}/pdf", headers=headers).content)
     assert "Қасымова" in text  # Unicode names survive
+
+
+KAZAKH_LETTERS = "әғқңөұүһі"
+
+
+def test_pdf_keeps_kazakh_and_russian_event_and_attendee_text(client, setup, account, factory):
+    """Every Kazakh-specific letter, in both cases, survives in event and attendee text."""
+    f = published(client, setup)
+    title = f"Түнгі концерт {KAZAKH_LETTERS}"
+    ticket_type = "Входной билет, партер"
+    with factory.begin() as db:
+        db.execute(update(Event).where(Event.id == UUID(f["event"]["id"])).values(title=title))
+        db.execute(
+            update(TicketType)
+            .where(TicketType.id == UUID(f["ticket"]["id"]))
+            .values(name=ticket_type)
+        )
+    name = f"Ажар Қасымова {KAZAKH_LETTERS.upper()}"
+    ticket, headers, _ = buy(client, f, account, name=name)
+    r = client.get(API + f"/tickets/{ticket['id']}/pdf", headers=headers)
+    assert r.status_code == 200, r.text
+    page, text = pdf_text(r.content)
+    for expected in (title, ticket_type, name):
+        assert expected in text, text
+    assert "?" not in text  # no Latin-1 replacement anywhere
+    fonts = {str(font["/BaseFont"]) for font in page["/Resources"]["/Font"].values()}
+    assert fonts and all("DejaVuSans" in font for font in fonts), fonts  # embedded, not Helvetica
+
+
+def test_pdf_refused_with_stable_code_when_no_unicode_font(
+    client, setup, account, monkeypatch, tmp_path, caplog
+):
+    """Without a Unicode font no PDF is produced: never one with "?" for Cyrillic text."""
+    f = published(client, setup)
+    ticket, headers, _ = buy(client, f, account, name="Zhanar Қасымова")
+    url = API + f"/tickets/{ticket['id']}/pdf"
+    bundled = ticket_pdf.FONT_DIRS
+    monkeypatch.setattr(ticket_pdf, "FONT_DIRS", [tmp_path])  # an empty directory
+    ticket_pdf.fonts.cache_clear()
+    try:
+        with caplog.at_level(logging.ERROR, logger="app.ticket_pdf"):
+            r = client.get(url, headers=headers)
+        assert r.status_code == 503, r.text
+        assert r.json() == {"detail": {"code": "ticket_pdf_unavailable"}}
+        assert b"%PDF" not in r.content
+        assert ticket_pdf.FONT_UNAVAILABLE in caplog.text
+        with pytest.raises(ticket_pdf.TicketFontUnavailable):
+            ticket_pdf.fonts()
+
+        # The failure is not cached: once the font is back, the same request succeeds.
+        monkeypatch.setattr(ticket_pdf, "FONT_DIRS", bundled)
+        again = client.get(url, headers=headers)
+        assert again.status_code == 200, again.text
+        assert "Қасымова" in pdf_text(again.content)[1]
+    finally:
+        ticket_pdf.fonts.cache_clear()
+
+
+def test_bundled_font_is_used_without_system_fonts(monkeypatch):
+    """The checked-in DejaVu pair alone is enough on any OS and covers Kazakh letters."""
+    bundled = Path(ticket_pdf.__file__).resolve().parent / "fonts"
+    assert (bundled / "LICENSE").is_file()
+    monkeypatch.setattr(ticket_pdf, "FONT_DIRS", [bundled])
+    ticket_pdf.fonts.cache_clear()
+    try:
+        regular, bold = ticket_pdf.fonts()
+        letters = KAZAKH_LETTERS + KAZAKH_LETTERS.upper() + "ЁёЩщЪъЫыЭэ"
+        for name in (regular, bold):
+            glyphs = pdfmetrics.getFont(name).face.charToGlyph
+            assert [c for c in letters if ord(c) not in glyphs] == [], name
+    finally:
+        ticket_pdf.fonts.cache_clear()
 
 
 def test_pdf_authorization_is_recipient_only(client, setup, account, factory):

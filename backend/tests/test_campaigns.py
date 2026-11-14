@@ -8,7 +8,7 @@ from test_paid_orders import paid_event, pay
 from app.campaign_models import Campaign, PromoCode, PromoRedemption
 from app.config import Settings
 from app.security import digest, now
-from app.seed import seed_catalog, seed_demo_campaigns
+from app.seed import seed_catalog, seed_demo_fixtures
 
 API = "/api/v1"
 
@@ -243,14 +243,15 @@ def test_campaign_report_reconciles_with_the_order(client, setup, account, facto
 
 def test_demo_seed_is_idempotent_and_skips_production(factory, settings):
     seed_catalog(factory)
-    seed_demo_campaigns(factory, settings)
-    seed_demo_campaigns(factory, settings)
+    assert seed_demo_fixtures(factory, settings) == "built"
+    assert seed_demo_fixtures(factory, settings) == "present"
     with factory() as db:
         rows = list(db.scalars(select(Campaign).order_by(Campaign.max_redemptions)))
-        assert [row.max_redemptions for row in rows] == [50, 100]
+        # Section 6.2 campaigns, plus a one-use campaign that the fixtures exhaust.
+        assert [row.max_redemptions for row in rows] == [1, 50, 100]
         assert {row.discount_kind for row in rows} == {"fixed", "percentage"}
-        assert rows[0].fixed_minor == 100_000 and rows[1].percentage_bps == 1000
-        assert isinstance(rows[0].event_id, UUID)
+        assert rows[1].fixed_minor == 100_000 and rows[2].percentage_bps == 1000
+        assert isinstance(rows[1].event_id, UUID)
     production = Settings(
         _env_file=None,
         database_url=settings.database_url,
@@ -267,4 +268,4 @@ def test_demo_seed_is_idempotent_and_skips_production(factory, settings):
         def begin(self):
             raise AssertionError("production must not be seeded")
 
-    seed_demo_campaigns(Untouched(), production)
+    assert seed_demo_fixtures(Untouched(), production) == "skipped"

@@ -5,6 +5,7 @@ import pytest
 from pypdf import PdfReader
 from sqlalchemy import func, select, update
 
+from app import ticket_pdf
 from app.checkout_models import Ticket
 from app.file_models import StoredFile
 from app.models import OutboxJob
@@ -26,7 +27,11 @@ def deliver_all(factory, settings, storage, messages):
 
 
 def ticket_email(messages):
-    return [m for m in messages if m["Subject"].startswith("Your BiletFlow ticket")]
+    return [
+        m
+        for m in messages
+        if m["Subject"].startswith(("Your BiletFlow ticket", "Ваш билет BiletFlow"))
+    ]
 
 
 def attachments(message):
@@ -72,7 +77,7 @@ def test_delivery_attaches_stored_pdf_and_resend_reuses_it(
     [attached] = attachments(message)
     assert attached.get_filename() == f"biletflow-ticket-{ticket['id']}.pdf"
     assert ticket["id"] in pdf_text(attached.get_content())
-    assert "Your printable ticket is attached" in message.get_body().get_content()
+    assert "Билет для печати прикреплён" in message.get_body().get_content()
     [row] = stored_rows(factory)
     with factory() as db:
         assert db.get(Ticket, ticket["id"]).pdf_file_id == row.id
@@ -272,6 +277,29 @@ def test_storage_failure_still_sends_the_email_without_attachment(
         job = db.scalar(select(OutboxJob).where(OutboxJob.kind == "ticket_delivery_email"))
         assert job.status == "done" and job.last_error is None
         assert db.get(Ticket, ticket["id"]).pdf_file_id is None
+    # The write intent recorded before the failed put is fenced as a tombstone, never clean.
+    assert [row.status for row in stored_rows(factory)] == ["deleted"]
+    assert list(storage.root.rglob("*.pdf")) == []
+
+
+def test_missing_font_sends_the_email_without_attachment_and_stores_nothing(
+    issued, factory, settings, storage, monkeypatch, tmp_path
+):
+    ticket, _ = issued
+    monkeypatch.setattr(ticket_pdf, "FONT_DIRS", [tmp_path])  # no Unicode font anywhere
+    ticket_pdf.fonts.cache_clear()
+    try:
+        messages = []
+        deliver_all(factory, settings, storage, messages)
+    finally:
+        ticket_pdf.fonts.cache_clear()
+    [message] = ticket_email(messages)
+    assert attachments(message) == []  # no PDF with "?" in place of Cyrillic text
+    assert ticket["id"] in message.get_content()
+    with factory() as db:
+        job = db.scalar(select(OutboxJob).where(OutboxJob.kind == "ticket_delivery_email"))
+        assert job.status == "done" and job.last_error is None
+        assert db.get(Ticket, ticket["id"]).pdf_file_id is None
     assert stored_rows(factory) == []
 
 
@@ -305,6 +333,11 @@ def test_race_loser_deletes_its_orphan_and_uses_the_winner(issued, factory, sett
             storage.delete(key)
 
     data, _ = ensure_ticket_pdf(factory, settings, Racing(), ticket["id"])
-    [row] = stored_rows(factory)
+    rows = stored_rows(factory)
+    [row] = [r for r in rows if r.status == "clean"]
+    # The loser's write intent stays as a tombstone; its object is gone.
+    assert sorted(r.status for r in rows) == ["clean", "deleted"]
+    with factory() as db:
+        assert db.get(Ticket, ticket["id"]).pdf_file_id == row.id
     assert hashlib.sha256(data).hexdigest() == row.sha256
     assert [p.name for p in storage.root.rglob("*.pdf")] == [f"{row.id}.pdf"]

@@ -33,15 +33,23 @@ def main():
             "GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA biletflow TO biletflow_app"
         )
         connection.execute("REVOKE UPDATE ON biletflow.audit_log FROM biletflow_app")
-        # The only row the application removes: a campaign's eligible-type selection.
+        # The only rows the application removes: a campaign's eligible-type selection and an
+        # event gallery entry (its stored_file row stays as a tombstone for storage cleanup).
+        # Granted on every start, so existing deployments get it at their next migrate.
         connection.execute("GRANT DELETE ON biletflow.campaign_ticket_type TO biletflow_app")
+        connection.execute("GRANT DELETE ON biletflow.event_media TO biletflow_app")
     from .db import database
-    from .seed import seed_catalog, seed_demo_campaigns
+    from .seed import MESSAGES, DemoBuildError, DemoRefused, seed_catalog, seed_demo_fixtures
 
     engine, factory = database(settings.database_url.get_secret_value())
     try:
         seed_catalog(factory)
-        seed_demo_campaigns(factory, settings)
+        try:
+            # Builds the demo fixtures only when absent, so restarts keep demo activity.
+            print(MESSAGES[seed_demo_fixtures(factory, settings)])
+        except (DemoRefused, DemoBuildError) as error:
+            # Demo data is optional: the stack still starts, and the message says why.
+            print(f"Demo fixtures not built: {error}")
     finally:
         engine.dispose()
 

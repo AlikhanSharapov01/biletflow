@@ -17,6 +17,8 @@ from .checkout_expiry import sweep_expired_holds
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .config import Settings
 from .db import database
+from .email_templates import copy
+from .event_image_service import reconcile_images
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .payments_service import dispatch_refund_once, initialize_once, process_received_once
@@ -24,7 +26,7 @@ from .security import challenge_value, now
 from .storage import storage_from_settings
 from .support_models import SupportCase
 from .support_service import case_roles
-from .ticket_file_service import ensure_ticket_pdf
+from .ticket_file_service import ensure_ticket_pdf, reconcile_ticket_pdfs
 
 HOLD_SWEEP_SECONDS = 15
 # Touched on every loop; the Compose health check reads its age.
@@ -36,49 +38,55 @@ def ticket_message(db, settings, identifier, ticket_id, pdf=None):
     if not ticket or ticket.status != "valid":
         return None
     item = db.get(OrderItem, ticket.order_item_id)
+    # Locale follows the mailbox receiving this delivery; lookup never claims a ticket.
+    recipient = db.scalar(
+        select(User).where(
+            User.email == item.recipient_email,
+            User.status == "active",
+            User.email_verified_at.is_not(None),
+        )
+    )
+    locale = recipient.locale if recipient else None
     event = db.get(TicketOrder, item.order_id).event_snapshot
     zone = ZoneInfo(event["time_zone"])
     starts = datetime.fromisoformat(event["starts_at"]).astimezone(zone)
     seat = item.seat_snapshot
     lines = [
-        f"Hello {item.recipient_name},",
+        copy("hello", locale, name=item.recipient_name),
         "",
-        f"Your ticket for {event['title']} is confirmed.",
-        f"When: {starts:%d.%m.%Y %H:%M} ({event['time_zone']})",
-        f"Venue: {event['venue_name']}, {event['venue_city']}",
-        f"Ticket type: {item.ticket_type_name}",
+        copy("ticket_confirmed", locale, title=event["title"]),
+        f"{copy('when', locale)}: {starts:%d.%m.%Y %H:%M} ({event['time_zone']})",
+        f"{copy('venue', locale)}: {event['venue_name']}, {event['venue_city']}",
+        f"{copy('ticket_type', locale)}: {item.ticket_type_name}",
     ]
     if seat:
         lines.append(
-            f"Seat: section {seat['section_label']}, row {seat['row_label']}, seat {seat['seat_label']}"
+            copy(
+                "seat",
+                locale,
+                section=seat["section_label"],
+                row=seat["row_label"],
+                seat=seat["seat_label"],
+            )
         )
     # The QR stays behind sign-in: admission requires the recipient's verified account.
     lines += [
-        f"Ticket ID: {ticket.id}",
+        f"{copy('ticket_id', locale)}: {ticket.id}",
         "",
-        f"Sign in with {item.recipient_email} to view your QR code:",
+        copy("ticket_sign_in", locale, email=item.recipient_email),
         f"{settings.frontend_url.rstrip('/')}/tickets/{ticket.id}",
     ]
     if pdf:
-        lines += ["", "Your printable ticket is attached (A4, grayscale-safe)."]
+        lines += ["", copy("attachment", locale)]
     message = EmailMessage()
     message["From"], message["To"] = settings.email_from, item.recipient_email
-    message["Subject"] = f"Your BiletFlow ticket: {event['title']}"
+    message["Subject"] = copy("ticket_subject", locale, title=event["title"])
     message["Message-ID"] = f"<{identifier}@biletflow.local>"
     message.set_content("\n".join(lines))
     if pdf:
         data, filename = pdf
         message.add_attachment(data, maintype="application", subtype="pdf", filename=filename)
     return message
-
-
-SUPPORT_SUBJECTS = {
-    "case_opened": "New support case",
-    "message": "New message on a support case",
-    "status": "Support case status changed",
-    "assignment": "Support case assignment changed",
-    "escalation": "Support case escalated to the platform",
-}
 
 
 def support_message(db, settings, identifier, payload):
@@ -90,13 +98,19 @@ def support_message(db, settings, identifier, payload):
         return None
     if not case_roles(db, user, case):
         return None
-    subject = SUPPORT_SUBJECTS.get(payload["reason"], "Support case update")
+    reason = payload["reason"]
+    subject = copy(
+        reason
+        if reason in ("case_opened", "message", "status", "assignment", "escalation")
+        else "support_update",
+        user.locale,
+    )
     message = EmailMessage()
     message["From"], message["To"] = settings.email_from, user.email
     message["Subject"] = f"BiletFlow: {subject}"
     message["Message-ID"] = f"<{identifier}@biletflow.local>"
     message.set_content(
-        f"{subject}.\n\nSign in to read it:\n{settings.frontend_url.rstrip('/')}/support/cases/{case.id}"
+        f"{subject}.\n\n{copy('sign_in', user.locale)}:\n{settings.frontend_url.rstrip('/')}/support/cases/{case.id}"
     )
     return message
 
@@ -165,13 +179,13 @@ def deliver_once(factory, settings, send=None, storage=None):
                 message = EmailMessage()
                 message["From"], message["To"] = settings.email_from, user.email
                 message["Subject"] = (
-                    "Verify your BiletFlow email"
+                    copy("verify", user.locale)
                     if token.purpose == "email_verify"
-                    else "Reset your BiletFlow password"
+                    else copy("reset", user.locale)
                 )
                 message["Message-ID"] = f"<{identifier}@biletflow.local>"
                 message.set_content(
-                    f"{message['Subject']}\n\n{link}\n\nExpires: {token.expires_at.isoformat()}\nIf you did not request this, ignore this email."
+                    f"{message['Subject']}\n\n{link}\n\n{copy('expires', user.locale)}: {token.expires_at.isoformat()}\n{copy('ignore', user.locale)}"
                 )
             if kind == "staff_invite_email":
                 invitation = db.get(Invitation, UUID(payload["invitation_id"]))
@@ -191,14 +205,22 @@ def deliver_once(factory, settings, send=None, storage=None):
                     except HTTPException:
                         org = None
                     if org and inviter.status == "active":
+                        recipient = db.scalar(
+                            select(User).where(
+                                User.email == invitation.email,
+                                User.status == "active",
+                                User.email_verified_at.is_not(None),
+                            )
+                        )
+                        locale = recipient.locale if recipient else None
                         value = challenge_value(settings, "staff_invite", invitation.id)
                         link = f"{settings.frontend_url.rstrip('/')}/staff-invitations/accept#token={value}"
                         message = EmailMessage()
                         message["From"], message["To"] = settings.email_from, invitation.email
-                        message["Subject"] = "BiletFlow organizer invitation"
+                        message["Subject"] = copy("invitation_subject", locale)
                         message["Message-ID"] = f"<{identifier}@biletflow.local>"
                         message.set_content(
-                            f"You are invited to join {org.name}. Sign in with this email to accept.\n\n{link}\n\nExpires: {invitation.expires_at.isoformat()}"
+                            f"{copy('invitation', locale, organization=org.name)}\n\n{link}\n\n{copy('expires', locale)}: {invitation.expires_at.isoformat()}"
                         )
             if kind == "support_email":
                 message = support_message(db, settings, identifier, payload)
@@ -248,6 +270,14 @@ def main():
                     sweep_expired_holds(factory)
                 except Exception:
                     pass  # the next pass retries; expiry state lives in the database
+                try:
+                    reconcile_images(factory, storage)
+                except Exception:
+                    pass  # durable image schedules retry after restart or temporary failure
+                try:
+                    reconcile_ticket_pdfs(factory, storage)
+                except Exception:
+                    pass  # abandoned ticket PDF writes stay scheduled in stored_file
             try:
                 busy = (
                     initialize_once(factory)

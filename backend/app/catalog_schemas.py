@@ -140,6 +140,20 @@ class OrganizationView(Record):
     status: str
 
 
+class EventImageView(BaseModel):
+    id: UUID
+    url: str
+    alt_text: str
+    sort_order: int
+    is_cover: bool
+    mime_type: str
+    size_bytes: int
+
+
+class ImageOrder(Input):
+    image_ids: list[UUID] = Field(min_length=1, max_length=10)
+
+
 class EventView(Record, EventInput):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
     organization_id: UUID
@@ -150,11 +164,20 @@ class EventView(Record, EventInput):
     availability_version: int
     updated_at: datetime
     time_status: str
+    images: list[EventImageView] = Field(default_factory=list)
+    cover_image_url: str | None = None
 
 
 class TicketView(Record, TicketInput):
     model_config = ConfigDict(from_attributes=True, extra="ignore")
     event_id: UUID
+
+
+class OrganizerTicketView(TicketView):
+    sold: int
+    reserved: int
+    refunded: int
+    checked_in: int
 
 
 class CodeView(BaseModel):
@@ -185,6 +208,7 @@ class InvitationView(Record):
 
 
 class CategoryView(Record):
+    name: str
     code: str
     name_kk: str
     name_ru: str

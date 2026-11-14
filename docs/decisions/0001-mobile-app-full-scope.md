@@ -44,3 +44,12 @@ scanner as an extra capability.
 - Every new backend feature must be wired into both clients before it counts as done.
 - Out of scope for now: push notifications, offline browsing, Google sign-in on mobile,
   app-store publication.
+
+## Status note (12 November 2026)
+
+The decision is unchanged. The APIs listed in point 2 as "not built yet" (promo campaigns,
+analytics, finance, refund actions, event images) are now on `main` (PRs #61 and #64), so the
+"Not available yet" state is no longer the expected result for them. Wiring them into the mobile
+app is tracked in #51 and in the web in #45; current per-area progress is in the
+[integration status](../integration/status.md). Ownership follows point 1: `@mobile` owns every
+mobile screen, not only the scanner.
