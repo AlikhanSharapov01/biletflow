@@ -55,6 +55,19 @@ export interface EventView extends EventInput {
   availability_version: number;
   updated_at: string;
   time_status: TimeStatus;
+  // Ordered gallery; the first image is the cover.
+  images?: EventImage[];
+  cover_image_url?: string | null;
+}
+
+export interface EventImage {
+  id: string;
+  url: string;
+  alt_text: string;
+  sort_order: number;
+  is_cover: boolean;
+  mime_type: string;
+  size_bytes: number;
 }
 
 export interface EventFilters {

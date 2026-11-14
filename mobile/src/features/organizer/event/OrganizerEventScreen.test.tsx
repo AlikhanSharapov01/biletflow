@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { getEvent, listCategories, listTicketTypes, listVenues } from "@/api/catalog";
 import { listHistory, publishEvent } from "@/api/eventAdmin";
-import { ApiError } from "@/api/errors";
-import { getEventFinance } from "@/api/finance";
+import { getEventFinance, listPayouts } from "@/api/finance";
+import type { EventFinance } from "@/api/types/finance";
 import type { HistoryEntry } from "@/api/types";
 import { OrganizerEventScreen } from "@/features/organizer/event/OrganizerEventScreen";
 
@@ -61,7 +61,8 @@ describe("OrganizerEventScreen", () => {
   it("switches tabs and loads each section", async () => {
     jest.mocked(getEvent).mockResolvedValue(makeEvent());
     jest.mocked(listHistory).mockResolvedValue([entry]);
-    jest.mocked(getEventFinance).mockRejectedValue(new ApiError("Not Found", 404));
+    jest.mocked(getEventFinance).mockResolvedValue({ estimated_payout_minor: 0, payout_eligible_at: "2026-12-01T21:00:00Z", generated_at: "2026-11-14T10:00:00Z" } as EventFinance);
+    jest.mocked(listPayouts).mockResolvedValue([]);
     await render(<OrganizerEventScreen />);
     await screen.findByText("Almaty Jazz Night");
 
@@ -71,7 +72,7 @@ describe("OrganizerEventScreen", () => {
     expect(listHistory).toHaveBeenCalledWith("event-1");
 
     await fireEvent.press(screen.getByRole("tab", { name: "Finance" }));
-    expect(await screen.findByText("Event finance is coming soon.")).toBeTruthy();
+    expect(await screen.findByText("No payouts yet.")).toBeTruthy();
 
     await fireEvent.press(screen.getByRole("tab", { name: "Seating" }));
     expect(await screen.findByText(/This event uses general admission/)).toBeTruthy();

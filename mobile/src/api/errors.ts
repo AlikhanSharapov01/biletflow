@@ -112,6 +112,24 @@ const MESSAGES: Record<string, string> = {
   ticket_checked_in: "Reverse the ticket’s admission before cancelling or refunding it.",
   refund_not_allowed: "The saved policy for this order does not allow refunds.",
   refund_cutoff_passed: "The refund deadline for this order has passed.",
+  idempotency_key_reused: "That request was already sent with different details. Start again.",
+  invalid_idempotency_key: "The app sent an invalid request. Try again.",
+  analytics_range_too_large: "That range has too many points. Choose a shorter range or group by day.",
+  invalid_analytics_filter: "That filter doesn’t belong to this event. Clear the filters and try again.",
+  image_empty: "That image file is empty.",
+  image_rejected: "That image couldn’t be read. Choose a different PNG or JPEG.",
+  image_too_large: "That image is too large. Choose one under the upload limit.",
+  image_limit_reached: "An event can have up to 10 images. Delete one to add another.",
+  image_not_found: "That image no longer exists. Refresh the event.",
+  image_upload_expired: "The upload took too long. Try again.",
+  invalid_image_order: "The gallery changed. Refresh the event and try again.",
+  insufficient_payable_balance: "That amount is more than can be paid out now.",
+  payout_not_yet_eligible: "Payouts can be sent once the event has ended.",
+  invalid_payout_transition: "That payout has already moved past this step.",
+  payout_environment_mismatch: "Some payments came from a different environment, so they can’t fund a demo payout.",
+  payout_not_found: "That payout no longer exists. Refresh the page.",
+  payout_profile_not_verified: "Verify the payout profile on the Paid sales tab first.",
+  storage_unavailable: "File storage is unavailable right now. Try again shortly.",
   // Organizer tools and platform admin
   activation_incomplete: "Finish every paid-sales step before paying the activation fee.",
   paid_sales_suspended: "Paid sales for this event are suspended by the platform.",
@@ -179,12 +197,4 @@ export function describeError(error: unknown): string {
 
 export function errorCodeOf(error: unknown): string | undefined {
   return error instanceof ApiError ? error.code : undefined;
-}
-
-// True when the backend does not serve this endpoint yet (planned contract):
-// FastAPI's own 404/405 carry no error code, unlike a real "not found".
-export function isNotImplemented(error: unknown): boolean {
-  if (!(error instanceof ApiError)) return false;
-  if (error.status === 501) return true;
-  return (error.status === 404 || error.status === 405) && !error.code;
 }
