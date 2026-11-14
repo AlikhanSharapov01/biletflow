@@ -7,6 +7,7 @@ import { statusLabel } from "@/utils/format";
 
 import { seatName, seatPosition } from "../../utils/seating";
 import { SEAT_COLORS } from "./seatColors";
+import { t, useLocale } from "@/i18n";
 
 const SEAT = 20;
 
@@ -21,19 +22,20 @@ interface SeatGridProps {
 // Seats drawn at their layout coordinates. Each seat is a button with a full
 // spoken label, so the map works with a screen reader.
 export function SeatGrid({ layout, seats, types, selectedId, onSelect }: SeatGridProps) {
+  useLocale();
   const canvas = { width: layout.canvas_width, height: layout.canvas_height };
-  const typeName = (id: string) => types.find((type) => type.id === id)?.name ?? "Unknown ticket type";
+  const typeName = (id: string) => types.find((type) => type.id === id)?.name ?? t("org.unknown_ticket_type");
   const ratio = canvas.width > 0 && canvas.height > 0 ? canvas.width / canvas.height : 2;
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.stage} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        Stage
+        {t("checkout.stage")}
       </Text>
-      <View style={[styles.map, { aspectRatio: ratio }]} accessibilityLabel={`Seat map, ${seats.length} seats`}>
+      <View style={[styles.map, { aspectRatio: ratio }]} accessibilityLabel={t("org.seat_map_count", { p0: seats.length })}>
         {seats.map((seat) => {
           const selected = seat.id === selectedId;
-          const label = `${seatName(seat)}, ${typeName(seat.ticket_type_id)}, ${statusLabel(seat.status)}${seat.is_accessible ? ", accessible" : ""}`;
+          const label = `${seatName(seat)}, ${typeName(seat.ticket_type_id)}, ${statusLabel(seat.status)}${seat.is_accessible ? t("org.accessible_suffix") : ""}`;
           return (
             <Pressable
               key={seat.id}

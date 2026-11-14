@@ -2,9 +2,11 @@ import { StyleSheet, Text } from "react-native";
 
 import { fonts, radii, statusTones } from "@/theme";
 import { formatCountdown } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 // Time left on the ten-minute hold; turns red in the last minute.
 export function HoldCountdown({ secondsLeft }: { secondsLeft: number }) {
+  useLocale();
   const tone = secondsLeft < 60 ? statusTones.blocked : statusTones.positive;
   return (
     <Text
@@ -12,7 +14,7 @@ export function HoldCountdown({ secondsLeft }: { secondsLeft: number }) {
       accessibilityRole="timer"
       accessibilityLiveRegion="polite"
     >
-      Held for {formatCountdown(secondsLeft)}
+      {t("checkout.held_for")} {formatCountdown(secondsLeft)}
     </Text>
   );
 }

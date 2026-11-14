@@ -1,12 +1,15 @@
 import type { SeatSnapshot } from "@/api/types";
+import { getLocale } from "@/i18n";
+import { localizedStatus } from "@/i18n/status";
+import { t } from "@/i18n";
 
 const DEFAULT_DATE: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
 
 export function dateLabel(value: string | null | undefined, options: Intl.DateTimeFormatOptions = DEFAULT_DATE): string {
-  if (!value) return "Not available";
+  if (!value) return t("common.not_available");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
-  return new Intl.DateTimeFormat(undefined, options).format(date);
+  if (Number.isNaN(date.getTime())) return t("common.not_available");
+  return new Intl.DateTimeFormat(getLocale(), options).format(date);
 }
 
 export function dayNumber(value: string): string {
@@ -17,16 +20,24 @@ export function monthShort(value: string): string {
   return dateLabel(value, { month: "short" }).toUpperCase();
 }
 
+// "₸6640.00" in English; "6 640,00 ₸" in Kazakh and Russian. Written out
+// rather than Intl.NumberFormat, whose tenge support varies between phones.
+function money(minor: number): string {
+  const amount = (Math.abs(minor) / 100).toFixed(2);
+  if (getLocale() === "en") return `₸${amount}`;
+  const [whole = "0", cents = "00"] = amount.split(".");
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")},${cents}\u00a0₸`;
+}
+
 // Prices are stored in tiyn (minor units of KZT).
 export function priceLabel(priceMinor: number): string {
-  if (priceMinor === 0) return "Free";
-  return `₸${(priceMinor / 100).toFixed(2)}`;
+  if (priceMinor === 0) return t("common.free");
+  return money(priceMinor);
 }
 
 // Money amounts in reports, where zero is ₸0.00 rather than "Free".
 export function amountLabel(amountMinor: number): string {
-  const sign = amountMinor < 0 ? "−" : "";
-  return `${sign}₸${(Math.abs(amountMinor) / 100).toFixed(2)}`;
+  return `${amountMinor < 0 ? "−" : ""}${money(amountMinor)}`;
 }
 
 export function tengeToMinor(tenge: string | number): number {
@@ -71,12 +82,12 @@ export function browserTimeZone(): string {
 }
 
 export function seatLabel(seat: SeatSnapshot | null | undefined): string {
-  if (!seat) return "General admission";
-  return `Section ${seat.section_label} · Row ${seat.row_label} · Seat ${seat.seat_label}`;
+  if (!seat) return t("checkout.general_admission");
+  return t("format.section_row_seat", { section: seat.section_label, row: seat.row_label, seat: seat.seat_label });
 }
 
 export function statusLabel(status: string): string {
-  return status.replace(/_/g, " ");
+  return localizedStatus(status);
 }
 
 // Emailed links (verify email, reset password, staff invitation) carry the

@@ -7,9 +7,11 @@ import { PrimaryButton, TextField } from "@/components/ui";
 import { LinkTokenField } from "@/features/auth/components/LinkTokenField";
 import { TokenLayout, TokenMessage } from "@/features/auth/components/TokenLayout";
 import { TOKEN_FLOW_IDLE, useLinkToken, type TokenFlowState } from "@/features/auth/useLinkToken";
+import { t, useLocale } from "@/i18n";
 
 // Sets a new password with the token from the reset email (web ResetPasswordPage).
 export function ResetPasswordScreen() {
+  useLocale();
   const router = useRouter();
   const link = useLinkToken();
   const [password, setPassword] = useState("");
@@ -18,17 +20,17 @@ export function ResetPasswordScreen() {
 
   async function submit() {
     if (password !== confirmation) {
-      setState({ busy: false, done: false, message: "The two passwords do not match." });
+      setState({ busy: false, done: false, message: t("auth.passwords_mismatch") });
       return;
     }
     if (password.length < 12) {
-      setState({ busy: false, done: false, message: "Use at least 12 characters." });
+      setState({ busy: false, done: false, message: t("mobile.auth.password_length") });
       return;
     }
     setState({ busy: true, done: false, message: "" });
     try {
       await resetPassword(link.token, password);
-      setState({ busy: false, done: true, message: "Password changed. Every other session was signed out." });
+      setState({ busy: false, done: true, message: t("auth.password_changed") });
     } catch (failure) {
       setState({ busy: false, done: false, message: describeError(failure) });
     }
@@ -36,29 +38,29 @@ export function ResetPasswordScreen() {
 
   if (state.done) {
     return (
-      <TokenLayout eyebrow="Account recovery" title="Choose a new password" subtitle="Your BiletFlow password was changed.">
+      <TokenLayout eyebrow={t("auth.recovery")} title={t("auth.choose_password")} subtitle={t("mobile.auth.password_changed")}>
         <TokenMessage text={state.message} success />
-        <PrimaryButton label="Sign in with the new password" onPress={() => router.replace("/login")} />
+        <PrimaryButton label={t("auth.sign_in_new_password")} onPress={() => router.replace("/login")} />
       </TokenLayout>
     );
   }
 
   return (
     <TokenLayout
-      eyebrow="Account recovery"
-      title="Choose a new password"
-      subtitle="Paste the link from your password reset email, then choose a new password."
+      eyebrow={t("auth.recovery")}
+      title={t("auth.choose_password")}
+      subtitle={t("mobile.auth.reset_intro")}
     >
       <LinkTokenField
         value={link.input}
         onChange={link.setInput}
         missing={link.missing}
-        action="reset your password"
+        action={t("auth.action_reset")}
         editable={!state.busy}
       />
       <TextField
-        label="New password"
-        placeholder="At least 12 characters"
+        label={t("auth.new_password")}
+        placeholder={t("auth.minimum_password")}
         secureTextEntry
         autoComplete="new-password"
         textContentType="newPassword"
@@ -68,7 +70,7 @@ export function ResetPasswordScreen() {
         editable={!state.busy}
       />
       <TextField
-        label="Repeat password"
+        label={t("auth.repeat_password")}
         secureTextEntry
         autoComplete="new-password"
         textContentType="newPassword"
@@ -78,7 +80,7 @@ export function ResetPasswordScreen() {
         editable={!state.busy}
       />
       <PrimaryButton
-        label={state.busy ? "Saving…" : "Set new password"}
+        label={state.busy ? t("common.saving") : t("auth.set_password")}
         onPress={() => void submit()}
         disabled={!link.token || !password || !confirmation}
         loading={state.busy}

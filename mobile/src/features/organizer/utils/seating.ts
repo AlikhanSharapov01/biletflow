@@ -1,4 +1,5 @@
 import type { PhysicalSeat, SeatAvailability, SeatStatus } from "@/api/types/seating";
+import { t } from "@/i18n";
 
 // Distinct price categories of a layout, in a stable order.
 export function priceCategories(seats: PhysicalSeat[]): string[] {
@@ -26,5 +27,5 @@ export function seatEditable(seat: SeatAvailability): boolean {
 }
 
 export function seatName(seat: { section_label: string; row_label: string; seat_label: string }): string {
-  return `${seat.section_label} · Row ${seat.row_label} · Seat ${seat.seat_label}`;
+  return t("org.seat_location", { p0: seat.section_label, p1: seat.row_label, p2: seat.seat_label });
 }

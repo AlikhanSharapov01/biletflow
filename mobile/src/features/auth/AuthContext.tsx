@@ -17,6 +17,7 @@ import {
 import { setSessionExpiredHandler } from "@/api/session";
 import { clearTokens, getTokens, saveTokens } from "@/api/tokenStorage";
 import type { Profile } from "@/api/types/auth";
+import { setLocale } from "@/i18n";
 
 type Status = "loading" | "signedIn" | "signedOut";
 
@@ -33,7 +34,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("loading");
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, storeProfile] = useState<Profile | null>(null);
+
+  // The interface language follows the profile (Account → Language). It is
+  // set before the profile is stored, so screens first draw in that language.
+  const setProfile = useCallback((next: Profile | null) => {
+    if (next) setLocale(next.locale);
+    storeProfile(next);
+  }, []);
 
   // On launch: restore whatever session is on disk. An expired access token
   // is expected (they last minutes) — try one refresh before giving up.

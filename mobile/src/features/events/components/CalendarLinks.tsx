@@ -7,10 +7,12 @@ import { saveFile } from "@/api/files";
 import { PanelHeading, SubtleButton } from "@/components/ui";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useRequest } from "@/hooks/useRequest";
+import { t, useLocale } from "@/i18n";
 
 // "Add to calendar": pre-filled links for Google / Outlook / Office 365, plus
 // the .ics file, saved through the share sheet.
 export function CalendarLinks({ eventId }: { eventId: string }) {
+  useLocale();
   const links = useRequest(
     () =>
       getCalendarLinks(eventId).catch((failure: unknown) => {
@@ -24,7 +26,7 @@ export function CalendarLinks({ eventId }: { eventId: string }) {
   const [message, setMessage] = useState("");
 
   if (links.loading || !links.data) {
-    return links.error ? <FormMessage message={`Calendar links are unavailable: ${links.error}`} /> : null;
+    return links.error ? <FormMessage message={t("calendar.unavailable", { p0: links.error })} /> : null;
   }
   const data = links.data;
 
@@ -49,12 +51,12 @@ export function CalendarLinks({ eventId }: { eventId: string }) {
 
   return (
     <View style={styles.block}>
-      <PanelHeading title="Add to calendar" />
+      <PanelHeading title={t("calendar.add")} />
       <View style={styles.buttons}>
         <SubtleButton label="Google" onPress={() => open(data.google)} />
         <SubtleButton label="Outlook" onPress={() => open(data.outlook)} />
         <SubtleButton label="Office 365" onPress={() => open(data.office365)} />
-        <SubtleButton label={busy ? "Downloading…" : "Download .ics"} disabled={busy} onPress={() => void download()} />
+        <SubtleButton label={busy ? t("calendar.downloading") : t("calendar.download")} disabled={busy} onPress={() => void download()} />
       </View>
       <FormMessage message={message} />
     </View>

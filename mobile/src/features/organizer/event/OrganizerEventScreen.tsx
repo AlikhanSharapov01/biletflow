@@ -12,10 +12,12 @@ import { useRequest } from "@/hooks/useRequest";
 import { EventHeader } from "./EventHeader";
 import { EVENT_TABS, type EventTab } from "./eventTabs";
 import { TabContent } from "./TabContent";
+import { t, useLocale } from "@/i18n";
 
 // One event's management screen (web OrganizerEventPage): header actions and
 // every section as a tab.
 export function OrganizerEventScreen() {
+  useLocale();
   const { eventId = "" } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
   const { notify } = useToast();
@@ -29,9 +31,9 @@ export function OrganizerEventScreen() {
 
   if (!page.data) {
     return (
-      <ScrollScreen backLabel="Organizer workspace">
-        {page.loading ? <LoadingState message="Loading event…" /> : null}
-        {page.error ? <ErrorPanel title="We couldn’t load this event." message={page.error} onRetry={page.reload} /> : null}
+      <ScrollScreen backLabel={t("nav.workspace")}>
+        {page.loading ? <LoadingState message={t("org.loading_event")} /> : null}
+        {page.error ? <ErrorPanel title={t("event.load_error")} message={page.error} onRetry={page.reload} /> : null}
       </ScrollScreen>
     );
   }
@@ -53,20 +55,20 @@ export function OrganizerEventScreen() {
 
   const cancel = async () => {
     const confirmed = await confirmAction({
-      title: "Cancel this event?",
-      message: "This cannot be undone.",
-      confirmLabel: "Cancel event",
-      cancelLabel: "Keep event",
+      title: t("mobile.org.cancel_event_title"),
+      message: t("mobile.org.cannot_undo"),
+      confirmLabel: t("organizer.cancel_event"),
+      cancelLabel: t("mobile.org.keep_event"),
       destructive: true,
     });
-    if (confirmed) await act(() => cancelEvent(event.id), "Event cancelled.");
+    if (confirmed) await act(() => cancelEvent(event.id), t("org.event_cancelled"));
   };
 
   const duplicate = async () => {
     setBusy(true);
     try {
       const copy = await duplicateEvent(event.id);
-      notify("Draft copied. Adjust its dates before publishing.");
+      notify(t("org.draft_copied"));
       router.push({ pathname: "/organizer/events/[eventId]", params: { eventId: copy.id } });
     } catch (failure) {
       notify(describeError(failure));
@@ -76,14 +78,14 @@ export function OrganizerEventScreen() {
   };
 
   return (
-    <ScrollScreen backLabel="Organizer workspace" onRefresh={page.reload} refreshing={page.loading}>
+    <ScrollScreen backLabel={t("nav.workspace")} onRefresh={page.reload} refreshing={page.loading}>
       <EventHeader
         event={event}
         venue={venues.find((item) => item.id === event.venue_id)}
         busy={busy}
         onOpenPublic={() => router.push({ pathname: "/events/[eventId]", params: { eventId: event.id } })}
         onTogglePublish={() =>
-          void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? "Event unpublished." : "Event published.")
+          void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))
         }
         onDuplicate={() => void duplicate()}
         onCancel={() => void cancel()}

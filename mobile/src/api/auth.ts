@@ -4,6 +4,7 @@
 
 import { API_URL, friendlyError as baseFriendlyError, networkError } from "@/api/client";
 import type { Profile, TokenPair as WireTokenPair } from "@/api/types/auth";
+import { t } from "@/i18n";
 
 // Native clients sign in as client_kind "scanner", so the refresh token always
 // comes back in the body (the web gets it as an HttpOnly cookie instead).
@@ -11,11 +12,11 @@ export type TokenPair = WireTokenPair & { refresh_token: string };
 
 // Same wording as the web sign-in page (web/src/main.js parseResponse).
 const AUTH_MESSAGES: Record<string, string> = {
-  invalid_credentials: "That email and password don’t match.",
-  email_not_verified: "Please verify your email before signing in.",
-  invalid_input: "Check your details and try again.",
-  database_unavailable: "The service is temporarily unavailable. Please try again shortly.",
-  suspended_account: "This account is unavailable. Contact support if you think this is a mistake.",
+  get invalid_credentials() { return t("api.invalid_credentials"); },
+  get email_not_verified() { return t("api.email_not_verified"); },
+  get invalid_input() { return t("mobile.api.check_details"); },
+  get database_unavailable() { return t("errors.unavailable"); },
+  get suspended_account() { return t("api.suspended_account"); },
 };
 
 function friendlyError(response: Response): Promise<Error> {

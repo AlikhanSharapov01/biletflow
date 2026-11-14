@@ -6,6 +6,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
 import { apiFailure, apiUrl, authorizedFetch, type Query } from "@/api/http";
+import { t } from "@/i18n";
 
 export interface DownloadedFile {
   uri: string;
@@ -61,7 +62,7 @@ export async function requestBlob(path: string, fallbackName: string, query?: Qu
 // Opens the share sheet so the person can save, print or send the file.
 export async function saveFile(file: DownloadedFile): Promise<void> {
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error("Sharing files isn’t available on this device.");
+    throw new Error(t("mobile.api.sharing_unavailable"));
   }
   await Sharing.shareAsync(file.uri, { mimeType: file.mimeType, dialogTitle: file.filename });
 }

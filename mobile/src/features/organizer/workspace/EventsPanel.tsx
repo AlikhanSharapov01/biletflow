@@ -10,6 +10,7 @@ import { useRequest } from "@/hooks/useRequest";
 
 import { EVENT_GROUPS, defaultGroup, groupEvents, type EventGroup } from "../utils/eventGroups";
 import { WorkspaceEventCard } from "./WorkspaceEventCard";
+import { t, useLocale } from "@/i18n";
 
 interface EventsPanelProps {
   organization: Organization;
@@ -19,6 +20,7 @@ interface EventsPanelProps {
 // The workspace's events, grouped into Active / Upcoming / Completed /
 // Cancelled from the server's time status and publication state.
 export function EventsPanel({ organization, venues }: EventsPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const router = useRouter();
   const events = useRequest(() => listOrganizationEvents(organization.id), [organization.id]);
@@ -44,7 +46,7 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
     setPendingId(event.id);
     try {
       const copy = await duplicateEvent(event.id);
-      notify("Draft copied. Adjust its dates before publishing.");
+      notify(t("org.draft_copied"));
       setPendingId("");
       open(copy.id);
     } catch (failure) {
@@ -59,12 +61,12 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
 
   return (
     <Panel>
-      <PanelHeading title="Your events" trailing={<StatusPill tone="neutral" label={`${events.data?.length ?? 0} total`} />} />
-      {events.loading ? <LoadingState message="Loading events…" /> : null}
-      {events.error ? <ErrorPanel title="We couldn’t load your events." message={events.error} onRetry={events.reload} /> : null}
+      <PanelHeading title={t("org.your_events")} trailing={<StatusPill tone="neutral" label={t("mobile.org.events_total", { p0: events.data?.length ?? 0 })} />} />
+      {events.loading ? <LoadingState message={t("discover.loading")} /> : null}
+      {events.error ? <ErrorPanel title={t("org.events_error")} message={events.error} onRetry={events.reload} /> : null}
       {events.data && !events.loading ? (
         events.data.length === 0 ? (
-          <EmptyState message="No events in this workspace yet. Create a draft to get started." />
+          <EmptyState message={t("org.no_events")} />
         ) : (
           <>
             <SegmentedTabs
@@ -85,7 +87,7 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
                     busy={pendingId === event.id}
                     onOpen={() => open(event.id)}
                     onTogglePublish={() =>
-                      void run(event, () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? "Event unpublished." : "Event published.")
+                      void run(event, () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))
                     }
                     onDuplicate={() => void duplicate(event)}
                   />

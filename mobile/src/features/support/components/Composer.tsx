@@ -19,6 +19,7 @@ import {
 } from "../utils/attachments";
 import { createRetryKeys } from "../utils/retryKey";
 import { PendingFiles, type PendingFile } from "./PendingFiles";
+import { t, useLocale } from "@/i18n";
 
 interface ComposerProps {
   caseId: string;
@@ -30,6 +31,7 @@ interface ComposerProps {
 // Reply box. Files upload when picked (raw body), then their ids go with the
 // message. A retry of the same text and files reuses its client_message_id.
 export function Composer({ caseId, hint, onSent }: ComposerProps) {
+  useLocale();
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [busy, setBusy] = useState(false);
@@ -53,7 +55,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
     }
     if (result.canceled) return;
     const room = MAX_ATTACHMENTS_PER_MESSAGE - files.filter((file) => file.status !== "failed").length;
-    if (result.assets.length > room) setError(`You can attach up to ${MAX_ATTACHMENTS_PER_MESSAGE} files to one message.`);
+    if (result.assets.length > room) setError(t("support.max_files", { p0: MAX_ATTACHMENTS_PER_MESSAGE }));
     for (const asset of result.assets.slice(0, Math.max(0, room))) {
       nextId.current += 1;
       const localId = `file-${nextId.current}`;
@@ -73,7 +75,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
   const submit = async () => {
     const text = body.trim();
     if (!text) {
-      setError(ready.length ? "Add a short message to go with the files." : "Write a message first.");
+      setError(ready.length ? t("support.files_message") : t("support.write_first"));
       return;
     }
     const payload = { body: text, attachment_ids: ready.map((file) => file.fileId ?? "") };
@@ -95,19 +97,19 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
   return (
     <View style={styles.composer}>
       {hint ? <Text style={styles.note}>{hint}</Text> : null}
-      <TextField label="Reply" accessibilityLabel="Reply" value={body} maxLength={5000} multiline onChangeText={setBody} />
+      <TextField label={t("support.reply")} accessibilityLabel={t("support.reply")} value={body} maxLength={5000} multiline onChangeText={setBody} />
       <PendingFiles files={files} onRemove={(localId) => setFiles((current) => current.filter((file) => file.localId !== localId))} />
       <FormMessage message={error} />
       <View style={styles.actions}>
         <PrimaryButton
-          label={busy ? "Sending…" : uploading ? "Uploading files…" : "Send"}
+          label={busy ? t("common.sending") : uploading ? t("support.uploading_files") : t("support.send")}
           disabled={busy || uploading}
           onPress={() => void submit()}
           style={styles.send}
         />
-        <SubtleButton label="Attach file" disabled={busy} onPress={() => void pick()} />
+        <SubtleButton label={t("support.attach_file")} disabled={busy} onPress={() => void pick()} />
       </View>
-      <Text style={styles.note}>PNG, JPEG or PDF, up to {fileSizeLabel(MAX_ATTACHMENT_BYTES)} each</Text>
+      <Text style={styles.note}>{t("support.file_types_hint")} {fileSizeLabel(MAX_ATTACHMENT_BYTES)} each</Text>
     </View>
   );
 }

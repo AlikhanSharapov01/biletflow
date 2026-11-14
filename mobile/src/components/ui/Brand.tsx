@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // The "b" tile and wordmark (web .brand / .brand-mark). `inverted` is the lime
 // version used on the dark-green sign-in story.
 export function Brand({ inverted = false }: { inverted?: boolean }) {
+  useLocale();
   return (
     <View style={styles.brand} accessibilityRole="header" accessibilityLabel="BiletFlow">
       <View style={[styles.mark, inverted && styles.markInverted]}>
@@ -17,6 +19,7 @@ export function Brand({ inverted = false }: { inverted?: boolean }) {
 
 // Initials in a sand-coloured circle (web .avatar); same initials rule as the web.
 export function Avatar({ name }: { name: string }) {
+  useLocale();
   const initials = name
     .split(/\s+/)
     .map((part) => part[0])

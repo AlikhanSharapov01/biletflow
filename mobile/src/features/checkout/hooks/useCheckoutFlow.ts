@@ -7,6 +7,7 @@ import type { PromoPreview } from "@/api/types/promo";
 import { useToast } from "@/context/ToastContext";
 import { useCountdown } from "@/hooks/useCountdown";
 import { basketIsPaid, initialRecipients, recipientsComplete, recipientsPayload, type RecipientValues } from "../utils/checkout";
+import { t } from "@/i18n";
 
 // Hold -> recipients -> (paid: simulated payment) -> confirmed order.
 export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile: Profile | null, promo: PromoPreview | null) {
@@ -30,13 +31,13 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   }, []);
 
   useEffect(() => {
-    if (hold && !completed && secondsLeft === 0) reset("Your reservation expired. Choose your tickets again.");
+    if (hold && !completed && secondsLeft === 0) reset(t("checkout.expired"));
   }, [hold, completed, secondsLeft, reset]);
 
   const reserve = async (lines: HoldLine[]) => {
     if (!profile) return;
     if (lines.length === 0) {
-      setMessage("Choose at least one ticket.");
+      setMessage(t("checkout.choose_ticket"));
       return;
     }
     setBusy(true);
@@ -59,7 +60,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
 
   const finished = useCallback(
     (confirmed: Order) => {
-      notify(confirmed.payment ? "Payment received. Your tickets are ready." : "Registration confirmed. Your tickets are ready.");
+      notify(confirmed.payment ? t("checkout.payment_received") : t("checkout.registration_confirmed"));
       setCompleted(confirmed);
       setHold(null);
       setOrder(null);
@@ -70,7 +71,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   const confirm = async () => {
     if (!hold) return;
     if (!recipientsComplete(hold.allocations, recipients)) {
-      setMessage("Enter a name and a valid email for every ticket.");
+      setMessage(t("checkout.recipients_required"));
       return;
     }
     setBusy(true);

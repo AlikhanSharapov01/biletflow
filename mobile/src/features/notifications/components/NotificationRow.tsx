@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { AppNotification } from "@/api/types/notifications";
 import { colors, fonts, radii } from "@/theme";
 import { dateLabel } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 interface NotificationRowProps {
   notification: AppNotification;
@@ -21,11 +22,12 @@ const KIND_GLYPH: Record<string, string> = {
 // One inbox entry. Unread items are bold with a dot; pressing the row marks
 // it read and opens its target.
 export function NotificationRow({ notification, busy, onOpen }: NotificationRowProps) {
+  useLocale();
   const unread = !notification.read_at;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${unread ? "Unread: " : ""}${notification.title}`}
+      accessibilityLabel={unread ? t("mobile.notifications.unread", { p0: notification.title }) : notification.title}
       accessibilityState={{ disabled: busy, busy }}
       disabled={busy}
       onPress={() => onOpen(notification)}

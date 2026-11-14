@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fieldStyles } from "@/components/ui/TextField";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 export type SelectOption = {
   value: string;
@@ -17,7 +18,7 @@ export function SelectField({
   value,
   options,
   onChange,
-  placeholder = "Choose…",
+  placeholder = t("mobile.ui.choose"),
   disabled,
 }: {
   label: string;
@@ -27,6 +28,7 @@ export function SelectField({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  useLocale();
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
 
@@ -52,7 +54,7 @@ export function SelectField({
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{label}</Text>
             <Pressable onPress={() => setOpen(false)} hitSlop={8}>
-              <Text style={styles.done}>Done</Text>
+              <Text style={styles.done}>{t("org.done")}</Text>
             </Pressable>
           </View>
           <FlatList

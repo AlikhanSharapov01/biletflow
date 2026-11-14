@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
 
 type ListRowProps = {
   // Short text or a glyph for the leading tile; omit for no tile.
@@ -21,6 +22,7 @@ type ListRowProps = {
 // Icon tile, title with supporting lines and a trailing element (web .list-row):
 // tickets, orders, sessions, team members, staff, ticket types, cases.
 export function ListRow({ icon, title, meta, note, trailing, onPress, accessibilityLabel, children }: ListRowProps) {
+  useLocale();
   const body = (
     <View style={styles.row}>
       {icon !== undefined ? (

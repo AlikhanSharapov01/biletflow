@@ -12,8 +12,10 @@ import { dateLabel, priceLabel } from "@/utils/format";
 
 import { formStyles } from "../components/formStyles";
 import { TicketTypeForm } from "../components/TicketTypeForm";
+import { t, useLocale } from "@/i18n";
 
 export function TicketTypesTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
   const [editingId, setEditingId] = useState("");
@@ -23,7 +25,7 @@ export function TicketTypesTab({ event }: { event: EventView }) {
     setState({ busy: true, message: "" });
     try {
       await createTicketType(event.id, input);
-      notify("Ticket type added.");
+      notify(t("org.ticket_type_added"));
       setState({ busy: false, message: "" });
       types.reload();
     } catch (failure) {
@@ -35,7 +37,7 @@ export function TicketTypesTab({ event }: { event: EventView }) {
     setState({ busy: true, message: "" });
     try {
       await updateTicketType(event.id, type.id, input);
-      notify("Ticket type saved.");
+      notify(t("org.ticket_type_saved"));
       setState({ busy: false, message: "" });
       setEditingId("");
       types.reload();
@@ -47,22 +49,22 @@ export function TicketTypesTab({ event }: { event: EventView }) {
   return (
     <>
       <Panel>
-        <PanelHeading title="Ticket types" trailing={<StatusPill tone="neutral" label={`${types.data?.length ?? 0} configured`} />} />
-        {types.loading && !types.data ? <LoadingState message="Loading ticket types…" /> : null}
-        {types.error ? <ErrorPanel title="We couldn’t load ticket types." message={types.error} onRetry={types.reload} /> : null}
+        <PanelHeading title={t("organizer.ticket_types")} trailing={<StatusPill tone="neutral" label={t("mobile.org.types_configured", { p0: types.data?.length ?? 0 })} />} />
+        {types.loading && !types.data ? <LoadingState message={t("org.ticket_types_loading")} /> : null}
+        {types.error ? <ErrorPanel title={t("org.ticket_types_error")} message={types.error} onRetry={types.reload} /> : null}
         {types.data ? (
           <>
-            {types.data.length === 0 ? <EmptyState message="No ticket types yet. Add one below so the event can be published." /> : null}
+            {types.data.length === 0 ? <EmptyState message={t("org.no_ticket_types_hint")} /> : null}
             {types.data.map((type) => (
               <ListRow
                 key={type.id}
                 icon={type.kind === "paid" ? "₸" : "F"}
                 title={`${type.name} · ${priceLabel(type.price_minor)}`}
-                meta={`${type.quantity_limit} available · up to ${type.per_order_limit} per order · sales ${dateLabel(type.sales_open_at)} – ${dateLabel(type.sales_close_at)}`}
+                meta={t("org.available_sales", { p0: type.quantity_limit, p1: type.per_order_limit, p2: dateLabel(type.sales_open_at), p3: dateLabel(type.sales_close_at) })}
                 trailing={
                   <View style={styles.trailing}>
-                    <StatusPill tone={type.is_hidden ? "neutral" : "positive"} label={type.is_hidden ? "Hidden" : "Visible"} />
-                    <SubtleButton label={editingId === type.id ? "Close" : "Edit"} onPress={() => setEditingId(editingId === type.id ? "" : type.id)} />
+                    <StatusPill tone={type.is_hidden ? "neutral" : "positive"} label={type.is_hidden ? t("org.hidden") : t("org.visible")} />
+                    <SubtleButton label={editingId === type.id ? t("common.close") : t("common.edit")} onPress={() => setEditingId(editingId === type.id ? "" : type.id)} />
                   </View>
                 }
               >
@@ -72,7 +74,7 @@ export function TicketTypesTab({ event }: { event: EventView }) {
                       key={type.id}
                       event={event}
                       initial={type}
-                      submitLabel="Save ticket type"
+                      submitLabel={t("org.save_ticket_type")}
                       busy={state.busy}
                       message={state.message}
                       onSubmit={(input) => update(type, input)}
@@ -87,10 +89,10 @@ export function TicketTypesTab({ event }: { event: EventView }) {
         ) : null}
       </Panel>
       <Panel>
-        <PanelHeading title="Add a ticket type" />
+        <PanelHeading title={t("org.add_ticket_type_title")} />
         <TicketTypeForm
           event={event}
-          submitLabel="Add ticket type"
+          submitLabel={t("org.add_ticket_type")}
           busy={state.busy}
           message={editingId ? "" : state.message}
           onSubmit={create}

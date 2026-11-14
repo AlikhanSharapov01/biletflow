@@ -4,6 +4,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 import type { Category } from "@/api/types";
 import { Panel, PrimaryButton, SelectField, fieldStyles } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 export interface DiscoverQuery {
   q: string;
@@ -20,6 +21,7 @@ interface DiscoverFiltersProps {
 // Title search and category filter. Edits stay local until "Search events"
 // (or the keyboard's search key) applies them, like the web form.
 export function DiscoverFilters({ applied, categories, loading, onSearch }: DiscoverFiltersProps) {
+  useLocale();
   const [q, setQ] = useState(applied.q);
   const [category, setCategory] = useState(applied.category);
 
@@ -38,9 +40,9 @@ export function DiscoverFilters({ applied, categories, loading, onSearch }: Disc
         </Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search event titles"
+          placeholder={t("discover.search_titles")}
           placeholderTextColor={colors.placeholder}
-          accessibilityLabel="Search events"
+          accessibilityLabel={t("discover.search_events")}
           returnKeyType="search"
           value={q}
           onChangeText={setQ}
@@ -48,12 +50,12 @@ export function DiscoverFilters({ applied, categories, loading, onSearch }: Disc
         />
       </View>
       <SelectField
-        label="Category"
+        label={t("discover.category")}
         value={category}
-        options={[{ value: "", label: "All categories" }, ...categories.map((item) => ({ value: item.id, label: item.name_en }))]}
+        options={[{ value: "", label: t("discover.all_categories") }, ...categories.map((item) => ({ value: item.id, label: item.name_en }))]}
         onChange={setCategory}
       />
-      <PrimaryButton label="Search events" onPress={submit} loading={loading} />
+      <PrimaryButton label={t("discover.search_events")} onPress={submit} loading={loading} />
     </Panel>
   );
 }

@@ -6,22 +6,24 @@ import { dateLabel } from "@/utils/format";
 
 import { caseContext, categoryLabel, supportStatusLabel, supportStatusTone } from "../utils/supportLabels";
 import { ContextChips } from "./ContextChips";
+import { t, useLocale } from "@/i18n";
 
 // Status, category, people and the records the case is about.
 export function CaseHeader({ supportCase }: { supportCase: SupportCase }) {
+  useLocale();
   const isRequester = supportCase.viewer_roles.includes("requester");
   const facts: Fact[] = [
     {
-      label: "Status",
+      label: t("common.status"),
       value: <StatusPill tone={supportStatusTone(supportCase.status)} label={supportStatusLabel(supportCase.status)} />,
     },
-    { label: "Category", value: categoryLabel(supportCase.category) },
-    { label: "Opened by", value: isRequester ? "You" : supportCase.requester.display_name },
-    { label: "Assigned to", value: supportCase.assigned_to?.display_name ?? "Not assigned yet" },
-    { label: "Opened", value: dateLabel(supportCase.created_at) },
+    { label: t("discover.category"), value: categoryLabel(supportCase.category) },
+    { label: t("support.opened_by"), value: isRequester ? t("support.you") : supportCase.requester.display_name },
+    { label: t("support.assigned_to"), value: supportCase.assigned_to?.display_name ?? t("support.not_assigned_yet") },
+    { label: t("support.opened"), value: dateLabel(supportCase.created_at) },
   ];
-  if (supportCase.escalated_at) facts.push({ label: "Escalated", value: dateLabel(supportCase.escalated_at) });
-  if (supportCase.resolved_at) facts.push({ label: "Resolved", value: dateLabel(supportCase.resolved_at) });
+  if (supportCase.escalated_at) facts.push({ label: t("support.escalated"), value: dateLabel(supportCase.escalated_at) });
+  if (supportCase.resolved_at) facts.push({ label: t("support.resolved"), value: dateLabel(supportCase.resolved_at) });
 
   return (
     <Panel style={styles.panel}>

@@ -12,9 +12,11 @@ import { useRequest } from "@/hooks/useRequest";
 import { SectionHeading } from "../components/SectionHeading";
 import { CampaignForm } from "./campaigns/CampaignForm";
 import { CampaignRow } from "./campaigns/CampaignRow";
+import { t, useLocale } from "@/i18n";
 
 // Confirmed contract: backend/CAMPAIGNS_API.md.
 export function CampaignsTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState({ busy: false, message: "" });
   const page = useRequest(async () => {
@@ -26,7 +28,7 @@ export function CampaignsTab({ event }: { event: EventView }) {
     setState({ busy: true, message: "" });
     try {
       await createCampaign(event.id, input);
-      notify("Campaign created.");
+      notify(t("org.campaign_created"));
       setState({ busy: false, message: "" });
       page.reload();
       return true;
@@ -36,29 +38,29 @@ export function CampaignsTab({ event }: { event: EventView }) {
     }
   };
 
-  if (page.loading && !page.data) return <LoadingState message="Loading campaigns…" />;
-  if (page.error || !page.data) return <ErrorPanel title="We couldn’t load campaigns." message={page.error ?? ""} onRetry={page.reload} />;
+  if (page.loading && !page.data) return <LoadingState message={t("org.campaign_loading")} />;
+  if (page.error || !page.data) return <ErrorPanel title={t("org.campaign_error")} message={page.error ?? ""} onRetry={page.reload} />;
   const { campaigns, types } = page.data;
 
   return (
     <>
       <Panel>
         <SectionHeading
-          title="Promo campaigns"
-          subtitle="Discount links and codes for this event. A campaign QR opens the promo link; it never admits anyone."
-          trailing={<StatusPill tone="neutral" label={`${campaigns.length} campaigns`} />}
+          title={t("org.campaign_heading")}
+          subtitle={t("org.campaign_hint")}
+          trailing={<StatusPill tone="neutral" label={t("mobile.org.campaign_count", { p0: campaigns.length })} />}
         />
         {campaigns.length === 0 ? (
-          <EmptyState message="No campaigns yet. Create one below." />
+          <EmptyState message={t("org.no_campaigns")} />
         ) : (
           campaigns.map((campaign) => <CampaignRow key={campaign.id} eventId={event.id} campaign={campaign} types={types} onChanged={page.reload} />)
         )}
       </Panel>
       <Panel>
-        <SectionHeading title="Create a campaign" subtitle="Percent or fixed KZT discount, a time window, an optional redemption limit and code." />
+        <SectionHeading title={t("org.create_campaign_heading")} subtitle={t("org.campaign_form_hint")} />
         <CampaignForm
           types={types}
-          submitLabel="Create campaign"
+          submitLabel={t("org.create_campaign")}
           busy={state.busy}
           message={state.message}
           onSubmit={create}

@@ -1,5 +1,6 @@
 import type { AssignedEvent } from "@/api/types/scanner";
 import type { StatusTone } from "@/theme";
+import { t } from "@/i18n";
 
 type TimeStatus = AssignedEvent["time_status"];
 
@@ -10,9 +11,9 @@ const STATUS_ORDER: Record<TimeStatus, number> = {
 };
 
 export const STATUS_LABEL: Record<TimeStatus, string> = {
-  active: "Happening now",
-  upcoming: "Upcoming",
-  completed: "Ended",
+  get active() { return t("mobile.scan.happening_now"); },
+  get upcoming() { return t("common.upcoming"); },
+  get completed() { return t("status.ended"); },
 };
 
 export const STATUS_TONE: Record<TimeStatus, StatusTone> = {

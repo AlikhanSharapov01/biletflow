@@ -9,6 +9,7 @@ import { SubtleButton, TextButton, TextField } from "@/components/ui";
 import { confirmAction } from "@/components/ui/dialogs";
 
 import { FormMessage } from "@/components/ui/FormMessage";
+import { t, useLocale } from "@/i18n";
 
 interface OrderActionsProps {
   order: Order;
@@ -17,6 +18,7 @@ interface OrderActionsProps {
 
 // Refund requests open a support case; only an organizer can approve a refund.
 export function OrderActions({ order, onChanged }: OrderActionsProps) {
+  useLocale();
   const router = useRouter();
   const paid = order.payable_minor > 0;
   const [open, setOpen] = useState(false);
@@ -24,17 +26,17 @@ export function OrderActions({ order, onChanged }: OrderActionsProps) {
   const [busy, setBusy] = useState(false);
   const [caseId, setCaseId] = useState("");
   const [message, setMessage] = useState({ text: "", success: false });
-  const title = paid ? "Request a refund" : "Cancel registration";
+  const title = paid ? t("checkout.request_a_refund") : t("checkout.cancel_registration");
 
   if (order.status !== "confirmed") return null;
 
   const submit = async () => {
     if (!paid) {
       const confirmed = await confirmAction({
-        title: "Cancel this registration?",
-        message: "Its tickets will stop working.",
-        confirmLabel: "Cancel registration",
-        cancelLabel: "Keep it",
+        title: t("mobile.orders.cancel_title"),
+        message: t("mobile.orders.cancel_message"),
+        confirmLabel: t("checkout.cancel_registration"),
+        cancelLabel: t("mobile.orders.keep_it"),
         destructive: true,
       });
       if (!confirmed) return;
@@ -46,7 +48,7 @@ export function OrderActions({ order, onChanged }: OrderActionsProps) {
         const requested = await requestRefund(order.id, { reason: reason.trim() });
         setCaseId(requested.case_id);
       } else await cancelRegistration(order.id, { reason: reason.trim() });
-      setMessage({ text: paid ? "Refund requested. The organizer’s refund policy applies." : "Registration cancelled.", success: true });
+      setMessage({ text: paid ? t("checkout.refund_request_saved") : t("checkout.cancelled"), success: true });
       // A refund request creates a case without changing the order. Reloading
       // here could unmount this form and discard the returned case link.
       if (!paid) onChanged();
@@ -63,19 +65,19 @@ export function OrderActions({ order, onChanged }: OrderActionsProps) {
 
   return (
     <View style={styles.form}>
-      <TextField label="Reason" hint="Optional" accessibilityLabel="Reason" value={reason} maxLength={500} multiline onChangeText={setReason} />
+      <TextField label={t("common.reason")} hint={t("common.optional")} accessibilityLabel={t("common.reason")} value={reason} maxLength={500} multiline onChangeText={setReason} />
       <FormMessage message={message.text} success={message.success} />
       {caseId ? (
-        <SubtleButton label="View refund request" onPress={() => router.push({ pathname: "/support/cases/[caseId]", params: { caseId } })} />
+        <SubtleButton label={t("checkout.view_refund_request")} onPress={() => router.push({ pathname: "/support/cases/[caseId]", params: { caseId } })} />
       ) : null}
       <View style={styles.actions}>
         <SubtleButton
           danger
-          label={busy ? "Sending…" : paid ? "Request refund" : "Cancel registration"}
+          label={busy ? t("common.sending") : paid ? t("checkout.request_refund") : t("checkout.cancel_registration")}
           disabled={busy || Boolean(caseId)}
           onPress={() => void submit()}
         />
-        <TextButton label="Close" onPress={() => setOpen(false)} />
+        <TextButton label={t("common.close")} onPress={() => setOpen(false)} />
       </View>
     </View>
   );

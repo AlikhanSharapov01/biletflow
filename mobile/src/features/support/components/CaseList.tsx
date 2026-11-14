@@ -5,6 +5,7 @@ import { EmptyState, SubtleButton } from "@/components/ui";
 import { colors, fonts } from "@/theme";
 
 import { CaseRow } from "./CaseRow";
+import { t, useLocale } from "@/i18n";
 
 interface CaseListProps {
   page: SupportCasePage | "forbidden";
@@ -15,13 +16,14 @@ interface CaseListProps {
 
 // One page of cases with Previous/Next when there is more than one page.
 export function CaseList({ page, view, onPage, onOpen }: CaseListProps) {
+  useLocale();
   if (page === "forbidden" || page.items.length === 0) {
     return (
       <EmptyState
         message={
           view === "queue"
-            ? "No cases to work on. The queue lists cases from events where you are support staff, and escalated cases for platform admins."
-            : "No support cases yet. Open one whenever you need help."
+            ? t("support.empty_queue")
+            : t("support.empty")
         }
       />
     );
@@ -35,11 +37,11 @@ export function CaseList({ page, view, onPage, onOpen }: CaseListProps) {
       ))}
       {hasPrevious || hasNext ? (
         <View style={styles.pager}>
-          <SubtleButton label="Previous" disabled={!hasPrevious} onPress={() => onPage(Math.max(0, page.offset - page.limit))} />
+          <SubtleButton label={t("common.previous")} disabled={!hasPrevious} onPress={() => onPage(Math.max(0, page.offset - page.limit))} />
           <Text style={styles.range}>
             {page.offset + 1}–{page.offset + page.items.length} of {page.total}
           </Text>
-          <SubtleButton label="Next" disabled={!hasNext} onPress={() => onPage(page.offset + page.limit)} />
+          <SubtleButton label={t("common.next")} disabled={!hasNext} onPress={() => onPage(page.offset + page.limit)} />
         </View>
       ) : null}
     </>

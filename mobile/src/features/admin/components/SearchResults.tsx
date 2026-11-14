@@ -4,6 +4,7 @@ import { View } from "react-native";
 import type { Page } from "@/api/types/admin";
 import { EmptyState, ErrorPanel, LoadingState } from "@/components/ui";
 import { Pagination } from "@/features/admin/components/Pagination";
+import { t, useLocale } from "@/i18n";
 
 // Loading, error, empty and paging around one admin result list.
 export function SearchResults<T>({
@@ -25,10 +26,11 @@ export function SearchResults<T>({
   onPage: (offset: number) => void;
   children: (items: T[]) => ReactNode;
 }) {
-  if (loading) return <LoadingState message={`Searching ${noun}…`} />;
-  if (error) return <ErrorPanel title={`We couldn’t load ${noun}.`} message={error} onRetry={reload} />;
+  useLocale();
+  if (loading) return <LoadingState message={t("admin.searching", { p0: noun })} />;
+  if (error) return <ErrorPanel title={t("admin.load_error", { p0: noun })} message={error} onRetry={reload} />;
   if (!data) return null;
-  if (data.items.length === 0) return <EmptyState message={`No ${noun} match this search.`} />;
+  if (data.items.length === 0) return <EmptyState message={t("admin.no_search_results", { type: noun })} />;
   return (
     <View>
       {children(data.items)}

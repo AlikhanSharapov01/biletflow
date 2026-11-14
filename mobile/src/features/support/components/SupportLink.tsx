@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { SubtleButton } from "@/components/ui";
 
 import { newCaseHref } from "../utils/supportLabels";
+import { t, useLocale } from "@/i18n";
 
 interface SupportLinkProps {
   eventId?: string;
@@ -14,7 +15,8 @@ interface SupportLinkProps {
 
 // "Get help" button for event, order and ticket screens: opens the new-case
 // form with that record already attached as context.
-export function SupportLink({ eventId, orderId, ticketId, organizationId, label = "Get help" }: SupportLinkProps) {
+export function SupportLink({ eventId, orderId, ticketId, organizationId, label = t("support.get_help") }: SupportLinkProps) {
+  useLocale();
   const router = useRouter();
   const href = newCaseHref({ event_id: eventId, order_id: orderId, ticket_id: ticketId, organization_id: organizationId });
   return <SubtleButton label={label} onPress={() => router.push(href)} />;

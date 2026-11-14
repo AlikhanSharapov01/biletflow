@@ -4,20 +4,22 @@ import { ScrollScreen } from "@/components/layout";
 import { ListRow, PageHeading, Panel, PanelHeading } from "@/components/ui";
 import { ADMIN_SECTIONS } from "@/features/admin/adminPaths";
 import { AdminGate } from "@/features/admin/components/AdminGate";
+import { t, useLocale } from "@/i18n";
 
 // Platform-admin portal: one row per section (web AdminLayout navigation).
 export function AdminHomeScreen() {
+  useLocale();
   const router = useRouter();
   return (
     <ScrollScreen>
       <AdminGate>
         <PageHeading
-          eyebrow="Platform administration"
-          title="Keep BiletFlow safe."
-          subtitle="Search accounts, events, orders and tickets, review reports, and change platform settings. Every decision is recorded."
+          eyebrow={t("admin.eyebrow")}
+          title={t("admin.title")}
+          subtitle={t("admin.subtitle")}
         />
         <Panel>
-          <PanelHeading title="Admin sections" />
+          <PanelHeading title={t("admin.sections")} />
           {ADMIN_SECTIONS.map((section) => (
             <ListRow
               key={section.id}

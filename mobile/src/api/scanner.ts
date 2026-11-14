@@ -12,10 +12,11 @@ import type {
   CheckInTarget,
   ReversalResult,
 } from "@/api/types/scanner";
+import { t } from "@/i18n";
 
 const SCANNER_MESSAGES: Record<string, string> = {
-  event_not_found: "You're not assigned to scan this event.",
-  permission_denied: "You don't have permission to scan this event.",
+  get event_not_found() { return t("mobile.scan.not_assigned"); },
+  get permission_denied() { return t("mobile.scan.no_permission"); },
 };
 
 async function getJson<T>(path: string): Promise<T | null> {
@@ -107,11 +108,11 @@ export async function checkIn(
 }
 
 const REVERSAL_MESSAGES: Record<string, string> = {
-  check_in_not_found: "This admission couldn't be found.",
-  already_reversed: "This admission has already been undone.",
-  event_not_found: "You're no longer assigned to scan this event.",
-  permission_denied: "You don't have permission to undo admissions for this event.",
-  invalid_input: "Enter a reason for undoing this admission.",
+  get check_in_not_found() { return t("mobile.scan.admission_not_found"); },
+  get already_reversed() { return t("mobile.scan.already_undone"); },
+  get event_not_found() { return t("mobile.scan.no_longer_assigned"); },
+  get permission_denied() { return t("mobile.scan.no_undo_permission"); },
+  get invalid_input() { return t("mobile.scan.undo_reason_required"); },
 };
 
 // Undoes an accidental admission; the ticket can then be scanned again. Needs

@@ -11,10 +11,12 @@ import { formatCountdown } from "@/utils/format";
 
 import { EntryQr } from "./EntryQr";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { t, useLocale } from "@/i18n";
 
 // At the gate the scanner needs the ticket QR plus proof that its holder is
 // signed in right now: a two-minute token (QR) or its 8-digit code.
 export function EntryConfirmationPanel({ ticket }: { ticket: IssuedTicket }) {
+  useLocale();
   const [confirmation, setConfirmation] = useState<EntryConfirmation | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -37,33 +39,33 @@ export function EntryConfirmationPanel({ ticket }: { ticket: IssuedTicket }) {
 
   const usable = ticket.status === "valid";
   const active = confirmation !== null && !expired;
-  const label = busy ? "Requesting…" : confirmation ? "Refresh confirmation" : "Confirm entry";
+  const label = busy ? t("tickets.requesting") : confirmation ? t("tickets.refresh_confirmation") : t("tickets.confirm_entry");
   const Action = active ? SubtleButton : PrimaryButton;
 
   return (
     <Panel style={styles.panel}>
       <PanelHeading
-        title="Entry confirmation"
-        trailing={confirmation ? <StatusPill tone={expired ? "neutral" : "positive"} label={expired ? "Expired" : "Active"} /> : null}
+        title={t("tickets.entry_confirmation")}
+        trailing={confirmation ? <StatusPill tone={expired ? "neutral" : "positive"} label={expired ? t("tickets.expired") : t("common.active")} /> : null}
       />
       <Text style={styles.copy}>
-        Needed at the gate together with your ticket QR. It lasts about two minutes, so open it when you reach the entrance.
+        {t("tickets.entry_instructions")}
       </Text>
       {active && confirmation ? (
         <View style={styles.grid}>
           <EntryQr token={confirmation.token} />
-          <Text style={styles.label}>Entry code</Text>
-          <Text style={styles.code} accessibilityLabel={`Entry code ${confirmation.code.split("").join(" ")}`}>
+          <Text style={styles.label}>{t("tickets.entry_code")}</Text>
+          <Text style={styles.code} accessibilityLabel={t("tickets.entry_code_label", { p0: confirmation.code.split("").join(" ") })}>
             {confirmation.code.slice(0, 4)} {confirmation.code.slice(4)}
           </Text>
           <Text style={styles.countdown} accessibilityRole="timer">
-            Expires in {formatCountdown(secondsLeft)}
+            {t("tickets.expires_in")} {formatCountdown(secondsLeft)}
           </Text>
-          <Text style={styles.hint}>For a printed ticket, read this code out to the staff member.</Text>
+          <Text style={styles.hint}>{t("tickets.printed_code_hint")}</Text>
         </View>
       ) : null}
-      {expired ? <Text style={styles.copy}>This confirmation expired. Get a new one when you are at the gate.</Text> : null}
-      {!usable ? <Text style={styles.copy}>Entry confirmations are only available for valid tickets.</Text> : null}
+      {expired ? <Text style={styles.copy}>{t("tickets.entry_expired")}</Text> : null}
+      {!usable ? <Text style={styles.copy}>{t("tickets.entry_valid_only")}</Text> : null}
       <FormMessage message={message} />
       <Action label={label} disabled={busy || !usable} onPress={() => void request()} />
     </Panel>

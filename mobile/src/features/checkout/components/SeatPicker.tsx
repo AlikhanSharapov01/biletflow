@@ -13,6 +13,7 @@ import { ChosenSeats } from "./ChosenSeats";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { SeatLegend } from "./SeatLegend";
 import { SeatMap } from "./SeatMap";
+import { quantityLabel, t, useLocale } from "@/i18n";
 
 interface SeatPickerProps {
   event: EventView;
@@ -28,23 +29,24 @@ const MAX_SEATS = 100;
 // Assigned seating: pick seats on the map, each priced by its ticket type,
 // then hold exactly those seats.
 export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve }: SeatPickerProps) {
+  useLocale();
   const seats = useRequest(() => listSeats(event.id), [event.id]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const sections = useMemo(() => groupSeats(seats.data ?? []), [seats.data]);
   const typeOf = (seat: EventSeat) => tickets.find((type) => type.id === seat.ticket_type_id);
 
-  if (seats.loading && !seats.data) return <LoadingState message="Loading the seat map…" />;
+  if (seats.loading && !seats.data) return <LoadingState message={t("checkout.seat_map_loading")} />;
   if (seats.error || !seats.data) {
-    return <ErrorPanel title="We couldn’t load the seat map." message={seats.error ?? "Unknown error"} onRetry={seats.reload} />;
+    return <ErrorPanel title={t("checkout.seat_map_error")} message={seats.error ?? t("errors.unknown")} onRetry={seats.reload} />;
   }
-  if (seats.data.length === 0) return <EmptyState message="The organizer has not set up seats for this event yet." />;
+  if (seats.data.length === 0) return <EmptyState message={t("checkout.seats_not_set_up")} />;
 
   const all = seats.data;
   const chosen = all.filter((seat) => selected.has(seat.id));
 
   const priceText = (seat: EventSeat) => {
     const type = typeOf(seat);
-    return type ? `${type.name}, ${priceLabel(type.price_minor)}` : "Not on sale";
+    return type ? `${type.name}, ${priceLabel(type.price_minor)}` : t("checkout.not_on_sale");
   };
 
   const canSelect = (seat: EventSeat) => {
@@ -66,7 +68,7 @@ export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve
     seats.reload();
   };
 
-  const reserveLabel = busy ? "Reserving…" : chosen.length > 0 ? `Reserve ${chosen.length} seat${chosen.length === 1 ? "" : "s"}` : "Reserve seats";
+  const reserveLabel = busy ? t("checkout.reserving") : chosen.length > 0 ? t("checkout.reserve_count", { items: quantityLabel("seat", chosen.length) }) : t("checkout.reserve_seats");
 
   return (
     <View style={checkoutStyles.stack}>
@@ -74,7 +76,7 @@ export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve
       <SeatMap sections={sections} selected={selected} priceText={priceText} canSelect={canSelect} onToggle={toggle} />
       <View accessibilityLiveRegion="polite" style={styles.selection}>
         {chosen.length === 0 ? (
-          <Text style={checkoutStyles.intro}>Choose seats on the map. Each ticket type has its own per-order limit.</Text>
+          <Text style={checkoutStyles.intro}>{t("checkout.seat_map_hint")}</Text>
         ) : (
           <ChosenSeats seats={chosen} typeOf={typeOf} onRemove={toggle} />
         )}
@@ -83,8 +85,8 @@ export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve
       <FormMessage message={message} />
       <View style={checkoutStyles.actions}>
         <PrimaryButton label={reserveLabel} disabled={busy || chosen.length === 0} onPress={() => onReserve(seatHoldLines(all, selected))} />
-        <SubtleButton label="Refresh seats" disabled={busy || seats.loading} onPress={refresh} />
-        <Text style={checkoutStyles.intro}>Seats are held for 10 minutes while you add recipients.</Text>
+        <SubtleButton label={t("checkout.refresh_seats")} disabled={busy || seats.loading} onPress={refresh} />
+        <Text style={checkoutStyles.intro}>{t("checkout.seat_hold_hint")}</Text>
       </View>
     </View>
   );

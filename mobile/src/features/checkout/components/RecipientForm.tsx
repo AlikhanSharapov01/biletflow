@@ -10,6 +10,7 @@ import { checkoutStyles } from "./checkoutStyles";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { HoldCountdown } from "./HoldCountdown";
 import { PriceSummary } from "./PriceSummary";
+import { t, useLocale } from "@/i18n";
 
 interface RecipientFormProps {
   hold: Hold;
@@ -28,40 +29,41 @@ interface RecipientFormProps {
 
 // Step two: one name and email per held place, then confirm.
 export function RecipientForm({ hold, typeName, recipients, setRecipients, secondsLeft, busy, message, paid, subtotalMinor, onConfirm, onRelease }: RecipientFormProps) {
-  const confirmLabel = busy ? (paid ? "Preparing payment…" : "Confirming…") : paid ? "Continue to payment" : "Confirm registration";
+  useLocale();
+  const confirmLabel = busy ? (paid ? t("checkout.preparing_payment") : t("checkout.confirming")) : paid ? t("checkout.continue_payment") : t("checkout.confirm_registration");
   return (
     <View style={checkoutStyles.stack}>
       <View style={checkoutStyles.head}>
         <Text style={checkoutStyles.heading} accessibilityRole="header">
-          Who is coming?
+          {t("checkout.who_coming")}
         </Text>
         <HoldCountdown secondsLeft={secondsLeft} />
       </View>
-      <Text style={checkoutStyles.intro}>Each ticket is sent to its recipient by email. Recipients claim it by signing in with that email.</Text>
+      <Text style={checkoutStyles.intro}>{t("checkout.recipient_hint")}</Text>
       {hold.allocations.map((allocation, index) => {
         const value = recipients[allocation.id] ?? { name: "", email: "" };
         const change = (key: "name" | "email", next: string) =>
           setRecipients((current) => ({ ...current, [allocation.id]: { ...(current[allocation.id] ?? value), [key]: next } }));
-        const legend = `Ticket ${index + 1} · ${typeName(allocation.ticket_type_id)}`;
+        const legend = t("mobile.checkout.ticket_legend", { p0: index + 1, p1: typeName(allocation.ticket_type_id) });
         return (
           <View style={styles.recipient} key={allocation.id}>
             <Text style={styles.legend}>{legend}</Text>
             <TextField
-              label="Name"
+              label={t("common.name")}
               value={value.name}
               maxLength={200}
               autoComplete="name"
-              accessibilityLabel={`${legend}, name`}
+              accessibilityLabel={t("mobile.checkout.recipient_name", { p0: legend })}
               onChangeText={(next) => change("name", next)}
             />
             <TextField
-              label="Email"
+              label={t("common.email")}
               value={value.email}
               maxLength={254}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              accessibilityLabel={`${legend}, email`}
+              accessibilityLabel={t("mobile.checkout.recipient_email", { p0: legend })}
               onChangeText={(next) => change("email", next)}
             />
           </View>
@@ -71,13 +73,13 @@ export function RecipientForm({ hold, typeName, recipients, setRecipients, secon
         <PriceSummary pricing={hold.pricing} />
       ) : paid ? (
         <Text style={checkoutStyles.intro}>
-          Ticket subtotal <Text style={checkoutStyles.strong}>{priceLabel(subtotalMinor)}</Text>. The final total, including any discount, is quoted on the next step.
+          {t("checkout.ticket_subtotal")} <Text style={checkoutStyles.strong}>{priceLabel(subtotalMinor)}</Text>{t("checkout.final_quote_hint")}
         </Text>
       ) : null}
       <FormMessage message={message} />
       <View style={checkoutStyles.actions}>
         <PrimaryButton label={confirmLabel} disabled={busy} onPress={onConfirm} />
-        <SubtleButton label="Choose again" disabled={busy} onPress={onRelease} />
+        <SubtleButton label={t("checkout.choose_again")} disabled={busy} onPress={onRelease} />
       </View>
     </View>
   );

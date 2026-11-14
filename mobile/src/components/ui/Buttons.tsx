@@ -8,6 +8,7 @@ import {
 } from "react-native";
 
 import { colors, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
 
 type ButtonProps = {
   label: string;
@@ -19,6 +20,7 @@ type ButtonProps = {
 
 // Solid green call to action (web .primary-button).
 export function PrimaryButton({ label, onPress, disabled, loading, style }: ButtonProps) {
+  useLocale();
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -50,6 +52,7 @@ export function SubtleButton({
   danger,
   style,
 }: ButtonProps & { danger?: boolean }) {
+  useLocale();
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -83,6 +86,7 @@ export function TextButton({
   style,
   accessibilityLabel,
 }: Omit<ButtonProps, "loading"> & { light?: boolean; accessibilityLabel?: string }) {
+  useLocale();
   return (
     <Pressable
       accessibilityRole="button"

@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { panelStyles } from "@/features/scanner/panelStyles";
 import { colors } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Asks for a reason before reversing the admission just made.
 export function UndoPanel({
@@ -23,15 +24,16 @@ export function UndoPanel({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useLocale();
   return (
     <View style={[panelStyles.panel, styles.panelUndo]}>
-      <Text style={panelStyles.panelTitle}>Undo admission?</Text>
+      <Text style={panelStyles.panelTitle}>{t("mobile.scan.undo_title")}</Text>
       <Text style={panelStyles.panelLine}>
-        {attendeeName} will be able to enter again with this ticket.
+        {t("mobile.scan.undo_line", { name: attendeeName })}
       </Text>
       <TextInput
         style={styles.reasonInput}
-        placeholder="Reason, e.g. scanned by mistake"
+        placeholder={t("mobile.scan.undo_reason_placeholder")}
         placeholderTextColor="rgba(255,255,255,0.6)"
         value={reason}
         onChangeText={onReasonChange}
@@ -46,7 +48,7 @@ export function UndoPanel({
           onPress={onCancel}
           disabled={undoing}
         >
-          <Text style={panelStyles.panelButtonText}>Cancel</Text>
+          <Text style={panelStyles.panelButtonText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           style={[panelStyles.panelButton, !canUndo && panelStyles.panelButtonDisabled]}
@@ -56,7 +58,7 @@ export function UndoPanel({
           {undoing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={panelStyles.panelButtonText}>Undo admission</Text>
+            <Text style={panelStyles.panelButtonText}>{t("mobile.scan.undo_admission")}</Text>
           )}
         </Pressable>
       </View>

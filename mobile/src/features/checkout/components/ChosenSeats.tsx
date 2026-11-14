@@ -5,6 +5,7 @@ import type { EventSeat } from "@/api/types/checkout";
 import { colors, fonts } from "@/theme";
 import { priceLabel } from "@/utils/format";
 import { checkoutStyles } from "./checkoutStyles";
+import { t, useLocale } from "@/i18n";
 
 // The seats picked so far, each removable, with the face-value subtotal.
 export function ChosenSeats({
@@ -16,28 +17,29 @@ export function ChosenSeats({
   typeOf: (seat: EventSeat) => TicketType | undefined;
   onRemove: (seat: EventSeat) => void;
 }) {
+  useLocale();
   const total = seats.reduce((sum, seat) => sum + (typeOf(seat)?.price_minor ?? 0), 0);
   return (
     <View style={styles.list}>
       {seats.map((seat) => (
         <View style={styles.item} key={seat.id}>
           <Text style={styles.place}>
-            Section {seat.section_label} · Row {seat.row_label} · Seat {seat.seat_label}
+            {t("format.section_row_seat", { section: seat.section_label, row: seat.row_label, seat: seat.seat_label })}
             <Text style={styles.type}> {typeOf(seat)?.name}</Text>
           </Text>
           <Text style={checkoutStyles.price}>{priceLabel(typeOf(seat)?.price_minor ?? 0)}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Remove seat ${seat.seat_label} in row ${seat.row_label}`}
+            accessibilityLabel={t("checkout.remove_seat", { p0: seat.seat_label, p1: seat.row_label })}
             hitSlop={8}
             onPress={() => onRemove(seat)}
           >
-            <Text style={styles.remove}>Remove</Text>
+            <Text style={styles.remove}>{t("common.remove")}</Text>
           </Pressable>
         </View>
       ))}
       <View style={[styles.item, styles.total]}>
-        <Text style={[styles.place, styles.totalText]}>Ticket subtotal</Text>
+        <Text style={[styles.place, styles.totalText]}>{t("checkout.ticket_subtotal")}</Text>
         <Text style={checkoutStyles.price}>{priceLabel(total)}</Text>
       </View>
     </View>

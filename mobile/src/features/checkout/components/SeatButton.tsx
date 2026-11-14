@@ -4,6 +4,7 @@ import type { EventSeat } from "@/api/types/checkout";
 import { colors, fonts } from "@/theme";
 import { SEAT_LOOKS, type SeatLook } from "../utils/seats";
 import { SEAT_COLORS } from "./seatColors";
+import { t, useLocale } from "@/i18n";
 
 interface SeatButtonProps {
   seat: EventSeat;
@@ -15,11 +16,12 @@ interface SeatButtonProps {
 }
 
 export function SeatButton({ seat, look, priceText, selectable, onToggle }: SeatButtonProps) {
+  useLocale();
   const label = [
-    `Section ${seat.section_label}, row ${seat.row_label}, seat ${seat.seat_label}`,
+    t("format.seat_accessible_label", { section: seat.section_label, row: seat.row_label, seat: seat.seat_label }),
     priceText,
     SEAT_LOOKS[look].label,
-    seat.is_accessible ? "wheelchair accessible" : "",
+    seat.is_accessible ? t("checkout.accessible") : "",
   ]
     .filter(Boolean)
     .join(", ");

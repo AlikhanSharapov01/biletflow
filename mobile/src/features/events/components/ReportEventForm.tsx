@@ -6,18 +6,20 @@ import { reportEvent, type ReportCategory } from "@/api/reports";
 import { SelectField, SubtleButton, TextField } from "@/components/ui";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 const CATEGORIES: Array<{ value: ReportCategory; label: string }> = [
-  { value: "misleading", label: "Misleading information" },
-  { value: "fraud", label: "Fraud or scam" },
-  { value: "spam", label: "Spam" },
-  { value: "inappropriate", label: "Inappropriate content" },
-  { value: "safety", label: "Safety concern" },
-  { value: "other", label: "Something else" },
+  { value: "misleading", get label() { return t("event.report_misleading"); } },
+  { value: "fraud", get label() { return t("event.report_fraud"); } },
+  { value: "spam", get label() { return t("event.report_spam"); } },
+  { value: "inappropriate", get label() { return t("event.report_content"); } },
+  { value: "safety", get label() { return t("event.report_safety"); } },
+  { value: "other", get label() { return t("event.report_other"); } },
 ];
 
 // A small disclosure; platform admins review reports.
 export function ReportEventForm({ eventId }: { eventId: string }) {
+  useLocale();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<ReportCategory>("misleading");
   const [description, setDescription] = useState("");
@@ -26,7 +28,7 @@ export function ReportEventForm({ eventId }: { eventId: string }) {
 
   const submit = async () => {
     if (!description.trim()) {
-      setMessage({ text: "Describe what is wrong with this event.", success: false });
+      setMessage({ text: t("event.report_details"), success: false });
       return;
     }
     setBusy(true);
@@ -35,8 +37,8 @@ export function ReportEventForm({ eventId }: { eventId: string }) {
       const receipt = await reportEvent(eventId, { category, description: description.trim() });
       setMessage({
         text: receipt.duplicate
-          ? "You already reported this event for that reason. Our team is reviewing it."
-          : "Thanks. Your report was sent to the BiletFlow team.",
+          ? t("event.already_reported")
+          : t("event.report_sent"),
         success: true,
       });
       setDescription("");
@@ -51,15 +53,15 @@ export function ReportEventForm({ eventId }: { eventId: string }) {
     <View style={styles.block}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((value) => !value)} hitSlop={6}>
         <Text style={styles.summary}>
-          {open ? "▾" : "▸"} Report this event
+          {open ? "▾" : "▸"} {t("event.report")}
         </Text>
       </Pressable>
       {open ? (
         <View style={styles.form}>
-          <SelectField label="Reason" value={category} options={CATEGORIES} onChange={(value) => setCategory(value as ReportCategory)} />
-          <TextField label="What is wrong?" value={description} maxLength={2000} multiline numberOfLines={4} onChangeText={setDescription} />
+          <SelectField label={t("common.reason")} value={category} options={CATEGORIES} onChange={(value) => setCategory(value as ReportCategory)} />
+          <TextField label={t("event.report_question")} value={description} maxLength={2000} multiline numberOfLines={4} onChangeText={setDescription} />
           <FormMessage message={message.text} success={message.success} />
-          <SubtleButton danger label={busy ? "Sending…" : "Send report"} disabled={busy} onPress={() => void submit()} />
+          <SubtleButton danger label={busy ? t("common.sending") : t("event.send_report")} disabled={busy} onPress={() => void submit()} />
         </View>
       ) : null}
     </View>

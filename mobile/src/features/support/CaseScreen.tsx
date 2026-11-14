@@ -13,9 +13,11 @@ import { StaffActions } from "./components/StaffActions";
 import { useCaseUpdates } from "./hooks/useCaseUpdates";
 import { useSupportCase } from "./hooks/useSupportCase";
 import { categoryLabel, isStaff } from "./utils/supportLabels";
+import { t, useLocale } from "@/i18n";
 
 // `/support/cases/[caseId]`: the conversation, case facts and staff tools.
 export function CaseScreen() {
+  useLocale();
   const { caseId = "" } = useLocalSearchParams<{ caseId: string }>();
   const { profile } = useAuth();
   const viewerId = profile?.id ?? "";
@@ -24,10 +26,10 @@ export function CaseScreen() {
 
   if (!supportCase) {
     return (
-      <ScrollScreen backLabel="Support">
-        {loading ? <LoadingState message="Loading case…" /> : null}
+      <ScrollScreen backLabel={t("nav.support")}>
+        {loading ? <LoadingState message={t("support.loading_case")} /> : null}
         {!loading ? (
-          <ErrorPanel title="We couldn’t open this case." message={error ?? "This case could not be found."} onRetry={reload} />
+          <ErrorPanel title={t("support.open_error")} message={error ?? t("support.case_missing")} onRetry={reload} />
         ) : null}
       </ScrollScreen>
     );
@@ -39,20 +41,20 @@ export function CaseScreen() {
   const canReply = requester || !resolved;
 
   return (
-    <ScrollScreen backLabel="Support">
-      <PageHeading eyebrow={`Support · ${categoryLabel(supportCase.category)}`} title={supportCase.subject} />
+    <ScrollScreen backLabel={t("nav.support")}>
+      <PageHeading eyebrow={t("support.title_id", { p0: categoryLabel(supportCase.category) })} title={supportCase.subject} />
       <CaseHeader supportCase={supportCase} />
       <Panel>
-        <PanelHeading title="Conversation" />
+        <PanelHeading title={t("support.conversation")} />
         <Text style={styles.note}>
-          {thread.error ? `Live updates paused: ${thread.error}` : "Updates appear here automatically."}
+          {thread.error ? t("support.updates_paused", { p0: thread.error }) : t("support.automatic_updates")}
         </Text>
-        {thread.loading && thread.items.length === 0 ? <LoadingState message="Loading messages…" /> : null}
+        {thread.loading && thread.items.length === 0 ? <LoadingState message={t("support.loading_messages")} /> : null}
         <CaseThread items={thread.items} viewerId={viewerId} />
         {canReply ? (
           <Composer
             caseId={supportCase.id}
-            hint={resolved ? "This case is resolved. Replying reopens it." : undefined}
+            hint={resolved ? t("support.closed_requester") : undefined}
             onSent={(message) => {
               thread.add(message);
               if (requester && (resolved || supportCase.status === "waiting_for_customer")) refresh();

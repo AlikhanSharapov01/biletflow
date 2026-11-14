@@ -12,6 +12,7 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "../../components/formStyles";
 import { Intro } from "../../components/Intro";
 import { campaignFormValues, toCampaignInput, type CampaignFormValues } from "../../utils/campaignForm";
+import { t, useLocale } from "@/i18n";
 
 interface CampaignFormProps {
   types: TicketType[];
@@ -26,11 +27,12 @@ interface CampaignFormProps {
 }
 
 const KINDS = [
-  { value: "percent", label: "Percent off" },
-  { value: "fixed", label: "Fixed amount off (KZT)" },
+  { value: "percent", get label() { return t("org.percent_off"); } },
+  { value: "fixed", get label() { return t("org.fixed_off"); } },
 ];
 
 export function CampaignForm({ types, initial, submitLabel, disabled = false, busy, message, onSubmit, onInvalid, onCancel }: CampaignFormProps) {
+  useLocale();
   const [values, setValues] = useState<CampaignFormValues>(() => campaignFormValues(initial));
   const update = <K extends keyof CampaignFormValues>(key: K, value: CampaignFormValues[K]) => setValues((current) => ({ ...current, [key]: value }));
   const toggleType = (id: string) =>
@@ -52,34 +54,34 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
 
   return (
     <View style={[formStyles.stack, disabled && styles.disabled]} pointerEvents={disabled ? "none" : "auto"} accessibilityState={{ disabled }}>
-      <TextField label="Campaign name" value={values.name} onChangeText={(text) => update("name", text)} maxLength={200} placeholder="e.g. Early bird" editable={!disabled} />
+      <TextField label={t("org.campaign_name")} value={values.name} onChangeText={(text) => update("name", text)} maxLength={200} placeholder={t("org.campaign_example")} editable={!disabled} />
       <SelectField
-        label="Discount"
+        label={t("common.discount")}
         value={values.discount_kind}
         options={KINDS}
         onChange={(value) => update("discount_kind", value as CampaignFormValues["discount_kind"])}
         disabled={disabled}
       />
       <TextField
-        label={percent ? "Percent" : "Amount (KZT)"}
+        label={percent ? t("org.percent") : t("org.amount_kzt")}
         value={values.value}
         onChangeText={(text) => update("value", text)}
         keyboardType={percent ? "number-pad" : "decimal-pad"}
         editable={!disabled}
       />
-      <DateTimeField label="Starts" value={values.starts_at} onChange={(value) => update("starts_at", value)} disabled={disabled} />
-      <DateTimeField label="Ends" value={values.ends_at} onChange={(value) => update("ends_at", value)} disabled={disabled} />
+      <DateTimeField label={t("org.starts")} value={values.starts_at} onChange={(value) => update("starts_at", value)} disabled={disabled} />
+      <DateTimeField label={t("org.ends")} value={values.ends_at} onChange={(value) => update("ends_at", value)} disabled={disabled} />
       <TextField
-        label="Redemption limit"
-        hint="Blank = no limit"
+        label={t("org.redemption_limit")}
+        hint={t("org.blank_no_limit")}
         value={values.max_redemptions}
         onChangeText={(text) => update("max_redemptions", text)}
         keyboardType="number-pad"
         editable={!disabled}
       />
       <TextField
-        label="Promo code"
-        hint="Optional"
+        label={t("checkout.promo_code")}
+        hint={t("common.optional")}
         value={values.code}
         onChangeText={(text) => update("code", text.toUpperCase())}
         maxLength={32}
@@ -89,13 +91,13 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
         editable={!disabled}
       />
       <View style={formStyles.group}>
-        <Text style={styles.legend}>Eligible ticket types (none selected = all)</Text>
-        {types.length === 0 ? <Intro>No ticket types yet.</Intro> : null}
+        <Text style={styles.legend}>{t("org.eligible_types")}</Text>
+        {types.length === 0 ? <Intro>{t("org.no_ticket_types")}</Intro> : null}
         {types.map((type) => (
           <CheckboxField
             key={type.id}
             label={type.name}
-            hint={type.kind === "paid" ? "Paid" : "Free"}
+            hint={type.kind === "paid" ? t("common.paid") : t("common.free")}
             checked={values.eligible_ticket_type_ids.includes(type.id)}
             onChange={() => toggleType(type.id)}
             disabled={disabled}
@@ -105,7 +107,7 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
       <FormMessage message={message} />
       <View style={formStyles.actions}>
         <PrimaryButton label={submitLabel} onPress={() => void submit()} disabled={disabled} loading={busy} />
-        {onCancel ? <SubtleButton label="Cancel" onPress={onCancel} /> : null}
+        {onCancel ? <SubtleButton label={t("common.cancel")} onPress={onCancel} /> : null}
       </View>
     </View>
   );

@@ -10,6 +10,7 @@ import { EventForm } from "../components/EventForm";
 import { SectionHeading } from "../components/SectionHeading";
 import { IDLE, type FormState } from "../utils/formState";
 import { EventImagePanel } from "./details/EventImagePanel";
+import { t, useLocale } from "@/i18n";
 
 interface DetailsTabProps {
   event: EventView;
@@ -19,6 +20,7 @@ interface DetailsTabProps {
 }
 
 export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState<FormState>(IDLE);
 
@@ -26,8 +28,8 @@ export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabPro
     setState({ busy: true, message: "", success: false });
     try {
       await updateEvent(event.id, input);
-      notify("Event saved.");
-      setState({ busy: false, message: "Saved.", success: true });
+      notify(t("org.event_saved"));
+      setState({ busy: false, message: t("common.saved"), success: true });
       onSaved();
     } catch (failure) {
       setState({ busy: false, message: describeError(failure), success: false });
@@ -38,15 +40,15 @@ export function DetailsTab({ event, categories, venues, onSaved }: DetailsTabPro
     <>
       <Panel>
         <SectionHeading
-          title="Event details"
-          subtitle="Saving replaces the whole configuration. Published events must stay publishable."
-          trailing={<StatusPill tone="neutral" label={event.seating_mode === "assigned" ? "Assigned seating" : "General admission"} />}
+          title={t("org.event_details")}
+          subtitle={t("org.save_configuration_hint")}
+          trailing={<StatusPill tone="neutral" label={event.seating_mode === "assigned" ? t("event.assigned_seating") : t("checkout.general_admission")} />}
         />
         <EventForm
           initial={event}
           categories={categories}
           venues={venues}
-          submitLabel="Save changes"
+          submitLabel={t("org.save_changes")}
           busy={state.busy}
           message={state.message}
           success={state.success}

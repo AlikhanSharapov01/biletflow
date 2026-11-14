@@ -3,6 +3,7 @@ import { useState } from "react";
 import { describeError } from "@/api/errors";
 import { ReasonDialog } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
+import { t, useLocale } from "@/i18n";
 
 export interface ModerationRequest {
   title: string;
@@ -20,13 +21,14 @@ export function ModerationDialog({
   request: ModerationRequest | null;
   onClose: () => void;
 }) {
+  useLocale();
   const { notify } = useToast();
   const [busy, setBusy] = useState(false);
 
   async function submit(reason: string) {
     if (!request) return;
     if (!reason) {
-      notify("Write a short reason.");
+      notify(t("admin.short_reason"));
       return;
     }
     setBusy(true);

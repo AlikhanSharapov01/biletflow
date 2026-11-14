@@ -4,6 +4,7 @@ import { useRequest } from "@/hooks/useRequest";
 import { dateLabel } from "@/utils/format";
 
 import { FormMessage } from "@/components/ui/FormMessage";
+import { t, useLocale } from "@/i18n";
 
 interface PickerProps {
   value: string;
@@ -13,19 +14,20 @@ interface PickerProps {
 // Attendee cases need an event, order or ticket. Without one in the link, the
 // person picks one of their own orders.
 export function OrderPicker({ value, onChange }: PickerProps) {
+  useLocale();
   const orders = useRequest(() => listOrders(), []);
   const items = orders.data ?? [];
-  const placeholder = orders.loading ? "Loading your orders…" : items.length ? "Choose an order" : "No orders yet";
+  const placeholder = orders.loading ? t("support.loading_orders") : items.length ? t("support.choose_order") : t("support.no_orders");
   return (
     <>
       <SelectField
-        label="Which order is this about?"
+        label={t("support.order_question")}
         value={value}
         placeholder={placeholder}
         disabled={orders.loading || items.length === 0}
         options={items.map((order) => ({
           value: order.id,
-          label: `${order.items[0]?.ticket?.event_title ?? "Event"} · placed ${dateLabel(order.created_at, { dateStyle: "medium" })}`,
+          label: t("mobile.support.order_option", { p0: order.items[0]?.ticket?.event_title ?? t("common.event"), p1: dateLabel(order.created_at, { dateStyle: "medium" }) }),
         }))}
         onChange={onChange}
       />

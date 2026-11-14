@@ -8,6 +8,7 @@ import { ReasonDialog, SubtleButton } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 
 import { formStyles } from "../../components/formStyles";
+import { t, useLocale } from "@/i18n";
 
 interface AttendeeActionsProps {
   eventId: string;
@@ -20,6 +21,7 @@ type Pending = { title: string; confirmLabel: string; action: (reason: string) =
 // Paid registrations must be refunded as a whole order; the server enforces policy.
 // The reason is asked in a dialog.
 export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) {
+  useLocale();
   const { notify } = useToast();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
@@ -45,26 +47,26 @@ export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) 
     <View style={formStyles.actions}>
       <SubtleButton
         danger
-        label="Cancel registration"
+        label={t("checkout.cancel_registration")}
         disabled={busy}
         onPress={() =>
           setPending({
-            title: `Cancel ${row.recipient_name}’s registration? The ticket stops working.`,
-            confirmLabel: "Cancel registration",
+            title: t("org.registration_cancel_confirm", { p0: row.recipient_name }),
+            confirmLabel: t("checkout.cancel_registration"),
             action: (reason) => cancelTicket(eventId, row.ticket_id, reason),
-            done: "Registration cancelled.",
+            done: t("checkout.cancelled"),
           })
         }
       />
       <SubtleButton
-        label="Refund"
+        label={t("checkout.refund")}
         disabled={busy}
         onPress={() =>
           setPending({
-            title: "Refund the whole order this ticket belongs to? Every ticket in it is cancelled.",
-            confirmLabel: "Refund",
+            title: t("org.refund_order_confirm"),
+            confirmLabel: t("checkout.refund"),
             action: (reason) => refundOrder(row.order_id, reason),
-            done: "Refund requested.",
+            done: t("checkout.refund_requested"),
           })
         }
       />

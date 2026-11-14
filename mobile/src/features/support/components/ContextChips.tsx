@@ -5,6 +5,7 @@ import type { SupportContext } from "@/api/types/support";
 import { colors, fonts, radii } from "@/theme";
 
 import { contextLinks } from "../utils/supportLabels";
+import { t, useLocale } from "@/i18n";
 
 interface ContextChipsProps {
   context: SupportContext;
@@ -13,18 +14,19 @@ interface ContextChipsProps {
 
 // The event, order, ticket or organization a case is about, as small chips.
 export function ContextChips({ context, ownsRecords = true }: ContextChipsProps) {
+  useLocale();
   const router = useRouter();
   const links = contextLinks(context, ownsRecords);
   if (links.length === 0) return null;
   return (
-    <View style={styles.row} accessibilityLabel="Case context">
+    <View style={styles.row} accessibilityLabel={t("support.case_context")}>
       {links.map((link) => {
         const href = link.href;
         return href ? (
           <Pressable
             key={link.label}
             accessibilityRole="link"
-            accessibilityLabel={`Open ${link.label.toLowerCase()}`}
+            accessibilityLabel={t("mobile.support.open_item", { p0: link.label.toLowerCase() })}
             onPress={() => router.push(href)}
             style={({ pressed }) => [styles.chip, styles.linked, pressed && styles.pressed]}
           >

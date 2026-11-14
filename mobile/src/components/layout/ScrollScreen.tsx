@@ -5,6 +5,7 @@ import { BackHeader } from "@/components/layout/BackHeader";
 import { Screen } from "@/components/layout/Screen";
 import { TopBar } from "@/components/layout/TopBar";
 import { colors, spacing } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // A scrolling page on the canvas. Tab roots show the brand bar (`top`); pushed
 // screens show "‹ Back" (`back`). Pull to refresh when `onRefresh` is given.
@@ -23,6 +24,7 @@ export function ScrollScreen({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  useLocale();
   return (
     <Screen>
       <ScrollView

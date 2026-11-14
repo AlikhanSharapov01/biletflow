@@ -8,6 +8,7 @@ import { colors, fonts } from "@/theme";
 import { dateLabel, priceLabel } from "@/utils/format";
 
 import { barPath, layoutBars, niceMax, ticks } from "../../utils/chart";
+import { t, useLocale } from "@/i18n";
 
 const HEIGHT = 200;
 const LEFT = 32;
@@ -20,6 +21,7 @@ function bucketLabel(value: string, bucket: SeriesBucket): string {
 // Tickets sold per bucket as a single-series bar chart. Tap a bar for its
 // figures; the table view lists every bucket for screen readers.
 export function SalesChart({ points, bucket }: { points: SalesPoint[]; bucket: SeriesBucket }) {
+  useLocale();
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
@@ -32,20 +34,20 @@ export function SalesChart({ points, bucket }: { points: SalesPoint[]; bucket: S
   return (
     <View style={styles.figure}>
       <View style={styles.caption}>
-        <Text style={styles.captionText}>Tickets sold per {bucket}</Text>
-        <TextButton label={showTable ? "Show chart" : "Show as table"} onPress={() => setShowTable(!showTable)} />
+        <Text style={styles.captionText}>{t("org.sold_per")} {bucket}</Text>
+        <TextButton label={showTable ? t("org.show_chart") : t("org.show_table")} onPress={() => setShowTable(!showTable)} />
       </View>
       {showTable ? (
         points.map((point) => (
-          <ListRow key={point.bucket_start} title={bucketLabel(point.bucket_start, bucket)} meta={`${point.tickets} tickets · ${priceLabel(point.revenue_minor)}`} />
+          <ListRow key={point.bucket_start} title={bucketLabel(point.bucket_start, bucket)} meta={t("mobile.org.bar_meta", { p0: point.tickets, p1: priceLabel(point.revenue_minor) })} />
         ))
       ) : (
         <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
           <Text style={styles.tooltip} accessibilityLiveRegion="polite">
-            {current ? `${bucketLabel(current.bucket_start, bucket)}: ${current.tickets} tickets · ${priceLabel(current.revenue_minor)}` : "Tap a bar for details."}
+            {current ? t("org.chart_tooltip", { p0: bucketLabel(current.bucket_start, bucket), p1: current.tickets, p2: priceLabel(current.revenue_minor) }) : t("mobile.org.tap_bar")}
           </Text>
           {width > 0 ? (
-            <Svg width={width} height={HEIGHT} accessibilityLabel={`Bar chart of tickets sold per ${bucket}, ${points.length} bars, maximum ${top}.`}>
+            <Svg width={width} height={HEIGHT} accessibilityLabel={t("org.chart_alt", { p0: bucket, p1: points.length, p2: top })}>
               {ticks(max).map((tick) => {
                 const y = HEIGHT - BOTTOM - (tick / max) * (HEIGHT - BOTTOM);
                 return (

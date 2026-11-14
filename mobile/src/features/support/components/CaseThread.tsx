@@ -6,6 +6,7 @@ import { dateLabel } from "@/utils/format";
 
 import { describeChange } from "../utils/supportLabels";
 import { MessageBubble } from "./MessageBubble";
+import { t, useLocale } from "@/i18n";
 
 interface CaseThreadProps {
   items: SupportThreadItem[];
@@ -14,8 +15,9 @@ interface CaseThreadProps {
 
 // Messages and history in `seq` order; new items are announced politely.
 export function CaseThread({ items, viewerId }: CaseThreadProps) {
+  useLocale();
   return (
-    <View style={styles.thread} accessibilityLabel="Case messages" accessibilityLiveRegion="polite">
+    <View style={styles.thread} accessibilityLabel={t("support.case_messages")} accessibilityLiveRegion="polite">
       {items.map((item) =>
         item.type === "message" ? (
           <MessageBubble key={`m-${item.seq}`} message={item} own={item.author.id === viewerId} />

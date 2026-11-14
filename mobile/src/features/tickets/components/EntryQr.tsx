@@ -2,15 +2,17 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { QrCode } from "@/components/ui";
 import { colors, fonts, radii } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // The second, short-lived QR. Framed apart from the ticket QR so staff and
 // attendees never confuse the two (different purpose, prefix and key).
 export function EntryQr({ token }: { token: string }) {
+  useLocale();
   return (
     <View style={styles.figure}>
-      <Text style={styles.caption}>Entry confirmation — show with your ticket</Text>
+      <Text style={styles.caption}>{t("tickets.entry_title")}</Text>
       <View style={styles.box}>
-        <QrCode value={token} size={176} label="Entry confirmation QR code" />
+        <QrCode value={token} size={176} label={t("tickets.entry_qr")} />
       </View>
     </View>
   );

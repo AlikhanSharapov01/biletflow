@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Eyebrow, SerifText } from "@/components/ui";
 import { colors, eventArt, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
+import { t } from "@/i18n";
 
 // Discover card (web EventCard with a .live-art block): a coloured art panel
 // with the category initial, then category, title, when/where and a footer
@@ -22,12 +24,13 @@ export function EventCard({
   footer?: ReactNode;
   onPress: () => void;
 }) {
+  useLocale();
   const [light, dark] = eventArt[index % eventArt.length];
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${category}. ${meta}`}
-      accessibilityHint="Opens the event"
+      accessibilityHint={t("mobile.events.opens_event")}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >

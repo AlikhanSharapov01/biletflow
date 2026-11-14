@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Labelled checkbox (web CheckboxField and the capability tiles).
 export function CheckboxField({
@@ -16,6 +17,7 @@ export function CheckboxField({
   onChange: (checked: boolean) => void;
   disabled?: boolean;
 }) {
+  useLocale();
   return (
     <Pressable
       accessibilityRole="checkbox"

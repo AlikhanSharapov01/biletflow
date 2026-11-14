@@ -2,20 +2,21 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Brand, Eyebrow, SerifText } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Dark-green brand header above the sign-in panel (web .auth-story).
 export function AuthStory({ topInset }: { topInset: number }) {
+  useLocale();
   return (
     <View style={[styles.story, { paddingTop: topInset + 22 }]}>
       <View style={styles.ring} pointerEvents="none" />
       <Brand inverted />
-      <Eyebrow style={styles.storyEyebrow}>A city is better together</Eyebrow>
+      <Eyebrow style={styles.storyEyebrow}>{t("auth.city_together")}</Eyebrow>
       <SerifText style={styles.storyTitle}>
-        Make room for <Text style={styles.storyAccent}>what matters.</Text>
+        {t("auth.make_room")} <Text style={styles.storyAccent}>{t("auth.what_matters")}</Text>
       </SerifText>
       <Text style={styles.storyCopy}>
-        Find your people, bring an idea to life, and make the kind of memories that stay after
-        the lights come up.
+        {t("auth.story_copy")}
       </Text>
     </View>
   );

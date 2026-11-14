@@ -3,14 +3,15 @@
 
 import { requestJson } from "@/api/session";
 import type { OfflinePackage, ScannerDevice, SyncOperation, SyncResult } from "@/api/types/offline";
+import { t } from "@/i18n";
 
 const OFFLINE_MESSAGES: Record<string, string> = {
-  admission_closed: "Admission for this event has ended.",
-  device_revoked: "This phone was removed from scanning. Ask the organizer for help.",
-  device_key_taken: "This phone is registered to another account.",
-  event_not_found: "You're not assigned to scan this event.",
-  package_not_found: "This offline list no longer belongs to your account.",
-  permission_denied: "You don't have permission to scan this event.",
+  get admission_closed() { return t("mobile.scan.admission_ended"); },
+  get device_revoked() { return t("mobile.scan.device_removed"); },
+  get device_key_taken() { return t("mobile.scan.device_other_account"); },
+  get event_not_found() { return t("mobile.scan.not_assigned"); },
+  get package_not_found() { return t("mobile.scan.list_other_account"); },
+  get permission_denied() { return t("mobile.scan.no_permission"); },
 };
 
 function postJson<T>(path: string, body: unknown): Promise<T> {

@@ -11,6 +11,7 @@ import { dateLabel, statusLabel } from "@/utils/format";
 import { Intro } from "../components/Intro";
 import { SectionHeading } from "../components/SectionHeading";
 import { InviteForm } from "./InviteForm";
+import { t, useLocale } from "@/i18n";
 
 interface TeamPanelProps {
   organization: Organization;
@@ -18,6 +19,7 @@ interface TeamPanelProps {
 }
 
 export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const team = useRequest(
     async () => {
@@ -28,11 +30,11 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
   );
 
   const remove = async (label: string, action: () => Promise<unknown>) => {
-    const confirmed = await confirmAction({ title: `Remove ${label}?`, confirmLabel: "Remove", destructive: true });
+    const confirmed = await confirmAction({ title: t("org.remove_confirm", { p0: label }), confirmLabel: t("common.remove"), destructive: true });
     if (!confirmed) return;
     try {
       await action();
-      notify("Removed.");
+      notify(t("org.removed"));
       team.reload();
     } catch (failure) {
       notify(describeError(failure));
@@ -41,9 +43,9 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
 
   return (
     <Panel>
-      <SectionHeading title="Team" subtitle="Invite staff by email, then assign them to events with the capabilities they need." />
-      {team.loading ? <LoadingState message="Loading team…" /> : null}
-      {team.error ? <Intro>{`${team.error} Only the owner and staff managers can see the team.`}</Intro> : null}
+      <SectionHeading title={t("organizer.team")} subtitle={t("org.team_hint")} />
+      {team.loading ? <LoadingState message={t("org.loading_team")} /> : null}
+      {team.error ? <Intro>{t("mobile.org.team_hidden", { p0: team.error })}</Intro> : null}
       {team.data && !team.loading ? (
         <>
           {team.data.members.map((member) => {
@@ -55,13 +57,13 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
                 icon={owner ? "★" : "M"}
                 title={member.display_name}
                 meta={member.email}
-                note={owner ? "All permissions" : member.capabilities.length ? member.capabilities.map(statusLabel).join(", ") : "No workspace permissions"}
+                note={owner ? t("organizer.all_permissions") : member.capabilities.length ? member.capabilities.map(statusLabel).join(", ") : t("organizer.no_permissions")}
                 trailing={
                   <View style={styles.trailing}>
-                    {owner ? <StatusPill label="Owner" /> : null}
-                    {!active ? <StatusPill tone="neutral" label="Revoked" /> : null}
+                    {owner ? <StatusPill label={t("organizer.owner")} /> : null}
+                    {!active ? <StatusPill tone="neutral" label={t("organizer.revoked")} /> : null}
                     {!owner && active && isOwner ? (
-                      <SubtleButton danger label="Remove" onPress={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))} />
+                      <SubtleButton danger label={t("common.remove")} onPress={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))} />
                     ) : null}
                   </View>
                 }
@@ -73,14 +75,14 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
               key={invitation.id}
               icon="✉"
               title={invitation.email}
-              meta={`Expires ${dateLabel(invitation.expires_at)}`}
+              meta={t("account.expires_at", { p0: dateLabel(invitation.expires_at) })}
               trailing={
                 <View style={styles.trailing}>
-                  <StatusPill tone="pending" label="Invited" />
+                  <StatusPill tone="pending" label={t("organizer.invited")} />
                   <SubtleButton
                     danger
-                    label="Revoke"
-                    onPress={() => void remove(`the invitation for ${invitation.email}`, () => revokeInvitation(organization.id, invitation.id))}
+                    label={t("organizer.revoke")}
+                    onPress={() => void remove(t("org.invitation_for", { p0: invitation.email }), () => revokeInvitation(organization.id, invitation.id))}
                   />
                 </View>
               }

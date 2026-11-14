@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { EventAnalytics } from "@/api/types/analytics";
 import { colors, fonts, radii } from "@/theme";
 import { priceLabel } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 function percent(part: number, whole: number): string {
   return whole > 0 ? `${Math.round((part / whole) * 100)}%` : "—";
@@ -10,12 +11,13 @@ function percent(part: number, whole: number): string {
 
 // Headline figures: a stat tile is clearer than a chart for single numbers.
 export function StatTiles({ data }: { data: EventAnalytics }) {
+  useLocale();
   const tiles = [
-    { label: "Tickets sold", value: String(data.inventory.sold), note: `${percent(data.inventory.sold, data.inventory.capacity)} of ${data.inventory.capacity} capacity` },
-    { label: "Available", value: String(data.inventory.available), note: `${data.inventory.held} in checkout holds` },
-    { label: "Net revenue", value: priceLabel(data.revenue.net_minor), note: `${priceLabel(data.revenue.gross_minor)} gross` },
-    { label: "Discounts", value: priceLabel(data.revenue.discount_minor), note: `${priceLabel(data.revenue.refunds_minor)} refunded` },
-    { label: "Checked in", value: String(data.attendance.checked_in), note: `${percent(data.attendance.checked_in, data.attendance.issued)} of ${data.attendance.issued} issued` },
+    { label: t("org.tickets_sold"), value: String(data.inventory.sold), note: t("org.capacity_fraction", { p0: percent(data.inventory.sold, data.inventory.capacity), p1: data.inventory.capacity }) },
+    { label: t("checkout.available"), value: String(data.inventory.available), note: t("org.in_holds", { p0: data.inventory.held }) },
+    { label: t("org.net_revenue"), value: priceLabel(data.revenue.net_minor), note: t("org.gross_amount", { p0: priceLabel(data.revenue.gross_minor) }) },
+    { label: t("org.discounts"), value: priceLabel(data.revenue.discount_minor), note: t("org.refunded_amount", { p0: priceLabel(data.revenue.refunds_minor) }) },
+    { label: t("tickets.checked_in"), value: String(data.attendance.checked_in), note: t("org.admitted_fraction", { p0: percent(data.attendance.checked_in, data.attendance.issued), p1: data.attendance.issued }) },
   ];
   return (
     <View style={styles.grid}>

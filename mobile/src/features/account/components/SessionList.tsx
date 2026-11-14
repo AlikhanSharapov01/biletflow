@@ -8,6 +8,7 @@ import { EmptyState, ListRow, StatusPill, SubtleButton } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 import { colors, fonts } from "@/theme";
 import { dateLabel } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 // Every session of the account, newest first; any active one other than
 // this device can be revoked (web SessionList).
@@ -20,17 +21,18 @@ export function SessionList({
   currentId: string;
   onChanged: () => void;
 }) {
+  useLocale();
   const { notify } = useToast();
   const [revoking, setRevoking] = useState("");
   const now = Date.now();
 
-  if (sessions.length === 0) return <EmptyState message="No sessions were found for this account." />;
+  if (sessions.length === 0) return <EmptyState message={t("account.no_sessions")} />;
 
   async function revoke(id: string) {
     setRevoking(id);
     try {
       await revokeSession(id);
-      notify("Session revoked.");
+      notify(t("account.session_revoked"));
       onChanged();
     } catch (failure) {
       notify(describeError(failure));
@@ -46,12 +48,12 @@ export function SessionList({
         const revoked = Boolean(item.revoked_at);
         const expired = new Date(item.expires_at).getTime() <= now;
         const active = !revoked && !expired;
-        const label = current ? "This device" : item.client_kind === "web" ? "Web browser" : "Scanner";
+        const label = current ? t("account.this_device") : item.client_kind === "web" ? t("account.web_browser") : t("account.scanner");
         const lifecycle = revoked
-          ? `Revoked ${dateLabel(item.revoked_at)}`
+          ? t("account.revoked_at", { p0: dateLabel(item.revoked_at) })
           : expired
-            ? `Expired ${dateLabel(item.expires_at)}`
-            : `Expires ${dateLabel(item.expires_at)}`;
+            ? t("account.expired_at", { p0: dateLabel(item.expires_at) })
+            : t("account.expires_at", { p0: dateLabel(item.expires_at) });
         return (
           <ListRow
             key={item.id}
@@ -59,15 +61,15 @@ export function SessionList({
             title={
               <View style={styles.title}>
                 <Text style={styles.titleText}>{label}</Text>
-                {current ? <StatusPill label="Current" /> : null}
+                {current ? <StatusPill label={t("account.current")} /> : null}
               </View>
             }
-            meta={`Started ${dateLabel(item.created_at)} · Last active ${item.last_seen_at ? dateLabel(item.last_seen_at) : "Not yet"}`}
+            meta={t("account.session_meta", { p0: dateLabel(item.created_at), p1: item.last_seen_at ? dateLabel(item.last_seen_at) : t("account.not_yet") })}
             note={lifecycle}
             trailing={
               active && !current ? (
                 <SubtleButton
-                  label="Revoke"
+                  label={t("organizer.revoke")}
                   danger
                   loading={revoking === item.id}
                   onPress={() => void revoke(item.id)}

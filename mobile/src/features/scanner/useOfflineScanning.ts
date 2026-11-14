@@ -18,6 +18,7 @@ import {
   type OfflineState,
 } from "@/features/scanner/offlineStore";
 import type { PendingScan } from "@/features/scanner/scanTypes";
+import { t } from "@/i18n";
 
 const MAX_SYNC_BATCH = 200;
 
@@ -43,10 +44,10 @@ async function deviceKeyFor(userId: string): Promise<string> {
 function summarize(results: SyncResult["results"]): string {
   const count = (status: string) => results.filter((row) => row.status === status).length;
   const accepted = count("accepted") + count("duplicate");
-  const parts = [`${accepted} admitted`];
+  const parts = [t("mobile.scan.admitted_count", { p0: accepted })];
   if (count("conflict")) parts.push(`${count("conflict")} sent to the organizer to review`);
   if (count("rejected")) parts.push(`${count("rejected")} rejected`);
-  return `Synced: ${parts.join(", ")}.`;
+  return t("mobile.scan.synced", { p0: parts.join(", ") });
 }
 
 // The saved offline list and scan queue for one event.
@@ -117,7 +118,7 @@ export function useOfflineScanning(eventId: string, onSynced: () => void) {
       } catch (err) {
         // Session couldn't be renewed: AuthContext is already redirecting to login.
         if (err instanceof SessionExpiredError) return;
-        if (!quiet) setNotice(`Couldn't sync. Your scans are saved. ${err instanceof Error ? err.message : ""}`.trim());
+        if (!quiet) setNotice(t("mobile.scan.sync_failed", { p0: err instanceof Error ? err.message : "" }).trim());
       } finally {
         syncing.current = false;
         setBusy(false);
@@ -163,10 +164,10 @@ export function useOfflineScanning(eventId: string, onSynced: () => void) {
       await savePackage(userId, eventId, saved);
       await saveProgress(userId, eventId, progress);
       apply({ ...saved, ...progress });
-      setNotice(`Offline list ready: ${pkg.manifest.tickets.length} tickets.`);
+      setNotice(t("mobile.scan.offline_ready", { p0: pkg.manifest.tickets.length }));
     } catch (err) {
       if (err instanceof SessionExpiredError) return;
-      setNotice(err instanceof Error ? err.message : "Couldn't download the offline list.");
+      setNotice(err instanceof Error ? err.message : t("mobile.scan.offline_download_failed"));
     } finally {
       setBusy(false);
     }

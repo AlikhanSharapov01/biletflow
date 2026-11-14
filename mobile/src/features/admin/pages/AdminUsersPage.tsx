@@ -12,10 +12,12 @@ import { SearchResults } from "@/features/admin/components/SearchResults";
 import { SectionNote } from "@/features/admin/components/SectionNote";
 import { useAdminSearch } from "@/features/admin/hooks/useAdminSearch";
 import { dateLabel, initials } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 // Suspending a user revokes every session at once; reinstating allows a
 // fresh sign-in. Platform admins cannot be suspended here.
 export function AdminUsersPage() {
+  useLocale();
   const { notify } = useToast();
   const users = useAdminSearch(searchUsers);
   const [pending, setPending] = useState<ModerationRequest | null>(null);
@@ -23,12 +25,12 @@ export function AdminUsersPage() {
   function ask(user: AdminUserRow) {
     const suspended = user.status === "suspended";
     setPending({
-      title: suspended ? "Reinstate user" : "Suspend user",
-      message: suspended ? "Reason for reinstating" : "Reason for suspending (signs the user out everywhere)",
-      confirmLabel: suspended ? "Reinstate user" : "Suspend user",
+      title: suspended ? t("admin.reinstate_user") : t("admin.suspend_user"),
+      message: suspended ? t("admin.reason_reinstate") : t("admin.reason_suspend_user"),
+      confirmLabel: suspended ? t("admin.reinstate_user") : t("admin.suspend_user"),
       run: async (reason) => {
         await moderateUser(user.id, suspended ? "reinstate" : "suspend", reason);
-        notify(suspended ? "User reinstated." : "User suspended and signed out.");
+        notify(suspended ? t("admin.user_reinstated") : t("admin.user_suspended"));
         users.reload();
       },
     });
@@ -36,13 +38,13 @@ export function AdminUsersPage() {
 
   return (
     <Panel>
-      <PanelHeading title="Users" />
-      <SectionNote text="Search by email, display name or exact account id." />
+      <PanelHeading title={t("admin.users")} />
+      <SectionNote text={t("admin.user_search_hint")} />
       <AdminSearchForm
         placeholder="aru@example.com"
         statuses={[
-          { value: "active", label: "Active" },
-          { value: "suspended", label: "Suspended" },
+          { value: "active", label: t("common.active") },
+          { value: "suspended", label: t("org.suspended") },
         ]}
         onApply={users.apply}
       />
@@ -58,14 +60,14 @@ export function AdminUsersPage() {
                   title={
                     <RowTitle text={user.display_name}>
                       <StatusPill label={user.status} tone={suspended ? "blocked" : "positive"} />
-                      {user.is_platform_admin ? <StatusPill label="Admin" tone="neutral" /> : null}
+                      {user.is_platform_admin ? <StatusPill label={t("nav.admin")} tone="neutral" /> : null}
                     </RowTitle>
                   }
-                  meta={`${user.email} · ${user.email_verified_at ? "verified" : "not verified"}`}
-                  note={`Joined ${dateLabel(user.created_at)} · ${user.id}`}
+                  meta={`${user.email} · ${user.email_verified_at ? "verified" : t("admin.not_verified")}`}
+                  note={t("admin.joined", { p0: dateLabel(user.created_at), p1: user.id })}
                   trailing={
                     user.is_platform_admin ? undefined : (
-                      <SubtleButton label={suspended ? "Reinstate" : "Suspend"} danger={!suspended} onPress={() => ask(user)} />
+                      <SubtleButton label={suspended ? t("admin.reinstate") : t("admin.suspend")} danger={!suspended} onPress={() => ask(user)} />
                     )
                   }
                 />

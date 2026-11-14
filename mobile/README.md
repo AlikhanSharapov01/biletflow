@@ -52,7 +52,7 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Scanner: manual guest search | Done |
 | Offline scanning (bonus) | Done (QR scans only). Whether staff may let someone in on an offline result is still open, see below |
 | Google sign-in | Web only (decision 0001) |
-| Kazakh and Russian text | Not done (#52); the web has them |
+| Kazakh, Russian and English | Done (#52): the web's catalogs plus app-only text; Account → Language |
 
 Nothing here has been checked on a real phone yet (#53).
 
@@ -116,7 +116,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 50 files. They cover:
+(`*.test.ts(x)`): 53 files. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
   status, support threads, notification targets, organizer forms, charts, history filters,
@@ -128,6 +128,9 @@ Jest with the `jest-expo` preset and React Native Testing Library. Tests sit nex
 - **The scanner:** outcome messages, the check-in request body, the scan → confirmation → admit
   flow, entry-code input and guest search.
 - **Shared UI:** list rows, the QR code drawing and date helpers.
+- **Translations:** checkout, finance and every scanner result rendered in Kazakh and Russian with
+  no English left; the web's catalogs kept identical; and `scripts/audit-strings.js`, which fails
+  when new interface text is not translated.
 
 In React Native Testing Library 14, `render` and `fireEvent` are async: write
 `await render(...)` and `await fireEvent.press(...)`. Native modules without a JavaScript version
@@ -251,7 +254,8 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
   the event gallery through against `docker compose up`. The event page does not show the cover
   image yet. Also add the admin paid-sales and payment/refund
   monitoring screens from `backend/ADMIN_API.md`, which no issue covers yet.
-- **Translations (#52):** Kazakh and Russian, using the saved profile language and the web's keys.
+- **Translation review (#52):** the app-only Kazakh and Russian text
+  (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
   camera have been tested with mocks. Click them through on a real iPhone and Android phone.
 - **Installable builds (#54).**

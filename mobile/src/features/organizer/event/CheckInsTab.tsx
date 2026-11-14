@@ -17,12 +17,14 @@ import { SectionHeading } from "../components/SectionHeading";
 import { CheckInFilterForm } from "./checkins/CheckInFilterForm";
 import { CheckInRow } from "./checkins/CheckInRow";
 import { SyncConflictsPanel } from "./checkins/SyncConflictsPanel";
+import { t, useLocale } from "@/i18n";
 
 const LIMIT = 50;
 
 // Organizer admission log with filters, paging, CSV export (shared through
 // the share sheet) and the offline sync-conflict review.
 export function CheckInsTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const [filters, setFilters] = useState<CheckInFilters>({});
   const [offset, setOffset] = useState(0);
@@ -39,7 +41,7 @@ export function CheckInsTab({ event }: { event: EventView }) {
     setExporting(true);
     try {
       await downloadCheckInsCsv(event.id, filters);
-      notify("Check-in CSV downloaded.");
+      notify(t("org.csv_downloaded"));
     } catch (failure) {
       notify(describeError(failure));
     } finally {
@@ -51,19 +53,19 @@ export function CheckInsTab({ event }: { event: EventView }) {
     <>
       <Panel>
         <SectionHeading
-          title="Check-in history"
-          subtitle="Every admission from the scanner app, oldest first. Reversed admissions stay in the log."
-          trailing={<StatusPill tone="neutral" label={`${log.data?.total ?? 0} check-ins`} />}
+          title={t("org.checkin_history")}
+          subtitle={t("org.checkin_hint")}
+          trailing={<StatusPill tone="neutral" label={t("mobile.org.checkin_count", { p0: log.data?.total ?? 0 })} />}
         />
         <View style={[formStyles.actions, { marginBottom: 8 }]}>
-          <SubtleButton label={exporting ? "Preparing…" : "Download CSV"} disabled={exporting} onPress={() => void exportCsv()} />
+          <SubtleButton label={exporting ? t("support.preparing") : t("org.csv_download")} disabled={exporting} onPress={() => void exportCsv()} />
         </View>
         <CheckInFilterForm types={types.data ?? []} onApply={apply} />
-        {log.loading ? <LoadingState message="Loading check-ins…" /> : null}
-        {log.error ? <ErrorPanel title="We couldn’t load check-ins." message={log.error} onRetry={log.reload} /> : null}
+        {log.loading ? <LoadingState message={t("org.checkin_loading")} /> : null}
+        {log.error ? <ErrorPanel title={t("org.checkin_error")} message={log.error} onRetry={log.reload} /> : null}
         {log.data && !log.loading ? (
           log.data.items.length === 0 ? (
-            <EmptyState message="No check-ins match these filters." />
+            <EmptyState message={t("org.no_checkins")} />
           ) : (
             <>
               {log.data.items.map((row) => (
@@ -73,7 +75,7 @@ export function CheckInsTab({ event }: { event: EventView }) {
             </>
           )
         ) : null}
-        <Intro style={{ marginTop: 12 }}>The CSV uses the same filters (up to 10,000 rows). Narrow the date range if the export is too large.</Intro>
+        <Intro style={{ marginTop: 12 }}>{t("org.csv_hint")}</Intro>
       </Panel>
       <SyncConflictsPanel event={event} onResolved={log.reload} />
     </>

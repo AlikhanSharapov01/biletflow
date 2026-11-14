@@ -9,10 +9,12 @@ import { AccountLinks } from "@/features/account/components/AccountLinks";
 import { ProfileForm } from "@/features/account/components/ProfileForm";
 import { useIsPlatformAdmin } from "@/features/admin/useIsPlatformAdmin";
 import { useAuth } from "@/features/auth/AuthContext";
+import { t, useLocale } from "@/i18n";
 
 // Account tab: profile, links to orders / support / notifications / sessions
 // (and the admin portal for platform admins), and signing out.
 export function AccountScreen() {
+  useLocale();
   const { profile, logout, setProfile } = useAuth();
   const { notify } = useToast();
   const { isAdmin } = useIsPlatformAdmin();
@@ -41,9 +43,9 @@ export function AccountScreen() {
 
   async function signOutEverywhere() {
     const confirmed = await confirmAction({
-      title: "Sign out everywhere",
-      message: "Sign out of every active BiletFlow session? This device will also be signed out.",
-      confirmLabel: "Sign out everywhere",
+      title: t("auth.sign_out_everywhere"),
+      message: t("auth.sign_out_confirm"),
+      confirmLabel: t("auth.sign_out_everywhere"),
       destructive: true,
     });
     if (!confirmed) return;
@@ -51,7 +53,7 @@ export function AccountScreen() {
     try {
       await logoutEverywhere();
     } catch (failure) {
-      notify(`Could not sign out everywhere: ${describeError(failure)}`);
+      notify(t("account.sign_out_error", { p0: describeError(failure) }));
       setBusy("");
       return;
     }
@@ -62,14 +64,14 @@ export function AccountScreen() {
   return (
     <ScrollScreen header="top" refreshing={refreshing} onRefresh={() => void refresh()}>
       <PageHeading
-        eyebrow="Your account"
-        title="Profile & sessions."
-        subtitle="Review your profile and keep track of where you’re signed in."
+        eyebrow={t("account.your_account")}
+        title={t("account.profile_sessions")}
+        subtitle={t("account.review")}
         actions={
           <>
-            <SubtleButton label="Sign out" onPress={() => void signOut()} loading={busy === "one"} disabled={busy !== ""} />
+            <SubtleButton label={t("auth.sign_out")} onPress={() => void signOut()} loading={busy === "one"} disabled={busy !== ""} />
             <SubtleButton
-              label="Sign out everywhere"
+              label={t("auth.sign_out_everywhere")}
               danger
               onPress={() => void signOutEverywhere()}
               loading={busy === "all"}
@@ -81,7 +83,7 @@ export function AccountScreen() {
       {profile ? (
         <ProfileForm key={profile.id} profile={profile} onSaved={setProfile} />
       ) : (
-        <LoadingState message="Loading your profile…" />
+        <LoadingState message={t("mobile.account.loading_profile")} />
       )}
       <AccountLinks isAdmin={isAdmin} />
     </ScrollScreen>

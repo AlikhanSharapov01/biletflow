@@ -12,6 +12,7 @@ import { Animated, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Brief confirmation messages after an action (web .toast and notify()).
 // Same 2.6 s lifetime as the web.
@@ -24,6 +25,7 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState("");
   const opacity = useRef(new Animated.Value(0)).current;

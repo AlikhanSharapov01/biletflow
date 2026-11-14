@@ -1,48 +1,50 @@
 import { useRouter } from "expo-router";
 
 import { ListRow, Panel, PanelHeading } from "@/components/ui";
+import { t, useLocale } from "@/i18n";
 
 // Places reached from the web sidebar that have no tab of their own on the phone.
 export function AccountLinks({ isAdmin }: { isAdmin: boolean }) {
+  useLocale();
   const router = useRouter();
   return (
     <Panel>
-      <PanelHeading title="More" />
+      <PanelHeading title={t("mobile.account.more")} />
       <ListRow
         icon="R"
-        title="My orders"
-        meta="Receipts and order status"
+        title={t("mobile.account.my_orders")}
+        meta={t("mobile.account.orders_hint")}
         onPress={() => router.push("/orders")}
-        accessibilityLabel="My orders"
+        accessibilityLabel={t("mobile.account.my_orders")}
       />
       <ListRow
         icon="S"
-        title="Support"
-        meta="Ask for help with an event, order or ticket"
+        title={t("nav.support")}
+        meta={t("mobile.account.support_hint")}
         onPress={() => router.push("/support")}
-        accessibilityLabel="Support"
+        accessibilityLabel={t("nav.support")}
       />
       <ListRow
         icon="N"
-        title="Notifications"
-        meta="Updates about your tickets and cases"
+        title={t("nav.notifications")}
+        meta={t("mobile.account.notifications_hint")}
         onPress={() => router.push("/notifications")}
-        accessibilityLabel="Notifications"
+        accessibilityLabel={t("nav.notifications")}
       />
       <ListRow
         icon="D"
-        title="Signed-in sessions"
-        meta="Revoke a device you no longer use."
+        title={t("account.sessions")}
+        meta={t("account.revoke_device")}
         onPress={() => router.push("/account/sessions")}
-        accessibilityLabel="Signed-in sessions"
+        accessibilityLabel={t("account.sessions")}
       />
       {isAdmin ? (
         <ListRow
           icon="A"
-          title="Admin portal"
-          meta="Platform administration"
+          title={t("mobile.account.admin_portal")}
+          meta={t("admin.eyebrow")}
           onPress={() => router.push("/admin")}
-          accessibilityLabel="Admin portal"
+          accessibilityLabel={t("mobile.account.admin_portal")}
         />
       ) : null}
     </Panel>

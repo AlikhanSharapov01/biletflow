@@ -1,14 +1,17 @@
 import { StyleSheet, Text, type TextProps } from "react-native";
 
 import { colors, fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Small uppercase label above headings (web .eyebrow).
 export function Eyebrow({ style, ...props }: TextProps) {
+  useLocale();
   return <Text {...props} style={[styles.eyebrow, style]} />;
 }
 
 // Serif display text (web .serif headings).
 export function SerifText({ style, ...props }: TextProps) {
+  useLocale();
   return <Text {...props} style={[styles.serif, style]} />;
 }
 

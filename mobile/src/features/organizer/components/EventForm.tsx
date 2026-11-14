@@ -11,6 +11,7 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "./formStyles";
 import { Intro } from "./Intro";
 import { SeatingFields } from "./SeatingFields";
+import { t, useLocale } from "@/i18n";
 
 interface EventFormProps {
   initial?: EventView;
@@ -25,14 +26,15 @@ interface EventFormProps {
 }
 
 const VISIBILITY = [
-  { value: "public", label: "Public · listed in discovery" },
-  { value: "unlisted", label: "Unlisted · link only" },
-  { value: "private", label: "Private · invited accounts" },
+  { value: "public", get label() { return t("org.public"); } },
+  { value: "unlisted", get label() { return t("org.unlisted"); } },
+  { value: "private", get label() { return t("org.private"); } },
 ];
 
 // One form for creating a draft and for editing an existing event. Window
 // fields may stay blank; see utils/eventForm.ts for how they are derived.
 export function EventForm({ initial, categories, venues, submitLabel, busy, message, success = false, onSubmit, onInvalid }: EventFormProps) {
+  useLocale();
   const [values, setValues] = useState<EventFormValues>(() => eventFormValues(initial));
   const [windowsOpen, setWindowsOpen] = useState(Boolean(initial));
   const update = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
@@ -52,26 +54,26 @@ export function EventForm({ initial, categories, venues, submitLabel, busy, mess
 
   return (
     <View style={formStyles.stack}>
-      <TextField label="Event title" value={values.title} onChangeText={(text) => update("title", text)} maxLength={200} placeholder="Give your event a name" />
+      <TextField label={t("org.event_title")} value={values.title} onChangeText={(text) => update("title", text)} maxLength={200} placeholder={t("org.event_name_placeholder")} />
       <TextField
-        label="Description"
+        label={t("common.description")}
         value={values.description}
         onChangeText={(text) => update("description", text)}
         multiline
         maxLength={20000}
-        placeholder="What should guests know?"
+        placeholder={t("org.guests_hint")}
       />
       <SelectField
-        label="Category"
+        label={t("discover.category")}
         value={values.category_id}
-        placeholder="Choose category"
+        placeholder={t("org.choose_category")}
         options={categories.map((item) => ({ value: item.id, label: item.name_en }))}
         onChange={(value) => update("category_id", value)}
       />
       <SelectField
-        label="Venue"
+        label={t("event.venue")}
         value={values.venue_id}
-        placeholder="Choose venue"
+        placeholder={t("org.choose_venue")}
         options={venues.map((item) => ({ value: item.id, label: `${item.name} · ${item.city}` }))}
         onChange={(value) => setValues((current) => ({ ...current, venue_id: value, venue_layout_id: "" }))}
       />
@@ -83,34 +85,34 @@ export function EventForm({ initial, categories, venues, submitLabel, busy, mess
         onLayoutChange={(layoutId) => update("venue_layout_id", layoutId)}
       />
       <SelectField
-        label="Visibility"
+        label={t("event.visibility")}
         value={values.visibility}
         options={VISIBILITY}
         onChange={(value) => update("visibility", value as EventFormValues["visibility"])}
       />
-      <TextField label="Capacity" value={values.capacity} onChangeText={(text) => update("capacity", text)} keyboardType="number-pad" maxLength={6} />
-      {dateField("starts_at", "Starts")}
-      {dateField("ends_at", "Ends")}
+      <TextField label={t("event.capacity")} value={values.capacity} onChangeText={(text) => update("capacity", text)} keyboardType="number-pad" maxLength={6} />
+      {dateField("starts_at", t("org.starts"))}
+      {dateField("ends_at", t("org.ends"))}
       <TextButton
-        label={`${windowsOpen ? "▾" : "▸"} Registration, admission and refund windows`}
+        label={`${windowsOpen ? "▾" : "▸"} ${t("org.windows")}`}
         onPress={() => setWindowsOpen(!windowsOpen)}
       />
       {windowsOpen ? (
         <View style={formStyles.stack}>
-          <Intro>Leave a window blank to derive it: registration opens now and closes at the start; admission runs from start to end.</Intro>
-          {dateField("registration_opens_at", "Registration opens")}
-          {dateField("registration_closes_at", "Registration closes")}
-          {dateField("admission_opens_at", "Admission opens")}
-          {dateField("admission_closes_at", "Admission closes")}
-          <CheckboxField label="Refunds allowed" checked={values.refund_allowed} onChange={(checked) => update("refund_allowed", checked)} />
+          <Intro>{t("org.windows_hint")}</Intro>
+          {dateField("registration_opens_at", t("org.registration_opens"))}
+          {dateField("registration_closes_at", t("org.registration_closes"))}
+          {dateField("admission_opens_at", t("org.admission_opens"))}
+          {dateField("admission_closes_at", t("org.admission_closes"))}
+          <CheckboxField label={t("org.refunds_allowed")} checked={values.refund_allowed} onChange={(checked) => update("refund_allowed", checked)} />
           <DateTimeField
-            label="Refund cutoff"
+            label={t("org.refund_cutoff")}
             value={values.refund_cutoff_at}
             onChange={(value) => update("refund_cutoff_at", value)}
             disabled={!values.refund_allowed}
           />
           <TextField
-            label="Time zone (IANA)"
+            label={t("org.timezone_iana")}
             value={values.time_zone}
             onChangeText={(text) => update("time_zone", text)}
             maxLength={64}

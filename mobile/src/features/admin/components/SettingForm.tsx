@@ -9,9 +9,11 @@ import { useToast } from "@/context/ToastContext";
 import { expectedVersion, settingValueError } from "@/features/admin/utils/settings";
 import { colors, fonts } from "@/theme";
 import { localInputToIso } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 // New value, optional start time ("YYYY-MM-DD HH:mm", blank = now) and reason.
 export function SettingForm({ setting, onSaved }: { setting: PlatformSetting; onSaved: () => void }) {
+  useLocale();
   const { notify } = useToast();
   const [value, setValue] = useState(String(setting.pending?.value ?? setting.value));
   const [effective, setEffective] = useState("");
@@ -26,7 +28,7 @@ export function SettingForm({ setting, onSaved }: { setting: PlatformSetting; on
     }
     const effectiveAt = effective.trim() ? localInputToIso(effective.trim().replace(" ", "T")) : null;
     if (effective.trim() && !effectiveAt) {
-      setState({ busy: false, message: "Write the time as YYYY-MM-DD HH:mm." });
+      setState({ busy: false, message: t("mobile.ui.write_datetime") });
       return;
     }
     setState({ busy: true, message: "" });
@@ -37,11 +39,11 @@ export function SettingForm({ setting, onSaved }: { setting: PlatformSetting; on
         ...(effectiveAt ? { effective_at: effectiveAt } : {}),
         ...(reason.trim() ? { reason: reason.trim() } : {}),
       });
-      notify("Setting saved.");
+      notify(t("admin.setting_saved"));
       onSaved();
     } catch (failure) {
       if (errorCodeOf(failure) === "setting_version_conflict") {
-        notify("Another admin changed this setting. The latest version is shown; review it and try again.");
+        notify(t("admin.setting_conflict"));
         onSaved();
         return;
       }
@@ -51,19 +53,19 @@ export function SettingForm({ setting, onSaved }: { setting: PlatformSetting; on
 
   return (
     <View style={styles.form}>
-      <TextField label="New value" keyboardType="number-pad" value={value} onChangeText={setValue} />
+      <TextField label={t("admin.new_value")} keyboardType="number-pad" value={value} onChangeText={setValue} />
       <TextField
-        label="Takes effect"
-        hint="Blank = now"
+        label={t("admin.takes_effect")}
+        hint={t("admin.blank_now")}
         placeholder="YYYY-MM-DD HH:mm"
         autoCapitalize="none"
         autoCorrect={false}
         value={effective}
         onChangeText={setEffective}
       />
-      <TextField label="Reason" hint="Optional" value={reason} onChangeText={setReason} maxLength={500} />
+      <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} onChangeText={setReason} maxLength={500} />
       {state.message ? <Text style={styles.message}>{state.message}</Text> : null}
-      <PrimaryButton label="Save setting" onPress={() => void save()} loading={state.busy} />
+      <PrimaryButton label={t("admin.save_setting")} onPress={() => void save()} loading={state.busy} />
     </View>
   );
 }

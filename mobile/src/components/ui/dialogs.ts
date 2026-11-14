@@ -1,12 +1,13 @@
 import { Alert } from "react-native";
+import { t } from "@/i18n";
 
 // The phone's own confirm dialog, in place of the web's window.confirm.
 // Resolves true only when the person taps the confirm button.
 export function confirmAction({
   title,
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel = t("common.confirm"),
+  cancelLabel = t("common.cancel"),
   destructive = false,
 }: {
   title: string;

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { TextField } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Where the person pastes the link from the email (or only its token).
 export function LinkTokenField({
@@ -17,12 +18,13 @@ export function LinkTokenField({
   action: string;
   editable: boolean;
 }) {
+  useLocale();
   return (
     <View style={styles.field}>
       <TextField
-        label="Link from the email"
-        hint="or its token"
-        placeholder="Paste the link here"
+        label={t("mobile.auth.link_from_email")}
+        hint={t("mobile.auth.or_token")}
+        placeholder={t("mobile.auth.paste_link")}
         value={value}
         onChangeText={onChange}
         autoCapitalize="none"
@@ -31,7 +33,7 @@ export function LinkTokenField({
       />
       {missing ? (
         <Text style={styles.warning}>
-          This link is missing its token, so it cannot {action}. Copy the whole link from your email again.
+          {t("mobile.auth.missing_token", { p0: t("auth.missing_token_start"), p1: action })}
         </Text>
       ) : null}
     </View>

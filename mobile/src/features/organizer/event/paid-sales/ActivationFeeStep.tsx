@@ -11,6 +11,7 @@ import { priceLabel, statusLabel } from "@/utils/format";
 import { formStyles } from "../../components/formStyles";
 import { Intro } from "../../components/Intro";
 import { canStartActivation, paymentOpen } from "../../utils/paidSales";
+import { t, useLocale } from "@/i18n";
 
 interface ActivationFeeStepProps {
   checklist: PaidSalesChecklist;
@@ -22,6 +23,7 @@ interface ActivationFeeStepProps {
 // Last checklist step. While a simulated payment is open, development builds
 // of the API let the organizer act as the payment provider.
 export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: ActivationFeeStepProps) {
+  useLocale();
   const { notify } = useToast();
   const [simulating, setSimulating] = useState(false);
   const active = checklist.status === "active";
@@ -33,10 +35,10 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
     setSimulating(true);
     try {
       await simulatePayment(payment.id, outcome);
-      notify(outcome === "succeeded" ? "Simulated payment succeeded." : "Simulated payment failed.");
+      notify(outcome === "succeeded" ? t("org.payment_succeeded") : t("org.payment_failed"));
       onChanged();
     } catch (failure) {
-      notify(`${describeError(failure)} The payment simulator only runs in development and test environments.`);
+      notify(t("org.demo_environment_only", { p0: describeError(failure) }));
     } finally {
       setSimulating(false);
     }
@@ -45,24 +47,24 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
   return (
     <ListRow
       icon="₸"
-      title={`Activation fee · ${priceLabel(checklist.activation_fee_minor)}`}
-      meta={payment ? `Simulated payment ${statusLabel(payment.status)}${payment.charged_minor ? ` · ${priceLabel(payment.charged_minor)} captured` : ""}` : "Pay once the other steps are done."}
-      trailing={active ? <StatusPill label="Paid" /> : open ? <StatusPill tone="pending" label="Payment pending" /> : null}
+      title={t("org.activation_fee_title", { p0: priceLabel(checklist.activation_fee_minor) })}
+      meta={payment ? t("org.simulated_payment", { p0: statusLabel(payment.status), p1: payment.charged_minor ? t("org.captured_suffix", { p0: priceLabel(payment.charged_minor) }) : "" }) : t("org.pay_after_steps")}
+      trailing={active ? <StatusPill label={t("common.paid")} /> : open ? <StatusPill tone="pending" label={t("checkout.payment_pending")} /> : null}
     >
       {!active && !open ? (
         <PrimaryButton
-          label={checklist.status === "failed" ? "Retry payment" : "Pay fee (simulated)"}
+          label={checklist.status === "failed" ? t("org.retry_payment") : t("org.pay_demo_fee")}
           disabled={busy || !canStartActivation(checklist)}
           onPress={onStart}
         />
       ) : null}
       {open ? (
         <View style={formStyles.stack}>
-          <Intro>Demo payment provider:</Intro>
+          <Intro>{t("org.demo_payment_provider")}</Intro>
           <View style={formStyles.actions}>
-            <SubtleButton label="Simulate success" disabled={simulating} onPress={() => void simulate("succeeded")} />
-            <SubtleButton danger label="Simulate failure" disabled={simulating} onPress={() => void simulate("failed")} />
-            <TextButton label="Refresh status" onPress={onChanged} />
+            <SubtleButton label={t("org.simulate_success")} disabled={simulating} onPress={() => void simulate("succeeded")} />
+            <SubtleButton danger label={t("org.simulate_failure")} disabled={simulating} onPress={() => void simulate("failed")} />
+            <TextButton label={t("org.refresh_status")} onPress={onChanged} />
           </View>
         </View>
       ) : null}

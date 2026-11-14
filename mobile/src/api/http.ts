@@ -6,7 +6,7 @@
 // keychain (tokenStorage), and the API origin comes from EXPO_PUBLIC_API_URL.
 
 import { API_URL } from "@/api/client";
-import { ApiError, NETWORK_MESSAGE, SESSION_EXPIRED_MESSAGE, failureMessage } from "@/api/errors";
+import { ApiError, failureMessage, networkMessage, sessionExpiredMessage } from "@/api/errors";
 import { expireSession, refreshAccessToken } from "@/api/session";
 import { getTokens } from "@/api/tokenStorage";
 
@@ -77,7 +77,7 @@ async function send(url: string, init: RequestInit, token: string | null): Promi
   try {
     return await fetch(url, { ...init, headers });
   } catch {
-    throw new ApiError(NETWORK_MESSAGE, 0, "network");
+    throw new ApiError(networkMessage(), 0, "network");
   }
 }
 
@@ -92,7 +92,7 @@ export async function authorizedFetch(url: string, init: RequestInit = {}): Prom
   const renewed = await refreshAccessToken();
   if (!renewed) {
     await expireSession();
-    throw new ApiError(SESSION_EXPIRED_MESSAGE, 401, "session_expired");
+    throw new ApiError(sessionExpiredMessage(), 401, "session_expired");
   }
   return send(url, init, renewed);
 }

@@ -7,6 +7,7 @@ import type { Locale, Profile } from "@/api/types";
 import { Panel, PanelHeading, PrimaryButton, SelectField, StatusPill, TextField } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 const LOCALES: Array<{ value: Locale; label: string }> = [
   { value: "en", label: "English" },
@@ -16,6 +17,7 @@ const LOCALES: Array<{ value: Locale; label: string }> = [
 
 // Display name and language preference (web ProfileForm).
 export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile: Profile) => void }) {
+  useLocale();
   const { notify } = useToast();
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [locale, setLocale] = useState<Locale>(profile.locale);
@@ -28,8 +30,8 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
     try {
       const updated = await updateProfile({ display_name: displayName.trim(), locale });
       onSaved(updated);
-      notify("Profile updated.");
-      setMessage({ text: "Saved.", success: true });
+      notify(t("account.updated"));
+      setMessage({ text: t("common.saved"), success: true });
     } catch (failure) {
       setMessage({ text: describeError(failure), success: false });
     } finally {
@@ -40,17 +42,17 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
   return (
     <Panel style={styles.panel}>
       <PanelHeading
-        title="Your profile"
+        title={t("account.profile")}
         trailing={
           <StatusPill
-            label={profile.email_verified_at ? "Email verified" : "Email not verified"}
+            label={profile.email_verified_at ? t("account.verified") : t("account.not_verified")}
             tone={profile.email_verified_at ? "positive" : "pending"}
           />
         }
       />
       <Text style={styles.email}>{profile.email}</Text>
       <TextField
-        label="Display name"
+        label={t("account.display_name")}
         value={displayName}
         onChangeText={setDisplayName}
         maxLength={100}
@@ -59,7 +61,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
         editable={!saving}
       />
       <SelectField
-        label="Language"
+        label={t("account.language")}
         value={locale}
         options={LOCALES}
         onChange={(next) => setLocale(next as Locale)}
@@ -71,7 +73,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
         </Text>
       ) : null}
       <PrimaryButton
-        label="Save profile"
+        label={t("account.save")}
         onPress={() => void save()}
         disabled={!displayName.trim()}
         loading={saving}

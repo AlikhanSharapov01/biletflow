@@ -4,6 +4,7 @@ import { SUPPORT_CATEGORIES, SUPPORT_STATUSES, type SupportCategory, type Suppor
 import { SelectField } from "@/components/ui";
 
 import { CATEGORY_LABELS, STATUS_LABELS } from "../utils/supportLabels";
+import { t, useLocale } from "@/i18n";
 
 interface CaseFiltersProps {
   status: SupportStatus | "";
@@ -12,21 +13,22 @@ interface CaseFiltersProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
+  { value: "", get label() { return t("support.all_statuses"); } },
   ...SUPPORT_STATUSES.map((value) => ({ value, label: STATUS_LABELS[value] })),
 ];
 const CATEGORY_OPTIONS = [
-  { value: "", label: "All categories" },
+  { value: "", get label() { return t("discover.all_categories"); } },
   ...SUPPORT_CATEGORIES.map((value) => ({ value, label: CATEGORY_LABELS[value] })),
 ];
 
 // Status and category filters for the case list; each change applies at once.
 export function CaseFilters({ status, category, onChange }: CaseFiltersProps) {
+  useLocale();
   return (
     <View style={styles.row}>
       <View style={styles.cell}>
         <SelectField
-          label="Status"
+          label={t("common.status")}
           value={status}
           options={STATUS_OPTIONS}
           onChange={(value) => onChange({ status: value as SupportStatus | "", category })}
@@ -34,7 +36,7 @@ export function CaseFilters({ status, category, onChange }: CaseFiltersProps) {
       </View>
       <View style={styles.cell}>
         <SelectField
-          label="Category"
+          label={t("discover.category")}
           value={category}
           options={CATEGORY_OPTIONS}
           onChange={(value) => onChange({ status, category: value as SupportCategory | "" })}

@@ -6,11 +6,12 @@ import type { PromoPreview } from "@/api/types/promo";
 import { PrimaryButton, StatusPill } from "@/components/ui";
 import { colors, fonts, statusTones } from "@/theme";
 import { priceLabel } from "@/utils/format";
-import { PAID_NOTE, ticketAvailability, totalQuantity, type Quantities } from "../utils/checkout";
+import { paidNote, ticketAvailability, totalQuantity, type Quantities } from "../utils/checkout";
 import { promoDiscountFor } from "../utils/promo";
 import { checkoutStyles } from "./checkoutStyles";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { QuantityStepper } from "./QuantityStepper";
+import { quantityLabel, t, useLocale } from "@/i18n";
 
 interface TicketSelectorProps {
   event: EventView;
@@ -26,6 +27,7 @@ interface TicketSelectorProps {
 
 // Step one: choose a quantity per ticket type, then reserve them.
 export function TicketSelector({ event, tickets, quantities, setQuantities, busy, message, promo, promoSlot, onReserve }: TicketSelectorProps) {
+  useLocale();
   const selected = totalQuantity(quantities);
 
   return (
@@ -41,9 +43,9 @@ export function TicketSelector({ event, tickets, quantities, setQuantities, busy
                 <Text style={styles.name}>{type.name}</Text>
                 {type.description ? <Text style={styles.small}>{type.description}</Text> : null}
                 {availability.reason ? (
-                  <Text style={[styles.small, availability.reason === PAID_NOTE ? styles.paidNote : styles.reason]}>{availability.reason}</Text>
+                  <Text style={[styles.small, availability.reason === paidNote() ? styles.paidNote : styles.reason]}>{availability.reason}</Text>
                 ) : null}
-                {discount > 0 ? <Text style={[styles.small, styles.promo]}>Promo: about {priceLabel(discount)} off each</Text> : null}
+                {discount > 0 ? <Text style={[styles.small, styles.promo]}>{t("checkout.promo_estimate")} {priceLabel(discount)} {t("checkout.off_each")}</Text> : null}
                 <Text style={checkoutStyles.price}>{priceLabel(type.price_minor)}</Text>
               </View>
               {availability.purchasable ? (
@@ -54,7 +56,7 @@ export function TicketSelector({ event, tickets, quantities, setQuantities, busy
                   onChange={(next) => setQuantities((current) => ({ ...current, [type.id]: next }))}
                 />
               ) : (
-                <StatusPill tone="neutral" label="Unavailable" />
+                <StatusPill tone="neutral" label={t("checkout.unavailable")} />
               )}
             </View>
           );
@@ -64,11 +66,11 @@ export function TicketSelector({ event, tickets, quantities, setQuantities, busy
       <FormMessage message={message} />
       <View style={checkoutStyles.actions}>
         <PrimaryButton
-          label={busy ? "Reserving…" : selected > 0 ? `Reserve ${selected} ticket${selected === 1 ? "" : "s"}` : "Reserve tickets"}
+          label={busy ? t("checkout.reserving") : selected > 0 ? t("checkout.reserve_count", { items: quantityLabel("ticket", selected) }) : t("checkout.reserve_tickets")}
           disabled={busy || selected === 0}
           onPress={onReserve}
         />
-        <Text style={checkoutStyles.intro}>Tickets are held for 10 minutes while you add recipients.</Text>
+        <Text style={checkoutStyles.intro}>{t("checkout.hold_hint")}</Text>
       </View>
     </View>
   );

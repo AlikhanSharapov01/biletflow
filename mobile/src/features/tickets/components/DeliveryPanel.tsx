@@ -11,9 +11,11 @@ import { dateLabel } from "@/utils/format";
 
 import { deliveryLook, resendHint } from "../utils/ticketStatus";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { t, useLocale } from "@/i18n";
 
 // Email delivery of this ticket, with a rate-limited "Resend email".
 export function DeliveryPanel({ ticketId }: { ticketId: string }) {
+  useLocale();
   const loaded = useRequest(() => getDelivery(ticketId), [ticketId]);
   const [override, setOverride] = useState<TicketDelivery | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,7 @@ export function DeliveryPanel({ ticketId }: { ticketId: string }) {
     setMessage({ text: "", success: false });
     try {
       setOverride(await resendDelivery(ticketId));
-      setMessage({ text: "A new ticket email is on its way.", success: true });
+      setMessage({ text: t("tickets.resend_sent"), success: true });
     } catch (failure) {
       setMessage({ text: describeError(failure), success: false });
     } finally {
@@ -38,32 +40,32 @@ export function DeliveryPanel({ ticketId }: { ticketId: string }) {
 
   return (
     <Panel>
-      <PanelHeading title="Email delivery" trailing={look ? <StatusPill tone={look.tone} label={look.label} /> : null} />
-      {loaded.loading && !delivery ? <LoadingState message="Checking delivery…" /> : null}
+      <PanelHeading title={t("tickets.delivery")} trailing={look ? <StatusPill tone={look.tone} label={look.label} /> : null} />
+      {loaded.loading && !delivery ? <LoadingState message={t("tickets.checking_delivery")} /> : null}
       {loaded.error && !delivery ? (
-        <ErrorPanel title="We couldn’t check delivery." message={loaded.error} onRetry={loaded.reload} />
+        <ErrorPanel title={t("tickets.delivery_error")} message={loaded.error} onRetry={loaded.reload} />
       ) : null}
       {delivery ? (
         <View style={styles.body}>
           <FactList
             items={[
-              { label: "Sent to", value: delivery.recipient_email },
-              { label: "Last delivered", value: delivery.last_delivered_at ? dateLabel(delivery.last_delivered_at) : "Not yet" },
-              { label: "Re-sent", value: `${delivery.resend_count} of 5 times` },
+              { label: t("tickets.sent_to"), value: delivery.recipient_email },
+              { label: t("tickets.last_delivered"), value: delivery.last_delivered_at ? dateLabel(delivery.last_delivered_at) : t("account.not_yet") },
+              { label: t("tickets.resent"), value: `${delivery.resend_count} of 5 times` },
             ]}
           />
           {delivery.status === "failed" ? (
-            <Text style={styles.copy}>The email could not be delivered. Your ticket still works here.</Text>
+            <Text style={styles.copy}>{t("tickets.email_failed_hint")}</Text>
           ) : null}
           <FormMessage message={message.text} success={message.success} />
           <View style={styles.actions}>
             <SubtleButton
-              label={busy ? "Sending…" : "Resend email"}
+              label={busy ? t("common.sending") : t("tickets.resend")}
               disabled={busy || !delivery.can_resend}
               onPress={() => void resend()}
             />
             <TextButton
-              label="Refresh"
+              label={t("common.refresh")}
               onPress={() => {
                 setOverride(null);
                 loaded.reload();

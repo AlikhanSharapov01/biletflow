@@ -13,9 +13,11 @@ import { EventsPanel } from "./workspace/EventsPanel";
 import { OrganizerNote } from "./workspace/OrganizerNote";
 import { TeamPanel } from "./workspace/TeamPanel";
 import { WorkspaceToolbar } from "./workspace/WorkspaceToolbar";
+import { t, useLocale } from "@/i18n";
 
 // Organizer tab: workspaces, their events and team (web OrganizerPage).
 export function OrganizerScreen() {
+  useLocale();
   const { profile } = useAuth();
   const router = useRouter();
   const [organizationId, setOrganizationId] = useState("");
@@ -51,9 +53,9 @@ export function OrganizerScreen() {
 
   const heading = (
     <PageHeading
-      eyebrow="Organizer workspace"
-      title="Bring people together."
-      subtitle="Create an organization, prepare events, and publish your next gathering."
+      eyebrow={t("nav.workspace")}
+      title={t("org.bring_people")}
+      subtitle={t("org.create_intro")}
     />
   );
 
@@ -61,8 +63,8 @@ export function OrganizerScreen() {
     return (
       <ScrollScreen header="top" onRefresh={refresh}>
         {heading}
-        {base.loading ? <LoadingState message="Loading organizer workspace…" /> : null}
-        {base.error ? <ErrorPanel title="We couldn’t load the organizer workspace." message={base.error} onRetry={base.reload} /> : null}
+        {base.loading ? <LoadingState message={t("org.loading_workspace")} /> : null}
+        {base.error ? <ErrorPanel title={t("org.workspace_error")} message={base.error} onRetry={base.reload} /> : null}
       </ScrollScreen>
     );
   }
@@ -84,8 +86,8 @@ export function OrganizerScreen() {
             onNewEvent={() => router.push({ pathname: "/organizer/new-event", params: { organizationId: organization.id } })}
           />
           <EventsPanel key={`events-${organization.id}-${refreshKey}`} organization={organization} venues={venues} />
-          <OrganizerNote eyebrow="A good first step" title="Make the details easy to find.">
-            Choose a venue and category, set your event dates, then publish when your listing is ready for guests.
+          <OrganizerNote eyebrow={t("org.first_step")} title={t("org.details_intro")}>
+            {t("org.create_event_intro")}
           </OrganizerNote>
           <TeamPanel key={`team-${organization.id}-${refreshKey}`} organization={organization} isOwner={isOwner} />
         </>
@@ -98,8 +100,8 @@ export function OrganizerScreen() {
               base.reload();
             }}
           />
-          <OrganizerNote eyebrow="Organizer workspace" title="Your events start here.">
-            Create your organization to manage event listings and bring your community together.
+          <OrganizerNote eyebrow={t("nav.workspace")} title={t("org.your_events_title")}>
+            {t("org.create_workspace_intro")}
           </OrganizerNote>
         </>
       )}

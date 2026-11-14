@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 // Base already includes /api/v1 — matches the root README's documented
 // convention for configuring the mobile client (see "Work on the mobile
 // client"), e.g. EXPO_PUBLIC_API_URL=http://192.168.1.20:8080/api/v1 to go
@@ -21,24 +23,24 @@ type ErrorBody = {
 
 // Wording shared with the web client (web/src/live.js messages).
 const COMMON_MESSAGES: Record<string, string> = {
-  rate_limited: "Too many attempts. Please wait a moment and try again.",
-  permission_denied: "You don’t have permission to perform that action.",
-  organization_not_found: "That organizer workspace is no longer available.",
-  event_not_found: "That event is no longer available.",
-  event_not_publishable: "This event cannot be published yet. Check its dates and ticket setup.",
-  usable_ticket_type_required: "Add an available ticket type before publishing this event.",
-  invalid_input: "Some details need attention. Review the form and try again.",
-  invalid_filter_range: "The selected filter range is invalid.",
-  database_unavailable: "The service is temporarily unavailable. Please try again shortly.",
+  get rate_limited() { return t("api.rate_limited"); },
+  get permission_denied() { return t("api.permission_denied"); },
+  get organization_not_found() { return t("api.organization_missing"); },
+  get event_not_found() { return t("api.event_missing"); },
+  get event_not_publishable() { return t("api.event_not_publishable"); },
+  get usable_ticket_type_required() { return t("api.ticket_type_required"); },
+  get invalid_input() { return t("errors.validation"); },
+  get invalid_filter_range() { return t("api.invalid_filter"); },
+  get database_unavailable() { return t("errors.unavailable"); },
 };
 
 // Unknown codes fall back by status, as the web's failureMessage does.
 function statusMessage(status: number): string {
-  if (status === 403) return "You don’t have permission to do that.";
-  if (status === 404) return "This item could not be found.";
-  if (status === 409) return "This change conflicts with the current event setup.";
-  if (status >= 500) return "The service is temporarily unavailable. Please try again shortly.";
-  return `Something went wrong (${status}). Please try again.`;
+  if (status === 403) return t("errors.permission");
+  if (status === 404) return t("errors.not_found");
+  if (status === 409) return t("mobile.api.event_conflict");
+  if (status >= 500) return t("errors.unavailable");
+  return t("mobile.api.went_wrong_status", { p0: status });
 }
 
 export async function friendlyError(
@@ -58,5 +60,5 @@ export async function friendlyError(
 }
 
 export function networkError(): Error {
-  return new Error("Couldn't reach the server. Check your connection and try again.");
+  return new Error(t("mobile.api.unreachable"));
 }

@@ -4,9 +4,11 @@ import { StyleSheet, View } from "react-native";
 import { PanelHeading } from "@/components/ui";
 
 import { Intro } from "./Intro";
+import { useLocale } from "@/i18n";
 
 // PanelHeading with the web's optional subtitle line.
 export function SectionHeading({ title, subtitle, trailing }: { title: string; subtitle?: string; trailing?: ReactNode }) {
+  useLocale();
   return (
     <View style={subtitle ? styles.withSubtitle : undefined}>
       <PanelHeading title={title} trailing={trailing} />

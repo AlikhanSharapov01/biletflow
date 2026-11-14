@@ -10,9 +10,11 @@ import { colors, fonts, spacing } from "@/theme";
 import { dateLabel } from "@/utils/format";
 import { DiscoverFilters, type DiscoverQuery } from "./components/DiscoverFilters";
 import { EventCard } from "./components/EventCard";
+import { t, useLocale } from "@/i18n";
 
 // Published events with title search and a category filter (web DiscoverPage).
 export function DiscoverScreen() {
+  useLocale();
   const router = useRouter();
   const [query, setQuery] = useState<DiscoverQuery>({ q: "", category: "" });
 
@@ -40,9 +42,9 @@ export function DiscoverScreen() {
     <View>
       <TopBar />
       <PageHeading
-        eyebrow="Your city, in good company"
-        title="Find your next moment."
-        subtitle="Discover what’s happening around you, from the people bringing it to life."
+        eyebrow={t("discover.eyebrow")}
+        title={t("discover.title")}
+        subtitle={t("discover.subtitle")}
       />
       <DiscoverFilters
         applied={query}
@@ -55,11 +57,11 @@ export function DiscoverScreen() {
 
   let empty;
   if (page.error) {
-    empty = <ErrorPanel title="We couldn’t load events." message={page.error} onRetry={page.reload} />;
+    empty = <ErrorPanel title={t("discover.load_error")} message={page.error} onRetry={page.reload} />;
   } else if (!page.data) {
-    empty = <LoadingState message="Loading events…" />;
+    empty = <LoadingState message={t("discover.loading")} />;
   } else {
-    empty = <EmptyState message="No events match those filters yet. Try another search or check back soon." />;
+    empty = <EmptyState message={t("discover.empty")} />;
   }
 
   return (
@@ -76,18 +78,18 @@ export function DiscoverScreen() {
         }
         renderItem={({ item: event, index }) => {
           const venue = lookups.venues.get(event.venue_id);
-          const categoryName = lookups.categories.get(event.category_id)?.name_en ?? "Community";
+          const categoryName = lookups.categories.get(event.category_id)?.name_en ?? t("common.community");
           return (
             <EventCard
               index={index}
               category={categoryName}
               title={event.title}
-              meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : "Venue details unavailable"}`}
+              meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
               onPress={() => openEvent(event.id)}
               footer={
                 <>
-                  <Text style={styles.price}>{event.time_status === "completed" ? "Completed" : "Tickets available"}</Text>
-                  <TextButton label="View event →" onPress={() => openEvent(event.id)} />
+                  <Text style={styles.price}>{event.time_status === "completed" ? t("common.completed") : t("discover.tickets_available")}</Text>
+                  <TextButton label={t("discover.view_event")} onPress={() => openEvent(event.id)} />
                 </>
               }
             />

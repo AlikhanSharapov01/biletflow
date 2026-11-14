@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, Vie
 import { PrimaryButton, SubtleButton } from "@/components/ui/Buttons";
 import { TextField } from "@/components/ui/TextField";
 import { colors, fonts, radii } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Asks for a short reason before an audited action (web window.prompt):
 // cancelling a ticket, refunding, reversing a check-in, suspending a user.
@@ -11,7 +12,7 @@ export function ReasonDialog({
   visible,
   title,
   message,
-  confirmLabel = "Confirm",
+  confirmLabel = t("common.confirm"),
   required = true,
   busy = false,
   onCancel,
@@ -26,6 +27,7 @@ export function ReasonDialog({
   onCancel: () => void;
   onSubmit: (reason: string) => void;
 }) {
+  useLocale();
   const [reason, setReason] = useState("");
   useEffect(() => {
     if (visible) setReason("");
@@ -35,20 +37,20 @@ export function ReasonDialog({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Close" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel={t("common.close")} />
         <View style={styles.sheet} accessibilityViewIsModal>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <TextField
-            label="Reason"
-            hint="Shown in the activity history."
+            label={t("common.reason")}
+            hint={t("mobile.ui.reason_hint")}
             value={reason}
             onChangeText={setReason}
             multiline
             autoFocus
           />
           <View style={styles.actions}>
-            <SubtleButton label="Cancel" onPress={onCancel} style={styles.action} />
+            <SubtleButton label={t("common.cancel")} onPress={onCancel} style={styles.action} />
             <PrimaryButton
               label={confirmLabel}
               onPress={() => onSubmit(trimmed)}

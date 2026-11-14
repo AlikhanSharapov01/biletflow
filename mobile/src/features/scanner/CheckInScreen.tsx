@@ -5,10 +5,12 @@ import { Screen, TopBar } from "@/components/layout";
 import { EmptyState, ErrorPanel, LoadingState, PageHeading } from "@/components/ui";
 import { AssignedEventCard } from "@/features/scanner/AssignedEventCard";
 import { useAssignedEvents } from "@/features/scanner/useAssignedEvents";
+import { t, useLocale } from "@/i18n";
 
 // The events this staff member is assigned to scan; tapping one opens the
 // scanner for it.
 export function CheckInScreen() {
+  useLocale();
   const router = useRouter();
   const { events, error, reload } = useAssignedEvents();
 
@@ -17,9 +19,9 @@ export function CheckInScreen() {
     <View>
       <TopBar />
       <PageHeading
-        eyebrow="Doors open, let’s make it smooth"
-        title="Check-in desk"
-        subtitle="Choose your event, then scan tickets at the door."
+        eyebrow={t("mobile.scan.desk_eyebrow")}
+        title={t("mobile.scan.desk_title")}
+        subtitle={t("mobile.scan.desk_intro")}
       />
     </View>
   );
@@ -27,13 +29,13 @@ export function CheckInScreen() {
   let emptyState;
   if (error) {
     emptyState = (
-      <ErrorPanel title="We couldn’t load your events." message={error} onRetry={reload} />
+      <ErrorPanel title={t("org.events_error")} message={error} onRetry={reload} />
     );
   } else if (events === null) {
-    emptyState = <LoadingState message="Loading your events…" />;
+    emptyState = <LoadingState message={t("mobile.scan.loading_events")} />;
   } else {
     emptyState = (
-      <EmptyState message="No events are assigned to you yet. An organizer has to assign you as a scanner." />
+      <EmptyState message={t("mobile.scan.no_events")} />
     );
   }
 
