@@ -10,7 +10,7 @@ import { colors, fonts, spacing } from "@/theme";
 import { dateLabel } from "@/utils/format";
 import { DiscoverFilters, type DiscoverQuery } from "./components/DiscoverFilters";
 import { EventCard } from "./components/EventCard";
-import { t, useLocale } from "@/i18n";
+import { categoryName, t, useLocale } from "@/i18n";
 
 // Published events with title search and a category filter (web DiscoverPage).
 export function DiscoverScreen() {
@@ -78,11 +78,11 @@ export function DiscoverScreen() {
         }
         renderItem={({ item: event, index }) => {
           const venue = lookups.venues.get(event.venue_id);
-          const categoryName = lookups.categories.get(event.category_id)?.name_en ?? t("common.community");
+          const category = lookups.categories.get(event.category_id);
           return (
             <EventCard
               index={index}
-              category={categoryName}
+              category={category ? categoryName(category) : t("common.community")}
               title={event.title}
               meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
               onPress={() => openEvent(event.id)}

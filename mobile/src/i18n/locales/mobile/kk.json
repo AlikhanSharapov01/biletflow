@@ -71,6 +71,7 @@
   "mobile.checkout.fewer": "{p0} азайту",
   "mobile.checkout.go_to_tickets": "Менің билеттеріме өту",
   "mobile.checkout.more": "{p0} көбейту",
+  "mobile.checkout.payment_paid": "Төленді",
   "mobile.checkout.payment_received": "Төлем қабылданды",
   "mobile.checkout.quantity_for": "{p0} саны",
   "mobile.checkout.recipient_email": "{p0}, email",

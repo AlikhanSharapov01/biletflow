@@ -40,7 +40,7 @@ export function ReportRow({
       icon="!"
       title={
         <RowTitle text={statusLabel(report.category)}>
-          <StatusPill label={report.status} tone={tone} />
+          <StatusPill label={statusLabel(report.status)} tone={tone} />
         </RowTitle>
       }
       meta={report.description}

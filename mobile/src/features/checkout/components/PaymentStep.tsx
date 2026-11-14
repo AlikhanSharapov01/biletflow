@@ -9,7 +9,7 @@ import type { SimulatedOutcome } from "@/api/types/payments";
 import { LoadingState, PrimaryButton, StatusPill, SubtleButton, TextButton } from "@/components/ui";
 import { useCountdown } from "@/hooks/useCountdown";
 import { colors, fonts, radii, statusTones } from "@/theme";
-import { formatCountdown } from "@/utils/format";
+import { formatCountdown, statusLabel } from "@/utils/format";
 import { useAppActive } from "@/hooks/useAppActive";
 import { POLL_INTERVAL_MS, POLL_LIMIT, paymentLabel, paymentStage, paymentTone } from "../utils/payment";
 import { checkoutStyles } from "./checkoutStyles";
@@ -103,7 +103,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
         )
       ) : null}
       {stage === "failed" ? <Text style={styles.failed}>{t("checkout.payment_failed_hint")}</Text> : null}
-      {stage === "closed" ? <Text style={styles.failed}>{t("orders.this_order_is")} {order.status}{t("checkout.requote_hint")}</Text> : null}
+      {stage === "closed" ? <Text style={styles.failed}>{t("orders.this_order_is")} {statusLabel(order.status)}{t("checkout.requote_hint")}</Text> : null}
       <FormMessage message={message} />
       <View style={checkoutStyles.actions}>
         {stage === "awaiting" ? (

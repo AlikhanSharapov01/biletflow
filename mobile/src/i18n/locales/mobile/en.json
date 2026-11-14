@@ -71,6 +71,7 @@
   "mobile.checkout.fewer": "Fewer {p0}",
   "mobile.checkout.go_to_tickets": "Go to my tickets",
   "mobile.checkout.more": "More {p0}",
+  "mobile.checkout.payment_paid": "Paid",
   "mobile.checkout.payment_received": "Payment received",
   "mobile.checkout.quantity_for": "Quantity for {p0}",
   "mobile.checkout.recipient_email": "{p0}, email",

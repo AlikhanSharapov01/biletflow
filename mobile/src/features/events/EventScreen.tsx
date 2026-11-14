@@ -7,12 +7,12 @@ import { ErrorPanel, LoadingState, PageHeading, Panel, PanelHeading, StatusPill,
 import { CheckoutPanel } from "@/features/checkout/CheckoutPanel";
 import { useRequest } from "@/hooks/useRequest";
 import { colors, fonts } from "@/theme";
-import { dateLabel } from "@/utils/format";
+import { dateLabel, statusLabel } from "@/utils/format";
 import { publicationTone } from "@/utils/status";
 import { CalendarLinks } from "./components/CalendarLinks";
 import { EventFacts } from "./components/EventFacts";
 import { ReportEventForm } from "./components/ReportEventForm";
-import { t, useLocale } from "@/i18n";
+import { categoryName, t, useLocale } from "@/i18n";
 
 // /events/[eventId] — details, venue, tickets and checkout. A `promo` param
 // (from a campaign link) pre-fills the promo code.
@@ -56,10 +56,10 @@ export function EventScreen() {
   return (
     <ScrollScreen backLabel={t("event.back")} refreshing={page.loading} onRefresh={page.reload}>
       <PageHeading
-        eyebrow={category?.name_en ?? t("common.event")}
+        eyebrow={categoryName(category)}
         title={event.title}
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
-        actions={<StatusPill tone={publicationTone(event.publication_state)} label={event.publication_state} />}
+        actions={<StatusPill tone={publicationTone(event.publication_state)} label={statusLabel(event.publication_state)} />}
       />
       <Panel>
         <PanelHeading title={t("event.about")} />

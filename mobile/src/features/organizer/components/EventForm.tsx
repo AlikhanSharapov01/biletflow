@@ -11,7 +11,7 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "./formStyles";
 import { Intro } from "./Intro";
 import { SeatingFields } from "./SeatingFields";
-import { t, useLocale } from "@/i18n";
+import { categoryName, t, useLocale } from "@/i18n";
 
 interface EventFormProps {
   initial?: EventView;
@@ -67,7 +67,7 @@ export function EventForm({ initial, categories, venues, submitLabel, busy, mess
         label={t("discover.category")}
         value={values.category_id}
         placeholder={t("org.choose_category")}
-        options={categories.map((item) => ({ value: item.id, label: item.name_en }))}
+        options={categories.map((item) => ({ value: item.id, label: categoryName(item) }))}
         onChange={(value) => update("category_id", value)}
       />
       <SelectField

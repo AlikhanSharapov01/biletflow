@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 import type { Category } from "@/api/types";
 import { Panel, PrimaryButton, SelectField, fieldStyles } from "@/components/ui";
 import { colors, fonts } from "@/theme";
-import { t, useLocale } from "@/i18n";
+import { categoryName, t, useLocale } from "@/i18n";
 
 export interface DiscoverQuery {
   q: string;
@@ -52,7 +52,7 @@ export function DiscoverFilters({ applied, categories, loading, onSearch }: Disc
       <SelectField
         label={t("discover.category")}
         value={category}
-        options={[{ value: "", label: t("discover.all_categories") }, ...categories.map((item) => ({ value: item.id, label: item.name_en }))]}
+        options={[{ value: "", label: t("discover.all_categories") }, ...categories.map((item) => ({ value: item.id, label: categoryName(item) }))]}
         onChange={setCategory}
       />
       <PrimaryButton label={t("discover.search_events")} onPress={submit} loading={loading} />
