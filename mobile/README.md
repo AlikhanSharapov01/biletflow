@@ -18,12 +18,13 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 1. [Status](#status)
 2. [Run it](#run-it)
 3. [Connecting to the backend](#connecting-to-the-backend)
-4. [Tests](#tests)
-5. [Folder structure](#folder-structure)
-6. [How to add or change a screen](#how-to-add-or-change-a-screen)
-7. [Screens](#screens)
-8. [How scanning works](#how-scanning-works)
-9. [What is left to do](#what-is-left-to-do)
+4. [Installable builds](#installable-builds)
+5. [Tests](#tests)
+6. [Folder structure](#folder-structure)
+7. [How to add or change a screen](#how-to-add-or-change-a-screen)
+8. [Screens](#screens)
+9. [How scanning works](#how-scanning-works)
+10. [What is left to do](#what-is-left-to-do)
 
 ---
 
@@ -102,10 +103,72 @@ Find your Mac's IP with `ipconfig getifaddr en0`.
    `npx expo start -c`, then reload the app (press `r` in the terminal, or open the Expo developer
    menu and choose *Reload*).
 3. Port `8000` is only reachable from the computer itself; phones must use `8080`.
+4. On an Android emulator where `10.0.2.2` requests hang, tunnel the port instead:
+   `adb reverse tcp:8000 tcp:8000`, then use `http://localhost:8000/api/v1`.
 
 **Accounts:** create one in the app (or on the web) and verify it through Mailpit
 (<http://localhost:8025>): copy the verification link from the email and paste it into *I have a
 verification link* on the sign-in screen.
+
+---
+
+## Installable builds
+
+Builds install like a normal app, with the BiletFlow icon, so testers don't need Expo Go. The
+API address is built in, so each build points at one backend.
+
+| Profile (`eas.json`) | What it is | Use it for |
+|---|---|---|
+| `development` | Development client (APK on Android) that loads code from `npx expo start` | Developers; any API address via `EXPO_PUBLIC_API_URL` when starting Metro |
+| `development-simulator` | The same for the iOS Simulator | Developers on a Mac |
+| `preview` | Standalone app (APK on Android) with the code inside | Testers and demos |
+| `production` | Store build | Later, if the app is published |
+
+**With EAS (iOS and Android, built in the cloud).** You need an Expo account; iOS device builds
+also need an Apple developer account.
+
+```bash
+cd mobile
+npx eas-cli login
+npx eas-cli init            # once: links the project and adds its id to app.json
+npx eas-cli env:create --environment preview --name EXPO_PUBLIC_API_URL \
+  --value http://<server-ip>:8080/api/v1 --visibility plaintext
+npx eas-cli build --profile preview --platform android   # or ios, or all
+```
+
+EAS prints a link and QR code to install the build. Set `EXPO_PUBLIC_API_URL` for each environment
+(`development`, `preview`, `production`) the same way.
+
+**Locally (Android only, on any OS).** You need Android Studio's SDK and JDK 17 or newer.
+
+```bash
+cd mobile
+npx expo prebuild --platform android --clean      # writes android/, which git ignores
+cd android
+EXPO_PUBLIC_API_URL=http://<server-ip>:8080/api/v1 ./gradlew assembleRelease
+# app/build/outputs/apk/release/app-release.apk; install with: adb install -r <that file>
+```
+
+This release APK is signed with the debug key from the template, which is fine for testing but not
+for a store. `npx expo run:android` builds and installs the development client instead. iOS builds
+need a Mac with Xcode (`npx expo run:ios`) or EAS.
+
+**On Windows**, native compilation can fail with `ninja: error: mkdir(...): No such file or
+directory`: React Native's generated build folders pass Windows' 260-character path limit, and the
+Ninja 1.10 bundled with the SDK's CMake 3.22 cannot use long paths. What worked:
+
+1. Turn on *Enable Win32 long paths* in Windows (needs admin once).
+2. Clone the repository to a short folder, such as `C:\bf`.
+3. Download CMake 3.31 or newer and Ninja 1.12 or newer, put `ninja.exe` in CMake's `bin` folder, and
+   add `cmake.dir=C\:/path/to/cmake-3.31.6-windows-x86_64` to `android/local.properties`.
+
+A `subst` drive letter does not help: Gradle then sees the project and `node_modules` on different
+drives. macOS and Linux do not have this problem.
+
+The app identifier is `kz.biletflow.app` on both platforms. The demo API is plain HTTP, so builds
+allow cleartext traffic (`expo-build-properties` on Android, `NSAppTransportSecurity` on iOS);
+remove that once the server has HTTPS (#49). The icon, adaptive icon and splash image in
+`assets/images/` are drawn from the app's brand mark (`components/ui/Brand.tsx`) in Noto Serif.
 
 ---
 
@@ -258,7 +321,8 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
   (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
   camera have been tested with mocks. Click them through on a real iPhone and Android phone.
-- **Installable builds (#54).**
+- **iOS build:** run the EAS steps in [Installable builds](#installable-builds) with the team's Expo
+  and Apple accounts; only the Android build was made and tested so far.
 - **Optional clean-up:** renaming the session kind `scanner` to something like `native` in the
   backend (decision 0001).
 - **Offline entry rule:** update the offline result screen once decision 0002 is answered.

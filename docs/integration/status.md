@@ -86,7 +86,7 @@ Done on 12–13 November: #65, #66, #68, #69 (step 1 and part of step 2), #79, #
    #77, #78. Object storage (#77) must keep the backup protocol from #69.
 3. **GA4 and export, client integration:** #71, #81; web #45; mobile #51 (device
    click-through); shared HTTPS #49.
-4. **Acceptance on the integrated stack:** devices #53 and builds #54; rerun the load (#80) and
+4. **Acceptance on the integrated stack:** devices #53; rerun the load (#80) and
    process-kill (#83) harnesses and the restore drill (#69) after steps 1–2 change the code, then
    update this document and `backend/VALIDATION.md` with the results.
 
