@@ -16,9 +16,11 @@ import { activationTone } from "../utils/paidSales";
 import { ActivationFeeStep } from "./paid-sales/ActivationFeeStep";
 import { StepDone } from "./paid-sales/StepDone";
 import { TermsStep } from "./paid-sales/TermsStep";
+import { t, useLocale } from "@/i18n";
 
 // Simulated paid-sales activation checklist (backend/PAID_SALES_API.md).
 export function PaidSalesTab({ event }: { event: EventView }) {
+  useLocale();
   const { notify } = useToast();
   const checklist = useRequest(() => getPaidSales(event.id), [event.id]);
   const [busy, setBusy] = useState("");
@@ -36,12 +38,12 @@ export function PaidSalesTab({ event }: { event: EventView }) {
     }
   };
 
-  if (checklist.loading && !checklist.data) return <LoadingState message="Loading paid-sales checklist…" />;
+  if (checklist.loading && !checklist.data) return <LoadingState message={t("org.paid_loading")} />;
   if (checklist.error || !checklist.data) {
     return (
       <ErrorPanel
-        title="We couldn’t load paid sales."
-        message={`${checklist.error ?? ""} Only the workspace owner and members with the finance permission can manage paid sales.`}
+        title={t("org.paid_error")}
+        message={t("org.paid_permission", { p0: checklist.error ?? "" })}
         onRetry={checklist.reload}
       />
     );
@@ -53,41 +55,41 @@ export function PaidSalesTab({ event }: { event: EventView }) {
       <SimulatedNote />
       <Panel>
         <SectionHeading
-          title="Paid-sales activation"
-          subtitle="Every step must be complete before paid ticket types can be sold. Free tickets keep working either way."
+          title={t("org.paid_activation")}
+          subtitle={t("org.paid_activation_intro")}
           trailing={<StatusPill tone={activationTone(data.status)} label={statusLabel(data.status)} />}
         />
-        {data.status === "active" ? <Intro>Paid sales are active since {dateLabel(data.activated_at)}.</Intro> : null}
+        {data.status === "active" ? <Intro>{t("org.paid_active_since")} {dateLabel(data.activated_at)}.</Intro> : null}
         {data.status === "suspended" ? (
           <FormMessage
-            message={`Paid sales were suspended by the platform${data.suspension_reason ? `: ${data.suspension_reason}` : "."} Contact support to reinstate them.`}
+            message={t("mobile.org.paid_sales_suspended", { p0: data.suspension_reason ? `: ${data.suspension_reason}` : "." })}
           />
         ) : null}
-        <ListRow icon="₸" title="Paid ticket type" meta="Add at least one ticket type of kind “Paid” in the Ticket types tab." trailing={<StepDone done={data.paid_ticket_type} />} />
+        <ListRow icon="₸" title={t("org.paid_type")} meta={t("org.paid_type_hint")} trailing={<StepDone done={data.paid_ticket_type} />} />
         <ListRow
           icon="P"
-          title="Payout profile"
-          meta="Simulated and verified immediately. No bank details are collected."
+          title={t("org.payout_profile")}
+          meta={t("org.payout_demo_hint")}
           trailing={
             data.payout_profile_verified ? <StepDone done /> : (
               <SubtleButton
-                label="Create simulated profile"
+                label={t("org.create_demo_profile")}
                 disabled={Boolean(busy)}
-                onPress={() => void run("payout", () => createPayoutProfile(event.organization_id), "Simulated payout profile created.")}
+                onPress={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}
               />
             )
           }
         />
         <ListRow
           icon="ID"
-          title="Identity verification"
-          meta="Simulated approval for this workspace. No documents are uploaded."
+          title={t("org.identity_verification")}
+          meta={t("org.identity_demo_hint")}
           trailing={
             data.identity_verified ? <StepDone done /> : (
               <SubtleButton
-                label="Verify (simulated)"
+                label={t("org.verify_demo")}
                 disabled={Boolean(busy)}
-                onPress={() => void run("identity", () => createIdentityVerification(event.organization_id), "Simulated identity check approved.")}
+                onPress={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}
               />
             )
           }
@@ -95,17 +97,16 @@ export function PaidSalesTab({ event }: { event: EventView }) {
         <TermsStep
           terms={data.terms}
           busy={Boolean(busy)}
-          onAccept={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), "Terms accepted.")}
+          onAccept={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}
         />
         <ActivationFeeStep
           checklist={data}
           busy={Boolean(busy)}
-          onStart={() => void run("fee", () => startActivation(event.id), "Simulated activation payment started.")}
+          onStart={() => void run("fee", () => startActivation(event.id), t("org.activation_started"))}
           onChanged={checklist.reload}
         />
         <Intro style={{ marginTop: 12 }}>
-          Activation fee: {priceLabel(data.activation_fee_minor)} {data.currency} (demonstration value). Activation applies to this event only and is never
-          copied by Duplicate.
+          {t("org.activation_fee")} {priceLabel(data.activation_fee_minor)} {data.currency} {t("org.activation_fee_hint")}
         </Intro>
       </Panel>
     </>

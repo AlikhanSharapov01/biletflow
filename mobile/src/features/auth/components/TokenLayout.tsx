@@ -4,6 +4,7 @@ import { StyleSheet, Text } from "react-native";
 import { ScrollScreen } from "@/components/layout";
 import { PageHeading, Panel } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Shell for the screens that finish an emailed link (web TokenLayout).
 export function TokenLayout({
@@ -17,8 +18,9 @@ export function TokenLayout({
   subtitle: string;
   children: ReactNode;
 }) {
+  useLocale();
   return (
-    <ScrollScreen backLabel="Sign in">
+    <ScrollScreen backLabel={t("auth.sign_in")}>
       <PageHeading eyebrow={eyebrow} title={title} subtitle={subtitle} />
       <Panel style={styles.panel}>{children}</Panel>
     </ScrollScreen>
@@ -27,6 +29,7 @@ export function TokenLayout({
 
 // Result line under a token form (web .auth-message).
 export function TokenMessage({ text, success }: { text: string; success: boolean }) {
+  useLocale();
   if (!text) return null;
   return (
     <Text style={[styles.message, success && styles.success]} accessibilityLiveRegion="polite">

@@ -2,9 +2,11 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts } from "@/theme";
 import { formatDateTile } from "@/utils/eventTime";
+import { useLocale } from "@/i18n";
 
 // Sand-coloured day/month block at the start of an event row (web .event-date).
 export function DateTile({ at, timeZone }: { at: string; timeZone: string }) {
+  useLocale();
   const { day, month } = formatDateTile(at, timeZone);
   return (
     <View style={styles.tile}>

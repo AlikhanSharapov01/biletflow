@@ -4,6 +4,7 @@ import type { EventSeat } from "@/api/types/checkout";
 import { colors, fonts, radii } from "@/theme";
 import { seatLook, type SeatSection } from "../utils/seats";
 import { SeatButton } from "./SeatButton";
+import { t, useLocale } from "@/i18n";
 
 interface SeatMapProps {
   sections: SeatSection[];
@@ -16,18 +17,19 @@ interface SeatMapProps {
 // Sections, then rows, then seat buttons. Wide rows scroll sideways instead
 // of shrinking, so every seat keeps a finger-sized target without pinching.
 export function SeatMap({ sections, selected, priceText, canSelect, onToggle }: SeatMapProps) {
+  useLocale();
   return (
     <View style={styles.frame}>
       <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.content}>
         <View style={styles.inner}>
           <Text style={styles.stage} accessibilityElementsHidden importantForAccessibility="no">
-            Stage
+            {t("checkout.stage")}
           </Text>
           {sections.map((section) => (
-            <View style={styles.section} key={section.label} accessibilityLabel={`Section ${section.label}`}>
-              <Text style={styles.sectionTitle}>Section {section.label}</Text>
+            <View style={styles.section} key={section.label} accessibilityLabel={t("format.section", { section: section.label })}>
+              <Text style={styles.sectionTitle}>{t("format.section", { section: section.label })}</Text>
               {section.rows.map((row) => (
-                <View style={styles.row} key={row.label} accessibilityLabel={`Section ${section.label}, row ${row.label}`}>
+                <View style={styles.row} key={row.label} accessibilityLabel={t("format.row", { section: section.label, row: row.label })}>
                   <Text style={styles.rowLabel} accessibilityElementsHidden importantForAccessibility="no">
                     {row.label}
                   </Text>

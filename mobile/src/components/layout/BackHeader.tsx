@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // "‹ Back" on stack screens (event, ticket, order, case…), with an optional
 // trailing action. Falls back to Discover when there is no history, e.g. a
 // screen opened from a link.
-export function BackHeader({ label = "Back", trailing }: { label?: string; trailing?: ReactNode }) {
+export function BackHeader({ label = t("common.back"), trailing }: { label?: string; trailing?: ReactNode }) {
+  useLocale();
   const router = useRouter();
   return (
     <View style={styles.bar}>

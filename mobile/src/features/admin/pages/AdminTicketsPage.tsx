@@ -9,18 +9,20 @@ import { SectionNote } from "@/features/admin/components/SectionNote";
 import { useAdminSearch } from "@/features/admin/hooks/useAdminSearch";
 import { dateLabel, statusLabel } from "@/utils/format";
 import { ticketTone } from "@/utils/status";
+import { t, useLocale } from "@/i18n";
 
 const STATUSES = ["valid", "checked_in", "refund_pending", "refunded", "cancelled"];
 
 // QR material is never returned by the admin search.
 export function AdminTicketsPage() {
+  useLocale();
   const tickets = useAdminSearch(searchTickets);
   return (
     <Panel>
-      <PanelHeading title="Tickets" />
-      <SectionNote text="Search by recipient email, ticket id or order id." />
+      <PanelHeading title={t("common.tickets")} />
+      <SectionNote text={t("admin.ticket_search_hint")} />
       <AdminSearchForm
-        placeholder="guest@example.com or ticket id"
+        placeholder={t("admin.ticket_search_placeholder")}
         statuses={STATUSES.map((value) => ({ value, label: statusLabel(value) }))}
         onApply={tickets.apply}
       />
@@ -36,8 +38,8 @@ export function AdminTicketsPage() {
                     <StatusPill label={statusLabel(ticket.status)} tone={ticketTone(ticket.status)} />
                   </RowTitle>
                 }
-                meta={`${ticket.recipient_email} · claimed: ${ticket.claimed ? "Yes" : "Not yet"}`}
-                note={`Ticket ${ticket.id.slice(0, 8)} · order ${ticket.order_id.slice(0, 8)} · issued ${dateLabel(ticket.issued_at)}`}
+                meta={t("mobile.admin.ticket_meta", { p0: ticket.recipient_email, p1: ticket.claimed ? t("common.yes") : t("account.not_yet") })}
+                note={t("mobile.admin.ticket_note", { p0: ticket.id.slice(0, 8), p1: ticket.order_id.slice(0, 8), p2: dateLabel(ticket.issued_at) })}
               />
             ))}
           </View>

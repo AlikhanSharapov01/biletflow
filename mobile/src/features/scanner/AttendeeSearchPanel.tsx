@@ -6,6 +6,7 @@ import { searchAttendees } from "@/api/scanner";
 import type { AttendeeHit } from "@/api/types/scanner";
 import { panelStyles } from "@/features/scanner/panelStyles";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 function seatText(hit: AttendeeHit): string {
   if (!hit.seat) return hit.ticket_type_name;
@@ -23,6 +24,7 @@ export function AttendeeSearchPanel({
   onCheckIn: (hit: AttendeeHit) => void;
   onClose: () => void;
 }) {
+  useLocale();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<AttendeeHit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,38 +53,38 @@ export function AttendeeSearchPanel({
 
   return (
     <View style={[panelStyles.panel, styles.panel]}>
-      <Text style={panelStyles.panelTitle}>Find a guest</Text>
+      <Text style={panelStyles.panelTitle}>{t("mobile.scan.find_guest")}</Text>
       <TextInput
         style={styles.input}
         value={query}
         onChangeText={setQuery}
-        placeholder="Name or exact email"
+        placeholder={t("mobile.scan.name_or_email")}
         placeholderTextColor="rgba(255,255,255,0.6)"
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus
-        accessibilityLabel="Search guests"
+        accessibilityLabel={t("mobile.scan.search_guests")}
       />
       {loading ? <ActivityIndicator color="#fff" /> : null}
       {error ? <Text style={styles.message}>{error}</Text> : null}
-      {hits && hits.length === 0 && !loading ? <Text style={styles.message}>No guests match.</Text> : null}
+      {hits && hits.length === 0 && !loading ? <Text style={styles.message}>{t("mobile.scan.no_guests")}</Text> : null}
       <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
         {hits?.map((hit) => (
           <View key={hit.ticket_id} style={styles.hit}>
             <View style={styles.hitInfo}>
               <Text style={styles.hitName}>{hit.attendee_name}</Text>
               <Text style={styles.hitMeta}>{seatText(hit)}</Text>
-              {hit.checked_in ? <Text style={styles.hitMeta}>Already checked in</Text> : null}
-              {hit.status !== "valid" && !hit.checked_in ? <Text style={styles.hitMeta}>Ticket {hit.status.replace(/_/g, " ")}</Text> : null}
+              {hit.checked_in ? <Text style={styles.hitMeta}>{t("mobile.scan.already_checked_in")}</Text> : null}
+              {hit.status !== "valid" && !hit.checked_in ? <Text style={styles.hitMeta}>{t("common.ticket")} {hit.status.replace(/_/g, " ")}</Text> : null}
             </View>
             {!hit.checked_in && hit.status === "valid" ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Check in ${hit.attendee_name}`}
+                accessibilityLabel={t("mobile.scan.check_in_name", { p0: hit.attendee_name })}
                 style={styles.hitButton}
                 onPress={() => onCheckIn(hit)}
               >
-                <Text style={panelStyles.panelButtonText}>Check in</Text>
+                <Text style={panelStyles.panelButtonText}>{t("mobile.scan.check_in")}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -94,7 +96,7 @@ export function AttendeeSearchPanel({
           style={[panelStyles.panelButton, panelStyles.panelButtonSecondary]}
           onPress={onClose}
         >
-          <Text style={panelStyles.panelButtonText}>Back to camera</Text>
+          <Text style={panelStyles.panelButtonText}>{t("mobile.scan.back_to_camera")}</Text>
         </Pressable>
       </View>
     </View>

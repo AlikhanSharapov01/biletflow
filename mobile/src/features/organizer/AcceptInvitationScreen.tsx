@@ -11,10 +11,12 @@ import { tokenFromLink } from "@/utils/format";
 
 import { FormMessage } from "@/components/ui/FormMessage";
 import { Intro } from "./components/Intro";
+import { t, useLocale } from "@/i18n";
 
 // Staff invitation (web AcceptInvitationPage). The emailed link carries the
 // token; on a phone the person pastes the link or the token itself.
 export function AcceptInvitationScreen() {
+  useLocale();
   const params = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
   const { profile } = useAuth();
@@ -24,13 +26,13 @@ export function AcceptInvitationScreen() {
 
   const accept = async () => {
     if (!token) {
-      setState({ busy: false, done: false, message: "Paste the invitation link or token from the email to accept the invitation." });
+      setState({ busy: false, done: false, message: t("mobile.org.invitation_intro") });
       return;
     }
     setState({ busy: true, done: false, message: "" });
     try {
       await acceptInvitation(token);
-      setState({ busy: false, done: true, message: "You joined the workspace. The owner can now assign you to events." });
+      setState({ busy: false, done: true, message: t("auth.joined") });
     } catch (failure) {
       setState({ busy: false, done: false, message: describeError(failure) });
     }
@@ -38,27 +40,27 @@ export function AcceptInvitationScreen() {
 
   return (
     <ScrollScreen>
-      <PageHeading eyebrow="Organizer invitation" title="Join a workspace" />
+      <PageHeading eyebrow={t("auth.organizer_invitation")} title={t("auth.join_workspace")} />
       <Panel>
         <View style={styles.stack}>
           <Intro>
-            You are signed in as {profile?.email ?? "your account"}. The invitation must have been sent to this exact address.
+            {t("auth.signed_in_as")} {profile?.email ?? t("mobile.org.your_account")}{t("auth.invitation_address")}
           </Intro>
           {!state.done ? (
             <TextField
-              label="Invitation link or token"
+              label={t("mobile.org.invitation_field")}
               value={input}
               onChangeText={setInput}
-              placeholder="Paste the link from the email"
+              placeholder={t("mobile.org.paste_invitation")}
               autoCapitalize="none"
               autoCorrect={false}
             />
           ) : null}
           <FormMessage message={state.message} success={state.done} />
           {state.done ? (
-            <PrimaryButton label="Open the organizer workspace" onPress={() => router.replace("/organizer")} />
+            <PrimaryButton label={t("auth.open_workspace")} onPress={() => router.replace("/organizer")} />
           ) : (
-            <PrimaryButton label={state.busy ? "Joining…" : "Accept invitation"} onPress={() => void accept()} disabled={state.busy} />
+            <PrimaryButton label={state.busy ? t("auth.joining") : t("auth.accept_invitation")} onPress={() => void accept()} disabled={state.busy} />
           )}
         </View>
       </Panel>

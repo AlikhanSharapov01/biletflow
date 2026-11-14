@@ -3,15 +3,17 @@ import { StyleSheet, Text, View } from "react-native";
 import { colors, fonts } from "@/theme";
 
 import type { TypeCount } from "../../utils/attendees";
+import { t, useLocale } from "@/i18n";
 
 export function TypeCounts({ counts }: { counts: TypeCount[] }) {
+  useLocale();
   return (
-    <View style={styles.list} accessibilityLabel="Tickets per ticket type">
+    <View style={styles.list} accessibilityLabel={t("org.ticket_type_counts")}>
       {counts.map((type) => (
         <View key={type.ticketTypeId} style={styles.row}>
           <Text style={styles.name}>{type.name}</Text>
           <Text style={styles.meta}>
-            {type.issued} issued · {type.checkedIn} checked in{type.cancelled ? ` · ${type.cancelled} cancelled or refunded` : ""}
+            {type.issued} {t("org.issued_suffix")} {type.checkedIn} {t("org.checked_in_lower")}{type.cancelled ? t("org.cancelled_count", { p0: type.cancelled }) : ""}
           </Text>
         </View>
       ))}

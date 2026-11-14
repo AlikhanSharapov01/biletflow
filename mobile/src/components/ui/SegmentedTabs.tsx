@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 export type TabItem<T extends string> = { id: T; label: string };
 
@@ -17,6 +18,7 @@ export function SegmentedTabs<T extends string>({
   onChange: (id: T) => void;
   fill?: boolean;
 }) {
+  useLocale();
   const tabs = items.map((item) => {
     const selected = item.id === value;
     return (

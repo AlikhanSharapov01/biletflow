@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listAssignedEvents } from "@/api/scanner";
 import type { AssignedEvent } from "@/api/types/scanner";
 import { sortForScanning } from "@/features/scanner/assignedEventStatus";
+import { t } from "@/i18n";
 
 // Events this account may scan, in scanning order. `events` is null while
 // loading; `reload` clears both and fetches again.
@@ -16,7 +17,7 @@ export function useAssignedEvents() {
     try {
       setEvents(sortForScanning(await listAssignedEvents()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : t("mobile.api.went_wrong"));
     }
   }, []);
 

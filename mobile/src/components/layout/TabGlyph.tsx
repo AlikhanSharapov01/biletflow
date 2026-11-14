@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View, type ColorValue } from "react-native";
 
 import { fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Lettered tab icon, matching the web's phone layout where the sidebar
 // becomes a bar of glyph buttons (web .role-nav / .nav-glyph).
 export function TabGlyph({ letter, color }: { letter: string; color: ColorValue }) {
+  useLocale();
   return (
     <View style={[styles.glyph, { borderColor: color }]}>
       <Text style={[styles.glyphText, { color }]}>{letter}</Text>

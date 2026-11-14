@@ -1,5 +1,7 @@
 import { CameraView, type BarcodeScanningResult } from "expo-camera";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useLocale } from "@/i18n";
+import { t } from "@/i18n";
 
 // Live QR camera filling the scan area, with the aiming hint while idle.
 // Render inside CameraPermissionGate.
@@ -13,6 +15,7 @@ export function ScannerCamera({
   // Opens manual attendee search; shown with the hint.
   onFindGuest?: () => void;
 }) {
+  useLocale();
   return (
     <>
       <View style={styles.camera}>
@@ -26,10 +29,10 @@ export function ScannerCamera({
 
       {showHint ? (
         <View style={styles.hint} pointerEvents="box-none">
-          <Text style={styles.hintText}>Point the camera at a ticket QR code</Text>
+          <Text style={styles.hintText}>{t("mobile.scan.point_camera")}</Text>
           {onFindGuest ? (
             <Pressable accessibilityRole="button" onPress={onFindGuest} style={styles.findButton}>
-              <Text style={styles.findText}>Find guest by name</Text>
+              <Text style={styles.findText}>{t("mobile.scan.find_by_name")}</Text>
             </Pressable>
           ) : null}
         </View>

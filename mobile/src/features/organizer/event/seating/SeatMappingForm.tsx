@@ -14,6 +14,7 @@ import { formStyles } from "../../components/formStyles";
 import { Intro } from "../../components/Intro";
 import { SectionHeading } from "../../components/SectionHeading";
 import { priceCategories } from "../../utils/seating";
+import { t, useLocale } from "@/i18n";
 
 interface SeatMappingFormProps {
   event: EventView;
@@ -24,24 +25,25 @@ interface SeatMappingFormProps {
 
 // One-time setup: every price category of the layout needs a ticket type.
 export function SeatMappingForm({ event, layout, types, onConfigured }: SeatMappingFormProps) {
+  useLocale();
   const { notify } = useToast();
   const categories = priceCategories(layout.seats);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [state, setState] = useState({ busy: false, message: "" });
   const options = types.map((type) => ({
     value: type.id,
-    label: `${type.name} · ${priceLabel(type.price_minor)} · ${type.quantity_limit} available`,
+    label: t("mobile.org.mapping_meta", { p0: type.name, p1: priceLabel(type.price_minor), p2: type.quantity_limit }),
   }));
 
   const submit = async () => {
     if (categories.some((category) => !mapping[category])) {
-      setState({ busy: false, message: "Choose a ticket type for every price category." });
+      setState({ busy: false, message: t("org.choose_type_per_category") });
       return;
     }
     setState({ busy: true, message: "" });
     try {
       const result = await configureSeats(event.id, mapping);
-      notify(`${result.configured_seats} seats configured.`);
+      notify(t("org.seats_configured", { p0: result.configured_seats }));
       onConfigured();
     } catch (failure) {
       setState({ busy: false, message: describeError(failure) });
@@ -51,28 +53,28 @@ export function SeatMappingForm({ event, layout, types, onConfigured }: SeatMapp
   return (
     <Panel>
       <SectionHeading
-        title={`Set up seats · ${layout.name}`}
-        subtitle="Map each price category of this predefined layout to one of the event’s ticket types. Seats are created once; you can block or retarget single seats afterwards."
-        trailing={<StatusPill tone="pending" label={`${layout.seats.length} seats to create`} />}
+        title={t("org.seat_setup", { p0: layout.name })}
+        subtitle={t("org.seat_mapping_hint")}
+        trailing={<StatusPill tone="pending" label={t("mobile.org.seats_to_create", { p0: layout.seats.length })} />}
       />
       <View style={formStyles.stack}>
-        {types.length === 0 ? <Intro>Add ticket types first, in the Ticket types tab.</Intro> : null}
+        {types.length === 0 ? <Intro>{t("org.add_types_first")}</Intro> : null}
         {categories.map((category) => {
           const count = layout.seats.filter((seat) => seat.price_category === category).length;
           return (
             <SelectField
               key={category}
-              label={`${statusLabel(category)} · ${count} seats`}
+              label={t("org.section_seats", { p0: statusLabel(category), p1: count })}
               value={mapping[category] ?? ""}
-              placeholder="Choose ticket type"
+              placeholder={t("org.choose_ticket_type")}
               options={options}
               onChange={(value) => setMapping((current) => ({ ...current, [category]: value }))}
             />
           );
         })}
-        <Intro>Unblocked seats must fit the event capacity and each ticket type’s quantity. Raise limits first if needed.</Intro>
+        <Intro>{t("org.seats_fit_limits")}</Intro>
         <FormMessage message={state.message} />
-        <PrimaryButton label="Create seats" onPress={() => void submit()} disabled={types.length === 0} loading={state.busy} />
+        <PrimaryButton label={t("org.create_seats")} onPress={() => void submit()} disabled={types.length === 0} loading={state.busy} />
       </View>
     </Panel>
   );

@@ -14,6 +14,7 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "../../components/formStyles";
 import { Intro } from "../../components/Intro";
 import { SectionHeading } from "../../components/SectionHeading";
+import { t, useLocale } from "@/i18n";
 
 const TONE: Record<PayoutStatus, StatusTone> = {
   pending: "pending",
@@ -26,12 +27,12 @@ const TONE: Record<PayoutStatus, StatusTone> = {
 // The steps a simulated bank can take from each status.
 const NEXT: Partial<Record<PayoutStatus, Array<{ status: PayoutSimulation; label: string }>>> = {
   pending: [
-    { status: "eligible", label: "Mark eligible" },
-    { status: "failed", label: "Fail" },
+    { status: "eligible", get label() { return t("mobile.org.mark_eligible"); } },
+    { status: "failed", get label() { return t("mobile.org.fail"); } },
   ],
   eligible: [
-    { status: "sent", label: "Send" },
-    { status: "failed", label: "Fail" },
+    { status: "sent", get label() { return t("support.send"); } },
+    { status: "failed", get label() { return t("mobile.org.fail"); } },
   ],
 };
 
@@ -43,6 +44,7 @@ interface PayoutsPanelProps {
 }
 
 export function PayoutsPanel({ eventId, available, onChanged }: PayoutsPanelProps) {
+  useLocale();
   const { notify } = useToast();
   const payouts = useRequest(() => listPayouts(eventId), [eventId]);
   const [amount, setAmount] = useState("");
@@ -57,18 +59,18 @@ export function PayoutsPanel({ eventId, available, onChanged }: PayoutsPanelProp
   const submit = async () => {
     const minor = tengeToMinor(amount);
     if (minor <= 0) {
-      setMessage("Enter an amount above ₸0.");
+      setMessage(t("mobile.org.amount_above_zero"));
       return;
     }
     if (minor > available) {
-      setMessage(`At most ${amountLabel(available)} can be paid out now.`);
+      setMessage(t("mobile.org.at_most", { p0: amountLabel(available) }));
       return;
     }
     setBusy(true);
     setMessage("");
     try {
       await requestPayout(eventId, minor);
-      notify("Payout requested.");
+      notify(t("mobile.org.payout_requested"));
       setAmount("");
       changed();
     } catch (failure) {
@@ -82,10 +84,10 @@ export function PayoutsPanel({ eventId, available, onChanged }: PayoutsPanelProp
     setBusy(true);
     try {
       await simulatePayout(eventId, payout.id, status);
-      notify(`Payout ${statusLabel(status)}.`);
+      notify(t("mobile.org.payout_status", { p0: statusLabel(status) }));
       changed();
     } catch (failure) {
-      notify(`${describeError(failure)} The payout simulator only runs in development and test environments.`);
+      notify(t("mobile.org.payout_simulator_only", { p0: describeError(failure) }));
     } finally {
       setBusy(false);
     }
@@ -94,20 +96,20 @@ export function PayoutsPanel({ eventId, available, onChanged }: PayoutsPanelProp
   return (
     <Panel>
       <SectionHeading
-        title="Payouts"
-        subtitle="Reserve part of the available balance, then play the bank sending it. Sending opens when the event has ended."
+        title={t("mobile.org.payouts")}
+        subtitle={t("mobile.org.payouts_hint")}
       />
       <View style={formStyles.stack}>
-        {payouts.loading && !payouts.data ? <LoadingState message="Loading payouts…" /> : null}
-        {payouts.error ? <ErrorPanel title="We couldn’t load payouts." message={payouts.error} onRetry={payouts.reload} /> : null}
-        {payouts.data?.length === 0 ? <EmptyState message="No payouts yet." /> : null}
+        {payouts.loading && !payouts.data ? <LoadingState message={t("mobile.org.loading_payouts")} /> : null}
+        {payouts.error ? <ErrorPanel title={t("mobile.org.payouts_error")} message={payouts.error} onRetry={payouts.reload} /> : null}
+        {payouts.data?.length === 0 ? <EmptyState message={t("mobile.org.no_payouts")} /> : null}
         {payouts.data?.map((payout) => (
           <ListRow
             key={payout.id}
             icon="₸"
             title={amountLabel(payout.amount_minor)}
-            meta={`Requested ${dateLabel(payout.created_at)}${payout.sent_at ? ` · sent ${dateLabel(payout.sent_at)}` : ""}`}
-            note={payout.adjustment_minor ? `Adjusted by ${amountLabel(payout.adjustment_minor)} after refunds` : undefined}
+            meta={t("mobile.org.payout_requested_at", { p0: dateLabel(payout.created_at), p1: payout.sent_at ? ` ${t("mobile.org.payout_sent_suffix", { p0: dateLabel(payout.sent_at) })}` : "" })}
+            note={payout.adjustment_minor ? t("mobile.org.payout_adjusted", { p0: amountLabel(payout.adjustment_minor) }) : undefined}
             trailing={<StatusPill tone={TONE[payout.status]} label={statusLabel(payout.status)} />}
           >
             {NEXT[payout.status] ? (
@@ -126,17 +128,17 @@ export function PayoutsPanel({ eventId, available, onChanged }: PayoutsPanelProp
           </ListRow>
         ))}
         <TextField
-          label="Amount (KZT)"
-          accessibilityLabel="Amount (KZT)"
-          hint={`Up to ${amountLabel(available)}`}
+          label={t("org.amount_kzt")}
+          accessibilityLabel={t("org.amount_kzt")}
+          hint={t("org.up_to", { p0: amountLabel(available) })}
           value={amount}
           onChangeText={setAmount}
           keyboardType="decimal-pad"
           editable={!busy}
         />
         <FormMessage message={message} />
-        <PrimaryButton label="Request payout" onPress={() => void submit()} disabled={busy || available <= 0} loading={busy} />
-        {available <= 0 ? <Intro>Nothing is available to pay out right now.</Intro> : null}
+        <PrimaryButton label={t("mobile.org.request_payout")} onPress={() => void submit()} disabled={busy || available <= 0} loading={busy} />
+        {available <= 0 ? <Intro>{t("mobile.org.nothing_to_pay")}</Intro> : null}
       </View>
     </Panel>
   );

@@ -7,10 +7,12 @@ import { ErrorPanel, LoadingState, PageHeading, Panel, PanelHeading, TextButton 
 import { SessionList } from "@/features/account/components/SessionList";
 import { sessionIdFromToken } from "@/features/account/utils/sessionId";
 import { useRequest } from "@/hooks/useRequest";
+import { t, useLocale } from "@/i18n";
 
 // Signed-in sessions of this account; "This device" comes from the `sid`
 // claim of the stored access token.
 export function SessionsScreen() {
+  useLocale();
   const sessions = useRequest(() => listSessions(), []);
   const [currentId, setCurrentId] = useState("");
 
@@ -29,15 +31,15 @@ export function SessionsScreen() {
   return (
     <ScrollScreen refreshing={sessions.loading && Boolean(sessions.data)} onRefresh={sessions.reload}>
       <PageHeading
-        eyebrow="Your account"
-        title="Signed-in sessions"
-        subtitle="Revoke a device you no longer use."
+        eyebrow={t("account.your_account")}
+        title={t("account.sessions")}
+        subtitle={t("account.revoke_device")}
       />
       <Panel>
-        <PanelHeading title="Sessions" trailing={<TextButton label="Refresh" onPress={sessions.reload} />} />
-        {sessions.loading && !sessions.data ? <LoadingState message="Loading sessions…" /> : null}
+        <PanelHeading title={t("mobile.account.sessions")} trailing={<TextButton label={t("common.refresh")} onPress={sessions.reload} />} />
+        {sessions.loading && !sessions.data ? <LoadingState message={t("account.loading_sessions")} /> : null}
         {sessions.error ? (
-          <ErrorPanel title="We couldn’t load sessions." message={sessions.error} onRetry={sessions.reload} />
+          <ErrorPanel title={t("account.sessions_error")} message={sessions.error} onRetry={sessions.reload} />
         ) : null}
         {sessions.data ? (
           <SessionList sessions={sessions.data} currentId={currentId} onChanged={sessions.reload} />

@@ -9,10 +9,11 @@
 import { refresh } from "@/api/auth";
 import { API_URL, friendlyError, networkError } from "@/api/client";
 import { clearTokens, getTokens, saveTokens } from "@/api/tokenStorage";
+import { t } from "@/i18n";
 
 export class SessionExpiredError extends Error {
   constructor() {
-    super("Your session has expired. Please sign in again.");
+    super(t("mobile.api.session_expired"));
     this.name = "SessionExpiredError";
   }
 }

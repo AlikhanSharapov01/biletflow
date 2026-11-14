@@ -65,7 +65,7 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 | BF-20 History, duplication, audit | Partial: no request/job correlation IDs | Early `main`, #24, #64 (filters) | Yes | Yes | Not verified | #78 |
 | BF-21 Administration | Partial: settings not applied to commerce; search/detail, failure views and notices missing | #24, #64 (commerce monitoring) | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Partial: same | Not verified | #70, #72, #73, #74 |
 | BF-22 Operations and integration | Partial: local file storage only, no metrics | #59 (issue #57), #60 (issue #56), #87–#89, #95 | n/a | n/a | Backup/restore drill with file checks and smoke in CI; local load and process-kill harnesses; HTTPS not verified | #49, #77, #78 |
-| SRS 7 Localization (kk/ru/en) | Yes (#43) | #64 | Yes (#46, PR #63) | No | Not verified | #52 |
+| SRS 7 Localization (kk/ru/en) | Yes (#43) | #64 | Yes (#46, PR #63) | Yes (#52): web catalogs plus app-only text; not verified on a device | Not verified | #52 |
 
 ### Gaps no issue tracks yet
 
@@ -85,7 +85,7 @@ Done on 12–13 November: #65, #66, #68, #69 (step 1 and part of step 2), #79, #
 2. **Admin failure handling, triage and notices; object storage; observability:** #73, #72, #74,
    #77, #78. Object storage (#77) must keep the backup protocol from #69.
 3. **GA4 and export, client integration:** #71, #81; web #45; mobile #51 (device
-   click-through), #52, #55; shared HTTPS #49.
+   click-through), #55; shared HTTPS #49.
 4. **Acceptance on the integrated stack:** devices #53 and builds #54; rerun the load (#80) and
    process-kill (#83) harnesses and the restore drill (#69) after steps 1–2 change the code, then
    update this document and `backend/VALIDATION.md` with the results.

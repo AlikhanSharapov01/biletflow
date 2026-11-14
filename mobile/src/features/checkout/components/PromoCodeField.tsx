@@ -7,6 +7,7 @@ import type { PromoPreview } from "@/api/types/promo";
 import { SubtleButton, fieldStyles } from "@/components/ui";
 import { colors, fonts, statusTones } from "@/theme";
 import { normalizePromoCode, promoSummary, stashPromo } from "../utils/promo";
+import { t, useLocale } from "@/i18n";
 
 interface PromoCodeFieldProps {
   eventId: string;
@@ -20,6 +21,7 @@ type Note = { kind: "error" | "success"; text: string } | null;
 // Previews a code. Only an accepted code is sent with the hold, and the hold
 // response is authoritative for basket pricing.
 export function PromoCodeField({ eventId, initialCode, applied, onApplied }: PromoCodeFieldProps) {
+  useLocale();
   const [code, setCode] = useState(initialCode);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
@@ -61,7 +63,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
   return (
     <View style={styles.field}>
       <Text style={fieldStyles.label}>
-        Promo code <Text style={styles.optional}>Optional</Text>
+        {t("checkout.promo_code")} <Text style={styles.optional}>{t("common.optional")}</Text>
       </Text>
       <View style={styles.row}>
         <TextInput
@@ -71,15 +73,15 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
           autoCapitalize="characters"
           autoCorrect={false}
           editable={!applied}
-          accessibilityLabel="Promo code"
+          accessibilityLabel={t("checkout.promo_code")}
           returnKeyType="done"
           onChangeText={setCode}
           onSubmitEditing={() => void check(code)}
         />
         {applied ? (
-          <SubtleButton label="Remove" onPress={remove} />
+          <SubtleButton label={t("common.remove")} onPress={remove} />
         ) : (
-          <SubtleButton label={busy ? "Checking…" : "Apply"} disabled={busy || !code.trim()} onPress={() => void check(code)} />
+          <SubtleButton label={busy ? t("checkout.checking") : t("common.apply")} disabled={busy || !code.trim()} onPress={() => void check(code)} />
         )}
       </View>
       {note ? (

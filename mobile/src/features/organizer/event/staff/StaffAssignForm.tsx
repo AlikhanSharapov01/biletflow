@@ -12,6 +12,7 @@ import { CheckboxField } from "../../components/CheckboxField";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "../../components/formStyles";
 import { Intro } from "../../components/Intro";
+import { t, useLocale } from "@/i18n";
 
 interface StaffAssignFormProps {
   event: EventView;
@@ -21,6 +22,7 @@ interface StaffAssignFormProps {
 }
 
 export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFormProps) {
+  useLocale();
   const { notify } = useToast();
   const [state, setState] = useState({ busy: false, message: "" });
   const [memberId, setMemberId] = useState("");
@@ -31,17 +33,17 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
 
   const assign = async () => {
     if (!memberId) {
-      setState({ busy: false, message: "Choose a team member." });
+      setState({ busy: false, message: t("org.choose_team_member_error") });
       return;
     }
     if (capabilities.length === 0) {
-      setState({ busy: false, message: "Choose at least one capability." });
+      setState({ busy: false, message: t("org.choose_capability_error") });
       return;
     }
     setState({ busy: true, message: "" });
     try {
       await assignStaff(event.id, memberId, capabilities);
-      notify("Staff assignment saved.");
+      notify(t("org.assignment_saved"));
       setState({ busy: false, message: "" });
       onAssigned();
     } catch (failure) {
@@ -51,23 +53,23 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
 
   return (
     <Panel>
-      <PanelHeading title="Assign a team member" />
+      <PanelHeading title={t("org.assign_team_member")} />
       <View style={formStyles.stack}>
         {assignable.length === 0 ? (
           <Intro>
-            No assignable team members. Invite people from the organizer workspace first; they must accept the invitation before they can be assigned.
+            {t("mobile.org.no_assignable")}
           </Intro>
         ) : null}
         <SelectField
-          label="Team member"
+          label={t("org.team_member_label")}
           value={memberId}
-          placeholder="Choose a member"
+          placeholder={t("org.choose_member")}
           options={assignable.map((member) => ({ value: member.id, label: `${member.display_name} · ${member.email}` }))}
           onChange={setMemberId}
           disabled={assignable.length === 0}
         />
-        <View style={formStyles.group} accessibilityLabel="Capabilities">
-          <Text style={styles.legend}>Capabilities</Text>
+        <View style={formStyles.group} accessibilityLabel={t("org.capabilities")}>
+          <Text style={styles.legend}>{t("org.capabilities")}</Text>
           {EVENT_CAPABILITIES.map((capability) => (
             <CheckboxField
               key={capability.id}
@@ -78,9 +80,9 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
             />
           ))}
         </View>
-        <Intro>Assigning the same member again replaces their capabilities for this event.</Intro>
+        <Intro>{t("org.assignment_replace_hint")}</Intro>
         <FormMessage message={state.message} />
-        <PrimaryButton label="Save assignment" onPress={() => void assign()} disabled={assignable.length === 0} loading={state.busy} />
+        <PrimaryButton label={t("org.save_assignment")} onPress={() => void assign()} disabled={assignable.length === 0} loading={state.busy} />
       </View>
     </Panel>
   );

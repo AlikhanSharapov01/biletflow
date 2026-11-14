@@ -1,9 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { fonts, radii, statusTones, type StatusTone } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Rounded status label with a leading dot (web .status).
 export function StatusPill({ label, tone = "positive" }: { label: string; tone?: StatusTone }) {
+  useLocale();
   const { background, color } = statusTones[tone];
   return (
     <View style={[styles.pill, { backgroundColor: background }]}>

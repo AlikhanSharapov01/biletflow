@@ -3,6 +3,7 @@ import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import { colors } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Full-screen page on the web's canvas colour.
 export function Screen({
@@ -14,6 +15,7 @@ export function Screen({
   edges?: Edge[];
   style?: StyleProp<ViewStyle>;
 }) {
+  useLocale();
   return (
     <SafeAreaView style={[styles.screen, style]} edges={edges}>
       {children}

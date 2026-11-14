@@ -14,9 +14,9 @@ import {
 } from "@/features/scanner/outcomes";
 import type { Admission, PendingScan, Phase, ResultPhase } from "@/features/scanner/scanTypes";
 import type { OfflineScanning } from "@/features/scanner/useOfflineScanning";
+import { t } from "@/i18n";
 
-const NOT_A_CONFIRMATION =
-  "That isn’t an entry confirmation. Ask the guest to open their ticket and tap “Show entry confirmation”.";
+const notAConfirmation = () => t("mobile.scan.not_confirmation");
 
 // The scan → result → (confirm | undo) state machine for one event, plus
 // manual check-in from attendee search.
@@ -105,7 +105,7 @@ export function useScanSession(
     } catch (err) {
       // Session couldn't be renewed: AuthContext is already redirecting to login.
       if (err instanceof SessionExpiredError) return;
-      setUndoError(err instanceof Error ? err.message : "Something went wrong.");
+      setUndoError(err instanceof Error ? err.message : t("mobile.api.went_wrong"));
     } finally {
       setUndoing(false);
     }
@@ -124,7 +124,7 @@ export function useScanSession(
       if (data === lastConfirmRead.current) return;
       lastConfirmRead.current = data;
       if (!isEntryConfirmation(data)) {
-        setPhase({ ...phase, error: NOT_A_CONFIRMATION });
+        setPhase({ ...phase, error: notAConfirmation() });
         return;
       }
       start({ ...phase.ticket, entryConfirmation: data });
@@ -140,8 +140,8 @@ export function useScanSession(
         view: {
           tone: "warning",
           icon: "?",
-          title: "Scan the ticket first",
-          lines: ["This is an entry confirmation. Scan the guest’s ticket QR first, then this code."],
+          title: t("mobile.scan.scan_ticket_first"),
+          lines: [t("mobile.scan.confirmation_before_ticket")],
         },
       });
       return;
@@ -154,7 +154,7 @@ export function useScanSession(
     if (phase.name !== "confirm") return;
     const digits = code.replace(/\s/g, "");
     if (!isEntryCode(digits)) {
-      setPhase({ ...phase, error: "Enter the 8-digit code shown on the guest’s ticket." });
+      setPhase({ ...phase, error: t("mobile.scan.enter_code") });
       return;
     }
     start({ ...phase.ticket, entryCode: digits });

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { AuthMode } from "@/features/auth/useAuthForm";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // "Sign in" / "Create account" segmented switch (web .auth-tabs).
 export function AuthModeTabs({
@@ -11,6 +12,7 @@ export function AuthModeTabs({
   mode: AuthMode;
   onChange: (next: AuthMode) => void;
 }) {
+  useLocale();
   return (
     <View style={styles.tabs} accessibilityRole="tablist">
       {(["login", "register"] as const).map((tab) => (
@@ -22,7 +24,7 @@ export function AuthModeTabs({
           style={[styles.tab, mode === tab && styles.tabActive]}
         >
           <Text style={[styles.tabText, mode === tab && styles.tabTextActive]}>
-            {tab === "login" ? "Sign in" : "Create account"}
+            {tab === "login" ? t("auth.sign_in") : t("auth.create_account")}
           </Text>
         </Pressable>
       ))}

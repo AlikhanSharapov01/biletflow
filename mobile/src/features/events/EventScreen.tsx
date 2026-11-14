@@ -12,10 +12,12 @@ import { publicationTone } from "@/utils/status";
 import { CalendarLinks } from "./components/CalendarLinks";
 import { EventFacts } from "./components/EventFacts";
 import { ReportEventForm } from "./components/ReportEventForm";
+import { t, useLocale } from "@/i18n";
 
 // /events/[eventId] — details, venue, tickets and checkout. A `promo` param
 // (from a campaign link) pre-fills the promo code.
 export function EventScreen() {
+  useLocale();
   const { eventId = "", promo } = useLocalSearchParams<{ eventId: string; promo?: string }>();
   const router = useRouter();
 
@@ -39,11 +41,11 @@ export function EventScreen() {
 
   if (!page.data) {
     return (
-      <ScrollScreen backLabel="Back to events">
+      <ScrollScreen backLabel={t("event.back")}>
         {page.loading ? (
-          <LoadingState message="Loading event details…" />
+          <LoadingState message={t("event.loading")} />
         ) : (
-          <ErrorPanel title="We couldn’t load this event." message={page.error ?? "Unknown error"} onRetry={page.reload} />
+          <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />
         )}
       </ScrollScreen>
     );
@@ -52,28 +54,28 @@ export function EventScreen() {
   const { event, tickets, category, venue } = page.data;
 
   return (
-    <ScrollScreen backLabel="Back to events" refreshing={page.loading} onRefresh={page.reload}>
+    <ScrollScreen backLabel={t("event.back")} refreshing={page.loading} onRefresh={page.reload}>
       <PageHeading
-        eyebrow={category?.name_en ?? "Event"}
+        eyebrow={category?.name_en ?? t("common.event")}
         title={event.title}
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
         actions={<StatusPill tone={publicationTone(event.publication_state)} label={event.publication_state} />}
       />
       <Panel>
-        <PanelHeading title="About this event" />
-        <Text style={styles.description}>{event.description || "More details will be shared by the organizer."}</Text>
+        <PanelHeading title={t("event.about")} />
+        <Text style={styles.description}>{event.description || t("event.more_details")}</Text>
         <View style={styles.tickets}>
-          <PanelHeading title="Tickets" />
+          <PanelHeading title={t("common.tickets")} />
           <CheckoutPanel event={event} tickets={tickets} promoFromRoute={typeof promo === "string" ? promo : null} />
         </View>
       </Panel>
       <Panel>
-        <PanelHeading title="Details" />
+        <PanelHeading title={t("common.details")} />
         <EventFacts event={event} venue={venue} />
         <CalendarLinks eventId={event.id} />
         <ReportEventForm eventId={event.id} />
         <SubtleButton
-          label="Get help"
+          label={t("support.get_help")}
           style={styles.help}
           onPress={() => router.push({ pathname: "/support/new", params: { event_id: event.id } })}
         />

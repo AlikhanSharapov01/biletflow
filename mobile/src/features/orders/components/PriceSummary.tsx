@@ -3,13 +3,15 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Order } from "@/api/types/checkout";
 import { colors, fonts } from "@/theme";
 import { priceLabel } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 // Subtotal, discount, processing fee and total, straight from the server's
 // saved quote. The fee is part of the total (an organizer cost), not extra.
 export function PriceSummary({ order }: { order: Order }) {
-  const rows: [string, string][] = [["Subtotal", priceLabel(order.gross_minor)]];
-  if (order.discount_minor > 0) rows.push(["Discount", `−${priceLabel(order.discount_minor)}`]);
-  rows.push(["Processing fee", order.processing_fee_minor > 0 ? `${priceLabel(order.processing_fee_minor)} · included` : "None"]);
+  useLocale();
+  const rows: [string, string][] = [[t("common.subtotal"), priceLabel(order.gross_minor)]];
+  if (order.discount_minor > 0) rows.push([t("common.discount"), `−${priceLabel(order.discount_minor)}`]);
+  rows.push([t("checkout.processing_fee"), order.processing_fee_minor > 0 ? t("checkout.included_fee", { amount: priceLabel(order.processing_fee_minor) }) : t("checkout.no_fee")]);
 
   return (
     <View style={styles.list}>
@@ -20,7 +22,7 @@ export function PriceSummary({ order }: { order: Order }) {
         </View>
       ))}
       <View style={[styles.row, styles.total]}>
-        <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalLabel}>{t("common.total")}</Text>
         <Text style={styles.totalValue}>
           {priceLabel(order.payable_minor)} <Text style={styles.currency}>{order.currency}</Text>
         </Text>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getAdmissionCounts, getAssignedEvent } from "@/api/scanner";
 import type { AdmissionCounts, AssignedEvent } from "@/api/types/scanner";
+import { t } from "@/i18n";
 
 // The event being scanned and its live admission counts.
 export function useScannerEvent(eventId: string) {
@@ -23,7 +24,7 @@ export function useScannerEvent(eventId: string) {
         if (!cancelled) setEvent(result);
       },
       (err) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Something went wrong.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : t("mobile.api.went_wrong"));
       }
     );
     refreshCounts();

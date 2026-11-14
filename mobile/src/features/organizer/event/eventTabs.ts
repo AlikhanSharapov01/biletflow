@@ -1,4 +1,5 @@
 import type { TabItem } from "@/components/ui";
+import { t } from "@/i18n";
 
 export type EventTab =
   | "details"
@@ -14,15 +15,15 @@ export type EventTab =
   | "history";
 
 export const EVENT_TABS: TabItem<EventTab>[] = [
-  { id: "details", label: "Details" },
-  { id: "tickets", label: "Ticket types" },
-  { id: "seating", label: "Seating" },
-  { id: "paid-sales", label: "Paid sales" },
-  { id: "attendees", label: "Attendees" },
-  { id: "check-ins", label: "Check-ins" },
-  { id: "staff", label: "Staff" },
-  { id: "campaigns", label: "Campaigns" },
-  { id: "analytics", label: "Analytics" },
-  { id: "finance", label: "Finance" },
-  { id: "history", label: "History" },
+  { id: "details", get label() { return t("common.details"); } },
+  { id: "tickets", get label() { return t("organizer.ticket_types"); } },
+  { id: "seating", get label() { return t("organizer.seating"); } },
+  { id: "paid-sales", get label() { return t("organizer.paid_sales"); } },
+  { id: "attendees", get label() { return t("organizer.attendees"); } },
+  { id: "check-ins", get label() { return t("organizer.check_ins"); } },
+  { id: "staff", get label() { return t("organizer.staff"); } },
+  { id: "campaigns", get label() { return t("organizer.campaigns"); } },
+  { id: "analytics", get label() { return t("organizer.analytics"); } },
+  { id: "finance", get label() { return t("organizer.finance"); } },
+  { id: "history", get label() { return t("organizer.history"); } },
 ];

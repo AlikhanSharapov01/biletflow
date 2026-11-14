@@ -12,6 +12,7 @@ import { AdminReportsPage } from "@/features/admin/pages/AdminReportsPage";
 import { AdminSettingsPage } from "@/features/admin/pages/AdminSettingsPage";
 import { AdminTicketsPage } from "@/features/admin/pages/AdminTicketsPage";
 import { AdminUsersPage } from "@/features/admin/pages/AdminUsersPage";
+import { t, useLocale } from "@/i18n";
 
 const PAGES: Record<AdminSectionId, () => React.JSX.Element> = {
   users: AdminUsersPage,
@@ -26,21 +27,22 @@ const PAGES: Record<AdminSectionId, () => React.JSX.Element> = {
 
 // One admin section, chosen by the `section` route param.
 export function AdminSectionScreen() {
+  useLocale();
   const router = useRouter();
   const { section } = useLocalSearchParams<{ section: string }>();
   const found = adminSectionFor(section);
   const Page = found ? PAGES[found.id] : null;
 
   return (
-    <ScrollScreen backLabel="Admin">
+    <ScrollScreen backLabel={t("nav.admin")}>
       <AdminGate>
-        <PageHeading eyebrow="Platform administration" title={found?.label ?? "Section not found"} />
+        <PageHeading eyebrow={t("admin.eyebrow")} title={found?.label ?? t("mobile.admin.section_not_found")} />
         {Page ? (
           <Page />
         ) : (
           <Panel>
-            <EmptyState message="There is no admin section at this address." />
-            <PrimaryButton label="Back to admin sections" onPress={() => router.replace("/admin")} />
+            <EmptyState message={t("mobile.admin.no_section")} />
+            <PrimaryButton label={t("mobile.admin.back_to_sections")} onPress={() => router.replace("/admin")} />
           </Panel>
         )}
       </AdminGate>

@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
+import { t } from "@/i18n";
 
 // Minus / count / plus in place of the web's quantity <select>.
 export function QuantityStepper({
@@ -14,18 +16,20 @@ export function QuantityStepper({
   max: number;
   onChange: (next: number) => void;
 }) {
+  useLocale();
   return (
-    <View style={styles.row} accessibilityLabel={`Quantity for ${name}`}>
-      <Step label="−" a11y={`Fewer ${name}`} disabled={value <= 0} onPress={() => onChange(value - 1)} />
+    <View style={styles.row} accessibilityLabel={t("mobile.checkout.quantity_for", { p0: name })}>
+      <Step label="−" a11y={t("mobile.checkout.fewer", { p0: name })} disabled={value <= 0} onPress={() => onChange(value - 1)} />
       <Text style={styles.count} accessibilityLiveRegion="polite">
         {value}
       </Text>
-      <Step label="+" a11y={`More ${name}`} disabled={value >= max} onPress={() => onChange(value + 1)} />
+      <Step label="+" a11y={t("mobile.checkout.more", { p0: name })} disabled={value >= max} onPress={() => onChange(value + 1)} />
     </View>
   );
 }
 
 function Step({ label, a11y, disabled, onPress }: { label: string; a11y: string; disabled: boolean; onPress: () => void }) {
+  useLocale();
   return (
     <Pressable
       accessibilityRole="button"

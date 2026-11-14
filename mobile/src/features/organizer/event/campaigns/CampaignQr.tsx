@@ -13,10 +13,12 @@ import { useToast } from "@/context/ToastContext";
 import { colors, fonts } from "@/theme";
 
 import { formStyles } from "../../components/formStyles";
+import { t, useLocale } from "@/i18n";
 
 // Server-rendered promo QR. It opens the campaign link; it is never an
 // admission ticket and scanners reject it.
 export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: Campaign }) {
+  useLocale();
   const { notify } = useToast();
   const [svg, setSvg] = useState("");
   const [error, setError] = useState("");
@@ -34,9 +36,9 @@ export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: C
   const copy = async () => {
     try {
       await Clipboard.setStringAsync(campaign.link_url);
-      notify("Promo link copied.");
+      notify(t("org.link_copied"));
     } catch {
-      notify("Copy failed. Select the link and copy it manually.");
+      notify(t("org.copy_failed"));
     }
   };
 
@@ -55,15 +57,15 @@ export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: C
 
   return (
     <View style={formStyles.inline}>
-      <StatusPill tone="pending" label="Promo link — not an entry ticket" />
-      {error ? <ErrorPanel title="We couldn’t load the QR code." message={error} /> : null}
-      {!error && !svg ? <LoadingState message="Loading QR code…" /> : null}
+      <StatusPill tone="pending" label={t("org.promo_qr_caption")} />
+      {error ? <ErrorPanel title={t("org.qr_error")} message={error} /> : null}
+      {!error && !svg ? <LoadingState message={t("org.loading_qr")} /> : null}
       {svg ? (
         <View
           style={styles.qr}
           accessible
           accessibilityRole="image"
-          accessibilityLabel={`Promo QR code for ${campaign.name}. It opens the promo link and does not admit anyone.`}
+          accessibilityLabel={t("org.promo_qr_alt", { p0: campaign.name })}
         >
           <SvgXml xml={svg} width={180} height={180} />
         </View>
@@ -72,8 +74,8 @@ export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: C
         {campaign.link_url}
       </Text>
       <View style={formStyles.actions}>
-        <SubtleButton label="Copy link" onPress={() => void copy()} />
-        <SubtleButton label="Share SVG" disabled={!svg} onPress={() => void share()} />
+        <SubtleButton label={t("org.copy_link")} onPress={() => void copy()} />
+        <SubtleButton label={t("mobile.org.share_svg")} disabled={!svg} onPress={() => void share()} />
       </View>
     </View>
   );

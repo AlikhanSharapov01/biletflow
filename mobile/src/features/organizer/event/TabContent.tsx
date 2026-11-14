@@ -12,6 +12,7 @@ import { PaidSalesTab } from "./PaidSalesTab";
 import { SeatingTab } from "./SeatingTab";
 import { StaffTab } from "./StaffTab";
 import { TicketTypesTab } from "./TicketTypesTab";
+import { useLocale } from "@/i18n";
 
 interface TabContentProps {
   tab: EventTab;
@@ -22,6 +23,7 @@ interface TabContentProps {
 }
 
 export function TabContent({ tab, event, categories, venues, onSaved }: TabContentProps) {
+  useLocale();
   switch (tab) {
     case "details":
       return <DetailsTab key={event.updated_at} event={event} categories={categories} venues={venues} onSaved={onSaved} />;

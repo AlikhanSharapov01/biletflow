@@ -5,6 +5,7 @@ import { DateTile, StatusPill } from "@/components/ui";
 import { STATUS_LABEL, STATUS_TONE } from "@/features/scanner/assignedEventStatus";
 import { colors, fonts, radii } from "@/theme";
 import { formatEventWindow } from "@/utils/eventTime";
+import { useLocale } from "@/i18n";
 
 // One row of the check-in desk; ended events are shown but can't be opened.
 export function AssignedEventCard({
@@ -14,6 +15,7 @@ export function AssignedEventCard({
   event: AssignedEvent;
   onPress: () => void;
 }) {
+  useLocale();
   const ended = event.time_status === "completed";
   return (
     <Pressable

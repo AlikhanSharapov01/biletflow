@@ -12,15 +12,24 @@ import { useRequest } from "@/hooks/useRequest";
 
 import { NotificationRow } from "./components/NotificationRow";
 import { announceNotificationsChanged, notificationHref } from "./notificationTarget";
+import { pluralForm, t, useLocale } from "@/i18n";
+
+const MARKED = {
+  one: "notifications.marked_one",
+  few: "mobile.notifications.marked_few",
+  many: "notifications.marked_many",
+  other: "notifications.marked_many",
+} as const;
 
 const PAGE_SIZE = 50;
 type Filter = "all" | "unread";
 const FILTERS = [
-  { id: "all" as const, label: "All" },
-  { id: "unread" as const, label: "Unread" },
+  { id: "all" as const, get label() { return t("common.all"); } },
+  { id: "unread" as const, get label() { return t("notifications.unread"); } },
 ];
 
 export function NotificationsScreen() {
+  useLocale();
   const router = useRouter();
   const { notify } = useToast();
   const [filter, setFilter] = useState<Filter>("all");
@@ -57,7 +66,7 @@ export function NotificationsScreen() {
     try {
       const updated = await markAllNotificationsRead();
       announceNotificationsChanged();
-      notify(updated ? `Marked ${updated} notification${updated === 1 ? "" : "s"} as read.` : "Everything was already read.");
+      notify(updated ? t(MARKED[pluralForm(updated)], { count: updated }) : t("notifications.already_read"));
       inbox.reload();
     } catch (failure) {
       notify(describeError(failure));
@@ -67,10 +76,10 @@ export function NotificationsScreen() {
   return (
     <ScrollScreen onRefresh={inbox.reload}>
       <PageHeading
-        eyebrow="Stay in the loop"
-        title="Notifications."
-        subtitle="Updates about your tickets, orders, events and support cases."
-        actions={<SubtleButton label="Mark all read" onPress={() => void markAll()} disabled={!hasUnread} />}
+        eyebrow={t("notifications.eyebrow")}
+        title={t("notifications.title")}
+        subtitle={t("notifications.subtitle")}
+        actions={<SubtleButton label={t("notifications.mark_all")} onPress={() => void markAll()} disabled={!hasUnread} />}
       />
       <SegmentedTabs
         items={FILTERS}
@@ -82,11 +91,11 @@ export function NotificationsScreen() {
         }}
       />
       <Panel>
-        {inbox.loading ? <LoadingState message="Loading notifications…" /> : null}
-        {inbox.error ? <ErrorPanel title="We couldn’t load your notifications." message={inbox.error} onRetry={inbox.reload} /> : null}
+        {inbox.loading ? <LoadingState message={t("notifications.loading")} /> : null}
+        {inbox.error ? <ErrorPanel title={t("notifications.load_error")} message={inbox.error} onRetry={inbox.reload} /> : null}
         {!inbox.loading && !inbox.error && inbox.data ? (
           items.length === 0 ? (
-            <EmptyState message={filter === "unread" ? "You’re all caught up." : "No notifications yet."} />
+            <EmptyState message={filter === "unread" ? t("notifications.caught_up") : t("notifications.empty")} />
           ) : (
             items.map((item) => (
               <NotificationRow key={item.id} notification={item} busy={busyId === item.id} onOpen={(next) => void open(next)} />
@@ -95,8 +104,8 @@ export function NotificationsScreen() {
         ) : null}
         {offset > 0 || items.length === PAGE_SIZE ? (
           <View style={styles.pager}>
-            <SubtleButton label="Newer" disabled={offset === 0} onPress={() => setOffset(Math.max(0, offset - PAGE_SIZE))} />
-            <SubtleButton label="Older" disabled={items.length < PAGE_SIZE} onPress={() => setOffset(offset + PAGE_SIZE)} />
+            <SubtleButton label={t("support.newer")} disabled={offset === 0} onPress={() => setOffset(Math.max(0, offset - PAGE_SIZE))} />
+            <SubtleButton label={t("support.older")} disabled={items.length < PAGE_SIZE} onPress={() => setOffset(offset + PAGE_SIZE)} />
           </View>
         ) : null}
       </Panel>

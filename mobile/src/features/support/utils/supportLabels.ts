@@ -9,28 +9,29 @@ import type {
   SupportStatus,
 } from "@/api/types/support";
 import type { StatusTone } from "@/utils/status";
+import { t } from "@/i18n";
 
 export const CATEGORY_LABELS: Record<SupportCategory, string> = {
-  delivery: "Ticket delivery",
-  payment: "Payment",
-  refund: "Refund",
-  seating: "Seating",
-  event_info: "Event information",
-  check_in: "Check-in",
-  account: "Account",
-  technical: "Technical problem",
+  get delivery() { return t("support.ticket_delivery"); },
+  get payment() { return t("checkout.payment"); },
+  get refund() { return t("checkout.refund"); },
+  get seating() { return t("organizer.seating"); },
+  get event_info() { return t("support.event_info"); },
+  get check_in() { return t("support.check_in"); },
+  get account() { return t("nav.account"); },
+  get technical() { return t("support.technical"); },
 };
 
 export const STATUS_LABELS: Record<SupportStatus, string> = {
-  open: "Open",
-  in_progress: "In progress",
-  waiting_for_customer: "Waiting for customer",
-  resolved: "Resolved",
+  get open() { return t("support.open"); },
+  get in_progress() { return t("support.in_progress"); },
+  get waiting_for_customer() { return t("support.waiting_customer"); },
+  get resolved() { return t("support.resolved"); },
 };
 
 export const KIND_LABELS: Record<SupportCaseKind, string> = {
-  attendee: "About an event, order or ticket",
-  organizer_platform: "Organizer question for the platform",
+  get attendee() { return t("support.attendee_kind"); },
+  get organizer_platform() { return t("support.organizer_kind"); },
 };
 
 export function categoryLabel(category: string): string {
@@ -100,14 +101,14 @@ export interface ContextLink {
 // tickets only open for their owner, so staff see a plain label instead.
 export function contextLinks(context: SupportContext, ownsRecords = true): ContextLink[] {
   const links: ContextLink[] = [];
-  if (context.event_id) links.push({ label: "Event", href: { pathname: "/events/[eventId]", params: { eventId: context.event_id } } });
+  if (context.event_id) links.push({ label: t("common.event"), href: { pathname: "/events/[eventId]", params: { eventId: context.event_id } } });
   if (context.order_id) {
-    links.push({ label: "Order", href: ownsRecords ? { pathname: "/orders/[orderId]", params: { orderId: context.order_id } } : null });
+    links.push({ label: t("common.order"), href: ownsRecords ? { pathname: "/orders/[orderId]", params: { orderId: context.order_id } } : null });
   }
   if (context.ticket_id) {
-    links.push({ label: "Ticket", href: ownsRecords ? { pathname: "/tickets/[ticketId]", params: { ticketId: context.ticket_id } } : null });
+    links.push({ label: t("common.ticket"), href: ownsRecords ? { pathname: "/tickets/[ticketId]", params: { ticketId: context.ticket_id } } : null });
   }
-  if (context.organization_id) links.push({ label: "Organization", href: null });
+  if (context.organization_id) links.push({ label: t("support.organization"), href: null });
   return links;
 }
 
@@ -138,14 +139,14 @@ export function canEscalate(supportCase: SupportCase): boolean {
 export function describeChange(change: SupportChange): string {
   const who = change.actor.display_name;
   if (change.change_kind === "status") {
-    const to = change.after_value ? supportStatusLabel(change.after_value) : "a new status";
-    if (change.reason === "requester_reply") return `Reopened as ${to.toLowerCase()} after a reply`;
-    return `${who} changed the status to ${to.toLowerCase()}`;
+    const to = change.after_value ? supportStatusLabel(change.after_value) : t("support.new_status");
+    if (change.reason === "requester_reply") return t("support.reopened_change", { p0: to.toLowerCase() });
+    return t("support.changed_status", { p0: who, p1: to.toLowerCase() });
   }
   if (change.change_kind === "assignment") {
-    if (change.reason === "escalated") return "Organizer assignment cleared on escalation";
-    return change.after_value ? `${who} assigned the case` : `${who} unassigned the case`;
+    if (change.reason === "escalated") return t("support.assignment_cleared");
+    return change.after_value ? t("support.assigned_change", { p0: who }) : t("support.unassigned_change", { p0: who });
   }
-  if (change.change_kind === "escalation") return `${who} escalated the case to the BiletFlow platform team`;
-  return `${who} updated the case`;
+  if (change.change_kind === "escalation") return t("support.escalated_change", { p0: who });
+  return t("support.updated_change", { p0: who });
 }

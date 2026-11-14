@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { panelStyles } from "@/features/scanner/panelStyles";
 import { colors } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // The ticket is valid but the event requires the guest's entry confirmation
 // (backend ADMISSION_REQUIRE_ENTRY_CONFIRMATION). The camera stays live to read
@@ -16,23 +17,23 @@ export function ConfirmationPanel({
   onSubmitCode: (code: string) => void;
   onCancel: () => void;
 }) {
+  useLocale();
   const [code, setCode] = useState("");
   return (
     <View style={[panelStyles.panel, styles.panel]}>
-      <Text style={panelStyles.panelTitle}>Entry confirmation</Text>
+      <Text style={panelStyles.panelTitle}>{t("tickets.entry_confirmation")}</Text>
       <Text style={panelStyles.panelLine}>
-        Ask the guest to open their ticket and show the entry confirmation. Scan its QR code, or type
-        the 8-digit code.
+        {t("mobile.scan.confirmation_intro")}
       </Text>
       <TextInput
         style={styles.input}
         value={code}
         onChangeText={(value) => setCode(value.replace(/[^\d]/g, "").slice(0, 8))}
-        placeholder="8-digit code"
+        placeholder={t("mobile.scan.eight_digit_code")}
         placeholderTextColor="rgba(255,255,255,0.6)"
         keyboardType="number-pad"
         maxLength={8}
-        accessibilityLabel="Entry code"
+        accessibilityLabel={t("tickets.entry_code")}
         onSubmitEditing={() => onSubmitCode(code)}
       />
       {error ? (
@@ -46,7 +47,7 @@ export function ConfirmationPanel({
           style={[panelStyles.panelButton, panelStyles.panelButtonSecondary]}
           onPress={onCancel}
         >
-          <Text style={panelStyles.panelButtonText}>Cancel</Text>
+          <Text style={panelStyles.panelButtonText}>{t("common.cancel")}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -54,7 +55,7 @@ export function ConfirmationPanel({
           disabled={code.length !== 8}
           onPress={() => onSubmitCode(code)}
         >
-          <Text style={panelStyles.panelButtonText}>Check in</Text>
+          <Text style={panelStyles.panelButtonText}>{t("mobile.scan.check_in")}</Text>
         </Pressable>
       </View>
     </View>

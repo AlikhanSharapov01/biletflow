@@ -8,22 +8,24 @@ import { useRequest } from "@/hooks/useRequest";
 import { browserTimeZone, dateLabel, priceLabel, statusLabel } from "@/utils/format";
 
 import { orderStart, orderStatusTone, orderTitle, paymentLabel } from "./utils/payment";
+import { quantityLabel, t, useLocale } from "@/i18n";
 
 export function OrdersScreen() {
+  useLocale();
   const router = useRouter();
   const orders = useRequest(() => listOrders(), []);
 
   return (
-    <ScrollScreen backLabel="Back" onRefresh={orders.reload} refreshing={orders.loading && orders.data !== null}>
-      <PageHeading eyebrow="Your registrations" title="Orders." subtitle="Every registration you made, with the tickets it issued." />
-      {orders.loading && !orders.data ? <LoadingState message="Loading orders…" /> : null}
-      {orders.error ? <ErrorPanel title="We couldn’t load your orders." message={orders.error} onRetry={orders.reload} /> : null}
+    <ScrollScreen backLabel={t("common.back")} onRefresh={orders.reload} refreshing={orders.loading && orders.data !== null}>
+      <PageHeading eyebrow={t("orders.eyebrow")} title={t("orders.title")} subtitle={t("orders.subtitle")} />
+      {orders.loading && !orders.data ? <LoadingState message={t("orders.loading")} /> : null}
+      {orders.error ? <ErrorPanel title={t("orders.load_error")} message={orders.error} onRetry={orders.reload} /> : null}
       {orders.data ? (
         orders.data.length === 0 ? (
           <Panel>
-            <EmptyState message="No orders yet. Find an event and reserve a ticket." />
+            <EmptyState message={t("mobile.orders.empty")} />
             <View style={styles.center}>
-              <TextButton label="Find an event →" onPress={() => router.navigate("/")} />
+              <TextButton label={t("mobile.orders.find_event")} onPress={() => router.navigate("/")} />
             </View>
           </Panel>
         ) : (
@@ -36,11 +38,11 @@ export function OrdersScreen() {
                   key={order.id}
                   icon={start ? <DateTile at={start} timeZone={browserTimeZone()} /> : "#"}
                   title={orderTitle(order)}
-                  meta={`${count} ticket${count === 1 ? "" : "s"} · ${priceLabel(order.payable_minor)} · placed ${dateLabel(order.created_at)}`}
+                  meta={t("orders.summary_meta", { items: quantityLabel("ticket", count), amount: priceLabel(order.payable_minor), date: dateLabel(order.created_at) })}
                   note={order.payment ? paymentLabel(order) : undefined}
                   trailing={<StatusPill tone={orderStatusTone(order.status)} label={statusLabel(order.status)} />}
                   onPress={() => router.push({ pathname: "/orders/[orderId]", params: { orderId: order.id } })}
-                  accessibilityLabel={`Open order for ${orderTitle(order)}`}
+                  accessibilityLabel={t("mobile.orders.open_order_for", { p0: orderTitle(order) })}
                 />
               );
             })}

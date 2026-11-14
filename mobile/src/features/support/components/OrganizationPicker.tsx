@@ -3,6 +3,7 @@ import { SelectField } from "@/components/ui";
 import { useRequest } from "@/hooks/useRequest";
 
 import { FormMessage } from "@/components/ui/FormMessage";
+import { t, useLocale } from "@/i18n";
 
 interface PickerProps {
   value: string;
@@ -11,17 +12,18 @@ interface PickerProps {
 
 // Organizer platform cases are raised on behalf of one organization.
 export function OrganizationPicker({ value, onChange }: PickerProps) {
+  useLocale();
   const organizations = useRequest(() => listOrganizations(), []);
   const items = organizations.data ?? [];
   const placeholder = organizations.loading
-    ? "Loading organizations…"
+    ? t("support.loading_organizations")
     : items.length
-      ? "Choose an organization"
-      : "You are not part of an organization";
+      ? t("support.choose_organization")
+      : t("support.no_organization");
   return (
     <>
       <SelectField
-        label="Organization"
+        label={t("support.organization")}
         value={value}
         placeholder={placeholder}
         disabled={organizations.loading || items.length === 0}

@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { colors, fonts, radii } from "@/theme";
+import { useLocale } from "@/i18n";
 
 type Props = ComponentProps<typeof TextInput> & {
   label: string;
@@ -11,6 +12,7 @@ type Props = ComponentProps<typeof TextInput> & {
 
 // Labelled input (web .field). `ref` passes through to the TextInput.
 export function TextField({ label, hint, style, multiline, ...props }: Props) {
+  useLocale();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>

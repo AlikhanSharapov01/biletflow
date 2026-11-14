@@ -1,6 +1,7 @@
 import type { EventInput, EventView, SeatingMode, TicketType, TicketTypeInput } from "@/api/types";
 import { browserTimeZone, tengeToMinor } from "@/utils/format";
 import { readLocalInput, toLocalInput } from "./dateInput";
+import { t } from "@/i18n";
 
 // Form models hold strings as the inputs produce them; these helpers turn them
 // into the exact payloads the backend expects and report the first problem.
@@ -55,34 +56,34 @@ export type EventFormResult = { ok: true; input: EventInput } | { ok: false; err
 export function toEventInput(values: EventFormValues, initial?: EventView, now: Date = new Date()): EventFormResult {
   const starts = readLocalInput(values.starts_at);
   const ends = readLocalInput(values.ends_at);
-  if (!starts || !ends) return { ok: false, error: "Choose a start and an end time." };
-  if (ends <= starts) return { ok: false, error: "The end time must be after the start time." };
-  if (!initial && new Date(starts) <= now) return { ok: false, error: "Choose a start time in the future." };
+  if (!starts || !ends) return { ok: false, error: t("org.validation_times") };
+  if (ends <= starts) return { ok: false, error: t("org.validation_end") };
+  if (!initial && new Date(starts) <= now) return { ok: false, error: t("org.validation_future") };
 
   const capacity = Number(values.capacity);
   if (!Number.isInteger(capacity) || capacity < 0 || capacity > 100000) {
-    return { ok: false, error: "Capacity must be a whole number between 0 and 100,000." };
+    return { ok: false, error: t("org.validation_capacity") };
   }
-  if (!values.category_id || !values.venue_id) return { ok: false, error: "Choose a category and a venue." };
-  if (!values.title.trim()) return { ok: false, error: "Give the event a title." };
+  if (!values.category_id || !values.venue_id) return { ok: false, error: t("org.validation_category_venue") };
+  if (!values.title.trim()) return { ok: false, error: t("org.validation_title") };
   const seatingMode = values.seating_mode ?? initial?.seating_mode ?? "general";
   const layoutId = seatingMode === "assigned" ? (values.venue_layout_id ?? initial?.venue_layout_id ?? null) || null : null;
-  if (seatingMode === "assigned" && !layoutId) return { ok: false, error: "Choose a seat layout for assigned seating." };
+  if (seatingMode === "assigned" && !layoutId) return { ok: false, error: t("org.validation_layout") };
 
   const registrationOpens = values.registration_opens_at ? readLocalInput(values.registration_opens_at) : now.toISOString();
   const registrationCloses = values.registration_closes_at ? readLocalInput(values.registration_closes_at) : starts;
   const admissionOpens = values.admission_opens_at ? readLocalInput(values.admission_opens_at) : starts;
   const admissionCloses = values.admission_closes_at ? readLocalInput(values.admission_closes_at) : ends;
   if (!registrationOpens || !registrationCloses || !admissionOpens || !admissionCloses) {
-    return { ok: false, error: "One of the window times could not be read." };
+    return { ok: false, error: t("org.validation_window") };
   }
-  if (registrationCloses <= registrationOpens) return { ok: false, error: "Registration must close after it opens." };
+  if (registrationCloses <= registrationOpens) return { ok: false, error: t("org.validation_registration") };
 
   let refundCutoff: string | null = null;
   if (values.refund_allowed) {
     refundCutoff = readLocalInput(values.refund_cutoff_at);
-    if (!refundCutoff) return { ok: false, error: "Set a refund cutoff when refunds are allowed." };
-    if (refundCutoff > starts) return { ok: false, error: "The refund cutoff cannot be after the event starts." };
+    if (!refundCutoff) return { ok: false, error: t("org.validation_refund_cutoff") };
+    if (refundCutoff > starts) return { ok: false, error: t("org.validation_refund_before_start") };
   }
 
   return {
@@ -141,20 +142,20 @@ export type TicketTypeFormResult = { ok: true; input: TicketTypeInput } | { ok: 
 export function toTicketTypeInput(values: TicketTypeFormValues, event: EventView): TicketTypeFormResult {
   const quantity = Number(values.quantity_limit);
   const perOrder = Number(values.per_order_limit);
-  if (!values.name.trim()) return { ok: false, error: "Give the ticket type a name." };
+  if (!values.name.trim()) return { ok: false, error: t("org.validation_ticket_name") };
   if (!Number.isInteger(quantity) || quantity < 0 || quantity > event.capacity) {
-    return { ok: false, error: `Quantity must be a whole number up to the event capacity (${event.capacity}).` };
+    return { ok: false, error: t("org.validation_ticket_quantity", { p0: event.capacity }) };
   }
   if (!Number.isInteger(perOrder) || perOrder < 1 || perOrder > 100) {
-    return { ok: false, error: "The per-order limit must be between 1 and 100." };
+    return { ok: false, error: t("org.validation_order_limit") };
   }
   const priceMinor = values.kind === "paid" ? tengeToMinor(values.price) : 0;
-  if (values.kind === "paid" && priceMinor <= 0) return { ok: false, error: "Paid tickets need a price above zero." };
+  if (values.kind === "paid" && priceMinor <= 0) return { ok: false, error: t("org.validation_paid_price") };
 
   const opens = values.sales_open_at ? readLocalInput(values.sales_open_at) : event.registration_opens_at;
   const closes = values.sales_close_at ? readLocalInput(values.sales_close_at) : event.registration_closes_at;
-  if (!opens || !closes) return { ok: false, error: "One of the sales window times could not be read." };
-  if (closes <= opens) return { ok: false, error: "Sales must close after they open." };
+  if (!opens || !closes) return { ok: false, error: t("org.validation_sales_times") };
+  if (closes <= opens) return { ok: false, error: t("org.validation_sales_close") };
 
   return {
     ok: true,

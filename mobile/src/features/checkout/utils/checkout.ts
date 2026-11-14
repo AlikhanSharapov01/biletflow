@@ -1,7 +1,8 @@
 import type { Allocation, EventView, HoldLine, RecipientInput, TicketType } from "@/api/types";
 import { dateLabel } from "@/utils/format";
+import { t } from "@/i18n";
 
-export const PAID_NOTE = "Paid checkout · demonstration payment, no real money moves";
+export const paidNote = () => t("checkout.paid_note");
 
 export function isPaidType(type: TicketType): boolean {
   return type.kind === "paid" || type.price_minor > 0;
@@ -22,22 +23,22 @@ export interface Availability {
 // sales are active, and it answers 409 paid_sales_inactive when they are not.
 export function ticketAvailability(type: TicketType, event: EventView, now: Date = new Date()): Availability {
   if (event.publication_state !== "published") {
-    return { purchasable: false, reason: "Registration opens when the event is published", maxQuantity: 0 };
+    return { purchasable: false, reason: t("checkout.registration_unpublished"), maxQuantity: 0 };
   }
   if (type.quantity_limit <= 0) {
-    return { purchasable: false, reason: "Not available", maxQuantity: 0 };
+    return { purchasable: false, reason: t("common.not_available"), maxQuantity: 0 };
   }
   const opens = new Date(type.sales_open_at).getTime();
   const closes = new Date(type.sales_close_at).getTime();
   if (now.getTime() < opens) {
-    return { purchasable: false, reason: `Sales open ${dateLabel(type.sales_open_at)}`, maxQuantity: 0 };
+    return { purchasable: false, reason: t("checkout.sales_open", { p0: dateLabel(type.sales_open_at) }), maxQuantity: 0 };
   }
   if (now.getTime() > closes) {
-    return { purchasable: false, reason: "Sales closed", maxQuantity: 0 };
+    return { purchasable: false, reason: t("checkout.sales_closed"), maxQuantity: 0 };
   }
   const maxQuantity = Math.max(1, Math.min(type.per_order_limit, type.quantity_limit));
   if (isPaidType(type)) {
-    return { purchasable: true, reason: PAID_NOTE, maxQuantity };
+    return { purchasable: true, reason: paidNote(), maxQuantity };
   }
   return { purchasable: true, reason: null, maxQuantity };
 }

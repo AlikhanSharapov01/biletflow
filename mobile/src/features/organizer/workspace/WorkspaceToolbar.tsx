@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Organization } from "@/api/types";
 import { PrimaryButton, SelectField } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 interface WorkspaceToolbarProps {
   organizations: Organization[];
@@ -14,11 +15,12 @@ interface WorkspaceToolbarProps {
 
 // Workspace switcher (or the single workspace's name) and "New event".
 export function WorkspaceToolbar({ organizations, organization, isOwner, onSelect, onNewEvent }: WorkspaceToolbarProps) {
+  useLocale();
   return (
     <View style={styles.toolbar}>
       {organizations.length > 1 ? (
         <SelectField
-          label="Workspace"
+          label={t("org.workspace")}
           value={organization.id}
           options={organizations.map((org) => ({ value: org.id, label: org.name }))}
           onChange={onSelect}
@@ -27,10 +29,10 @@ export function WorkspaceToolbar({ organizations, organization, isOwner, onSelec
       <View style={styles.heading}>
         {organizations.length > 1 ? null : <Text style={styles.name}>{organization.name}</Text>}
         <Text style={styles.meta}>
-          {organization.contact_email} · {isOwner ? "You own this workspace" : "You are a team member"}
+          {organization.contact_email} · {isOwner ? t("org.owner") : t("org.team_member")}
         </Text>
       </View>
-      <PrimaryButton label="New event" onPress={onNewEvent} />
+      <PrimaryButton label={t("mobile.org.new_event")} onPress={onNewEvent} />
     </View>
   );
 }

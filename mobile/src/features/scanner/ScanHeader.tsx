@@ -5,6 +5,8 @@ import { Eyebrow, SerifText, TextButton } from "@/components/ui";
 import { CountsBar } from "@/features/scanner/CountsBar";
 import { fonts } from "@/theme";
 import { formatEventWindow } from "@/utils/eventTime";
+import { useLocale } from "@/i18n";
+import { t } from "@/i18n";
 
 // Dark-green card like the web check-in desk (.checkin-card + .checkin-count).
 export function ScanHeader({
@@ -16,10 +18,11 @@ export function ScanHeader({
   counts: AdmissionCounts | null;
   onBack: () => void;
 }) {
+  useLocale();
   return (
     <View style={styles.header}>
-      <TextButton label="‹ Change event" onPress={onBack} style={styles.back} light />
-      <Eyebrow style={styles.eyebrow}>Your assigned event</Eyebrow>
+      <TextButton label={t("mobile.scan.change_event")} onPress={onBack} style={styles.back} light />
+      <Eyebrow style={styles.eyebrow}>{t("mobile.scan.your_event")}</Eyebrow>
       <SerifText style={styles.title} numberOfLines={1}>
         {event.title}
       </SerifText>

@@ -10,11 +10,12 @@ import { useRequest } from "@/hooks/useRequest";
 
 import { CaseFilters } from "./components/CaseFilters";
 import { CaseList } from "./components/CaseList";
+import { t, useLocale } from "@/i18n";
 
 const PAGE_SIZE = 20;
 const VIEWS = [
-  { id: "mine" as const, label: "My cases" },
-  { id: "queue" as const, label: "Queue" },
+  { id: "mine" as const, get label() { return t("support.my_cases"); } },
+  { id: "queue" as const, get label() { return t("support.queue"); } },
 ];
 
 // The queue is only for organizer support staff and platform admins; anyone
@@ -29,6 +30,7 @@ async function loadCases(view: SupportListView, status: SupportStatus | "", cate
 }
 
 export function SupportScreen() {
+  useLocale();
   const router = useRouter();
   const params = useLocalSearchParams<{ view?: string }>();
   const [view, setView] = useState<SupportListView>(params.view === "queue" ? "queue" : "mine");
@@ -40,10 +42,10 @@ export function SupportScreen() {
   return (
     <ScrollScreen onRefresh={cases.reload}>
       <PageHeading
-        eyebrow="Help when you need it"
-        title="Support."
-        subtitle="Questions about an event, a ticket or your account."
-        actions={<PrimaryButton label="New case" onPress={() => router.push("/support/new")} />}
+        eyebrow={t("support.eyebrow")}
+        title={t("support.title")}
+        subtitle={t("support.subtitle")}
+        actions={<PrimaryButton label={t("support.new_case")} onPress={() => router.push("/support/new")} />}
       />
       <SegmentedTabs
         items={VIEWS}
@@ -64,8 +66,8 @@ export function SupportScreen() {
             setOffset(0);
           }}
         />
-        {cases.loading ? <LoadingState message="Loading cases…" /> : null}
-        {cases.error ? <ErrorPanel title="We couldn’t load support cases." message={cases.error} onRetry={cases.reload} /> : null}
+        {cases.loading ? <LoadingState message={t("support.loading_cases")} /> : null}
+        {cases.error ? <ErrorPanel title={t("support.load_error")} message={cases.error} onRetry={cases.reload} /> : null}
         {!cases.loading && !cases.error && cases.data ? (
           <CaseList
             page={cases.data}

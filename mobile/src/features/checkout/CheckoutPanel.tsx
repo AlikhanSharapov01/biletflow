@@ -15,6 +15,7 @@ import { TicketSelector } from "./components/TicketSelector";
 import { useCheckoutFlow } from "./hooks/useCheckoutFlow";
 import { holdLines, holdSubtotal, type Quantities } from "./utils/checkout";
 import { initialPromo } from "./utils/promo";
+import { t, useLocale } from "@/i18n";
 
 interface CheckoutPanelProps {
   event: EventView;
@@ -27,6 +28,7 @@ interface CheckoutPanelProps {
 // place, then confirm (free) or pay through the simulator (paid). The app is
 // only reachable signed in, so there is no sign-in prompt here.
 export function CheckoutPanel({ event, tickets, promoFromRoute = null }: CheckoutPanelProps) {
+  useLocale();
   const { profile } = useAuth();
   const [quantities, setQuantities] = useState<Quantities>({});
   const [promoCode] = useState(() => initialPromo(event.id, promoFromRoute));
@@ -35,19 +37,19 @@ export function CheckoutPanel({ event, tickets, promoFromRoute = null }: Checkou
 
   if (!profile) return null;
   if (event.publication_state !== "published") {
-    return <EmptyState message="Registration opens when the event is published." />;
+    return <EmptyState message={t("checkout.registration_unpublished_sentence")} />;
   }
   if (event.time_status === "completed") {
-    return <EmptyState message="This event has ended." />;
+    return <EmptyState message={t("checkout.event_ended")} />;
   }
   if (!profile.email_verified_at) {
-    return <Text style={checkoutStyles.intro}>Verify your email address before reserving tickets. Check your inbox for the verification link.</Text>;
+    return <Text style={checkoutStyles.intro}>{t("checkout.verify_email_hint")}</Text>;
   }
   if (tickets.length === 0) {
-    return <EmptyState message="Ticket details are not available yet." />;
+    return <EmptyState message={t("checkout.details_unavailable")} />;
   }
 
-  const typeName = (typeId: string) => tickets.find((type) => type.id === typeId)?.name ?? "Ticket";
+  const typeName = (typeId: string) => tickets.find((type) => type.id === typeId)?.name ?? t("common.ticket");
 
   if (flow.completed) {
     return (

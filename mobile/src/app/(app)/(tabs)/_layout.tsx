@@ -3,11 +3,13 @@ import { StyleSheet } from "react-native";
 
 import { TabGlyph } from "@/components/layout";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Bottom navigation, matching the web's phone tab bar (lettered glyph buttons).
 // Orders, Support, Notifications and Admin are reached from Account, as the
 // web reaches Account from the avatar menu.
 export default function TabsLayout() {
+  useLocale();
   return (
     <Tabs
       screenOptions={{
@@ -23,35 +25,35 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Discover",
+          title: t("nav.discover"),
           tabBarIcon: ({ color }) => <TabGlyph letter="D" color={color} />,
         }}
       />
       <Tabs.Screen
         name="tickets"
         options={{
-          title: "Tickets",
+          title: t("common.tickets"),
           tabBarIcon: ({ color }) => <TabGlyph letter="T" color={color} />,
         }}
       />
       <Tabs.Screen
         name="organizer"
         options={{
-          title: "Organizer",
+          title: t("nav.organizer"),
           tabBarIcon: ({ color }) => <TabGlyph letter="O" color={color} />,
         }}
       />
       <Tabs.Screen
         name="check-in"
         options={{
-          title: "Check-in",
+          title: t("support.check_in"),
           tabBarIcon: ({ color }) => <TabGlyph letter="C" color={color} />,
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
-          title: "Account",
+          title: t("nav.account"),
           tabBarIcon: ({ color }) => <TabGlyph letter="A" color={color} />,
         }}
       />

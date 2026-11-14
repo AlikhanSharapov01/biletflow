@@ -3,6 +3,7 @@ import { useState } from "react";
 import { resendVerification } from "@/api/account";
 import { forgotPassword, register } from "@/api/auth";
 import { useAuth } from "@/features/auth/AuthContext";
+import { t } from "@/i18n";
 
 export type AuthMode = "login" | "register";
 
@@ -39,7 +40,7 @@ export function useAuthForm() {
       if (registering) {
         await register(email.trim(), password, name.trim());
         setMessage({
-          text: "Account request received. Check your email for the verification link, then sign in.",
+          text: t("auth.registration_received"),
           success: true,
         });
       } else {
@@ -50,7 +51,7 @@ export function useAuthForm() {
       }
     } catch (err) {
       setMessage({
-        text: err instanceof Error ? err.message : "Something went wrong.",
+        text: err instanceof Error ? err.message : t("mobile.api.went_wrong"),
         success: false,
       });
     }
@@ -59,18 +60,18 @@ export function useAuthForm() {
 
   async function handleForgot() {
     if (!email.trim()) {
-      setMessage({ text: "Enter your email address first.", success: false });
+      setMessage({ text: t("auth.email_first"), success: false });
       return;
     }
     try {
       await forgotPassword(email.trim());
       setMessage({
-        text: "If the account is eligible, a password reset link will arrive by email.",
+        text: t("auth.reset_sent"),
         success: true,
       });
     } catch (err) {
       setMessage({
-        text: err instanceof Error ? err.message : "Something went wrong.",
+        text: err instanceof Error ? err.message : t("mobile.api.went_wrong"),
         success: false,
       });
     }
@@ -78,15 +79,15 @@ export function useAuthForm() {
 
   async function handleResend() {
     if (!email.trim()) {
-      setMessage({ text: "Enter your email address first.", success: false });
+      setMessage({ text: t("auth.email_first"), success: false });
       return;
     }
     try {
       await resendVerification(email.trim());
-      setMessage({ text: "A new verification link is on its way. Check your inbox.", success: true });
+      setMessage({ text: t("auth.verification_sent"), success: true });
     } catch (err) {
       setMessage({
-        text: err instanceof Error ? err.message : "Something went wrong.",
+        text: err instanceof Error ? err.message : t("mobile.api.went_wrong"),
         success: false,
       });
     }

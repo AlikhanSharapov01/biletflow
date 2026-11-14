@@ -5,19 +5,21 @@ import { ErrorPanel, LoadingState, Panel, PanelHeading } from "@/components/ui";
 import { SettingRow } from "@/features/admin/components/SettingRow";
 import { SectionNote } from "@/features/admin/components/SectionNote";
 import { useRequest } from "@/hooks/useRequest";
+import { t, useLocale } from "@/i18n";
 
 // Platform settings. Changes are prospective and versioned; a stale edit is
 // refused with setting_version_conflict instead of overwriting someone else.
 export function AdminSettingsPage() {
+  useLocale();
   const settings = useRequest(() => listSettings(), []);
 
   return (
     <Panel>
-      <PanelHeading title="Platform settings" />
-      <SectionNote text="Existing orders, holds and activations keep the values they started with. New values may take effect now or at a scheduled time." />
-      {settings.loading && !settings.data ? <LoadingState message="Loading settings…" /> : null}
+      <PanelHeading title={t("admin.platform_settings")} />
+      <SectionNote text={t("admin.settings_hint")} />
+      {settings.loading && !settings.data ? <LoadingState message={t("admin.loading_settings")} /> : null}
       {settings.error ? (
-        <ErrorPanel title="We couldn’t load settings." message={settings.error} onRetry={settings.reload} />
+        <ErrorPanel title={t("admin.settings_error")} message={settings.error} onRetry={settings.reload} />
       ) : null}
       {settings.data ? (
         <View>

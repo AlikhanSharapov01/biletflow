@@ -4,16 +4,18 @@ import type { SeatStatus } from "@/api/types/seating";
 import { colors, fonts } from "@/theme";
 
 import { SEAT_COLORS } from "./seatColors";
+import { t, useLocale } from "@/i18n";
 
 export function SeatLegend({ counts }: { counts: Record<SeatStatus, number> }) {
+  useLocale();
   const items = [
-    { color: SEAT_COLORS.available, label: `${counts.available} available` },
-    { color: SEAT_COLORS.unavailable, label: `${counts.unavailable} not on sale` },
-    { color: SEAT_COLORS.blocked, label: `${counts.blocked} blocked` },
-    { color: SEAT_COLORS.sold, label: `${counts.sold + counts.held + counts.refund_pending} held or sold` },
+    { color: SEAT_COLORS.available, label: t("mobile.org.seat_available", { p0: counts.available }) },
+    { color: SEAT_COLORS.unavailable, label: t("mobile.org.seat_not_on_sale", { p0: counts.unavailable }) },
+    { color: SEAT_COLORS.blocked, label: t("mobile.org.seat_blocked", { p0: counts.blocked }) },
+    { color: SEAT_COLORS.sold, label: t("mobile.org.seat_held_sold", { p0: counts.sold + counts.held + counts.refund_pending }) },
   ];
   return (
-    <View style={styles.legend} accessibilityLabel="Seat counts">
+    <View style={styles.legend} accessibilityLabel={t("org.seat_counts")}>
       {items.map((item) => (
         <View key={item.label} style={styles.item}>
           <View style={[styles.dot, { backgroundColor: item.color }]} />

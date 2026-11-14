@@ -37,7 +37,7 @@ is complete, it is merged, each client is integrated, and the journey is accepta
 | Backend (`backend/`) | API for every SRS area except GA4 | Accounts, events and images, seating, free and simulated paid checkout, promo campaigns and Campaign QR, full-order refunds and cancellations, QR tickets and PDFs, online and offline admission, support, notifications (kk/ru/en), calendar, analytics, simulated finance and payouts, and platform administration. Open gaps and defects are tracked in #85. |
 | Database (`backend/migrations/`) | Current | 17 migrations, 66 tables (through `0017_ticket_pdf_cleanup`). |
 | Web (`web/`) | Mostly integrated | Campaigns, promo checkout and refunds use the final contracts; Kazakh/Russian/English interface. Analytics, finance and image upload still call their planned contracts and need checking against the merged API (#45). |
-| Mobile app (`mobile/`) | Full app + scanner, integration behind | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning. Promo, campaigns, refunds, analytics, finance and images use the final contracts, not yet checked on a device (#51); no Kazakh/Russian yet (#52). |
+| Mobile app (`mobile/`) | Full app + scanner, integration behind | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning. Promo, campaigns, refunds, analytics, finance and images use the final contracts, not yet checked on a device (#51); Kazakh, Russian and English (#52). |
 | Environment | Local demo works | Docker Compose with health checks and restart policies, demo data with a guarded reset, and [backup and restore](docs/operations/backup.md) that briefly stops the API and worker so the database and files match. No TLS yet (#49). Files are on a local volume; the required S3-compatible storage is not provided yet (#77). |
 | Tests and CI | Backend strong, no browser/device end-to-end | Backend PostgreSQL suite (see [`backend/VALIDATION.md`](backend/VALIDATION.md)); web and mobile unit tests; CI runs backend, web, mobile, API smoke flows and a backup/restore drill with file checks. Opt-in process-kill recovery and load harnesses run locally. No browser or real-device end-to-end tests. |
 
@@ -227,7 +227,7 @@ PDF text (#82).
 2. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
    moderation notices (#74), S3-compatible storage (#77), correlation IDs and metrics (#78).
 3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
-   integration (#51), translations (#52) and payment-panel clean-up (#55); HTTPS for the shared
+   integration (#51) and payment-panel clean-up (#55); HTTPS for the shared
    demo (#49).
 4. **Acceptance:** real devices (#53) and builds (#54); rerun the load and crash harnesses and the
    restore drill once steps 1–2 change the code, then record the results in the integration

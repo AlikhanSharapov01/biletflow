@@ -15,10 +15,12 @@ import { useAppActive } from "@/hooks/useAppActive";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { POLL_INTERVAL_MS, POLL_LIMIT, paymentLabel, paymentStage, paymentTone } from "../utils/payment";
 import { PriceSummary } from "./PriceSummary";
+import { t, useLocale } from "@/i18n";
 
 // Simulated payment for a pending paid order (web PaymentStep): the buyer plays
 // the payment provider, then the order is reloaded until it settles.
 export function OrderPayment({ order: initial, onSettled }: { order: Order; onSettled: () => void }) {
+  useLocale();
   const [order, setOrder] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -70,49 +72,49 @@ export function OrderPayment({ order: initial, onSettled }: { order: Order; onSe
 
   return (
     <Panel style={styles.panel}>
-      <PanelHeading title="Payment" trailing={<StatusPill tone={paymentTone(order)} label={paymentLabel(order)} />} />
+      <PanelHeading title={t("checkout.payment")} trailing={<StatusPill tone={paymentTone(order)} label={paymentLabel(order)} />} />
       <View style={styles.banner} accessibilityRole="summary">
-        <Text style={styles.bannerTitle}>Demonstration payment — no real money moves.</Text>
-        <Text style={styles.bannerCopy}>BiletFlow is an academic project. Choose the result the payment provider would report.</Text>
+        <Text style={styles.bannerTitle}>{t("checkout.demo_payment")}</Text>
+        <Text style={styles.bannerCopy}>{t("checkout.demo_provider")}</Text>
       </View>
       <PriceSummary order={order} />
       {stage === "awaiting" && order.quote_expires_at ? (
         <Text style={styles.copy} accessibilityRole="timer">
-          Price held for {formatCountdown(quoteSeconds)}
+          {t("checkout.price_held_for")} {formatCountdown(quoteSeconds)}
         </Text>
       ) : null}
       {stage === "processing" ? (
         polls < POLL_LIMIT ? (
-          <LoadingState message="Confirming your payment…" />
+          <LoadingState message={t("checkout.confirming_payment")} />
         ) : (
-          <Text style={styles.copy}>Still waiting for the payment result. Check again in a moment.</Text>
+          <Text style={styles.copy}>{t("checkout.payment_waiting_hint")}</Text>
         )
       ) : null}
       {stage === "failed" ? (
-        <Text style={styles.failed}>The demonstration payment failed. You can try again while the price is held.</Text>
+        <Text style={styles.failed}>{t("checkout.payment_failed_hint")}</Text>
       ) : null}
       {stage === "closed" ? (
-        <Text style={styles.failed}>This order is {order.status}. Choose your tickets again to get a new price.</Text>
+        <Text style={styles.failed}>{t("orders.this_order_is")} {order.status}{t("checkout.requote_hint")}</Text>
       ) : null}
       <FormMessage message={message} />
       {stage === "awaiting" ? (
         <>
           <PrimaryButton
-            label={busy ? "Sending…" : "Simulate successful payment"}
+            label={busy ? t("common.sending") : t("checkout.simulate_success")}
             disabled={busy}
             onPress={() => void simulate("succeeded")}
           />
-          <SubtleButton label="Simulate failed payment" disabled={busy} onPress={() => void simulate("failed")} />
+          <SubtleButton label={t("checkout.simulate_failure")} disabled={busy} onPress={() => void simulate("failed")} />
         </>
       ) : null}
       {stage === "failed" ? (
         <PrimaryButton
-          label={busy ? "Starting…" : "Try payment again"}
+          label={busy ? t("checkout.starting") : t("checkout.retry_payment")}
           disabled={busy}
           onPress={() => void run(() => retryPayment(order.id))}
         />
       ) : null}
-      {stage === "processing" && polls >= POLL_LIMIT ? <SubtleButton label="Check again" onPress={() => setPolls(0)} /> : null}
+      {stage === "processing" && polls >= POLL_LIMIT ? <SubtleButton label={t("checkout.check_again")} onPress={() => setPolls(0)} /> : null}
     </Panel>
   );
 }

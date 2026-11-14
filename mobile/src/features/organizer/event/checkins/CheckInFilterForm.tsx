@@ -9,6 +9,7 @@ import { DateTimeField } from "../../components/DateTimeField";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "../../components/formStyles";
 import { readLocalInput } from "../../utils/dateInput";
+import { t, useLocale } from "@/i18n";
 
 interface CheckInFilterFormProps {
   types: TicketType[];
@@ -16,19 +17,20 @@ interface CheckInFilterFormProps {
 }
 
 const SOURCES = [
-  { value: "", label: "Any source" },
-  { value: "online", label: "Online scan" },
-  { value: "offline_sync", label: "Offline sync" },
+  { value: "", get label() { return t("org.any_source"); } },
+  { value: "online", get label() { return t("org.online_scan"); } },
+  { value: "offline_sync", get label() { return t("org.offline_sync"); } },
 ];
 const STATES = [
-  { value: "", label: "Any state" },
-  { value: "current", label: "Admitted" },
-  { value: "reversed", label: "Reversed" },
+  { value: "", get label() { return t("org.any_state"); } },
+  { value: "current", get label() { return t("org.admitted"); } },
+  { value: "reversed", get label() { return t("tickets.reversed"); } },
 ];
 
 // Draft filters are applied together, so the log reloads once per change.
 // Typed dates are sent as ISO times.
 export function CheckInFilterForm({ types, onApply }: CheckInFilterFormProps) {
+  useLocale();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<CheckInFilters>({});
   const [message, setMessage] = useState("");
@@ -37,17 +39,17 @@ export function CheckInFilterForm({ types, onApply }: CheckInFilterFormProps) {
   const submit = () => {
     const q = draft.q?.trim() ?? "";
     if (q.length === 1) {
-      setMessage("Type at least two letters of the attendee’s name.");
+      setMessage(t("org.name_search_hint"));
       return;
     }
     const from = draft.from ? readLocalInput(draft.from) : null;
     const to = draft.to ? readLocalInput(draft.to) : null;
     if ((draft.from && !from) || (draft.to && !to)) {
-      setMessage("Write dates as YYYY-MM-DD HH:mm.");
+      setMessage(t("mobile.ui.write_dates"));
       return;
     }
     if (from && to && to < from) {
-      setMessage("“To” must be after “From”.");
+      setMessage(t("org.invalid_range"));
       return;
     }
     setMessage("");
@@ -60,26 +62,26 @@ export function CheckInFilterForm({ types, onApply }: CheckInFilterFormProps) {
     onApply({});
   };
 
-  if (!open) return <TextButton label="▸ Filters" onPress={() => setOpen(true)} style={{ marginBottom: 8 }} />;
+  if (!open) return <TextButton label={t("mobile.org.filters_closed")} onPress={() => setOpen(true)} style={{ marginBottom: 8 }} />;
 
   return (
-    <View style={[formStyles.inline, { marginBottom: 12 }]} accessibilityLabel="Check-in filters">
-      <TextButton label="▾ Filters" onPress={() => setOpen(false)} />
-      <TextField label="Attendee" hint="Name, 2+ letters" value={draft.q ?? ""} onChangeText={(text) => set("q", text)} maxLength={100} />
-      <DateTimeField label="From" value={draft.from ?? ""} onChange={(value) => set("from", value)} />
-      <DateTimeField label="To" value={draft.to ?? ""} onChange={(value) => set("to", value)} />
-      <SelectField label="Source" value={draft.source ?? ""} options={SOURCES} onChange={(value) => set("source", value as CheckInFilters["source"])} />
-      <SelectField label="State" value={draft.state ?? ""} options={STATES} onChange={(value) => set("state", value as CheckInFilters["state"])} />
+    <View style={[formStyles.inline, { marginBottom: 12 }]} accessibilityLabel={t("org.checkin_filters")}>
+      <TextButton label={t("mobile.org.filters_open")} onPress={() => setOpen(false)} />
+      <TextField label={t("tickets.attendee")} hint={t("org.name_minimum")} value={draft.q ?? ""} onChangeText={(text) => set("q", text)} maxLength={100} />
+      <DateTimeField label={t("org.from")} value={draft.from ?? ""} onChange={(value) => set("from", value)} />
+      <DateTimeField label={t("org.to")} value={draft.to ?? ""} onChange={(value) => set("to", value)} />
+      <SelectField label={t("org.source")} value={draft.source ?? ""} options={SOURCES} onChange={(value) => set("source", value as CheckInFilters["source"])} />
+      <SelectField label={t("org.state")} value={draft.state ?? ""} options={STATES} onChange={(value) => set("state", value as CheckInFilters["state"])} />
       <SelectField
-        label="Ticket type"
+        label={t("org.ticket_type")}
         value={draft.ticket_type_id ?? ""}
-        options={[{ value: "", label: "All ticket types" }, ...types.map((type) => ({ value: type.id, label: type.name }))]}
+        options={[{ value: "", label: t("organizer.all_types") }, ...types.map((type) => ({ value: type.id, label: type.name }))]}
         onChange={(value) => set("ticket_type_id", value)}
       />
       <FormMessage message={message} />
       <View style={formStyles.actions}>
-        <PrimaryButton label="Apply" onPress={submit} />
-        <SubtleButton label="Reset" onPress={reset} />
+        <PrimaryButton label={t("common.apply")} onPress={submit} />
+        <SubtleButton label={t("common.reset")} onPress={reset} />
       </View>
     </View>
   );

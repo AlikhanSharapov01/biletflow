@@ -13,10 +13,12 @@ import { useRequest } from "@/hooks/useRequest";
 import { EventForm } from "../components/EventForm";
 import { SectionHeading } from "../components/SectionHeading";
 import { IDLE, type FormState } from "../utils/formState";
+import { t, useLocale } from "@/i18n";
 
 // Create an event draft in a workspace (web CreateEventPanel). A free RSVP
 // ticket type is added right after, as on the web.
 export function NewEventScreen() {
+  useLocale();
   const { organizationId } = useLocalSearchParams<{ organizationId?: string }>();
   const router = useRouter();
   const { notify } = useToast();
@@ -33,7 +35,7 @@ export function NewEventScreen() {
       const created = await createEvent(organizationId, input);
       try {
         await createTicketType(created.id, {
-          name: "General admission",
+          name: t("checkout.general_admission"),
           description: "",
           kind: "free",
           price_minor: 0,
@@ -43,9 +45,9 @@ export function NewEventScreen() {
           sales_close_at: input.registration_closes_at,
           is_hidden: false,
         });
-        notify("Event draft created with a free RSVP ticket.");
+        notify(t("org.draft_created"));
       } catch (failure) {
-        notify(`The event draft was saved, but its RSVP ticket could not be created: ${describeError(failure)}`);
+        notify(t("org.draft_ticket_error", { p0: describeError(failure) }));
       }
       setState(IDLE);
       router.replace({ pathname: "/organizer/events/[eventId]", params: { eventId: created.id } });
@@ -55,21 +57,21 @@ export function NewEventScreen() {
   };
 
   return (
-    <ScrollScreen backLabel="Organizer workspace">
-      <PageHeading eyebrow="Organizer workspace" title="New event" subtitle="Prepare a draft, then publish it from the event page." />
-      {!organizationId ? <EmptyState message="Open this screen from your organizer workspace." /> : null}
-      {organizationId && lists.loading ? <LoadingState message="Loading categories and venues…" /> : null}
-      {organizationId && lists.error ? <ErrorPanel title="We couldn’t load categories and venues." message={lists.error} onRetry={lists.reload} /> : null}
+    <ScrollScreen backLabel={t("nav.workspace")}>
+      <PageHeading eyebrow={t("nav.workspace")} title={t("mobile.org.new_event")} subtitle={t("mobile.org.new_event_intro")} />
+      {!organizationId ? <EmptyState message={t("mobile.org.open_from_workspace")} /> : null}
+      {organizationId && lists.loading ? <LoadingState message={t("mobile.org.loading_form")} /> : null}
+      {organizationId && lists.error ? <ErrorPanel title={t("mobile.org.form_error")} message={lists.error} onRetry={lists.reload} /> : null}
       {organizationId && lists.data ? (
         <Panel>
           <SectionHeading
-            title="Create an event draft"
-            subtitle="A free RSVP ticket is added automatically so a valid event can be published. You can add more ticket types on the event page."
+            title={t("org.create_event_heading")}
+            subtitle={t("org.free_rsvp_hint")}
           />
           <EventForm
             categories={lists.data.categories}
             venues={lists.data.venues}
-            submitLabel="Create event draft"
+            submitLabel={t("org.create_event")}
             busy={state.busy}
             message={state.message}
             onSubmit={submit}

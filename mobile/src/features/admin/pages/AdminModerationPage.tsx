@@ -7,25 +7,27 @@ import { SectionNote } from "@/features/admin/components/SectionNote";
 import { useRequest } from "@/hooks/useRequest";
 import { colors, fonts } from "@/theme";
 import { dateLabel, statusLabel } from "@/utils/format";
+import { t, useLocale } from "@/i18n";
 
 const LIMIT = 50;
 
 // Append-only record of every suspend / reinstate decision, newest first.
 export function AdminModerationPage() {
+  useLocale();
   const [offset, setOffset] = useState(0);
   const log = useRequest(() => listModerationActions(LIMIT, offset), [offset]);
 
   return (
     <Panel>
-      <PanelHeading title="Moderation log" />
-      <SectionNote text="Every suspension and reinstatement with its actor and reason. Entries cannot be edited." />
-      {log.loading ? <LoadingState message="Loading moderation log…" /> : null}
+      <PanelHeading title={t("admin.moderation_log")} />
+      <SectionNote text={t("admin.moderation_hint")} />
+      {log.loading ? <LoadingState message={t("admin.loading_moderation")} /> : null}
       {log.error ? (
-        <ErrorPanel title="We couldn’t load the moderation log." message={log.error} onRetry={log.reload} />
+        <ErrorPanel title={t("admin.moderation_error")} message={log.error} onRetry={log.reload} />
       ) : null}
       {log.data && !log.loading ? (
         log.data.length === 0 ? (
-          <EmptyState message="No moderation decisions yet." />
+          <EmptyState message={t("admin.no_moderation")} />
         ) : (
           <View>
             {log.data.map((entry) => (
@@ -34,7 +36,7 @@ export function AdminModerationPage() {
                 <Text style={styles.action}>{statusLabel(entry.action)}</Text>
                 <Text style={styles.reason}>{entry.reason}</Text>
                 <Text style={styles.small}>
-                  {entry.target_user_id ? `User ${entry.target_user_id}` : `Event ${entry.target_event_id ?? "unknown"}`} · by admin{" "}
+                  {entry.target_user_id ? t("admin.user_id", { p0: entry.target_user_id }) : t("admin.event_id", { p0: entry.target_event_id ?? "unknown" })} {t("admin.by_admin_suffix")}{" "}
                   {entry.actor_user_id.slice(0, 8)}
                 </Text>
               </View>
@@ -43,8 +45,8 @@ export function AdminModerationPage() {
         )
       ) : null}
       <View style={styles.pager}>
-        <SubtleButton label="Newer" disabled={offset === 0} onPress={() => setOffset(Math.max(0, offset - LIMIT))} style={styles.page} />
-        <SubtleButton label="Older" disabled={(log.data?.length ?? 0) < LIMIT} onPress={() => setOffset(offset + LIMIT)} style={styles.page} />
+        <SubtleButton label={t("support.newer")} disabled={offset === 0} onPress={() => setOffset(Math.max(0, offset - LIMIT))} style={styles.page} />
+        <SubtleButton label={t("support.older")} disabled={(log.data?.length ?? 0) < LIMIT} onPress={() => setOffset(offset + LIMIT)} style={styles.page} />
       </View>
     </Panel>
   );

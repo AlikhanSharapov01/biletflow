@@ -4,20 +4,22 @@ import { PrimaryButton, TextButton, TextField } from "@/components/ui";
 import { PasswordField } from "@/features/auth/PasswordField";
 import type { AuthFormState } from "@/features/auth/useAuthForm";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // One form for both modes: register adds the name field and the password
 // note; sign-in offers "Forgot password?" (which reuses the email field).
 // Kept as a single tree so the email/password inputs stay mounted — and
 // keep focus — when the user switches tabs.
 export function AuthForm({ form }: { form: AuthFormState }) {
+  useLocale();
   const { registering, submitting, message } = form;
 
   return (
     <View style={styles.form}>
       {registering ? (
         <TextField
-          label="Your name"
-          placeholder="e.g. Aida Sarsen"
+          label={t("auth.your_name")}
+          placeholder={t("auth.name_example")}
           autoComplete="name"
           textContentType="name"
           maxLength={100}
@@ -27,7 +29,7 @@ export function AuthForm({ form }: { form: AuthFormState }) {
         />
       ) : null}
       <TextField
-        label="Email address"
+        label={t("auth.email_address")}
         placeholder="you@example.com"
         autoCapitalize="none"
         autoCorrect={false}
@@ -48,14 +50,14 @@ export function AuthForm({ form }: { form: AuthFormState }) {
       />
       {registering ? (
         <Text style={styles.note}>
-          Use at least 12 characters. We’ll email you a verification link.
+          {t("auth.password_hint")}
         </Text>
       ) : (
-        <TextButton label="Forgot password?" onPress={form.handleForgot} style={styles.forgot} />
+        <TextButton label={t("auth.forgot_password")} onPress={form.handleForgot} style={styles.forgot} />
       )}
 
       <PrimaryButton
-        label={registering ? "Create account →" : "Sign in →"}
+        label={registering ? t("mobile.auth.create_account_arrow") : t("mobile.auth.sign_in_arrow")}
         onPress={form.handleSubmit}
         disabled={!form.canSubmit}
         loading={submitting}

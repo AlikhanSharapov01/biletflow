@@ -4,10 +4,12 @@ import { AppState, Linking, Platform, StyleSheet, Text, View } from "react-nativ
 
 import { LoadingState, PrimaryButton, SerifText } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Renders children only once camera access is granted; otherwise walks the
 // user through granting it.
 export function CameraPermissionGate({ children }: { children: ReactNode }) {
+  useLocale();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
 
   // Granting access in system Settings happens outside the app; re-read the
@@ -25,7 +27,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   if (!permission) {
     return (
       <View style={styles.container}>
-        <LoadingState message="Checking camera access…" />
+        <LoadingState message={t("mobile.scan.checking_camera")} />
       </View>
     );
   }
@@ -44,12 +46,11 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   if (!blocked) {
     return (
       <View style={styles.container}>
-        <SerifText style={styles.heading}>Camera access needed</SerifText>
+        <SerifText style={styles.heading}>{t("mobile.scan.camera_needed")}</SerifText>
         <Text style={styles.body}>
-          BiletFlow uses the camera to scan ticket QR codes at the entrance. Nothing is
-          recorded or stored.
+          {t("mobile.scan.camera_why")}
         </Text>
-        <PrimaryButton label="Allow camera" onPress={requestPermission} />
+        <PrimaryButton label={t("mobile.scan.allow_camera")} onPress={requestPermission} />
       </View>
     );
   }
@@ -58,18 +59,17 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   // only way forward is the system settings.
   return (
     <View style={styles.container}>
-      <SerifText style={styles.heading}>Camera access is turned off</SerifText>
+      <SerifText style={styles.heading}>{t("mobile.scan.camera_off")}</SerifText>
       {Platform.OS === "web" ? (
         <Text style={styles.body}>
-          Allow camera access for this site in your browser&apos;s settings, then reload the
-          page.
+          {t("mobile.scan.camera_off_web")}
         </Text>
       ) : (
         <>
           <Text style={styles.body}>
-            Turn on camera access for this app in Settings to scan tickets.
+            {t("mobile.scan.camera_off_app")}
           </Text>
-          <PrimaryButton label="Open Settings" onPress={() => Linking.openSettings()} />
+          <PrimaryButton label={t("mobile.scan.open_settings")} onPress={() => Linking.openSettings()} />
         </>
       )}
     </View>

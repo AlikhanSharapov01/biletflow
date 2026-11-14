@@ -16,8 +16,10 @@ import { OrderPayment } from "./components/OrderPayment";
 import { PriceSummary } from "./components/PriceSummary";
 import { RefundList } from "./components/RefundList";
 import { orderStart, orderStatusTone, orderTitle, paymentLabel, paymentTone } from "./utils/payment";
+import { t, useLocale } from "@/i18n";
 
 export function OrderScreen() {
+  useLocale();
   const { orderId = "" } = useLocalSearchParams<{ orderId: string }>();
   const router = useRouter();
   const { profile } = useAuth();
@@ -26,9 +28,9 @@ export function OrderScreen() {
 
   if (!data) {
     return (
-      <ScrollScreen backLabel="Orders">
-        {order.loading ? <LoadingState message="Loading order…" /> : null}
-        {order.error ? <ErrorPanel title="We couldn’t load this order." message={order.error} onRetry={order.reload} /> : null}
+      <ScrollScreen backLabel={t("common.orders")}>
+        {order.loading ? <LoadingState message={t("orders.loading_one")} /> : null}
+        {order.error ? <ErrorPanel title={t("orders.load_one_error")} message={order.error} onRetry={order.reload} /> : null}
       </ScrollScreen>
     );
   }
@@ -39,46 +41,46 @@ export function OrderScreen() {
   const awaitingPayment = data.status === "pending" && Boolean(data.payment);
 
   return (
-    <ScrollScreen backLabel="Orders" onRefresh={order.reload} refreshing={order.loading}>
+    <ScrollScreen backLabel={t("common.orders")} onRefresh={order.reload} refreshing={order.loading}>
       <PageHeading
-        eyebrow={`Order · ${dateLabel(data.created_at)}`}
+        eyebrow={t("orders.order_date", { p0: dateLabel(data.created_at) })}
         title={orderTitle(data)}
         subtitle={`${start ? dateLabel(start) : ""}${venueName ? ` · ${venueName}` : ""}`}
         actions={
           <>
             <StatusPill tone={orderStatusTone(data.status)} label={statusLabel(data.status)} />
             <SubtleButton
-              label="Event page"
+              label={t("orders.event_page")}
               onPress={() => router.push({ pathname: "/events/[eventId]", params: { eventId: data.event_id } })}
             />
           </>
         }
       />
-      {order.error ? <ErrorPanel title="We couldn’t refresh this order." message={order.error} onRetry={order.reload} /> : null}
+      {order.error ? <ErrorPanel title={t("mobile.orders.refresh_error")} message={order.error} onRetry={order.reload} /> : null}
       <Panel>
-        <PanelHeading title="Summary" trailing={<StatusPill tone={paymentTone(data)} label={paymentLabel(data)} />} />
+        <PanelHeading title={t("orders.summary")} trailing={<StatusPill tone={paymentTone(data)} label={paymentLabel(data)} />} />
         <PriceSummary order={data} />
         <FactList
           items={[
-            { label: "Confirmed", value: dateLabel(data.confirmed_at) },
-            { label: "Tickets", value: data.items.length },
-            ...(data.promo ? [{ label: "Promo code", value: data.promo.code }] : []),
+            { label: t("common.confirmed"), value: dateLabel(data.confirmed_at) },
+            { label: t("common.tickets"), value: data.items.length },
+            ...(data.promo ? [{ label: t("checkout.promo_code"), value: data.promo.code }] : []),
           ]}
         />
-        <Text style={styles.copy}>Demonstration order. Payments on BiletFlow’s academic MVP are simulated; no real money moves.</Text>
+        <Text style={styles.copy}>{t("orders.demo_notice")}</Text>
         <OrderActions order={data} onChanged={order.reload} />
       </Panel>
       {awaitingPayment ? <OrderPayment order={data} onSettled={order.reload} /> : null}
       {refunds.length > 0 ? (
         <Panel>
-          <PanelHeading title="Refunds" />
+          <PanelHeading title={t("event.refunds")} />
           <RefundList refunds={refunds} />
         </Panel>
       ) : null}
       <Panel>
-        <PanelHeading title="Tickets in this order" />
+        <PanelHeading title={t("orders.tickets_in_order")} />
         {data.items.length === 0 || data.status !== "confirmed" ? (
-          <Text style={styles.copy}>Tickets are issued once the order is confirmed.</Text>
+          <Text style={styles.copy}>{t("orders.issued_after_confirmation")}</Text>
         ) : null}
         {data.items.map((item) => (
           <OrderItemRow

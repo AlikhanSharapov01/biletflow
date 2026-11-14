@@ -9,11 +9,13 @@ import { AuthStory } from "@/features/auth/AuthStory";
 import { EmailLinkOptions } from "@/features/auth/components/EmailLinkOptions";
 import { useAuthForm } from "@/features/auth/useAuthForm";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Mirrors the web sign-in page in its phone layout (web/src/main.js
 // authMarkup): a dark-green story header above the sign-in / create-account
 // panel. Copy is the web's.
 export function LoginScreen() {
+  useLocale();
   const insets = useSafeAreaInsets();
   const form = useAuthForm();
   const { registering } = form;
@@ -28,12 +30,12 @@ export function LoginScreen() {
         <AuthStory topInset={insets.top} />
 
         <View style={[styles.panel, { paddingBottom: insets.bottom + 40 }]}>
-          <Eyebrow>Welcome to BiletFlow</Eyebrow>
-          <Text style={styles.title}>{registering ? "Create your account" : "Good to see you"}</Text>
+          <Eyebrow>{t("auth.welcome")}</Eyebrow>
+          <Text style={styles.title}>{registering ? t("auth.create_your_account") : t("auth.good_to_see_you")}</Text>
           <Text style={styles.subtitle}>
             {registering
-              ? "Start discovering events and bringing people together."
-              : "Sign in to pick up right where your plans left off."}
+              ? t("auth.registration_intro")
+              : t("auth.login_intro")}
           </Text>
 
           <AuthModeTabs mode={form.mode} onChange={form.switchMode} />
@@ -43,7 +45,7 @@ export function LoginScreen() {
           {registering ? null : <EmailLinkOptions onResend={form.handleResend} />}
 
           <Text style={styles.legal}>
-            By continuing, you agree to our Terms of Service and Privacy Policy.
+            {t("auth.legal")}
           </Text>
         </View>
       </ScrollView>

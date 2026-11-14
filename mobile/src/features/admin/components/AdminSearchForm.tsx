@@ -3,12 +3,13 @@ import { StyleSheet, View } from "react-native";
 
 import { PrimaryButton, SelectField, TextField } from "@/components/ui";
 import type { SearchQuery } from "@/features/admin/hooks/useAdminSearch";
+import { t, useLocale } from "@/i18n";
 
 // Search text is matched literally by the server (% and _ are not wildcards).
 export function AdminSearchForm({
   placeholder,
   statuses,
-  statusLabel = "Status",
+  statusLabel = t("common.status"),
   onApply,
 }: {
   placeholder: string;
@@ -16,6 +17,7 @@ export function AdminSearchForm({
   statusLabel?: string;
   onApply: (query: SearchQuery) => void;
 }) {
+  useLocale();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const submit = () => onApply({ q: q.trim(), status });
@@ -23,7 +25,7 @@ export function AdminSearchForm({
   return (
     <View style={styles.form} accessibilityRole="search">
       <TextField
-        label="Search"
+        label={t("common.search")}
         value={q}
         onChangeText={setQ}
         maxLength={100}
@@ -36,10 +38,10 @@ export function AdminSearchForm({
       <SelectField
         label={statusLabel}
         value={status}
-        options={[{ value: "", label: "Any" }, ...statuses]}
+        options={[{ value: "", label: t("admin.any") }, ...statuses]}
         onChange={setStatus}
       />
-      <PrimaryButton label="Search" onPress={submit} />
+      <PrimaryButton label={t("common.search")} onPress={submit} />
     </View>
   );
 }

@@ -13,10 +13,12 @@ import { SeatEditor } from "./seating/SeatEditor";
 import { SeatGrid } from "./seating/SeatGrid";
 import { SeatLegend } from "./seating/SeatLegend";
 import { SeatMappingForm } from "./seating/SeatMappingForm";
+import { t, useLocale } from "@/i18n";
 
 // Assigned seating: map the predefined layout's price categories to ticket
 // types once, then block, unblock or retarget individual seats.
 export function SeatingTab({ event }: { event: EventView }) {
+  useLocale();
   const [selectedId, setSelectedId] = useState("");
   const assigned = event.seating_mode === "assigned" && Boolean(event.venue_layout_id);
 
@@ -33,16 +35,15 @@ export function SeatingTab({ event }: { event: EventView }) {
   if (!assigned) {
     return (
       <Panel>
-        <SectionHeading title="Seating" trailing={<StatusPill tone="neutral" label="General admission" />} />
+        <SectionHeading title={t("organizer.seating")} trailing={<StatusPill tone="neutral" label={t("checkout.general_admission")} />} />
         <Intro>
-          This event uses general admission. To sell assigned seats, open the Details tab, set Seating to “Assigned seats” and choose one of the venue’s
-          predefined layouts. Layouts cannot change once tickets have been reserved.
+          {t("org.seating_general_hint")}
         </Intro>
       </Panel>
     );
   }
-  if (page.loading && !page.data) return <LoadingState message="Loading seat map…" />;
-  if (page.error || !page.data) return <ErrorPanel title="We couldn’t load the seat map." message={page.error ?? ""} onRetry={page.reload} />;
+  if (page.loading && !page.data) return <LoadingState message={t("org.seating_loading")} />;
+  if (page.error || !page.data) return <ErrorPanel title={t("checkout.seat_map_error")} message={page.error ?? ""} onRetry={page.reload} />;
 
   const { layout, seats, types } = page.data;
   const selected = seats.find((seat) => seat.id === selectedId) ?? null;
@@ -55,9 +56,9 @@ export function SeatingTab({ event }: { event: EventView }) {
     <>
       <Panel>
         <SectionHeading
-          title={`${layout.name} · version ${layout.version}`}
-          subtitle="Select a seat to block it or move it to another ticket type. Sold and held seats cannot change."
-          trailing={<StatusPill tone="neutral" label={`${seats.length} seats`} />}
+          title={t("org.layout_version", { p0: layout.name, p1: layout.version })}
+          subtitle={t("org.seating_edit_hint")}
+          trailing={<StatusPill tone="neutral" label={t("count.seat.few", { count: seats.length })} />}
         />
         <SeatLegend counts={countByStatus(seats)} />
         <SeatGrid layout={layout} seats={seats} types={types} selectedId={selectedId} onSelect={setSelectedId} />

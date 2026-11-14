@@ -17,10 +17,12 @@ import { useOfflineScanning } from "@/features/scanner/useOfflineScanning";
 import { useScannerEvent } from "@/features/scanner/useScannerEvent";
 import { useScanSession } from "@/features/scanner/useScanSession";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Door scanner for one assigned event: camera, outcome panel, entry
 // confirmation, manual guest search and undo.
 export function ScanScreen() {
+  useLocale();
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const router = useRouter();
   const { event: liveEvent, loadError: liveError, counts, refreshCounts } = useScannerEvent(eventId);
@@ -43,8 +45,8 @@ export function ScanScreen() {
   if (loadError || event === null) {
     return (
       <Screen style={styles.centered} edges={["top", "bottom"]}>
-        <Text style={styles.message}>{loadError ?? "This event isn't available to you."}</Text>
-        <PrimaryButton label="Back to events" onPress={goBack} />
+        <Text style={styles.message}>{loadError ?? t("mobile.scan.event_unavailable")}</Text>
+        <PrimaryButton label={t("event.back")} onPress={goBack} />
       </Screen>
     );
   }
@@ -52,7 +54,7 @@ export function ScanScreen() {
   if (event === undefined) {
     return (
       <Screen style={styles.centered}>
-        <LoadingState message="Loading event…" />
+        <LoadingState message={t("org.loading_event")} />
       </Screen>
     );
   }

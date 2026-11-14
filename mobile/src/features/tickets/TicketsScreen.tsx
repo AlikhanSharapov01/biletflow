@@ -7,9 +7,11 @@ import { EmptyState, ErrorPanel, LoadingState, PageHeading, Panel, SubtleButton,
 import { useRequest } from "@/hooks/useRequest";
 
 import { TicketRow } from "./components/TicketRow";
+import { t, useLocale } from "@/i18n";
 
 // The Tickets tab: every ticket issued to this account.
 export function TicketsScreen() {
+  useLocale();
   const router = useRouter();
   // Claiming first links tickets that someone else bought for this email.
   const tickets = useRequest(async () => {
@@ -20,26 +22,26 @@ export function TicketsScreen() {
   return (
     <ScrollScreen header="top" onRefresh={tickets.reload} refreshing={tickets.loading && tickets.data !== null}>
       <PageHeading
-        eyebrow="Ready for the door"
-        title="My tickets."
-        subtitle="Tickets issued to this account. Open one to show its QR code at check-in."
+        eyebrow={t("tickets.ready_for_door")}
+        title={t("tickets.title")}
+        subtitle={t("tickets.subtitle")}
         actions={
           <>
-            <SubtleButton label="Orders" onPress={() => router.push("/orders")} />
-            <SubtleButton label="Support" onPress={() => router.push("/support")} />
+            <SubtleButton label={t("common.orders")} onPress={() => router.push("/orders")} />
+            <SubtleButton label={t("nav.support")} onPress={() => router.push("/support")} />
           </>
         }
       />
-      {tickets.loading && !tickets.data ? <LoadingState message="Loading tickets…" /> : null}
+      {tickets.loading && !tickets.data ? <LoadingState message={t("tickets.loading")} /> : null}
       {tickets.error ? (
-        <ErrorPanel title="We couldn’t load your tickets." message={tickets.error} onRetry={tickets.reload} />
+        <ErrorPanel title={t("tickets.load_error")} message={tickets.error} onRetry={tickets.reload} />
       ) : null}
       {tickets.data ? (
         tickets.data.length === 0 ? (
           <Panel>
-            <EmptyState message="No tickets yet. Find an event to register, or sign in with the email a ticket was sent to." />
+            <EmptyState message={t("mobile.tickets.empty")} />
             <View style={styles.center}>
-              <TextButton label="Find an event →" onPress={() => router.navigate("/")} />
+              <TextButton label={t("mobile.orders.find_event")} onPress={() => router.navigate("/")} />
             </View>
           </Panel>
         ) : (

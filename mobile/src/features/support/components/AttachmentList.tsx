@@ -9,6 +9,7 @@ import { useToast } from "@/context/ToastContext";
 import { colors, fonts, radii } from "@/theme";
 
 import { fileSizeLabel } from "../utils/attachments";
+import { t, useLocale } from "@/i18n";
 
 interface AttachmentListProps {
   caseId: string;
@@ -19,6 +20,7 @@ interface AttachmentListProps {
 // (never cached) and opens it in the in-app browser, which can show, save or
 // share the file.
 export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
+  useLocale();
   const { notify } = useToast();
   const [busyId, setBusyId] = useState("");
   if (attachments.length === 0) return null;
@@ -43,7 +45,7 @@ export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
           <Pressable
             key={attachment.id}
             accessibilityRole="button"
-            accessibilityLabel={`Download ${attachment.original_filename}`}
+            accessibilityLabel={t("support.download_file", { p0: attachment.original_filename })}
             accessibilityState={{ disabled: busy, busy }}
             disabled={busy}
             onPress={() => void open(attachment)}
@@ -53,7 +55,7 @@ export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
             <Text style={styles.name} numberOfLines={1}>
               {attachment.original_filename}
             </Text>
-            <Text style={styles.size}>{busy ? "Preparing…" : fileSizeLabel(attachment.size_bytes)}</Text>
+            <Text style={styles.size}>{busy ? t("support.preparing") : fileSizeLabel(attachment.size_bytes)}</Text>
           </Pressable>
         );
       })}

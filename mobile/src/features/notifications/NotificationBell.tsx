@@ -8,6 +8,7 @@ import { colors, fonts } from "@/theme";
 
 import { useAppActive } from "@/hooks/useAppActive";
 import { subscribeNotificationsChanged, unreadBadgeLabel } from "./notificationTarget";
+import { t, useLocale } from "@/i18n";
 
 const REFRESH_MS = 60_000;
 
@@ -15,6 +16,7 @@ const REFRESH_MS = 60_000;
 // app is in the foreground, on returning to it, and when the inbox marks items
 // read. Render it only for signed-in users.
 export function NotificationBell() {
+  useLocale();
   const router = useRouter();
   const appActive = useAppActive();
   const [unread, setUnread] = useState(0);
@@ -42,7 +44,7 @@ export function NotificationBell() {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+      accessibilityLabel={unread > 0 ? t("notifications.unread_count", { p0: unread }) : t("nav.notifications")}
       hitSlop={8}
       onPress={() => router.push("/notifications")}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}

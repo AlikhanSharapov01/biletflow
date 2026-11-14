@@ -1,5 +1,6 @@
 import type { PromoPreview } from "@/api/types/promo";
 import { priceLabel } from "@/utils/format";
+import { t } from "@/i18n";
 
 // A promo code from a campaign link or `?promo=` stays with its event while
 // the app runs: it is stashed per event in a module-level store and read back
@@ -51,9 +52,9 @@ export function initialPromo(eventId: string, fromRoute: string | null | undefin
 }
 
 export function promoSummary(preview: PromoPreview): string {
-  const amount = preview.discount_kind === "percent" ? `${preview.discount_value}% off` : `${priceLabel(preview.discount_value)} off`;
-  const scope = preview.eligible_ticket_type_ids.length > 0 ? "eligible tickets" : "every ticket";
-  return `${preview.code}: ${amount} ${scope}${preview.discount_kind === "fixed" ? " (once per order)" : ""}`;
+  const amount = preview.discount_kind === "percent" ? t("checkout.percent_off", { p0: preview.discount_value }) : t("checkout.amount_off", { p0: priceLabel(preview.discount_value) });
+  const scope = preview.eligible_ticket_type_ids.length > 0 ? t("checkout.eligible_tickets") : t("checkout.every_ticket");
+  return `${preview.code}: ${amount} ${scope}${preview.discount_kind === "fixed" ? t("checkout.once_per_order") : ""}`;
 }
 
 // Estimated discount on one ticket; the server's quote is authoritative.

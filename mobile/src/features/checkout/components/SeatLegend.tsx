@@ -3,22 +3,25 @@ import { StyleSheet, Text, View } from "react-native";
 import { colors, fonts } from "@/theme";
 import { SEAT_LOOKS, type SeatLook } from "../utils/seats";
 import { SEAT_COLORS } from "./seatColors";
+import { t, useLocale } from "@/i18n";
 
 const SHOWN: SeatLook[] = ["available", "selected", "held", "sold", "unavailable"];
 
 // Colour plus a glyph for every state, so the map never relies on colour alone.
 export function SeatLegend() {
+  useLocale();
   return (
-    <View style={styles.legend} accessibilityLabel="Seat map legend">
+    <View style={styles.legend} accessibilityLabel={t("checkout.seat_legend")}>
       {SHOWN.map((look) => (
         <Item key={look} look={look} glyph={SEAT_LOOKS[look].glyph} label={SEAT_LOOKS[look].label} />
       ))}
-      <Item look="available" glyph="♿" label="Wheelchair accessible" accessible />
+      <Item look="available" glyph="♿" label={t("checkout.wheelchair_accessible")} accessible />
     </View>
   );
 }
 
 function Item({ look, glyph, label, accessible }: { look: SeatLook; glyph: string; label: string; accessible?: boolean }) {
+  useLocale();
   const tone = SEAT_COLORS[look];
   return (
     <View style={styles.item}>

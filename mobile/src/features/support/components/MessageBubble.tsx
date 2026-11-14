@@ -5,6 +5,7 @@ import { colors, fonts, radii } from "@/theme";
 import { dateLabel } from "@/utils/format";
 
 import { AttachmentList } from "./AttachmentList";
+import { t, useLocale } from "@/i18n";
 
 interface MessageBubbleProps {
   message: SupportMessage;
@@ -14,12 +15,13 @@ interface MessageBubbleProps {
 // One chat bubble: own messages on the right, everyone else on the left with
 // their name and a "Support" tag for staff replies.
 export function MessageBubble({ message, own }: MessageBubbleProps) {
+  useLocale();
   return (
     <View style={[styles.row, own && styles.ownRow]}>
       <View style={[styles.bubble, own && styles.ownBubble]}>
         <View style={styles.meta}>
-          <Text style={styles.author}>{own ? "You" : message.author.display_name}</Text>
-          {message.author_role === "support" && !own ? <Text style={styles.role}>Support</Text> : null}
+          <Text style={styles.author}>{own ? t("support.you") : message.author.display_name}</Text>
+          {message.author_role === "support" && !own ? <Text style={styles.role}>{t("nav.support")}</Text> : null}
           <Text style={styles.time}>{dateLabel(message.created_at)}</Text>
         </View>
         <Text style={styles.body} selectable>

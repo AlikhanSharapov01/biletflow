@@ -4,6 +4,7 @@
 
 import type { CheckInOutcome, ReversalResult } from "@/api/types/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
+import { t } from "@/i18n";
 
 export type Tone = "admitted" | "warning" | "rejected" | "offline";
 
@@ -30,73 +31,73 @@ export function isEntryCode(code: string): boolean {
 
 const CONFIRMATION_REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
   sign_in_required: {
-    title: "Entry confirmation needed",
-    lines: ["Ask the guest to open their ticket and show the entry confirmation, or read out its 8-digit code."],
+    get title() { return t("mobile.scan.confirmation_needed"); },
+    get lines() { return [t("mobile.scan.confirmation_needed_hint")]; },
   },
   confirmation_expired: {
-    title: "Confirmation expired",
-    lines: ["The entry confirmation is too old. Ask the guest to create a new one on their ticket."],
+    get title() { return t("mobile.scan.confirmation_expired"); },
+    get lines() { return [t("mobile.scan.confirmation_expired_hint")]; },
   },
   confirmation_used: {
-    title: "Confirmation already used",
-    lines: ["This entry confirmation was used or replaced. Ask the guest for a new one."],
+    get title() { return t("mobile.scan.confirmation_used"); },
+    get lines() { return [t("mobile.scan.confirmation_used_hint")]; },
   },
   invalid_confirmation: {
-    title: "Confirmation not valid",
-    lines: ["This entry confirmation doesn't belong to this ticket or event. Ask the guest for a new one."],
+    get title() { return t("mobile.scan.confirmation_invalid"); },
+    get lines() { return [t("mobile.scan.confirmation_invalid_hint")]; },
   },
   offline_code_unavailable: {
-    title: "Scan the confirmation QR",
-    lines: ["The 8-digit code can't be checked without a connection. Scan the guest's confirmation QR instead."],
+    get title() { return t("mobile.scan.scan_confirmation_qr"); },
+    get lines() { return [t("mobile.scan.code_needs_connection")]; },
   },
 };
 
 const TICKET_STATUS: Record<string, string> = {
-  cancelled: "This ticket was cancelled.",
-  refunded: "This ticket was refunded.",
-  refund_pending: "A refund is in progress for this ticket.",
+  get cancelled() { return t("mobile.scan.ticket_cancelled"); },
+  get refunded() { return t("mobile.scan.ticket_refunded"); },
+  get refund_pending() { return t("mobile.scan.ticket_refund_pending"); },
 };
 
 const REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
   ticket_unclaimed: {
-    title: "Ticket not claimed",
-    lines: ["The ticket holder hasn't linked this ticket to their account yet."],
+    get title() { return t("mobile.scan.not_claimed"); },
+    get lines() { return [t("mobile.scan.not_claimed_hint")]; },
   },
   wrong_event: {
-    title: "Wrong event",
-    lines: ["This ticket is for a different event."],
+    get title() { return t("mobile.scan.wrong_event"); },
+    get lines() { return [t("mobile.scan.wrong_event_hint")]; },
   },
   admission_not_open: {
-    title: "Admission not open yet",
-    lines: ["Entry for this event hasn't started."],
+    get title() { return t("mobile.scan.not_open"); },
+    get lines() { return [t("mobile.scan.not_open_hint")]; },
   },
   admission_closed: {
-    title: "Admission closed",
-    lines: ["Entry for this event has ended."],
+    get title() { return t("mobile.scan.closed"); },
+    get lines() { return [t("mobile.scan.closed_hint")]; },
   },
   ticket_not_found: {
-    title: "Invalid ticket",
-    lines: ["This QR code doesn't match any ticket. It may be forged or edited."],
+    get title() { return t("mobile.scan.invalid_ticket"); },
+    get lines() { return [t("mobile.scan.invalid_ticket_hint")]; },
   },
   not_a_ticket_qr: {
-    title: "Not a ticket",
-    lines: ["This QR code isn't an admission ticket (for example, a promo code)."],
+    get title() { return t("mobile.scan.not_a_ticket"); },
+    get lines() { return [t("mobile.scan.not_a_ticket_hint")]; },
   },
   event_not_found: {
-    title: "Not authorized",
-    lines: ["You're no longer assigned to scan this event."],
+    get title() { return t("mobile.scan.not_authorized"); },
+    get lines() { return [t("mobile.scan.no_longer_assigned")]; },
   },
   permission_denied: {
-    title: "Not authorized",
-    lines: ["You don't have permission to scan this event."],
+    get title() { return t("mobile.scan.not_authorized"); },
+    get lines() { return [t("mobile.scan.no_permission")]; },
   },
   operation_conflict: {
-    title: "Scan conflict",
-    lines: ["Please scan the ticket again."],
+    get title() { return t("mobile.scan.conflict"); },
+    get lines() { return [t("mobile.scan.scan_again")]; },
   },
   offline_unknown_ticket: {
-    title: "Not on the offline list",
-    lines: ["This ticket isn't on this phone's list. It may be forged, unclaimed, or issued after the list was downloaded."],
+    get title() { return t("mobile.scan.not_on_list"); },
+    get lines() { return [t("mobile.scan.not_on_list_hint")]; },
   },
 };
 
@@ -108,7 +109,7 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
         `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
       );
     }
-    return { tone: "admitted", icon: "✓", title: "Admitted", lines };
+    return { tone: "admitted", icon: "✓", title: t("org.admitted"), lines };
   }
 
   if (outcome.kind === "queued") {
@@ -119,15 +120,15 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
       );
     }
     lines.push("Provisional until this phone syncs.");
-    return { tone: "admitted", icon: "✓", title: "Accepted offline", lines };
+    return { tone: "admitted", icon: "✓", title: t("mobile.scan.accepted_offline"), lines };
   }
 
   if (outcome.kind === "network") {
     return {
       tone: "offline",
       icon: "!",
-      title: "No connection",
-      lines: ["The ticket wasn't checked. Retry when you're back online."],
+      title: t("mobile.scan.no_connection"),
+      lines: [t("mobile.scan.not_checked_offline")],
     };
   }
 
@@ -135,11 +136,11 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
     return {
       tone: "warning",
       icon: "!",
-      title: "Already used",
+      title: t("mobile.scan.already_used"),
       lines: [
         outcome.checkedInAt
-          ? `Checked in at ${formatEventMoment(outcome.checkedInAt, timeZone)}.`
-          : "This ticket has already been checked in.",
+          ? t("mobile.scan.checked_in_at", { p0: formatEventMoment(outcome.checkedInAt, timeZone) })
+          : t("api.already_checked_in"),
       ],
     };
   }
@@ -148,10 +149,10 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
     return {
       tone: "rejected",
       icon: "✕",
-      title: "Not valid",
+      title: t("mobile.scan.not_valid"),
       lines: [
         (outcome.ticketStatus && TICKET_STATUS[outcome.ticketStatus]) ??
-          "This ticket can't be used for entry.",
+          t("mobile.scan.cant_be_used"),
       ],
     };
   }
@@ -165,8 +166,8 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
   return {
     tone: "rejected",
     icon: "✕",
-    title: known?.title ?? "Can't admit",
-    lines: known?.lines ?? ["Something went wrong checking this ticket. Try scanning again."],
+    title: known?.title ?? t("mobile.scan.cant_admit"),
+    lines: known?.lines ?? [t("mobile.scan.check_failed")],
   };
 }
 
@@ -176,12 +177,12 @@ export function describeReversal(result: ReversalResult, attendeeName: string): 
   return {
     tone: "warning",
     icon: "↺",
-    title: "Admission undone",
+    title: t("mobile.scan.admission_undone"),
     lines: [
       attendeeName,
       result.ticket_status === "valid"
-        ? "The ticket can be scanned again."
-        : (TICKET_STATUS[result.ticket_status] ?? "This ticket can't be used for entry."),
+        ? t("mobile.scan.can_scan_again")
+        : (TICKET_STATUS[result.ticket_status] ?? t("mobile.scan.cant_be_used")),
     ],
   };
 }

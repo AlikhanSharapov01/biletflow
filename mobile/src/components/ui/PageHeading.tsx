@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Eyebrow, SerifText } from "@/components/ui/Text";
 import { fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 // Eyebrow, serif title and a short line of copy (web .page-heading).
 export function PageHeading({
@@ -16,6 +17,7 @@ export function PageHeading({
   subtitle?: string;
   actions?: ReactNode;
 }) {
+  useLocale();
   return (
     <View style={styles.heading}>
       <Eyebrow>{eyebrow}</Eyebrow>

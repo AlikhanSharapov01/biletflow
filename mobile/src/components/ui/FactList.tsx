@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors, fonts } from "@/theme";
+import { useLocale } from "@/i18n";
 
 export type Fact = { label: string; value: ReactNode };
 
 // Label/value pairs, e.g. an event's details or an order summary (web .fact-list).
 export function FactList({ items }: { items: Fact[] }) {
+  useLocale();
   return (
     <View style={styles.list}>
       {items.map((item, index) => (

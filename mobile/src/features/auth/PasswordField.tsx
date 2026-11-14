@@ -2,6 +2,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { TextButton, fieldStyles } from "@/components/ui";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Password input with a Show / Hide toggle; register mode asks the OS for a
 // new-password suggestion instead of the saved one.
@@ -20,13 +21,14 @@ export function PasswordField({
   isNew: boolean;
   editable: boolean;
 }) {
+  useLocale();
   return (
     <View style={styles.passwordField}>
-      <Text style={fieldStyles.label}>Password</Text>
+      <Text style={fieldStyles.label}>{t("common.password")}</Text>
       <View style={[fieldStyles.box, styles.passwordRow]}>
         <TextInput
           style={styles.passwordInput}
-          placeholder={isNew ? "At least 12 characters" : "Enter your password"}
+          placeholder={isNew ? t("auth.minimum_password") : t("auth.enter_password")}
           placeholderTextColor={colors.placeholder}
           secureTextEntry={!shown}
           autoCapitalize="none"
@@ -37,7 +39,7 @@ export function PasswordField({
           onChangeText={onChangeText}
           editable={editable}
         />
-        <TextButton label={shown ? "Hide" : "Show"} onPress={onToggleShown} />
+        <TextButton label={shown ? t("mobile.auth.hide") : t("mobile.auth.show")} onPress={onToggleShown} />
       </View>
     </View>
   );

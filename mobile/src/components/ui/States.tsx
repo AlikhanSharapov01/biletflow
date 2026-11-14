@@ -3,9 +3,11 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SubtleButton } from "@/components/ui/Buttons";
 import { Panel } from "@/components/ui/Panel";
 import { colors, fonts } from "@/theme";
+import { t, useLocale } from "@/i18n";
 
 // Spinner with a short line of copy (web .loading-state).
 export function LoadingState({ message }: { message: string }) {
+  useLocale();
   return (
     <View style={styles.loading} accessibilityRole="progressbar">
       <ActivityIndicator color={colors.green} />
@@ -16,6 +18,7 @@ export function LoadingState({ message }: { message: string }) {
 
 // Centred grey copy for an empty list (web .empty-state).
 export function EmptyState({ message }: { message: string }) {
+  useLocale();
   return <Text style={styles.empty}>{message}</Text>;
 }
 
@@ -29,11 +32,12 @@ export function ErrorPanel({
   message: string;
   onRetry?: () => void;
 }) {
+  useLocale();
   return (
     <Panel style={styles.error}>
       <Text style={styles.errorTitle}>{title}</Text>
       <Text style={styles.errorMessage}>{message}</Text>
-      {onRetry ? <SubtleButton label="Try again" onPress={onRetry} style={styles.retry} /> : null}
+      {onRetry ? <SubtleButton label={t("common.try_again")} onPress={onRetry} style={styles.retry} /> : null}
     </Panel>
   );
 }

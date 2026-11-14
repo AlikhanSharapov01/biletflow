@@ -5,8 +5,10 @@ import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/features/auth/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { colors } from "@/theme";
+import { useLocale } from "@/i18n";
 
 function Gate() {
+  useLocale();
   const { status } = useAuth();
 
   // Session restore (SecureStore read + possible refresh) hasn't settled
@@ -30,6 +32,7 @@ function Gate() {
 }
 
 export default function RootLayout() {
+  useLocale();
   return (
     <AuthProvider>
       <ToastProvider>

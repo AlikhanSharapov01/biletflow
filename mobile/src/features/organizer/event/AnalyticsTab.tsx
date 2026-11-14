@@ -13,9 +13,11 @@ import { AnalyticsFilterBar } from "./analytics/AnalyticsFilterBar";
 import { BreakdownTables } from "./analytics/BreakdownTables";
 import { SalesChart } from "./analytics/SalesChart";
 import { StatTiles } from "./analytics/StatTiles";
+import { t, useLocale } from "@/i18n";
 
 // Read-only event analytics (backend/ANALYTICS_API.md).
 export function AnalyticsTab({ event }: { event: EventView }) {
+  useLocale();
   const [filters, setFilters] = useState<AnalyticsFilters>({});
   const [bucket, setBucket] = useState<SeriesBucket>("day");
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
@@ -32,13 +34,13 @@ export function AnalyticsTab({ event }: { event: EventView }) {
     <>
       <Panel>
         <SectionHeading
-          title="Analytics"
+          title={t("organizer.analytics")}
           subtitle={
             report.data
-              ? `Times in ${report.data.summary.timezone} · generated ${dateLabel(report.data.summary.generated_at)}`
-              : "Sales, revenue and attendance for this event."
+              ? t("org.analytics_meta", { p0: report.data.summary.timezone, p1: dateLabel(report.data.summary.generated_at) })
+              : t("org.analytics_intro")
           }
-          trailing={<StatusPill tone="pending" label="Demonstration figures" />}
+          trailing={<StatusPill tone="pending" label={t("org.finance_demo")} />}
         />
         <AnalyticsFilterBar
           types={types.data ?? []}
@@ -49,13 +51,13 @@ export function AnalyticsTab({ event }: { event: EventView }) {
             setBucket(nextBucket);
           }}
         />
-        {report.loading ? <LoadingState message="Loading analytics…" /> : null}
-        {report.error ? <ErrorPanel title="We couldn’t load analytics." message={report.error} onRetry={report.reload} /> : null}
+        {report.loading ? <LoadingState message={t("org.loading_analytics")} /> : null}
+        {report.error ? <ErrorPanel title={t("org.analytics_error")} message={report.error} onRetry={report.reload} /> : null}
         {loaded ? (
           <>
             <StatTiles data={loaded.summary} />
             {loaded.series.points.length === 0 ? (
-              <EmptyState message="No sales in this range yet." />
+              <EmptyState message={t("org.no_sales")} />
             ) : (
               <SalesChart points={loaded.series.points} bucket={loaded.series.bucket} />
             )}

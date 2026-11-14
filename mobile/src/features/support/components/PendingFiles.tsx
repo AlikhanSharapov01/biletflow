@@ -4,6 +4,7 @@ import { TextButton } from "@/components/ui";
 import { colors, fonts } from "@/theme";
 
 import { fileSizeLabel } from "../utils/attachments";
+import { t, useLocale } from "@/i18n";
 
 export interface PendingFile {
   localId: string;
@@ -20,16 +21,17 @@ interface PendingFilesProps {
 }
 
 function fileNote(file: PendingFile): string {
-  if (file.status === "uploading") return "Uploading…";
-  if (file.status === "failed") return file.error ?? "Upload failed.";
-  return file.size !== undefined ? fileSizeLabel(file.size) : "Ready";
+  if (file.status === "uploading") return t("support.uploading");
+  if (file.status === "failed") return file.error ?? t("mobile.support.upload_failed");
+  return file.size !== undefined ? fileSizeLabel(file.size) : t("mobile.support.ready");
 }
 
 // Files picked for the next message, uploaded as soon as they are chosen.
 export function PendingFiles({ files, onRemove }: PendingFilesProps) {
+  useLocale();
   if (files.length === 0) return null;
   return (
-    <View style={styles.list} accessibilityLabel="Files to send">
+    <View style={styles.list} accessibilityLabel={t("support.files_to_send")}>
       {files.map((file) => (
         <View key={file.localId} style={styles.file}>
           <View style={styles.info}>
@@ -38,7 +40,7 @@ export function PendingFiles({ files, onRemove }: PendingFilesProps) {
             </Text>
             <Text style={[styles.note, file.status === "failed" && styles.failed]}>{fileNote(file)}</Text>
           </View>
-          <TextButton label="Remove" onPress={() => onRemove(file.localId)} />
+          <TextButton label={t("common.remove")} onPress={() => onRemove(file.localId)} />
         </View>
       ))}
     </View>
