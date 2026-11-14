@@ -62,6 +62,7 @@ export function OrderScreen() {
           items={[
             { label: "Confirmed", value: dateLabel(data.confirmed_at) },
             { label: "Tickets", value: data.items.length },
+            ...(data.promo ? [{ label: "Promo code", value: data.promo.code }] : []),
           ]}
         />
         <Text style={styles.copy}>Demonstration order. Payments on BiletFlow’s academic MVP are simulated; no real money moves.</Text>

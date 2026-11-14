@@ -30,6 +30,9 @@ const freeOrder: Order = {
   discount_minor: 0,
   payable_minor: 0,
   processing_fee_minor: 0,
+  quote_expires_at: "2099-11-01T10:15:00Z",
+  refunds: [],
+  promo: null,
   confirmed_at: "2026-11-01T10:00:00Z",
   created_at: "2026-11-01T09:58:00Z",
   payment: null,
@@ -102,20 +105,34 @@ describe("OrderScreen", () => {
     expect(await screen.findByText("Registration cancelled.")).toBeTruthy();
   });
 
-  it("explains that refunds are planned when the server does not offer them", async () => {
+  it("links to the support case a refund request opens and shows the promo used", async () => {
     const paidOrder: Order = {
       ...freeOrder,
       payable_minor: 500000,
       payment: { ...failedPaidOrder.payment!, status: "succeeded" },
+      promo: { code: "SPRING", campaign_id: "c1" },
     };
     jest.mocked(getOrder).mockResolvedValue(paidOrder);
-    jest.mocked(requestRefund).mockRejectedValue(new ApiError("Not Found", 404));
+    jest.mocked(requestRefund).mockResolvedValue({ order_id: "order-1", status: "requested", case_id: "case-9" });
     await render(<OrderScreen />);
     await fireEvent.press(await screen.findByText("Request a refund ›"));
     await fireEvent.press(screen.getByText("Request refund"));
     expect(confirmAction).not.toHaveBeenCalled();
     expect(requestRefund).toHaveBeenCalledWith("order-1", { reason: "" });
-    expect(await screen.findByText("Refund requests is coming soon.")).toBeTruthy();
+    expect(await screen.findByText("Refund requested. The organizer’s refund policy applies.")).toBeTruthy();
+    expect(screen.getByText("SPRING")).toBeTruthy();
+    await fireEvent.press(screen.getByText("View refund request"));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: "/support/cases/[caseId]", params: { caseId: "case-9" } });
+  });
+
+  it("shows why a refund was refused", async () => {
+    jest.mocked(getOrder).mockResolvedValue({ ...freeOrder, payable_minor: 500000, payment: { ...failedPaidOrder.payment!, status: "succeeded" } });
+    jest.mocked(requestRefund).mockRejectedValue(new ApiError("The refund deadline for this order has passed.", 409, "refund_cutoff_passed"));
+    await render(<OrderScreen />);
+    await fireEvent.press(await screen.findByText("Request a refund ›"));
+    await fireEvent.press(screen.getByText("Request refund"));
+    expect(await screen.findByText("The refund deadline for this order has passed.")).toBeTruthy();
+    expect(screen.queryByText("View refund request")).toBeNull();
   });
 
   it("retries a failed payment", async () => {

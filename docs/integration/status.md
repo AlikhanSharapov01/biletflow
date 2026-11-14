@@ -45,22 +45,22 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 |---|---|---|---|---|---|---|
 | BF-01 Accounts and sessions | Yes | Early `main` (issue #3) | Yes | Yes (Google sign-in is web only, by decision 0001) | API smoke covers register/verify/sign-in; client journeys not verified | — |
 | BF-02 Organizations and staff | Yes | Early `main` (issue #4) | Yes | Yes | API smoke covers staff scan grant; rest not verified | — |
-| BF-03 Events, discovery, images | Yes (image delete failed with 503 in the Compose stack until #95 granted the app role DELETE on `event_media`) | Early `main` (issue #4); images #64, #95 | Partial: image upload calls the live route; gallery order/cover/delete not wired | No for images: planned contract (#51) | Not verified | #45, #51 |
+| BF-03 Events, discovery, images | Yes (image delete failed with 503 in the Compose stack until #95 granted the app role DELETE on `event_media`) | Early `main` (issue #4); images #64, #95 | Partial: image upload calls the live route; gallery order/cover/delete not wired | Yes: gallery upload, cover and delete; the event page does not show the cover yet; not verified on a device | Not verified | #45, #51 |
 | BF-04 Venues and seating | Yes | Early `main` (issue #4); holds #25 | Yes | Yes | Backend concurrency tests only | — |
 | BF-05 Ticket types and holds | Partial: hold length and limits ignore platform settings | #25, #64 (counters) | Yes; organizer counters not verified | Yes; organizer counters not verified | Backend tests; load harness shows no overselling (#89) | #70 |
 | BF-06 Paid-sales activation | Partial: activation fee ignores platform settings | #25 | Yes | Yes | API smoke | #70 |
-| BF-07 Checkout and free registration | Yes | #16, #25, #61 (promo) | Yes, including promo and zero-total | Partial: promo checkout is on the unmerged branch `feature/adil-mobile-new-apis` (no PR) | API smoke | #51 |
+| BF-07 Checkout and free registration | Yes | #16, #25, #61 (promo) | Yes, including promo and zero-total | Yes, including promo and zero-total; not verified on a device | API smoke | #51 |
 | BF-08 Payments (simulated) | Yes: stale refund results are ignored, unprocessable provider events are quarantined, request keys are stable (#93) | #25, #93 | Yes | Yes | API smoke; AC-07/08 backend tests and process-kill harness | — |
-| BF-09 Campaigns and campaign QR | Partial: report not reconciled with analytics (fulfilment revalidation done in #91) | #61, #91 | Yes (PR #63) | No on `main` (branch above) | API smoke | #67, #51 |
+| BF-09 Campaigns and campaign QR | Partial: report not reconciled with analytics (fulfilment revalidation done in #91) | #61, #91 | Yes (PR #63) | Yes: list, create, edit, disable, QR, report; not verified on a device | API smoke | #67, #51 |
 | BF-10 Tickets, PDF, delivery | Yes: committed PDFs kept, abandoned writes swept (#94); bundled Unicode font for Kazakh/Russian (#92) | #16, #24, #92, #94 | Yes | Yes (PDF via share sheet) | Backend and process-kill tests; client journeys not verified | — |
 | BF-11 Online admission | Yes | #18, #24 | n/a (check-in history and CSV only) | Yes | API smoke; local p95 well under 2 s with and without analytics load (#89, baseline still proposed) | — |
 | BF-12 Offline verification and sync | Yes | #24 | n/a | Partial: QR offline scanning on `main` (PR #59); physical-entry rule is an [open decision](../decisions/0002-decisions-to-confirm.md) | Not verified on devices | #53, #83 |
-| BF-13 Refunds and cancellations (full-order only) | Yes (retry fix in #93) | #61, #93 | Yes (PR #63) | Partial: attendee request/cancel calls exist; organizer actions on the unmerged branch; not verified | API smoke | #51 |
-| BF-14 Finance and simulated payouts | Partial: fees ignore platform settings | #64 | Partial: summary on planned contract; payouts not wired | Partial: summary on planned contract; payouts not wired | Not verified | #70, #45, #51 |
+| BF-13 Refunds and cancellations (full-order only) | Yes (retry fix in #93) | #61, #93 | Yes (PR #63) | Yes: attendee request and cancel, organizer refund and ticket cancel; not verified on a device | API smoke | #51 |
+| BF-14 Finance and simulated payouts | Partial: fees ignore platform settings | #64 | Yes: summary, payout request and simulator steps; not verified on a device | Partial: summary on planned contract; payouts not wired | Not verified | #70, #45, #51 |
 | BF-15 Notifications | Partial: no admin view of exhausted deliveries; no moderation notices | #24, #61, #64 | Yes (inbox) | Yes (inbox) | Not verified | #73, #74 |
 | BF-16 Support and attachments | Partial: no malware scan/quarantine; no recovery of abandoned uploads | #24 | Yes | Yes; document picker not tested on devices | Not verified | #75, #76, #53 |
 | BF-17 Calendar | Yes | #24 | Yes | Yes | Not verified | — |
-| BF-18 Organizer analytics | Partial: no export; campaign report reconciliation | #64 | Partial: planned contract (#45 analytics task open) | Partial: planned contract | Not verified; load not measured | #67, #81, #80, #45, #51 |
+| BF-18 Organizer analytics | Partial: no export; campaign report reconciliation | #64 | Partial: planned contract (#45 analytics task open) | Yes; not verified on a device | Not verified; load not measured | #67, #81, #80, #45, #51 |
 | BF-19 GA4 | No | — | Partial: optional consent-aware page views only (`web/README.md`); live property not verified | No | No | #71 |
 | BF-20 History, duplication, audit | Partial: no request/job correlation IDs | Early `main`, #24, #64 (filters) | Yes | Yes | Not verified | #78 |
 | BF-21 Administration | Partial: settings not applied to commerce; search/detail, failure views and notices missing | #24, #64 (commerce monitoring) | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Partial: same | Not verified | #70, #72, #73, #74 |
@@ -84,8 +84,8 @@ Done on 12–13 November: #65, #66, #68, #69 (step 1 and part of step 2), #79, #
 1. **Campaign reporting, prospective settings, protected uploads:** #67, #70, #75, #76.
 2. **Admin failure handling, triage and notices; object storage; observability:** #73, #72, #74,
    #77, #78. Object storage (#77) must keep the backup protocol from #69.
-3. **GA4 and export, client integration:** #71, #81; web #45; mobile #51 (merge or redo the
-   branch), #52, #55; shared HTTPS #49.
+3. **GA4 and export, client integration:** #71, #81; web #45; mobile #51 (device
+   click-through), #52, #55; shared HTTPS #49.
 4. **Acceptance on the integrated stack:** devices #53 and builds #54; rerun the load (#80) and
    process-kill (#83) harnesses and the restore drill (#69) after steps 1–2 change the code, then
    update this document and `backend/VALIDATION.md` with the results.

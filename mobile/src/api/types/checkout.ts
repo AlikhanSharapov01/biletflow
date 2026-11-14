@@ -23,6 +23,39 @@ export interface Hold {
   expires_at: string;
   created_at: string;
   allocations: Allocation[];
+  pricing: Pricing;
+  promo: AppliedPromo | null;
+}
+
+export interface PricingLine {
+  allocation_id: string;
+  ticket_type_id: string;
+  face_value_minor: number;
+  discount_minor: number;
+  paid_minor: number;
+  processing_fee_minor: number;
+  campaign_eligible: boolean;
+}
+
+export interface Pricing {
+  gross: number;
+  discount: number;
+  subtotal: number;
+  processing_fee: number;
+  payable: number;
+  lines: PricingLine[];
+}
+
+export interface AppliedPromo {
+  code: string;
+  campaign_id: string;
+  discount_kind: "percent" | "fixed";
+  discount_value: number;
+}
+
+export interface OrderPromo {
+  code: string;
+  campaign_id: string;
 }
 
 export interface RecipientInput {
@@ -86,11 +119,12 @@ export interface Order {
   processing_fee_minor: number;
   confirmed_at: string | null;
   created_at: string;
-  quote_expires_at?: string;
+  quote_expires_at: string;
   items: OrderItem[];
   // Latest (simulated) payment attempt; null for free orders.
-  payment?: PaymentSummary | null;
-  refunds?: RefundSummary[];
+  payment: PaymentSummary | null;
+  refunds: RefundSummary[];
+  promo: OrderPromo | null;
 }
 
 export interface Attendee {

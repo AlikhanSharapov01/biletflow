@@ -24,7 +24,7 @@ interface TicketTypeFormProps {
 
 const KINDS = [
   { value: "free", label: "Free" },
-  { value: "paid", label: "Paid (checkout not available yet)" },
+  { value: "paid", label: "Paid" },
 ];
 
 export function TicketTypeForm({ event, initial, submitLabel, busy, message, onSubmit, onInvalid, onCancel }: TicketTypeFormProps) {

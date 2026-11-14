@@ -1,3 +1,5 @@
+import { randomUUID } from "expo-crypto";
+
 import { request } from "./http";
 import type { Order } from "./types/checkout";
 import type { SimulatedOutcome, SimulatedPaymentResult } from "./types/payments";
@@ -15,6 +17,6 @@ export function simulatePayment(attemptId: string, outcome: SimulatedOutcome): P
 
 // New attempt after a failed one; an open attempt is returned instead.
 // 409 quote_expired once the hold has lapsed.
-export function retryPayment(orderId: string): Promise<Order> {
-  return request<Order>(`/api/v1/orders/${id(orderId)}/payment-attempts`, { method: "POST" });
+export function retryPayment(orderId: string, idempotencyKey: string = randomUUID()): Promise<Order> {
+  return request<Order>(`/api/v1/orders/${id(orderId)}/payment-attempts`, { method: "POST", idempotencyKey });
 }

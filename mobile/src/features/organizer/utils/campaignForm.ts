@@ -3,7 +3,7 @@ import { priceLabel, tengeToMinor } from "@/utils/format";
 import { readLocalInput, toLocalInput } from "./dateInput";
 
 // Campaign form model (strings as inputs produce them) and its conversion to
-// the planned API payload.
+// the API payload.
 
 export interface CampaignFormValues {
   name: string;

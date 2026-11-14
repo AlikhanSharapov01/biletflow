@@ -1,5 +1,7 @@
 import { request } from "./http";
-import { uploadFile, type UploadFile } from "./files";
+import { requestBlob, uploadFile, type DownloadedFile, type UploadFile } from "./files";
+import type { EventImage } from "./types/catalog";
+import type { RefundStarted, TicketCancelled } from "./types/payments";
 import type {
   Attendee,
   EventCapability,
@@ -89,24 +91,35 @@ export function listAttendees(eventId: string): Promise<Attendee[]> {
   return request<Attendee[]>(`/api/v1/events/${id(eventId)}/attendees`, { query: { limit: 100 } });
 }
 
-// ------------------------------------------------- planned (not served yet)
-// These follow the planned commerce contract; screens catch isNotImplemented.
+// -------------------------------------------- refunds and cancellation
+// Confirmed in backend/REFUNDS_API.md.
 
-export function cancelTicket(eventId: string, ticketId: string, reason: string): Promise<unknown> {
-  return request(`/api/v1/events/${id(eventId)}/tickets/${id(ticketId)}/cancel`, { method: "POST", body: { reason } });
+export function cancelTicket(eventId: string, ticketId: string, reason: string): Promise<TicketCancelled> {
+  return request<TicketCancelled>(`/api/v1/events/${id(eventId)}/tickets/${id(ticketId)}/cancel`, { method: "POST", body: { reason } });
 }
 
-export function refundOrder(orderId: string, reason: string): Promise<unknown> {
-  return request(`/api/v1/orders/${id(orderId)}/refunds`, { method: "POST", body: { reason } });
+export function refundOrder(orderId: string, reason: string): Promise<RefundStarted> {
+  return request<RefundStarted>(`/api/v1/orders/${id(orderId)}/refunds`, { method: "POST", body: { reason } });
 }
 
-export interface EventImage {
-  id: string;
-  url: string;
-  mime_type: string;
-  size_bytes: number;
+// ------------------------------------------------------------ event images
+// Confirmed in backend/CATALOG_API.md: PNG or JPEG sent as the raw body. The
+// first image is the cover; deleting it promotes the next one.
+
+export function uploadEventImage(eventId: string, file: UploadFile, altText?: string): Promise<EventImage> {
+  return uploadFile<EventImage>(`/api/v1/events/${id(eventId)}/images`, file, { filename: file.name, alt_text: altText });
 }
 
-export function uploadEventImage(eventId: string, file: UploadFile): Promise<EventImage> {
-  return uploadFile<EventImage>(`/api/v1/events/${id(eventId)}/images`, file, { filename: file.name });
+export function setCoverImage(eventId: string, imageId: string): Promise<EventImage[]> {
+  return request<EventImage[]>(`/api/v1/events/${id(eventId)}/images/${id(imageId)}/cover`, { method: "PUT" });
+}
+
+export function deleteEventImage(eventId: string, imageId: string): Promise<void> {
+  return request<void>(`/api/v1/events/${id(eventId)}/images/${id(imageId)}`, { method: "DELETE" });
+}
+
+// Image URLs point at the API and need the session, so the bytes are fetched
+// with it and cached on the device for <Image>.
+export function fetchEventImage(image: EventImage): Promise<DownloadedFile> {
+  return requestBlob(image.url, `event-image-${image.id}.${image.mime_type === "image/png" ? "png" : "jpg"}`);
 }

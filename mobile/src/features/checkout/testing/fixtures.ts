@@ -61,7 +61,7 @@ export const sampleProfile = {
   analytics_consent: false,
 };
 
-export function sampleHold(allocationIds: string[], ticketTypeId = "t1"): Hold {
+export function sampleHold(allocationIds: string[], ticketTypeId = "t1", payableMinor = 0): Hold {
   return {
     id: "h1",
     event_id: "e1",
@@ -70,6 +70,8 @@ export function sampleHold(allocationIds: string[], ticketTypeId = "t1"): Hold {
     expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     created_at: new Date().toISOString(),
     allocations: allocationIds.map((id) => ({ id, ticket_type_id: ticketTypeId, event_seat_id: null, state: "held" })),
+    pricing: { gross: payableMinor, discount: 0, subtotal: payableMinor, processing_fee: 0, payable: payableMinor, lines: [] },
+    promo: null,
   };
 }
 
@@ -85,6 +87,9 @@ export function sampleOrder(overrides: Partial<Order> = {}): Order {
     discount_minor: 0,
     payable_minor: 0,
     processing_fee_minor: 0,
+    quote_expires_at: "2099-11-01T10:15:00Z",
+    refunds: [],
+    promo: null,
     confirmed_at: "2026-11-01T10:00:00Z",
     created_at: "2026-11-01T10:00:00Z",
     items: [],

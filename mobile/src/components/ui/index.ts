@@ -6,7 +6,6 @@ export { confirmAction } from "@/components/ui/dialogs";
 export { FactList, type Fact } from "@/components/ui/FactList";
 export { FormMessage } from "@/components/ui/FormMessage";
 export { ListRow } from "@/components/ui/ListRow";
-export { NotAvailableYet } from "@/components/ui/NotAvailableYet";
 export { PageHeading } from "@/components/ui/PageHeading";
 export { Panel, PanelHeading } from "@/components/ui/Panel";
 export { QrCode } from "@/components/ui/QrCode";

@@ -6,10 +6,15 @@ export type NotificationKind =
   | "event_cancelled"
   | "ticket_delivered"
   | "support_reply"
-  | "support_status";
+  | "support_status"
+  | "purchase_confirmed"
+  | "payment_failed"
+  | "refund_started"
+  | "refund_completed"
+  | "order_cancelled";
 
 export interface NotificationTarget {
-  type: "event" | "ticket" | "support_case" | string;
+  type: "event" | "ticket" | "support_case" | "order" | string;
   id: string | null;
 }
 

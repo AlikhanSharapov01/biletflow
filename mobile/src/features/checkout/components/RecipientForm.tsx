@@ -9,6 +9,7 @@ import type { RecipientValues } from "../utils/checkout";
 import { checkoutStyles } from "./checkoutStyles";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { HoldCountdown } from "./HoldCountdown";
+import { PriceSummary } from "./PriceSummary";
 
 interface RecipientFormProps {
   hold: Hold;
@@ -66,7 +67,9 @@ export function RecipientForm({ hold, typeName, recipients, setRecipients, secon
           </View>
         );
       })}
-      {paid ? (
+      {hold.pricing ? (
+        <PriceSummary pricing={hold.pricing} />
+      ) : paid ? (
         <Text style={checkoutStyles.intro}>
           Ticket subtotal <Text style={checkoutStyles.strong}>{priceLabel(subtotalMinor)}</Text>. The final total, including any discount, is quoted on the next step.
         </Text>

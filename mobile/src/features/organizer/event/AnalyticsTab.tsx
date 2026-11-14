@@ -4,34 +4,29 @@ import { getAnalytics, getSalesSeries } from "@/api/analytics";
 import { listTicketTypes } from "@/api/catalog";
 import type { EventView } from "@/api/types";
 import type { AnalyticsFilters, SeriesBucket } from "@/api/types/analytics";
-import { EmptyState, ErrorPanel, LoadingState, NotAvailableYet, Panel, StatusPill } from "@/components/ui";
+import { EmptyState, ErrorPanel, LoadingState, Panel, StatusPill } from "@/components/ui";
 import { useRequest } from "@/hooks/useRequest";
 import { dateLabel } from "@/utils/format";
 
 import { SectionHeading } from "../components/SectionHeading";
-import { orPlanned } from "../utils/planned";
 import { AnalyticsFilterBar } from "./analytics/AnalyticsFilterBar";
 import { BreakdownTables } from "./analytics/BreakdownTables";
 import { SalesChart } from "./analytics/SalesChart";
 import { StatTiles } from "./analytics/StatTiles";
 
-// Read-only event analytics on the PLANNED contract (plan section 3).
+// Read-only event analytics (backend/ANALYTICS_API.md).
 export function AnalyticsTab({ event }: { event: EventView }) {
   const [filters, setFilters] = useState<AnalyticsFilters>({});
   const [bucket, setBucket] = useState<SeriesBucket>("day");
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
-  const report = useRequest(
-    () =>
-      orPlanned(async () => {
-        const [summary, series] = await Promise.all([getAnalytics(event.id, filters), getSalesSeries(event.id, filters, bucket)]);
-        return { summary, series };
-      }),
-    [event.id, filters, bucket],
-  );
+  const report = useRequest(async () => {
+    const [summary, series] = await Promise.all([getAnalytics(event.id, filters), getSalesSeries(event.id, filters, bucket)]);
+    return { summary, series };
+  }, [event.id, filters, bucket]);
 
-  const result = report.data;
-  const loaded = result && !result.planned && !report.loading ? result.value : null;
-  const campaigns = result && !result.planned ? result.value.summary.by_campaign.map((row) => ({ id: row.campaign_id, name: row.name })) : [];
+  const loaded = report.data && !report.loading ? report.data : null;
+  // Sales no campaign applies to come back as "Unattributed" with no id; they cannot be filtered on.
+  const campaigns = (report.data?.summary.by_campaign ?? []).flatMap((row) => (row.campaign_id ? [{ id: row.campaign_id, name: row.name }] : []));
 
   return (
     <>
@@ -39,8 +34,8 @@ export function AnalyticsTab({ event }: { event: EventView }) {
         <SectionHeading
           title="Analytics"
           subtitle={
-            result && !result.planned
-              ? `Times in ${result.value.summary.timezone} · generated ${dateLabel(result.value.summary.generated_at)}`
+            report.data
+              ? `Times in ${report.data.summary.timezone} · generated ${dateLabel(report.data.summary.generated_at)}`
               : "Sales, revenue and attendance for this event."
           }
           trailing={<StatusPill tone="pending" label="Demonstration figures" />}
@@ -49,7 +44,6 @@ export function AnalyticsTab({ event }: { event: EventView }) {
           types={types.data ?? []}
           campaigns={campaigns}
           bucket={bucket}
-          disabled={Boolean(result?.planned)}
           onApply={(next, nextBucket) => {
             setFilters(next);
             setBucket(nextBucket);
@@ -57,7 +51,6 @@ export function AnalyticsTab({ event }: { event: EventView }) {
         />
         {report.loading ? <LoadingState message="Loading analytics…" /> : null}
         {report.error ? <ErrorPanel title="We couldn’t load analytics." message={report.error} onRetry={report.reload} /> : null}
-        {result?.planned && !report.loading ? <NotAvailableYet feature="Analytics" /> : null}
         {loaded ? (
           <>
             <StatTiles data={loaded.summary} />

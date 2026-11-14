@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 
 import { cancelTicket, refundOrder } from "@/api/eventAdmin";
-import { describeError, isNotImplemented } from "@/api/errors";
+import { describeError } from "@/api/errors";
 import type { Attendee } from "@/api/types";
 import { ReasonDialog, SubtleButton } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
@@ -13,15 +13,13 @@ interface AttendeeActionsProps {
   eventId: string;
   row: Attendee;
   onDone: () => void;
-  // Called when the backend does not serve the planned endpoint yet.
-  onPlanned: () => void;
 }
 
 type Pending = { title: string; confirmLabel: string; action: (reason: string) => Promise<unknown>; done: string } | null;
 
-// Per-ticket cancel and per-order refund on the PLANNED commerce contract.
-// The reason is asked in a dialog (web window.prompt).
-export function AttendeeActions({ eventId, row, onDone, onPlanned }: AttendeeActionsProps) {
+// Paid registrations must be refunded as a whole order; the server enforces policy.
+// The reason is asked in a dialog.
+export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) {
   const { notify } = useToast();
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
@@ -37,8 +35,7 @@ export function AttendeeActions({ eventId, row, onDone, onPlanned }: AttendeeAct
       onDone();
     } catch (failure) {
       setPending(null);
-      if (isNotImplemented(failure)) onPlanned();
-      else notify(describeError(failure));
+      notify(describeError(failure));
     } finally {
       setBusy(false);
     }

@@ -23,6 +23,12 @@ export function priceLabel(priceMinor: number): string {
   return `₸${(priceMinor / 100).toFixed(2)}`;
 }
 
+// Money amounts in reports, where zero is ₸0.00 rather than "Free".
+export function amountLabel(amountMinor: number): string {
+  const sign = amountMinor < 0 ? "−" : "";
+  return `${sign}₸${(Math.abs(amountMinor) / 100).toFixed(2)}`;
+}
+
 export function tengeToMinor(tenge: string | number): number {
   const amount = Number(tenge);
   if (!Number.isFinite(amount) || amount < 0) return 0;

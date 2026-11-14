@@ -20,7 +20,7 @@ interface CampaignFormProps {
   disabled?: boolean;
   busy: boolean;
   message: string;
-  onSubmit: (input: CampaignInput) => Promise<void>;
+  onSubmit: (input: CampaignInput) => Promise<boolean | void>;
   onInvalid: (error: string) => void;
   onCancel?: () => void;
 }
@@ -46,8 +46,8 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
       onInvalid(result.error);
       return;
     }
-    await onSubmit(result.input);
-    if (!initial) setValues(campaignFormValues());
+    const saved = await onSubmit(result.input);
+    if (!initial && saved !== false) setValues(campaignFormValues());
   };
 
   return (

@@ -27,7 +27,7 @@ export function BreakdownTables({ data }: { data: EventAnalytics }) {
         ) : (
           data.by_campaign.map((row) => (
             <ListRow
-              key={row.campaign_id}
+              key={row.campaign_id ?? "unattributed"}
               title={row.name}
               meta={`${row.redemptions} redemptions · Discount ${priceLabel(row.discount_minor)}`}
               note={`Revenue ${priceLabel(row.revenue_minor)}`}

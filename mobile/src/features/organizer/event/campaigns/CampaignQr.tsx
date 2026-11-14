@@ -42,7 +42,7 @@ export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: C
 
   const share = async () => {
     try {
-      const filename = safeFilename(`promo-${campaign.code ?? campaign.id}.svg`);
+      const filename = safeFilename(`promo-${campaign.code}.svg`);
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();

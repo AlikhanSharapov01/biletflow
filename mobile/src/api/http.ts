@@ -19,6 +19,7 @@ export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   query?: Query;
+  idempotencyKey?: string;
 }
 
 export function withQuery(path: string, query?: Query): string {
@@ -97,9 +98,11 @@ export async function authorizedFetch(url: string, init: RequestInit = {}): Prom
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const init: RequestInit = { method: options.method ?? "GET" };
+  const headers: Record<string, string> = {};
+  if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
+  const init: RequestInit = { method: options.method ?? "GET", headers };
   if (options.body !== undefined) {
-    init.headers = { "Content-Type": "application/json" };
+    headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(options.body);
   }
   const response = await authorizedFetch(apiUrl(path, options.query), init);

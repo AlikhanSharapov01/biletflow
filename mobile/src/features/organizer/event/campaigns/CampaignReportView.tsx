@@ -18,8 +18,12 @@ export function CampaignReportView({ eventId, campaignId }: { eventId: string; c
         items={[
           { label: "Redemptions", value: data.redemptions },
           { label: "Orders · tickets", value: `${data.orders} · ${data.tickets}` },
+          { label: "Tickets refunded · kept", value: `${data.tickets_refunded} · ${data.tickets_kept}` },
           { label: "Gross before discount", value: priceLabel(data.gross_minor) },
           { label: "Discount given", value: priceLabel(data.discount_minor) },
+          { label: "Collected", value: priceLabel(data.collected_minor) },
+          { label: "Refunds", value: priceLabel(data.refunds_minor) },
+          { label: "Processing fees retained", value: priceLabel(data.fees_minor) },
           { label: "Net", value: priceLabel(data.net_minor) },
           { label: "Generated", value: dateLabel(data.generated_at) },
         ]}

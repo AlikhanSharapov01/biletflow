@@ -29,24 +29,23 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 
 ## Status
 
-The backend APIs for promo campaigns, refunds, analytics, finance and event images are now merged
-(PRs #61 and #64). On `main` the app still uses the planned contracts for them, so those rows
-are not integrated until #51 is done. Promo, campaign and refund work exists on the unmerged branch
-`feature/adil-mobile-new-apis`. Whole-project status: [integration status](../docs/integration/status.md).
+The app uses the final contracts for promo campaigns, refunds, analytics, finance (summary and
+payouts) and the event gallery (#51). They are covered by tests with a mocked API and still need
+a click-through against `docker compose up` on a simulator or phone. Whole-project status: [integration status](../docs/integration/status.md).
 
 | Area | State |
 |---|---|
 | Sign in, create account, forgot password, resend verification | Done |
 | Verify email / reset password from an emailed link | Done (paste the link or its token) |
 | Discover: search, category filter | Done |
-| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done, except promo: planned contract, not connected (#51) |
+| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done |
 | Free registration and simulated paid checkout | Done |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
-| Orders: totals, payment retry, cancel registration | Done; refund request uses the planned contract, not checked against the API (#51) |
+| Orders: totals, payment retry, cancel registration, refund request | Done |
 | Support cases: list, new case, thread, attachments, staff actions | Done |
 | Notifications: inbox and unread badge in the top bar | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, every event tab | Done, except campaigns, analytics, finance and image upload: planned contracts, not connected (#51) |
+| Organizer: workspaces, team, invitations, create event, every event tab | Done |
 | Platform admin portal (8 sections) | Done (shown only to platform admins); the paid-sales suspension and payment/refund monitoring added in #64 are not in the app yet |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
@@ -117,7 +116,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 45 files. They cover:
+(`*.test.ts(x)`): 50 files. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
   status, support threads, notification targets, organizer forms, charts, history filters,
@@ -128,7 +127,7 @@ Jest with the `jest-expo` preset and React Native Testing Library. Tests sit nex
   sections.
 - **The scanner:** outcome messages, the check-in request body, the scan → confirmation → admit
   flow, entry-code input and guest search.
-- **Shared UI:** list rows, "Not available yet", the QR code drawing and date helpers.
+- **Shared UI:** list rows, the QR code drawing and date helpers.
 
 In React Native Testing Library 14, `render` and `fireEvent` are async: write
 `await render(...)` and `await fireEvent.press(...)`. Native modules without a JavaScript version
@@ -248,10 +247,9 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Connect the merged APIs (#51):** promo, campaigns, analytics, finance (summary and payouts),
-  refund actions and the event gallery, using `backend/CAMPAIGNS_API.md`, `REFUNDS_API.md`,
-  `ANALYTICS_API.md`, `FINANCE_API.md` and `CATALOG_API.md`. Merge or redo the
-  `feature/adil-mobile-new-apis` branch first. Also add the admin paid-sales and payment/refund
+- **Check the connected APIs (#51):** click promo, campaigns, refunds, analytics, finance and
+  the event gallery through against `docker compose up`. The event page does not show the cover
+  image yet. Also add the admin paid-sales and payment/refund
   monitoring screens from `backend/ADMIN_API.md`, which no issue covers yet.
 - **Translations (#52):** Kazakh and Russian, using the saved profile language and the web's keys.
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
