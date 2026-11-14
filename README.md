@@ -229,7 +229,7 @@ PDF text (#82).
 3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
    integration (#51); HTTPS for the shared
    demo (#49).
-4. **Acceptance:** real devices (#53) and builds (#54); rerun the load and crash harnesses and the
+4. **Acceptance:** real devices (#53); rerun the load and crash harnesses and the
    restore drill once steps 1–2 change the code, then record the results in the integration
    status and `backend/VALIDATION.md`.
 
