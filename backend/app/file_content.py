@@ -49,7 +49,8 @@ PDF_HEADER = re.compile(rb"%PDF-[12]\.\d")
 PDF_TAIL = re.compile(rb"startxref[\s]+(\d{1,10})[\s]+%%EOF[\s\0]*\Z")
 PDF_SUBSECTION = re.compile(rb"[\s]*(\d{1,10})[ ]+(\d{1,10})[ \t]*(?:\r\n|\r|\n)")
 PDF_ENTRY = re.compile(rb"(\d{10}) (\d{5}) ([nf])[ ]?(?:\r\n|\r|\n)")
-PDF_OBJECT = re.compile(rb"[\s\0]*(\d{1,10})[\s]+(\d{1,5})[\s]+obj\b")
+# Whitespace runs are bounded: many entries may point at the same offset.
+PDF_OBJECT = re.compile(rb"[\s\0]{0,32}(\d{1,10})[\s]{1,32}(\d{1,5})[\s]{1,32}obj\b")
 PDF_TRAILER = re.compile(rb"[\s]*trailer[\s]*<<")
 PDF_ROOT = re.compile(rb"/Root[\s]*(\d{1,10})[\s]+(\d{1,5})[\s]+R")
 PDF_PREV = re.compile(rb"/Prev[\s]+(\d{1,10})")
@@ -62,6 +63,11 @@ PDF_INDEX = re.compile(rb"/Index[\s]*\[([\d\s]*)\]")
 # A direct /Length (not an indirect `N G R` reference).
 PDF_LENGTH = re.compile(rb"/Length[\s]+(\d{1,10})(?![\d])(?![\s]+\d+[\s]+R)")
 PDF_FIRST = re.compile(rb"/First[\s]+(\d{1,10})")
+PDF_COUNT = re.compile(rb"/N[\s]+(\d{1,10})")
+# One integer of an object stream header; whitespace and comments may precede it (bounded).
+PDF_OBJSTM_TOKEN = re.compile(rb"(?:[\s]{1,64}|%[^\r\n]{0,256}){0,8}(\d{1,10})")
+# An object stream header holds N pairs of integers of at most 10 digits plus separators.
+PDF_OBJSTM_PAIR_BYTES = 24
 PDF_FILTER = re.compile(rb"/Filter[\s]*\[?[\s]*/(\w+)[\s]*\]?")
 PDF_PREDICTOR = re.compile(rb"/Predictor[\s]+(\d{1,2})")
 PDF_COLUMNS = re.compile(rb"/Columns[\s]+(\d{1,3})")
@@ -317,7 +323,8 @@ def xref_table(data, position, budget):
             return None
         first, count = int(section.group(1)), int(section.group(2))
         position = section.end()
-        if count > (len(data) - position) // 19 or not spend(budget, count):
+        # An empty subsection still costs one entry, so it cannot be repeated for free.
+        if count > (len(data) - position) // 19 or not spend(budget, max(1, count)):
             return None
         for number in range(first, first + count):
             entry = PDF_ENTRY.match(data, position)
@@ -505,24 +512,73 @@ def catalog(data, entries, number, generation):
         return False
     found = object_header(data, container[1], entry[1])
     parts = stream_parts(data, found.end()) if found else None
-    content = decode(parts[0], parts[1], MAX_PDF_STREAM) if parts else None
-    if content is None or not PDF_OBJSTM_TYPE.search(parts[0]):
+    if parts is None or not PDF_OBJSTM_TYPE.search(parts[0]):
         return False
-    first = PDF_FIRST.search(parts[0])
-    if not first or int(first.group(1)) > len(content):
+    dictionary, raw = parts
+    count, first = PDF_COUNT.search(dictionary), PDF_FIRST.search(dictionary)
+    if not count or not first:
         return False
-    base = int(first.group(1))
-    # The header is integer pairs; PDF comments may sit between them.
-    head = re.sub(rb"%[^\r\n]*", b" ", content[:base]).split()
-    if len(head) % 2 or not all(item.isdigit() for item in head):
+    count, base = int(count.group(1)), int(first.group(1))
+    # The header can only be as long as its N pairs (plus room for comments, which qpdf's QDF
+    # mode writes there), and N as large as the file allows.
+    if (
+        not 1 <= count <= entry_budget(data)
+        or base > count * PDF_OBJSTM_PAIR_BYTES + PDF_DICT_LIMIT
+    ):
         return False
-    offsets = [(int(n), int(o)) for n, o in zip(head[::2], head[1::2])]
-    for position, (member, start) in enumerate(offsets):
-        if member == number:
-            stop = offsets[position + 1][1] if position + 1 < len(offsets) else None
-            text = content[base + start : None if stop is None else base + stop]
-            return bool(PDF_CATALOG.search(text))
-    return False
+    head = decoded_range(dictionary, raw, 0, base)
+    if head is None or len(head) != base:
+        return False
+    # Read pairs only up to the member asked for.
+    position, previous, start = 0, -1, None
+    for _ in range(count):
+        member = PDF_OBJSTM_TOKEN.match(head, position)
+        offset = PDF_OBJSTM_TOKEN.match(head, member.end()) if member else None
+        if offset is None:
+            return False
+        position, value = offset.end(), int(offset.group(1))
+        if value < previous:
+            return False  # offsets increase
+        previous = value
+        if start is not None:
+            stop = value
+            break
+        if int(member.group(1)) == number:
+            start = value
+    else:
+        if start is None:
+            return False
+        stop = None
+    # A catalog is a small dictionary: decode at most PDF_DICT_LIMIT bytes of it.
+    limit = start + PDF_DICT_LIMIT if stop is None else min(stop, start + PDF_DICT_LIMIT)
+    text = decoded_range(dictionary, raw, base + start, base + limit)
+    return text is not None and bool(PDF_CATALOG.search(text))
+
+
+def decoded_range(dictionary, raw, start, stop):
+    """Bytes [start:stop) of a decoded stream (fewer if it ends first), or None.
+
+    Inflates incrementally, keeps only the requested range and never decodes past `stop` or
+    MAX_PDF_STREAM.
+    """
+    if stop > MAX_PDF_STREAM:
+        return None
+    filters = PDF_FILTER.search(dictionary)
+    if filters is None:
+        return raw[start:stop]
+    if filters.group(1) != b"FlateDecode":
+        return None
+    inflater, pending, produced, kept = zlib.decompressobj(), raw, 0, []
+    while produced < stop and not inflater.eof:
+        part = inflater.decompress(pending, min(INFLATE_STEP, stop - produced))
+        progressed = bool(part) or len(inflater.unconsumed_tail) < len(pending)
+        pending = inflater.unconsumed_tail
+        if produced + len(part) > start:
+            kept.append(part[max(0, start - produced) :])
+        produced += len(part)
+        if not progressed:
+            break  # input exhausted (truncated stream) or no progress possible
+    return b"".join(kept)
 
 
 CHECKS = {"image/png": valid_png, "image/jpeg": valid_jpeg, "application/pdf": valid_pdf}

@@ -432,3 +432,81 @@ def test_many_objects_validate_in_linear_time():
 
 def test_entry_budget_caps_declared_objects():
     assert not valid_content("application/pdf", objects_without_endobj(200_000))  # > 100 000
+
+
+def deflated(chunk, repeat, tail=b"", head=b""):
+    """zlib stream of head + chunk * repeat + tail, built without holding it in memory."""
+    packer = zlib.compressobj(9)
+    parts = [packer.compress(head)] + [packer.compress(chunk) for _ in range(repeat)]
+    return b"".join(parts) + packer.compress(tail) + packer.flush()
+
+
+def objstm_pdf(packed, first, count):
+    """Root (object 1) compressed into object stream 3 whose content is `packed`."""
+    out = bytearray(b"%PDF-1.5\n")
+    objstm = len(out)
+    out += (
+        b"3 0 obj\n<< /Type /ObjStm /N %d /First %d /Filter /FlateDecode /Length %d >>\n"
+        b"stream\n%s\nendstream\nendobj\n" % (count, first, len(packed), packed)
+    )
+    xref = len(out)
+    rows = b"".join(
+        bytes([kind]) + struct.pack(">H", field) + bytes([index])
+        for kind, field, index in [(0, 0, 255), (2, 3, 0), (0, 0, 0), (1, objstm, 0), (1, xref, 0)]
+    )
+    out += (
+        b"4 0 obj\n<< /Type /XRef /Size 5 /W [1 2 1] /Root 1 0 R /Length %d >>\nstream\n%s\n"
+        b"endstream\nendobj\nstartxref\n%d\n%%%%EOF\n" % (len(rows), rows, xref)
+    )
+    return bytes(out)
+
+
+def test_object_stream_header_bomb_is_rejected_cheaply():
+    # 16 MiB of "1 1 1 ..." with /First just under it: a header no real N could need.
+    size = 16 * 1024 * 1024
+    bomb = objstm_pdf(deflated(b"1 " * 32768, size // 65536), size - 2, 4)
+    assert len(bomb) < 40_000
+    tracemalloc.start()
+    try:
+        result, elapsed = timed(bomb)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert result is False and elapsed < 0.5 and peak < 5 * 1024 * 1024
+
+
+def test_object_stream_member_far_away_is_decoded_in_bounded_memory():
+    # A valid header whose catalog sits behind 15 MiB of padding: only a window is kept.
+    padding = 240 * 65536
+    head = b"1 %d " % padding
+    packed = deflated(b" " * 65536, 240, b"<< /Type /Catalog /Pages 2 0 R >>", head)
+    data = objstm_pdf(packed, len(head), 1)
+    tracemalloc.start()
+    try:
+        result, elapsed = timed(data)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert result is True and elapsed < 1.0 and peak < 5 * 1024 * 1024
+
+
+def test_object_stream_header_must_name_the_member():
+    member = b"<< /Type /Catalog >>"
+    for head, count, ok in [
+        (b"1 0 ", 1, True),
+        (b"%comment\n1 0 ", 1, True),
+        (b"2 0 ", 1, False),  # the catalog is not in this stream
+        (b"2 0 1 5 ", 1, False),  # only N pairs are read
+        (b"2 9 1 0 ", 2, False),  # offsets must increase
+        (b"1 0 ", 10_000_000, False),  # more members than the file could hold
+    ]:
+        data = objstm_pdf(zlib.compress(head + member), len(head), count)
+        assert valid_content("application/pdf", data) is ok, head
+
+
+def test_empty_xref_subsections_count_toward_the_budget():
+    good = pdf()
+    xref = good.index(b"xref\n")
+    padded = good[: xref + 5] + b"0 0\n" * 100_000 + good[xref + 5 :]
+    result, elapsed = timed(padded)
+    assert result is False and elapsed < 0.5
