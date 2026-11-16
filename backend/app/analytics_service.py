@@ -175,6 +175,24 @@ def normalize(row):
     return values
 
 
+def campaign_totals(db, event_id, campaign_id):
+    """One campaign's metrics from the same SQL and definitions as the event analytics.
+
+    Only eligible lines are attributed; tickets and money of ineligible lines in the same
+    basket belong to "Unattributed". Counts of original and refunded tickets are historical,
+    retained tickets are current.
+    """
+    params = {
+        "event_id": event_id,
+        "campaign_id": campaign_id,
+        "from_": None,
+        "to": None,
+        "ticket_type_id": None,
+    }
+    row = db.execute(text(ITEMS + f" SELECT {TOTALS} FROM items"), params).mappings().one()
+    return normalize(row)
+
+
 def metadata(event, filters):
     return {
         "event_id": event.id,

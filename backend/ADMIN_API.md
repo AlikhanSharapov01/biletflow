@@ -121,6 +121,10 @@ of a complete result. Existing users/events/orders/tickets CSV filters remain `q
   explicit business actions.
 - Repeating a transition returns `409 user_already_suspended`, `user_not_suspended`,
   `event_already_suspended` or `event_not_suspended`.
+- **Notices.** Every user, event and paid-sales decision also records one deduplicated notification
+  intent in the same transaction (recipients, wording and delivery rules are in
+  [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md#moderation-notices)). The reason is
+  never sent. A mail or fan-out outage is retried later and never reverses the decision.
 - Each decision inserts an immutable `moderation_action` (actor, target, action, reason) and an
   audit row in the same transaction as the state change. Event audit rows carry the
   organization and event so they appear in that event's history.
@@ -145,7 +149,7 @@ of a complete result. Existing users/events/orders/tickets CSV filters remain `q
 | Key | Default | Range | Meaning |
 |---|---:|---|---|
 | `hold_minutes` | 10 | 1-60 | Checkout hold duration |
-| `activation_fee_minor` | 500000 | 0-100000000 | Demo paid-sales activation fee, KZT minor units |
+| `activation_fee_minor` | 500000 | 1-100000000 | Demo paid-sales activation fee, KZT minor units |
 | `processing_rate_bps` | 300 | 0-10000 | Demo processing rate in basis points |
 | `upload_max_mb` | 5 | 1-50 | Largest upload |
 
@@ -159,10 +163,35 @@ of a complete result. Existing users/events/orders/tickets CSV filters remain `q
   the past (`422 invalid_effective_at`). The value in force is the highest version whose
   `effective_at` has passed. Existing orders, quotes, holds and activation records keep their own
   snapshots and are never recalculated.
-- Other modules read a value with `admin_service.effective_setting(db, key)` when they start a new
-  hold, quote or activation. **Integration point:** the current free checkout still uses the
-  constant `HOLD_MINUTES`; switching it to `effective_setting(db, "hold_minutes")` is a one-line
-  change for the checkout owner. No fee or rate logic is implemented here.
+- **Where each setting applies** (`platform_settings.py`):
+  - `hold_minutes`: read when a hold is created. The hold keeps its `expires_at`, and the order
+    policy snapshot records the hold's actual length.
+  - `processing_rate_bps`: the rate in force when the hold was created. The hold's pricing preview
+    and the paid order quote both use it, so a rate change between hold and checkout never
+    re-prices the buyer. The order saves `processing_rate_bps`; free orders have no fee.
+  - `activation_fee_minor`: read when an event's activation is first started and saved on it. The
+    checklist shows the current fee until then. The value cannot be 0 because an activation fee
+    must be positive.
+  - `upload_max_mb`: applies to support attachments and event images alike, as
+    `min(deployment cap, setting)`. The deployment cap is `ATTACHMENT_MAX_BYTES` (5 MiB by default),
+    which an admin setting cannot raise.
+- **No race with a change.** Creating a hold or activation takes a shared advisory lock on the
+  settings it reads, and a change takes the exclusive lock before it reads the clock for its
+  effective time. A record therefore either sees a change that became effective before its own
+  timestamp, or is stamped before it.
+
+### Public settings
+
+`GET /api/v1/settings/public` needs no sign-in and returns only what clients need for countdowns,
+fee estimates and upload checks, with `Cache-Control: no-store`:
+
+```json
+{"hold_minutes": 10, "processing_rate_bps": 300, "activation_fee_minor": 500000,
+ "upload_max_bytes": 5242880, "currency": "KZT"}
+```
+
+Values are those in force now. Scheduled changes, versions, authors, reasons and history are not
+exposed; they stay under `/admin/settings`. `upload_max_bytes` already includes the deployment cap.
 
 ## CSV export
 
@@ -192,7 +221,3 @@ deliberately raises, like earlier migrations.
 - Dispute, campaign and offline-conflict admin views, and admin search/inspection of support
   cases (escalation itself exists: `POST /support/cases/{id}/escalation`) (#72).
 - Views of exhausted jobs and failed notification deliveries (#73).
-- User-facing notices to affected users (BF-15); the audit trail already records each decision (#74).
-- Applying the versioned hold, activation-fee and processing-rate settings to new checkouts and
-  activations; today only event images read the upload limit from settings (#70).
-- Public platform settings endpoint for clients (#70).

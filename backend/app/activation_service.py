@@ -25,11 +25,11 @@ from .payments_service import (
     latest_attempt,
     new_attempt,
 )
+from .platform_settings import effective_setting, settings_now
 from .security import fail, now
 
-# Proposed demonstration defaults, not confirmed product tariffs. They are saved on each
-# activation so a later change never rewrites history.
-ACTIVATION_FEE_MINOR = 500_000  # KZT 5,000
+# The activation fee is the platform setting `activation_fee_minor` in force when the
+# activation is created; it is saved on the activation so a later change never rewrites it.
 TERMS_VERSION = "2026-10-paid-sales-simulation-v1"
 TERMS_TEXT = (
     "BiletFlow paid sales (academic simulation). Payments, payouts and identity checks on this "
@@ -151,7 +151,7 @@ def checklist(db, event):
         },
         "activation_fee_minor": activation.activation_fee_minor
         if activation
-        else ACTIVATION_FEE_MINOR,
+        else effective_setting(db, "activation_fee_minor"),
         "currency": "KZT",
         "activated_at": activation.activated_at if activation else None,
         "suspension_reason": activation.suspension_reason if activation else None,
@@ -226,10 +226,11 @@ def start_activation(db, user, event_id):
         fail("event_not_editable", 409)
     activation = activation_for(db, event.id, lock=True)
     if not activation:
+        _, current = settings_now(db, "activation_fee_minor")
         activation = SalesActivation(
             event_id=event.id,
             organization_id=org.id,
-            activation_fee_minor=ACTIVATION_FEE_MINOR,
+            activation_fee_minor=current["activation_fee_minor"],
         )
         db.add(activation)
         db.flush()

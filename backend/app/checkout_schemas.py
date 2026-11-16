@@ -7,7 +7,6 @@ from .campaign_schemas import normalize_code
 from .catalog_schemas import Name
 from .schemas import Input
 
-HOLD_MINUTES = 10
 MAX_ACTIVE_HOLDS = 3
 QR_PURPOSE = "ticket_qr"
 QR_PREFIX = "biletflow:ticket:"

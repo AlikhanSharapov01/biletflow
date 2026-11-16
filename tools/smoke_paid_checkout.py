@@ -354,7 +354,12 @@ report = step(
     c.get(f"{API}/events/{event['id']}/campaigns/{campaign['id']}/report", headers=owner),
 )
 assert report["redemptions"] == 1 and report["discount_minor"] == 40000
-assert report["collected_minor"] == 360000 and report["net_minor"] == 349200
+# The report uses the same definitions as the event analytics: the late duplicate capture is
+# collected money (720000 in all), 360000 of it is refunded, and the 3% fee on the kept
+# ticket (10800) is retained.
+assert report["collected_minor"] == 720000 and report["refunds_minor"] == 360000
+assert report["fees_minor"] == 10800 and report["net_minor"] == 349200
+assert report["tickets"] == report["tickets_kept"] == 1 and report["tickets_refunded"] == 0
 print(f"      redemptions=1 collected={report['collected_minor']} net={report['net_minor']}")
 
 second_email, second = account("second")

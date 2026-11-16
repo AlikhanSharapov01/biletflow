@@ -211,11 +211,17 @@ def test_expired_campaign_refund_keeps_finance_consistent(client, setup, account
     assert pending["gross_minor"] == pending["discount_minor"] == 0
     assert pending["fulfilled_collected_minor"] == 0
     assert pending["estimated_payout_minor"] == before["estimated_payout_minor"]
+    # Same definitions as the event analytics: nothing was redeemed or issued, but the charge
+    # is collected money that is owed back until the refund settles.
     report = client.get(campaign_path(f, made, "/report"), headers=f["headers"]).json()
     assert report["redemptions"] == report["orders"] == report["tickets"] == 0
-    assert report["collected_minor"] == 0
+    assert report["collected_minor"] == report["pending_refunds_minor"] == QUOTED
+    assert report["refunds_minor"] == 0
 
     settle(client, factory, order["id"], headers)
+    report = client.get(campaign_path(f, made, "/report"), headers=f["headers"]).json()
+    assert report["collected_minor"] == report["refunds_minor"] == QUOTED
+    assert report["pending_refunds_minor"] == report["fees_minor"] == report["net_minor"] == 0
     done = finance(client, f).json()
     assert done["refunds_minor"] == QUOTED and done["pending_refunds_minor"] == 0
     assert done["fees_minor"] == 0

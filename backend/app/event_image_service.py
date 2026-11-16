@@ -11,12 +11,12 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import exists, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from .admin_service import effective_setting
 from .attachment_service import ALLOWED_TYPES, clean_filename
 from .catalog_models import Organization
 from .catalog_service import catalog_audit, changed, editable, event_guard
 from .checkout_models import Ticket
 from .file_models import EventMedia, StoredFile, SupportAttachment
+from .platform_settings import upload_limit
 from .security import fail, now
 from .service import valid_session
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def image_limit(db, settings):
-    return min(settings.attachment_max_bytes, effective_setting(db, "upload_max_mb") * 1024 * 1024)
+    return upload_limit(db, settings)
 
 
 def validated_image(data, content_type, limit):

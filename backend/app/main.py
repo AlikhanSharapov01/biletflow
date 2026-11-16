@@ -518,6 +518,7 @@ def create_app(settings: Settings | None = None):
     from .organization_api import router as organization_router
     from .paid_checkout_api import router as paid_checkout_router
     from .refund_api import router as refund_router
+    from .settings_api import router as settings_router
     from .support_api import router as support_router
     from .ticket_document_api import router as ticket_document_router
 
@@ -540,4 +541,5 @@ def create_app(settings: Settings | None = None):
     app.include_router(paid_checkout_router(factory, settings, principal))
     app.include_router(campaign_router(factory, settings, principal))
     app.include_router(refund_router(factory, settings, principal))
+    app.include_router(settings_router(factory, settings, principal))
     return app

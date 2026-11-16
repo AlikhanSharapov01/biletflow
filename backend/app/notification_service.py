@@ -17,7 +17,14 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
-from .catalog_models import Event
+from .catalog_models import (
+    Event,
+    EventStaff,
+    Member,
+    MemberPermission,
+    Organization,
+    StaffPermission,
+)
 from .checkout_models import Ticket, TicketOrder
 from .models import OutboxJob, User
 from .notification_models import Notification, NotificationDelivery
@@ -44,7 +51,19 @@ CHANNELS = {
     "refund_started": ("in_app", "email"),
     "refund_completed": ("in_app", "email"),
     "order_cancelled": ("in_app", "email"),
+    "account_suspended": ("in_app", "email"),
+    "account_reinstated": ("in_app", "email"),
+    "event_suspended": ("in_app", "email"),
+    "event_reinstated": ("in_app", "email"),
+    "paid_sales_suspended": ("in_app", "email"),
+    "paid_sales_reinstated": ("in_app", "email"),
 }
+# Platform moderation decisions (BF-15/BF-21). Notices never carry the admin's reason or any
+# other moderation context; the audit trail keeps that.
+ACCOUNT_NOTICES = ("account_suspended", "account_reinstated")
+ORGANIZER_NOTICES = ("event_suspended", "event_reinstated")
+PAID_SALES_NOTICES = ("paid_sales_suspended", "paid_sales_reinstated")
+MODERATION_NOTICES = ACCOUNT_NOTICES + ORGANIZER_NOTICES + PAID_SALES_NOTICES
 ORDER_NOTICES = (
     "purchase_confirmed",
     "payment_failed",
@@ -194,6 +213,109 @@ TEMPLATES = {
 }
 
 
+TEMPLATES["account_suspended"] = {
+    "en": (
+        "Your BiletFlow account has been suspended",
+        "The platform administrators have suspended your BiletFlow account, so you can no "
+        "longer sign in. If you think this is a mistake, contact BiletFlow support. "
+        "BiletFlow: {link}",
+    ),
+    "ru": (
+        "Ваш аккаунт BiletFlow заблокирован",
+        "Администраторы платформы заблокировали ваш аккаунт BiletFlow, войти в него пока "
+        "нельзя. Если вы считаете, что это ошибка, обратитесь в поддержку BiletFlow. "
+        "BiletFlow: {link}",
+    ),
+    "kk": (
+        "BiletFlow аккаунтыңыз бұғатталды",
+        "Платформа әкімшілері BiletFlow аккаунтыңызды бұғаттады, қазір жүйеге кіре "
+        "алмайсыз. Қателік деп ойласаңыз, BiletFlow қолдау қызметіне хабарласыңыз. "
+        "BiletFlow: {link}",
+    ),
+}
+TEMPLATES["account_reinstated"] = {
+    "en": (
+        "Your BiletFlow account is active again",
+        "Your BiletFlow account has been reinstated. You can sign in again: {link}",
+    ),
+    "ru": (
+        "Ваш аккаунт BiletFlow снова активен",
+        "Ваш аккаунт BiletFlow восстановлен. Теперь вы снова можете войти: {link}",
+    ),
+    "kk": (
+        "BiletFlow аккаунтыңыз қайта белсенді",
+        "BiletFlow аккаунтыңыз қалпына келтірілді. Енді қайта кіре аласыз: {link}",
+    ),
+}
+TEMPLATES["event_suspended"] = {
+    "en": (
+        "Event suspended: {title}",
+        "The platform administrators have suspended {title}. It is hidden from attendees, "
+        "tickets cannot be sold and check-in is paused until it is reinstated. "
+        "Event: {link}",
+    ),
+    "ru": (
+        "Мероприятие приостановлено: {title}",
+        "Администраторы платформы приостановили мероприятие {title}. Оно скрыто от "
+        "посетителей, продажа билетов и проверка на входе остановлены до восстановления. "
+        "Мероприятие: {link}",
+    ),
+    "kk": (
+        "Іс-шара тоқтатыла тұрды: {title}",
+        "Платформа әкімшілері {title} іс-шарасын тоқтатты. Ол қатысушыларға көрінбейді, "
+        "билет сатылмайды және кіру тексеруі қалпына келтірілгенге дейін тоқтатылған. "
+        "Іс-шара: {link}",
+    ),
+}
+TEMPLATES["event_reinstated"] = {
+    "en": (
+        "Event reinstated: {title}",
+        "The platform administrators have reinstated {title}. It is visible again and "
+        "sales and check-in can continue. Event: {link}",
+    ),
+    "ru": (
+        "Мероприятие восстановлено: {title}",
+        "Администраторы платформы восстановили мероприятие {title}. Оно снова видно, "
+        "продажа билетов и проверка на входе возобновлены. Мероприятие: {link}",
+    ),
+    "kk": (
+        "Іс-шара қалпына келтірілді: {title}",
+        "Платформа әкімшілері {title} іс-шарасын қалпына келтірді. Ол қайта көрінеді, "
+        "билет сату мен кіру тексеруі жалғаса алады. Іс-шара: {link}",
+    ),
+}
+TEMPLATES["paid_sales_suspended"] = {
+    "en": (
+        "Paid sales suspended: {title}",
+        "The platform administrators have suspended paid ticket sales for {title}. New paid "
+        "orders cannot be placed until sales are reinstated. Event: {link}",
+    ),
+    "ru": (
+        "Платные продажи приостановлены: {title}",
+        "Администраторы платформы приостановили платные продажи билетов на {title}. Новые "
+        "платные заказы невозможны до восстановления продаж. Мероприятие: {link}",
+    ),
+    "kk": (
+        "Ақылы сату тоқтатылды: {title}",
+        "Платформа әкімшілері {title} үшін ақылы билет сатуды тоқтатты. Сату қалпына "
+        "келтірілгенше жаңа ақылы тапсырыстар берілмейді. Іс-шара: {link}",
+    ),
+}
+TEMPLATES["paid_sales_reinstated"] = {
+    "en": (
+        "Paid sales reinstated: {title}",
+        "The platform administrators have reinstated paid ticket sales for {title}. Event: {link}",
+    ),
+    "ru": (
+        "Платные продажи восстановлены: {title}",
+        "Администраторы платформы восстановили платные продажи билетов на {title}. "
+        "Мероприятие: {link}",
+    ),
+    "kk": (
+        "Ақылы сату қалпына келтірілді: {title}",
+        "Платформа әкімшілері {title} үшін ақылы билет сатуды қалпына келтірді. Іс-шара: {link}",
+    ),
+}
 TEMPLATES["payout_status"] = {
     "en": ("Simulated payout: {status}", "Simulated payout: {status}. No real money moved. {link}"),
     "ru": (
@@ -233,6 +355,10 @@ def resolve_locale(value):
 
 
 def target_of(kind, payload):
+    if kind in ACCOUNT_NOTICES:
+        return {"type": "account", "id": None}
+    if kind in ORGANIZER_NOTICES + PAID_SALES_NOTICES:
+        return {"type": "organizer_event", "id": payload.get("event_id")}
     if kind.startswith("support_"):
         return {"type": "support_case", "id": payload.get("case_id")}
     if kind == "ticket_delivered":
@@ -244,7 +370,11 @@ def target_of(kind, payload):
 
 def target_path(kind, payload):
     target = target_of(kind, payload)
+    if target["type"] == "account":
+        # A suspended account cannot open /account; the sign-in page is the neutral landing.
+        return "/sign-in"
     folder = {
+        "organizer_event": "organizer/events",
         "event": "events",
         "ticket": "tickets",
         "support_case": "support/cases",
@@ -355,6 +485,22 @@ def enqueue_support_notice(
     )
 
 
+def enqueue_moderation_notice(db, notice, decision_id, *, user_id=None, event_id=None):
+    """Hook for admin moderation, called in the transaction that records the decision.
+
+    decision_id is the moderation action (or audit row) of that one decision, so a retried or
+    replayed request maps to the same intent. Only ids are stored: never the admin's reason.
+    """
+    if notice not in MODERATION_NOTICES:
+        raise ValueError("unknown moderation notice")
+    payload = {"notice": notice, "decision_id": str(decision_id)}
+    if user_id:
+        payload["user_id"] = str(user_id)
+    if event_id:
+        payload["event_id"] = str(event_id)
+    enqueue(db, f"notify-moderation-{notice}:{decision_id}", payload, event_id)
+
+
 # ---------------------------------------------------------------------------
 # Worker side.
 # ---------------------------------------------------------------------------
@@ -430,9 +576,69 @@ def event_audience(db, event_id, cancelled):
     return sorted(ids, key=str)
 
 
+def moderation_audience(db, event, notice):
+    """People who run the event: the organization owner, plus staff who may edit this event
+    (event decisions) or members with the finance capability (paid-sales decisions).
+    Attendees are not told about moderation; they see the effect on the event itself."""
+    org = db.get(Organization, event.organization_id)
+    if notice in PAID_SALES_NOTICES:
+        members = (
+            select(Member.user_id)
+            .join(MemberPermission, MemberPermission.member_id == Member.id)
+            .where(
+                Member.organization_id == org.id,
+                Member.status == "active",
+                MemberPermission.capability == "finance",
+                MemberPermission.revoked_at.is_(None),
+            )
+        )
+    else:
+        members = (
+            select(Member.user_id)
+            .join(EventStaff, EventStaff.member_id == Member.id)
+            .join(StaffPermission, StaffPermission.event_staff_id == EventStaff.id)
+            .where(
+                EventStaff.event_id == event.id,
+                EventStaff.revoked_at.is_(None),
+                Member.status == "active",
+                StaffPermission.capability == "event_edit",
+                StaffPermission.revoked_at.is_(None),
+            )
+        )
+    ids = {org.owner_user_id} | set(db.scalars(members))
+    return [user for user_id in sorted(ids, key=str) if (user := db.get(User, user_id))]
+
+
+def expand_moderation(db, payload):
+    notice, key = payload["notice"], f"{payload['notice']}:{payload['decision_id']}"
+    if notice in ACCOUNT_NOTICES:
+        user = db.get(User, UUID(payload["user_id"]))
+        # A decision that has since been reversed is no longer worth announcing.
+        wanted = "suspended" if notice == "account_suspended" else "active"
+        if user and user.status == wanted:
+            create_notification(db, user, notice, key, None, {"version": 1})
+        return
+    event = db.get(Event, UUID(payload["event_id"]))
+    if not event:
+        return
+    data = event_payload(event)
+    for user in moderation_audience(db, event, notice):
+        if user.status == "active":
+            create_notification(db, user, notice, key, event.id, data)
+
+
+def can_receive_email(user, kind):
+    """An account suspension is the one notice that is mailed to a suspended account."""
+    if not user or user.email_verified_at is None:
+        return False
+    return user.status == ("suspended" if kind == "account_suspended" else "active")
+
+
 def expand(db, payload):
     notice = payload["notice"]
-    if notice in ("event_updated", "event_cancelled"):
+    if notice in MODERATION_NOTICES:
+        expand_moderation(db, payload)
+    elif notice in ("event_updated", "event_cancelled"):
         event = db.get(Event, UUID(payload["event_id"]))
         if not event:
             return
@@ -593,7 +799,7 @@ def email_once(factory, settings, send=None):
         with factory() as db:
             notification = db.get(Notification, notification_id)
             user = db.get(User, notification.recipient_user_id)
-            if not user or user.status != "active" or user.email_verified_at is None:
+            if not can_receive_email(user, notification.kind):
                 outcome = "unavailable"
             else:
                 subject, body = render(

@@ -45,10 +45,23 @@ The input fields plus `id`, `event_id`, `created_at`, `status` (`scheduled`, `ac
 ### Report
 
 `campaign_id`, `redemptions`, `orders`, `tickets`, `tickets_refunded`, `tickets_kept`, `gross_minor`,
-`discount_minor`, `collected_minor`, `refunds_minor`, `fees_minor`, `net_minor`, `generated_at`.
+`discount_minor`, `collected_minor`, `refunds_minor`, `pending_refunds_minor`, `fees_minor`,
+`net_minor`, `definitions`, `generated_at`.
 
-`net_minor = collected_minor - refunds_minor - fees_minor`. Only successful refunds are subtracted and
-processing fees are retained. Attribution survives campaign edits and refunds.
+The report is computed by the same query as the event analytics (`GET /events/{id}/analytics`), so
+a campaign's numbers equal its `by_campaign` row there:
+
+- **Attribution:** only the eligible lines of an order belong to the campaign. Ineligible lines of
+  the same basket, and their share of the charge and fee, are "Unattributed" in the analytics.
+- **Historical vs current:** `tickets` and `tickets_refunded` are history and do not drop after a
+  refund; `tickets_kept` counts tickets that are still valid or checked in. A refund followed by a
+  new purchase counts as two redemptions.
+- **Money:** `collected_minor` is the share of successful charges; `refunds_minor` only counts
+  completed refunds; `pending_refunds_minor` is owed but not yet refunded. `fees_minor` is the saved
+  processing fee minus the fee returned with a successful full simulated refund.
+- `net_minor = collected_minor - refunds_minor - fees_minor`, so a fully refunded campaign nets zero.
+
+`definitions` returns these descriptions as text for clients.
 
 ### Errors
 

@@ -19,6 +19,7 @@ from .attachment_service import (
     link_expires_at,
     upload_attachment,
 )
+from .platform_settings import upload_limit
 from .security import decode_access, fail
 from .service import rate_limit, valid_session
 from .support_models import CATEGORIES, STATUSES, SupportCase
@@ -190,14 +191,14 @@ def router(factory, settings, principal, storage):
         if content_type not in ALLOWED_TYPES:
             fail("unsupported_media_type", 415)
         name = clean_filename(filename)  # a bad name is refused before any body is read
-        await run_in_threadpool(participant_check, ids, case_id)
+        limit = await run_in_threadpool(participant_check, ids, case_id)
         declared = request.headers.get("content-length")
-        if declared and declared.isdigit() and int(declared) > settings.attachment_max_bytes:
+        if declared and declared.isdigit() and int(declared) > limit:
             fail("attachment_too_large", 413)
         chunks, size = [], 0
         async for chunk in request.stream():
             size += len(chunk)
-            if size > settings.attachment_max_bytes:
+            if size > limit:
                 fail("attachment_too_large", 413)
             chunks.append(chunk)
         return await run_in_threadpool(
@@ -209,6 +210,7 @@ def router(factory, settings, principal, storage):
         with factory() as db:
             user, _ = valid_session(db, *ids)
             get_case(db, user, case_id)
+            return upload_limit(db, settings)
 
     def store_upload(ids, case_id, filename, content_type, data):
         with factory.begin() as db:
