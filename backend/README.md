@@ -206,16 +206,17 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016, 0017, 0019 and 0021 use inline SQL).
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 to 0019 and 0021 use inline SQL).
   There are **20 migrations and 69 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
-  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0019_admin_retry`
+  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0018_attachment_cleanup`
+  (support upload cleanup index and schedule for unlinked uploads, #76) → `0019_admin_retry`
   (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
   (adds `ga4_connection`, `analytics_export`, `ga4_cache`) → `0021_job_correlation` (nullable
-  `outbox_job.correlation_id`, no table). Revision `0018` is not used yet.
+  `outbox_job.correlation_id`, no table).
   The chain through `0017` (17 migrations, 66 tables) was verified on a disposable test database
   on 13 November 2026; `0019`–`0021` and the 69-table count are not yet verified that way;
   check each deployment independently. The count excludes `public.alembic_version`.
@@ -224,7 +225,7 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 - Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
   downgrades tested up/down/up on a disposable database (`0019` has a scoped downgrade that has not
   been round-trip tested yet); finance/gallery rollback loses their
-  new history/links. Back up valuable data before any rollback.
+  new history/links. `0018` drops only its index on downgrade (not yet exercised up/down/up). Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
 - `docs/database/` holds a 66-table **reference design**. Its table set differs from the implemented
@@ -243,15 +244,19 @@ retries with back-off and marks a job `dead` after 5 attempts. It handles:
   to one minute, until a verdict or the end of the one-hour link window);
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds, reconciling orphan event images and abandoned ticket PDF writes, and
-  exporting consented GA4 measurements when GA4 is enabled, every 15 seconds.
+- releasing expired holds, reconciling orphan event images, abandoned ticket PDF writes and
+  interrupted or abandoned support uploads, and exporting consented GA4 measurements when GA4 is
+  enabled, every 15 seconds.
 
 Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
 five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
 writes; eventual deletion requires the worker and storage/database availability. See
 [the gallery contract](CATALOG_API.md). Ticket PDF recovery uses the same limits for unreferenced
 pending write intents, then one final late-write check 24 hours after the intent; a clean or
-referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)). Email templates support kk/ru/en with English fallback;
+referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)).
+Support upload recovery uses the same batch, retry and late-write limits for unreferenced upload
+intents and for uploads never linked within their one-hour link window; a file linked to a message
+is never deleted (see [SUPPORT_API.md](SUPPORT_API.md#attachments)). Email templates support kk/ru/en with English fallback;
 user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
@@ -431,8 +436,8 @@ Open backend work, from the audit in #85, in dependency order (see the
 1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
    database and file backups (#69, with operations).
 2. Campaign report reconciliation (#67); platform
-   settings applied to checkout and activation (#70); upload recovery (#76). Attachment content
-   validation and ClamAV malware quarantine (#75) are implemented.
+   settings applied to checkout and activation (#70). Attachment content validation and ClamAV
+   malware quarantine (#75) and upload recovery (#76) are implemented.
 3. Moderation notices (#74).
 4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
    (#71) are implemented; live GA4 collection/reporting needs a property and credentials.

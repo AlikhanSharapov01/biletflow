@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import and_, or_, select
 
 from . import all_models  # noqa: F401
-from .attachment_service import scan_attachments_once
+from .attachment_service import reconcile_attachments, scan_attachments_once
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
 from .checkout_expiry import sweep_expired_holds
@@ -306,6 +306,8 @@ def main():
                     reconcile_images(factory, storage)  # durable image schedules
                 with worker_task("ticket_pdf_reconcile"):
                     reconcile_ticket_pdfs(factory, storage)  # writes stay scheduled in stored_file
+                with worker_task("attachment_reconcile"):
+                    reconcile_attachments(factory, storage)  # uploads stay scheduled in stored_file
             busy = False  # retried next loop; payment state lives in the database
             with worker_task("payments"):
                 busy = (

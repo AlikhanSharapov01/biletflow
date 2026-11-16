@@ -11,6 +11,28 @@ Malformed or infected files are kept as `rejected` rows and their bytes are neve
 scanner gives no verdict the file is stored as `quarantined` (fail closed: never linkable or
 downloadable) and an `attachment_scan` outbox job retries the scan from the worker until a verdict
 or the end of the link window. Only `clean` files can be linked, listed or downloaded.
+
+Object lifecycle (#76; BF-16/BF-22, AC-26/27). Storage writes cannot join a PostgreSQL
+transaction, so every stored upload follows write intent -> object -> finalization:
+
+1. A `pending` stored_file row (the write intent) with `cleanup_after` at the end of the link
+   window is committed before any byte is written. A process stop after this point leaves a row
+   the worker can find, never an untracked object.
+2. `storage.put` writes the object outside any transaction.
+3. A second transaction re-checks the uploader's session and case access, locks the intent and
+   finalizes it as `clean` or `quarantined` (plus its scan job) if it is still `pending`.
+
+When step 2 or 3 fails the commit outcome may be unknown (a lost COMMIT acknowledgement looks like
+any other error). `_fence_failed_upload` re-reads the intent under a row lock in a fresh
+transaction: a finalized or referenced file is kept; only an unreferenced pending/deleted intent
+is fenced as `deleted` and its object removed. If that check fails too, nothing is deleted and the
+worker's `reconcile_attachments` pass retires the intent when its `cleanup_after` comes.
+
+`cleanup_after` is the single schedule: pending intents and clean or quarantined files that were
+never linked become due when the link window ends (linking clears it), rejected files with stored
+bytes (an infected verdict from the worker) are due at once, and deleted tombstones get one final
+idempotent delete 24 hours after the upload for a writer that stalled past cleanup. Linked files
+are never selected, whatever their status. No storage I/O happens while a row lock is held.
 """
 
 import hashlib
@@ -21,7 +43,8 @@ from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, exists, func, or_, select, update
+from sqlalchemy import case as when
 from sqlalchemy.exc import IntegrityError
 
 from .file_content import valid_content
@@ -50,6 +73,11 @@ SCAN_LEASE = timedelta(minutes=2)
 # Scan retries back off 2, 4, 8 ... seconds, at most this long apart.
 SCAN_RETRY_MAX_SECONDS = 60
 SCANNER_ACTOR = "attachment_scanner"
+# A claimed tombstone is retried after this delay if its delete fails or the worker stops.
+CLEANUP_RETRY = timedelta(minutes=5)
+# One last idempotent delete this long after the upload, for a stalled writer that resumes late.
+LATE_WRITE_CHECK = timedelta(hours=24)
+CLEANUP_BATCH = 50
 logger = logging.getLogger(__name__)
 
 
@@ -122,6 +150,7 @@ def upload_attachment(
         check_upload(db, settings, ids, case_id, data)  # nothing is scanned for strangers
     outcome, signature = screen(scanner, content_type, data)
     file_id = uuid4()
+    # 1. Write intent (or the rejected record) committed before any object I/O.
     with factory.begin() as db:
         user, case = check_upload(db, settings, ids, case_id, data)
         file = StoredFile(
@@ -134,11 +163,13 @@ def upload_attachment(
             sha256=hashlib.sha256(data).hexdigest(),
             original_filename=name,
             status="pending",
+            # Same clock as created_at: due exactly when the link window ends.
+            cleanup_after=func.now() + LINK_WINDOW,
         )
         db.add(file)
         if outcome in ("malformed", "infected"):
             # Kept for audit; no bytes are ever stored for a rejected file.
-            file.status = "rejected"
+            file.status, file.cleanup_after = "rejected", None
             if outcome == "infected":
                 file.scanned_at = now()
                 support_audit(
@@ -152,36 +183,46 @@ def upload_attachment(
                     status=file.status,
                     malware=signature,
                 )
-            result = None
-        else:
-            db.flush()
-            # No row lock is held while the object is written.
-            storage.put(file.object_key, data)
-            try:
-                file.status = "clean" if outcome == "clean" else "quarantined"
-                file.scanned_at = now() if outcome == "clean" and scanner.enabled else None
-                if outcome == "quarantined":
-                    queue_scan(db, case, file)
-                support_audit(
-                    db,
-                    user,
-                    "support.attachment_uploaded",
-                    case,
-                    file_id=file.id,
-                    size_bytes=file.size_bytes,
-                    mime_type=file.mime_type,
-                    status=file.status,
-                    scanned=file.scanned_at is not None,
-                )
-                db.flush()
-                result = upload_view(file)
-            except BaseException:
-                storage.delete(file.object_key)  # never leave an object without a row
-                raise
+        key = file.object_key
     if outcome == "malformed":
         fail("attachment_rejected", 422)
     if outcome == "infected":
         fail("attachment_infected", 422)
+    stored = False
+    try:
+        # 2. The object, outside any transaction.
+        storage.put(key, data)
+        stored = True
+        # 3. Finalize, with the uploader's access decided again now.
+        with factory.begin() as db:
+            user, _ = valid_session(db, *ids)
+            case, _ = get_case(db, user, case_id)
+            file = db.scalar(select(StoredFile).where(StoredFile.id == file_id).with_for_update())
+            if file.status != "pending":
+                fail("attachment_upload_expired", 409)  # fenced by cleanup meanwhile
+            file.status = "clean" if outcome == "clean" else "quarantined"
+            file.scanned_at = now() if outcome == "clean" and scanner.enabled else None
+            # Never linked by then: retired when the link window ends.
+            file.cleanup_after = link_expires_at(file)
+            if outcome == "quarantined":
+                queue_scan(db, case, file)
+            support_audit(
+                db,
+                user,
+                "support.attachment_uploaded",
+                case,
+                file_id=file.id,
+                size_bytes=file.size_bytes,
+                mime_type=file.mime_type,
+                status=file.status,
+                scanned=file.scanned_at is not None,
+            )
+            result = upload_view(file)
+    except BaseException as exc:
+        _fence_failed_upload(factory, storage, file_id)
+        if not stored and isinstance(exc, OSError):
+            fail("storage_unavailable", 503)
+        raise
     return result
 
 
@@ -259,7 +300,7 @@ def scan_attachments_once(factory, storage, scanner):
             outcome, signature = scan(scanner, storage.get(key))
         except OSError:
             outcome = "quarantined"  # storage unavailable: no verdict either
-    infected_key = None
+    infected = None
     with factory.begin() as db:
         job = db.scalar(select(OutboxJob).where(OutboxJob.id == job_id).with_for_update())
         if job.status != "leased" or job.lease_token != lease:
@@ -281,14 +322,13 @@ def scan_attachments_once(factory, storage, scanner):
         if outcome == "clean":
             file.status, file.scanned_at = "clean", now() if scanner.enabled else None
         else:
+            # Its bytes go through the cleanup schedule; a rejected file is never served.
             file.status, file.scanned_at = "rejected", now()
-            infected_key = file.object_key
+            file.cleanup_after = now() + CLEANUP_RETRY
+            infected = file.id
         scan_audit(db, db.get(SupportCase, case_id), file, signature)
-    if infected_key:
-        try:
-            storage.delete(infected_key)
-        except OSError:
-            logger.warning("Infected attachment object not deleted; it is never served")
+    if infected:
+        _delete_and_settle(factory, storage, [infected])
     return True
 
 
@@ -328,6 +368,8 @@ def attach_files(db, user, case, message, file_ids):
             or file_id in already
         ):
             unavailable(file_id)
+    for file_id in file_ids:
+        files[file_id].cleanup_after = None  # referenced from now on: never cleaned up
     # Distinct timestamps keep the order the sender chose (the transaction time is shared).
     started = now()
     rows = [
@@ -347,6 +389,112 @@ def attach_files(db, user, case, message, file_ids):
         # Backstop for a concurrent link of the same file: UNIQUE (file_id).
         unavailable(file_ids[0])
     return rows
+
+
+# --- recovery of interrupted and abandoned uploads (#76) ------------------------------------
+
+
+def _unreferenced():
+    """No support message links the stored_file row."""
+    return ~exists(select(SupportAttachment.id).where(SupportAttachment.file_id == StoredFile.id))
+
+
+def _fence_failed_upload(factory, storage, file_id):
+    """After a failed upload, settle the commit outcome before touching the object.
+
+    Deletes the object only after a positively acknowledged fence commit; a finalized
+    (clean/quarantined) or referenced file is kept.
+    """
+    try:
+        with factory.begin() as db:
+            # The lock waits for an in-flight finalizing transaction to commit or roll back.
+            file = db.scalar(select(StoredFile).where(StoredFile.id == file_id).with_for_update())
+            if (
+                file is None
+                or file.status not in ("pending", "deleted")
+                or not db.scalar(select(_unreferenced()).where(StoredFile.id == file_id))
+            ):
+                return
+            file.status, file.cleanup_after = "deleted", now() + CLEANUP_RETRY
+        # Leaving the block means the fence commit was acknowledged.
+        _delete_and_settle(factory, storage, [file_id])
+    except Exception:
+        # No exception text is kept. The intent stays scheduled for the worker.
+        logger.warning("Support upload outcome unverified; cleanup deferred to reconciliation")
+
+
+def _delete_and_settle(factory, storage, file_ids):
+    """Delete fenced objects with no lock held, then record the outcome.
+
+    Re-checks that each row is still a deleted or rejected, unreferenced support file right before
+    deleting. A successful delete leaves one final check at created_at + LATE_WRITE_CHECK (or none
+    once that has passed); a failed one keeps the CLEANUP_RETRY schedule set by the claim.
+    """
+    with factory() as db:
+        keys = db.execute(
+            select(StoredFile.id, StoredFile.object_key).where(
+                StoredFile.id.in_(file_ids),
+                StoredFile.purpose == "support_attachment",
+                StoredFile.status.in_(["deleted", "rejected"]),
+                _unreferenced(),
+            )
+        ).all()
+    deleted = []
+    for file_id, key in keys:
+        try:
+            storage.delete(key)
+            deleted.append(file_id)
+        except Exception:
+            logger.warning("Support attachment cleanup failed; durable retry remains scheduled")
+    if deleted:
+        final = StoredFile.created_at + LATE_WRITE_CHECK
+        try:
+            with factory.begin() as db:
+                db.execute(
+                    update(StoredFile)
+                    .where(
+                        StoredFile.id.in_(deleted),
+                        StoredFile.status.in_(["deleted", "rejected"]),
+                    )
+                    .values(cleanup_after=when((final > now(), final), else_=None))
+                )
+        except Exception:
+            logger.warning("Support attachment cleanup not recorded; the retry is idempotent")
+    return len(deleted)
+
+
+def reconcile_attachments(factory, storage, batch_size=CLEANUP_BATCH):
+    """Worker pass: retire interrupted and abandoned support uploads whose cleanup time has come.
+
+    Claims at most `batch_size` due, unreferenced rows in one short transaction (fencing pending,
+    quarantined and clean ones as deleted so they can never be finalized or linked; rejected rows
+    keep their status), then deletes their objects after the locks are released.
+    """
+    current = now()
+    with factory.begin() as db:
+        files = list(
+            db.scalars(
+                select(StoredFile)
+                .where(
+                    StoredFile.purpose == "support_attachment",
+                    StoredFile.cleanup_after.is_not(None),
+                    StoredFile.cleanup_after <= current,
+                    _unreferenced(),
+                )
+                .order_by(StoredFile.cleanup_after, StoredFile.id)
+                .limit(max(1, min(batch_size, CLEANUP_BATCH)))
+                .with_for_update(skip_locked=True)
+            )
+        )
+        claimed = []
+        for file in files:
+            if file.status != "rejected":
+                file.status = "deleted"
+            file.cleanup_after = current + CLEANUP_RETRY
+            claimed.append(file.id)
+    if claimed:
+        _delete_and_settle(factory, storage, claimed)
+    return len(claimed)
 
 
 # --- signed download links -----------------------------------------------------------------

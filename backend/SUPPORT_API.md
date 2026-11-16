@@ -155,6 +155,27 @@ for a clean file, `202` for a quarantined one (same body):
   the upload can be retried.
 - `expires_at` is one hour after the upload: until then the uploader can link the file.
 
+**Upload lifecycle and recovery** (#76): storage writes cannot join a database transaction, so a
+stored upload is a committed `pending` write intent first (with `cleanup_after` at the end of the
+link window), then the object write outside any transaction, then a finalizing transaction that
+re-checks the uploader's session and case access and turns the intent `clean` or `quarantined`.
+Losing access in between (revoked permission or session, suspended account) fails the upload with
+the usual `404 case_not_found`/`401` and discards it. A storage failure is
+`503 storage_unavailable`. After any failure the request re-reads the intent under a row lock:
+a finalized file is kept (a lost COMMIT acknowledgement can mean it was saved), an unfinalized
+intent is fenced as `deleted` and its object removed. If even that check fails, nothing is
+deleted and the worker retires the intent later. A finalize that finds its intent already fenced
+by the worker answers `409 attachment_upload_expired`.
+
+The worker's 15-second pass (`reconcile_attachments`) claims at most 50 due files per pass:
+intents of interrupted uploads and clean or quarantined uploads never linked by the end of their
+link window become `deleted` with their bytes removed; bytes of a file the worker found infected
+are removed (it stays `rejected`). A failed delete is retried after five minutes, and one final
+idempotent delete runs 24 hours after the upload for a writer that stalled past cleanup. A file
+linked to a message is never selected, whatever its status; linking clears its schedule. Index:
+`ix_support_attachment_cleanup` (migration `0018_attachment_cleanup`, which also schedules
+unlinked uploads made before it).
+
 **Linking**: send the `file_id`s as `attachment_ids` in `POST /cases/{id}/messages`. `POST /cases`
 takes no attachments (a file can only be uploaded to an existing case): attach files to the first
 follow-up message. At most
@@ -271,7 +292,6 @@ Differences from the reference DDL: status value is `waiting_for_customer`; `seq
 
 ## Not implemented
 
-- Recovery of interrupted uploads and cleanup of uploaded files that are never linked (#76).
 - Email-channel notifications through the BF-15 fan-out: support events create in-app inbox entries (`support_reply`, `support_status`) while the email link is sent by the support worker (`support_email`).
 
 Support emails are localized (kk/ru/en with English fallback, using the account's locale); see
