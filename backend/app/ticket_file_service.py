@@ -235,6 +235,7 @@ def _delete_and_settle(factory, storage, file_ids):
             deleted.append(file_id)
         except Exception:
             logger.warning("Ticket PDF cleanup failed; durable retry remains scheduled")
+            break  # a hanging store would cost the timeout per file; the rest keep their retry
     if deleted:
         final = StoredFile.created_at + LATE_WRITE_CHECK
         try:

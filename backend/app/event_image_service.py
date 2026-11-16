@@ -261,4 +261,5 @@ def reconcile_images(factory, storage, batch_size=CLEANUP_BATCH):
             storage.delete(key)
         except OSError:
             logger.warning("Event image cleanup failed; durable retry remains scheduled")
+            break  # a hanging store would cost the timeout per file; the rest keep their retry
     return len(keys)

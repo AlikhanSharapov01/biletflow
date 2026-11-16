@@ -211,6 +211,32 @@ def test_failed_cleanup_delete_stays_scheduled(client, app, world, factory, monk
     assert row.cleanup_after == row.created_at + attachments.LATE_WRITE_CHECK
 
 
+def test_cleanup_pass_stops_at_the_first_storage_failure(
+    client, app, world, factory, settings, monkeypatch
+):
+    # A hanging store costs its timeout per delete: one failure ends the pass, not fifty.
+    w = world
+    case_id = new_case(client, w)
+    storage, real_delete, attempts = app.state.storage, app.state.storage.delete, []
+    buyer = user_id(factory, settings, w["buyer"])
+    stale = [interrupted(factory, storage, buyer, case_id) for _ in range(3)]
+
+    def failed_delete(key):
+        attempts.append(key)
+        offline()
+
+    monkeypatch.setattr(storage, "delete", failed_delete)
+    assert reconcile_attachments(factory, storage) == 3
+    assert len(attempts) == 1 and all(exists(storage, key) for _, key in stale)
+    rows = support_files(factory)
+    assert all(row.status == "deleted" and row.cleanup_after > now() for row in rows)
+    monkeypatch.setattr(storage, "delete", real_delete)
+    for file_id, _ in stale:
+        make_due(factory, file_id)
+    assert reconcile_attachments(factory, storage) == 3
+    assert not any(exists(storage, key) for _, key in stale)
+
+
 # --------------------------------------------------------------------------------------------
 # Uncertain commit outcomes
 # --------------------------------------------------------------------------------------------
