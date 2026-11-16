@@ -435,11 +435,12 @@ def test_restore_refuses_unsafe_names_before_deleting_anything(s3):
     assert s3.objects == {"events/e/a.png": b"png"}
 
 
-def test_cli_reports_storage_failures_without_a_traceback(s3, monkeypatch, capsys):
+def test_cli_reports_storage_failures_without_a_traceback(s3, monkeypatch, capsysbinary):
+    # export writes a gzip stream to stdout.buffer; text-mode capsys cannot decode that.
     s3.down = True
     monkeypatch.setattr(storage_backup, "configured_storage", s3.storage)
     assert storage_backup.main(["export"]) == 1
-    assert "StorageError" in capsys.readouterr().err
+    assert b"StorageError" in capsysbinary.readouterr().err
 
 
 def test_cli_requires_the_s3_backend(monkeypatch, tmp_path, capsys):
