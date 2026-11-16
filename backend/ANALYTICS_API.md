@@ -68,6 +68,36 @@ are omitted. At most 10,000 occupied buckets are returned; a larger result retur
 Queries use a transaction-local 5-second statement timeout and one repeatable-read
 read-only snapshot; timeout/database failure uses existing 503 error handling.
 
+## CSV export (#81)
+
+`GET /api/v1/events/{event_id}/analytics/export.csv?bucket=day|hour` takes the same
+`from`, `to`, `ticket_type_id` and `campaign_id` filters, validation, `reports` permission
+and 404/403 scope as the JSON reports. It returns `text/csv; charset=utf-8` (UTF-8 BOM, CRLF,
+every cell quoted) as an attachment `analytics-{event_id}.csv`, and records an
+`analytics.exported` audit row.
+
+The file is long-format with columns `section,dimension_id,dimension_name,metric,value`:
+
+- `metadata`: `event_id`, `timezone`, `generated_at`, the applied `from`/`to`/`ticket_type_id`/
+  `campaign_id` (empty when unset), `bucket`, `currency`, `money_unit` and a
+  `simulation_notice`;
+- `definition`: every metric definition of the summary;
+- `inventory`, `revenue`, `attendance`: every summary field (revenue includes `environments`
+  joined by `;` and `simulated`);
+- `ticket_type` and `campaign`: one row per summary dimension metric, keyed by ID and label
+  (`Unattributed` has an empty ID);
+- `sales_series`: `tickets` and `revenue_minor` per occupied bucket (`dimension_id` is the
+  offset-bearing `bucket_start`).
+
+Summary and series are computed by the same functions as the JSON endpoints in one
+repeatable-read snapshot, with the same 5-second timeout and the same 10,000-row dimension and
+bucket bounds (422 `analytics_range_too_large`, nothing audited). Every exported number therefore
+equals the JSON report for the same filters at that snapshot. Numbers are written as plain
+numerals; organizer-entered labels and other text starting with `=`, `+`, `-`, `@`, tab or CR
+are prefixed with `'` so spreadsheets do not evaluate them. Only aggregates and organizer-defined
+ticket-type/campaign labels are exported: no order, ticket, payment or attendee IDs, names, emails,
+promo codes or event descriptions.
+
 Review handoff: Yershuak/Adil should review definitions, campaign reconciliation,
 filter semantics and client additive metadata before client integration. This
 document is the handoff; no messages were sent to reviewers.

@@ -464,6 +464,8 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Implementation update (9 November 2026):** reports-scoped operational summary and day/hour sales series aggregate authoritative PostgreSQL records with event/date/ticket-type/campaign filters, integer monetary reconciliation and separate current inventory versus historical revenue/attribution. Read-only snapshots use bounded query timeouts without event row locks. See [analytics contract](../backend/ANALYTICS_API.md); no load-target, GA4 or client-integration completion is claimed.
 
+**Current implementation (17 November 2026):** a reports-scoped CSV export (#81) with the same filters writes the summary, dimensions and sales series from the same snapshot and functions as the JSON reports, with timezone, definitions, applied filters, generation time and simulation labels; text cells are neutralized against spreadsheet formulas and only aggregates and organizer labels are exported.
+
 ### BF-19. Advanced GA4 traffic/funnel integration
 
 **Purpose:** supplement exact sales reports with traffic and funnel measurements.
@@ -482,7 +484,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Completion checks:** sensitive fields/tokens never appear in captured analytics payloads; disabling GA4 cannot break purchases; a provider outage produces an unavailable panel rather than incorrect zero sales; requests are scoped to permitted events.
 
-**Current implementation (12 November 2026):** not implemented in the backend (#71); the `ga4_*` tables exist only in the reference design. The web client has optional, consent-aware page-view collection (see `web/README.md`), which is not a substitute for the server-side integration. Analytics export is tracked in #81.
+**Current implementation (12 November 2026):** not implemented in the backend (#71); the `ga4_*` tables exist only in the reference design. The web client has optional, consent-aware page-view collection (see `web/README.md`), which is not a substitute for the server-side integration. Analytics CSV export (#81) is implemented separately in the analytics contract.
 
 ### BF-20. Event history, duplication, and audit trail
 

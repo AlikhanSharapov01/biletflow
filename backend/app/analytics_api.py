@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import text
 
 from .analytics_schemas import EventAnalytics, SalesSeries
-from .analytics_service import sales_series, summary
-from .catalog_service import event_guard
+from .analytics_service import report_csv, sales_series, summary
+from .catalog_models import Organization
+from .catalog_service import catalog_audit, event_guard
 from .security import fail
 from .service import valid_session
 
@@ -50,5 +51,31 @@ def router(factory, settings, principal):
         ids=Depends(principal),
     ):
         return read(event_id, ids, filters, bucket)
+
+    @routes.get(
+        "/{event_id}/analytics/export.csv",
+        response_class=Response,
+        responses={200: {"content": {"text/csv": {}}}},
+    )
+    def export(
+        event_id: UUID,
+        bucket: Literal["day", "hour"] = "day",
+        filters=Depends(analytics_filters),
+        ids=Depends(principal),
+    ):
+        # One repeatable-read snapshot as for the JSON reports; writable only for the audit row.
+        with factory.begin() as db:
+            db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+            db.execute(text("SET LOCAL statement_timeout = '5s'"))
+            user, _ = valid_session(db, *ids)
+            event = event_guard(db, user, event_id, "reports")
+            content = report_csv(db, event, filters, bucket)
+            org = db.get(Organization, event.organization_id)
+            catalog_audit(db, user, "analytics.exported", org, event, event)
+        return Response(
+            content,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="analytics-{event_id}.csv"'},
+        )
 
     return routes

@@ -41,7 +41,7 @@ The web and mobile clients both talk to this one backend.
 | Notifications | In-app inbox; localized account/staff/ticket/support mail and event/purchase/payment/refund/simulated-payout notices; kk/ru/en with English fallback |
 | Campaigns | Promo codes, campaign links/QR, atomic allowance reservations/redemptions and retained attribution |
 | Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
-| Reporting and finance | Scoped operational analytics/time series; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
+| Reporting and finance | Scoped operational analytics/time series and their reconciled CSV export; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
 | Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, exhausted job and failed delivery views with bounded audited retry, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
@@ -155,7 +155,7 @@ remaining scope.
 | [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
 | [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting |
 | [REFUNDS_API.md](REFUNDS_API.md) | Full refunds, retry, free cancellation and event cancellation |
-| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports and sales series |
+| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports, sales series and CSV export |
 | [FINANCE_API.md](FINANCE_API.md) | Finance summary, simulated payouts and retained adjustments |
 | [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
 | [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
@@ -388,8 +388,8 @@ Open backend work, from the audit in #85, in dependency order (see the
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
 3. Moderation notices (#74), the S3-compatible storage service required by requirements §2.1
    (#77; only local protected storage exists today), correlation IDs and metrics (#78).
-4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
-   (#79).
+4. GA4 collection and aggregate reporting (#71), demo fixtures and reset (#79). The analytics
+   CSV export (#81) is implemented.
 5. Measured load (#80) and real process-kill recovery (#83).
 
 Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,
