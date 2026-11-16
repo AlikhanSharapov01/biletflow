@@ -73,7 +73,9 @@ psql_owner() {
 
 # Fails here, with Compose's "service db is not running", before anything is stopped.
 docker compose exec -T db pg_isready -q -U biletflow_owner -d biletflow
-docker compose exec -T storage mc ready local >/dev/null
+# The object store (SeaweedFS's S3 port) must answer too, or the file archive would fail later.
+docker compose exec -T storage sh -c \
+  "wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"
 
 if [ "$mode" = quiesced ]; then
   running="$(docker compose ps --status running --services)"

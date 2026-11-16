@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # BF-16: private file storage (app/storage.py) and support attachment limits.
     storage_root: str = "var/storage"
     # #77: "local" keeps files under STORAGE_ROOT (development, tests); "s3" uses one private
-    # bucket on an S3-compatible service (the Docker stack's MinIO) with a bucket-scoped account.
+    # bucket on an S3-compatible service (the Docker stack's SeaweedFS) with a bucket-scoped account.
     storage_backend: Literal["local", "s3"] = "local"
     s3_endpoint_url: str = ""
     s3_region: str = "us-east-1"

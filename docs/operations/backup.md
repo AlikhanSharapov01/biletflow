@@ -71,8 +71,8 @@ the backup is one consistent point in time:
 
 Not covered: anything changed after the backup is lost by a restore, so the backup interval is the
 most data you can lose. `.env`, Mailpit's mailbox and anything outside the database and the
-storage bucket (such as MinIO's own account settings, which `storage-init` recreates from `.env`)
-are not in the backup.
+storage bucket (such as the object store's accounts, which `storage` recreates from `.env` on every
+start) are not in the backup.
 
 ### Online backups (no downtime, no guarantee)
 
@@ -106,8 +106,8 @@ run `bash tools/backup.sh` first.
 1. Check out the repository, at the same commit as the backup or newer. `manifest.txt` names it, and
    the restore prints it.
 2. Make sure the original `.env` is in the repository root. On a brand-new machine, copy it there.
-   It must contain the `S3_*` and `MINIO_ROOT_*` settings (see `.env.example`); the restore creates
-   the bucket and the app storage account from them if they do not exist yet.
+   It must contain the `S3_*` and `STORAGE_ADMIN_*` settings (see `.env.example`); the object store
+   takes its accounts from them, and the restore creates the bucket if it does not exist yet.
 3. Run the restore and type `restore` when asked:
 
    ```bash
@@ -159,6 +159,19 @@ damaged archive. The app keeps working: a missing gallery image answers `404 ima
 missing support attachment `404 attachment_not_found`, and a missing stored ticket PDF is
 re-rendered on the next download. Either restore a different backup made without `--online`, or
 keep this one and ask the organizers to upload the listed event images again.
+
+## Why SeaweedFS
+
+The object store was first MinIO. MinIO withdrew its `minio/minio` and `minio/mc` images from
+Docker Hub in 2026 (its registry on quay.io no longer allows anonymous pulls and the community
+edition is archived), so the stack could no longer start. It now runs SeaweedFS, which is
+maintained, published as `chrislusf/seaweedfs` and supports per-bucket permissions for a static
+S3 identity. The app talks plain S3 (`S3FileStorage`), so neither the code nor the backup format
+depends on the server; backups taken with MinIO restore unchanged.
+
+If `storage-init` fails, `docker compose logs storage-init` names the check that failed (bucket
+not created, app account cannot use the bucket, app account too broad, anonymous access) and
+`docker compose logs storage` shows the server side. Fix `.env` and run `docker compose up -d`.
 
 ## Upgrading from the file volume
 

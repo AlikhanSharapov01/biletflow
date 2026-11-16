@@ -4,7 +4,7 @@ Keys are `/`-separated relative paths such as `support/<case_id>/<file_id>`. Not
 served publicly; callers decide who may read an object and hand out only short-lived signed
 links (see attachment_service). `storage_from_settings` picks the backend: `LocalFileStorage`
 (STORAGE_ROOT; local development and tests) or `S3FileStorage`, a private bucket on an
-S3-compatible service (the Docker stack's MinIO, #77).
+S3-compatible service (the Docker stack's SeaweedFS, #77).
 
 Both raise FileNotFoundError for a missing object and another OSError when storage fails, so
 callers answer `404` and `503 storage_unavailable` the same way for either backend.
@@ -80,7 +80,12 @@ class LocalFileStorage:
 
 class StorageError(OSError):
     """The object store refused a request or could not be reached. The message names only the
-    operation and the status or error type: never a key, URL or credential."""
+    operation and the status or error type: never a key, URL or credential. `status` is the HTTP
+    status of a refusal, None when the store did not answer."""
+
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 def _encode(value: str, safe: str = "") -> str:
@@ -205,7 +210,18 @@ class S3FileStorage:
 
     @staticmethod
     def _refused(operation, response):
-        return StorageError(f"Object storage {operation} failed: HTTP {response.status_code}")
+        status = response.status_code
+        return StorageError(f"Object storage {operation} failed: HTTP {status}", status)
+
+    def create_bucket(self) -> None:
+        """Create the bucket; an existing one is fine. Used only by storage provisioning."""
+        response = self._request("create bucket", "PUT", f"/{self.bucket}")
+        exists = response.status_code == 409 and _error_code(response) in (
+            "BucketAlreadyOwnedByYou",
+            "BucketAlreadyExists",
+        )
+        if not (response.is_success or exists):
+            raise self._refused("create bucket", response)
 
     def put(self, key: str, data: bytes) -> None:
         response = self._request("put", "PUT", self._object_path(key), body=data)

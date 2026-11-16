@@ -50,7 +50,7 @@ case "$1" in
   exec)
     case "$*" in
       *pg_isready*) ;;
-      *"storage mc ready"*) [ -z "${FAKE_STORAGE_DOWN:-}" ] || exit 1 ;;
+      *"storage sh -c"*8333*) [ -z "${FAKE_STORAGE_DOWN:-}" ] || exit 1 ;;
       *pg_stat_activity*) echo "${FAKE_SESSIONS:-0}" ;;
       *pg_dump*) [ -z "${FAKE_FAIL_DUMP:-}" ] || exit 1; echo dump ;;
       *pg_restore*) cat >/dev/null ;;

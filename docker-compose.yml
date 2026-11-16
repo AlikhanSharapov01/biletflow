@@ -43,9 +43,9 @@ services:
       FORWARDED_ALLOW_IPS: "*"
       # Object storage (#77): see the storage services below.
       STORAGE_BACKEND: s3
-      S3_ENDPOINT_URL: http://storage:9000
-      MINIO_ROOT_USER: ""
-      MINIO_ROOT_PASSWORD: ""
+      S3_ENDPOINT_URL: http://storage:8333
+      STORAGE_ADMIN_ACCESS_KEY_ID: ""
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ""
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -75,9 +75,9 @@ services:
       CLAMAV_HOST: clamav
       # Object storage (#77): the same bucket and account as api.
       STORAGE_BACKEND: s3
-      S3_ENDPOINT_URL: http://storage:9000
-      MINIO_ROOT_USER: ""
-      MINIO_ROOT_PASSWORD: ""
+      S3_ENDPOINT_URL: http://storage:8333
+      STORAGE_ADMIN_ACCESS_KEY_ID: ""
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ""
     command: ["python", "-m", "app.worker"]
     depends_on:
       migrate:
@@ -107,64 +107,64 @@ services:
 
   # --- Object storage (#77) ---------------------------------------------------------------
   # Private S3-compatible storage for event images, ticket PDFs and support attachments, shared
-  # by api and worker. Not published on the host. The root account (MINIO_ROOT_*) is used only
-  # here and by storage-init; api and worker get the bucket-scoped app account (S3_*).
+  # by api and worker: SeaweedFS (`weed server -s3`, S3 API on 8333), not published on the host.
+  # Its two static identities are written from .env at start: the storage administrator
+  # (STORAGE_ADMIN_*), used only by storage-init to create the bucket, and the app account
+  # (S3_ACCESS_KEY_ID), allowed only Read, Write and List on S3_BUCKET. With identities
+  # configured, unsigned requests are refused. Values may use letters, digits, ".", "_" and "-".
   storage:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: chrislusf/seaweedfs:4.28
     restart: unless-stopped
-    command: ["server", "/data"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
-    volumes:
-      - object_storage:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
-
-  # Provisions the private bucket and the app account, then exits. Idempotent: it runs on every
-  # `docker compose up`, and api/worker start only after it succeeded. The app account may only
-  # list the bucket and read, write and delete its objects (listing makes a missing object a
-  # 404 rather than a 403, and lets tools/backup.sh archive the bucket).
-  storage-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      STORAGE_ADMIN_ACCESS_KEY_ID: ${STORAGE_ADMIN_ACCESS_KEY_ID:?Set STORAGE_ADMIN_ACCESS_KEY_ID in .env}
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ${STORAGE_ADMIN_SECRET_ACCESS_KEY:?Set STORAGE_ADMIN_SECRET_ACCESS_KEY in .env}
       S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in .env}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in .env}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
-        mc alias set biletflow http://storage:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
-        mc mb --ignore-existing "biletflow/$$S3_BUCKET"
-        mc anonymous set none "biletflow/$$S3_BUCKET"
-        printf '%s' '{"Version":"2012-10-17","Statement":[
-          {"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::'"$$S3_BUCKET"'"]},
-          {"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
-           "Resource":["arn:aws:s3:::'"$$S3_BUCKET"'/*"]}]}' >/tmp/policy.json
-        mc admin policy create biletflow biletflow-bucket-rw /tmp/policy.json
-        mc admin user add biletflow "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" >/dev/null ||
-          mc admin user info biletflow "$$S3_ACCESS_KEY_ID" >/dev/null
-        # Attaching an already attached policy fails, so the result is checked afterwards: the
-        # account's PolicyName line must name the policy, or provisioning fails.
-        mc admin policy attach biletflow biletflow-bucket-rw --user "$$S3_ACCESS_KEY_ID" || true
-        attached=no
-        while IFS= read -r line; do
-          case "$$line" in
-            *PolicyName:*biletflow-bucket-rw*) attached=yes ;;
+        for value in "$$STORAGE_ADMIN_ACCESS_KEY_ID" "$$STORAGE_ADMIN_SECRET_ACCESS_KEY" \
+          "$$S3_BUCKET" "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY"; do
+          case "$$value" in
+            *[!A-Za-z0-9._-]*) echo "Storage settings may use only letters, digits, . _ -" >&2; exit 1 ;;
           esac
-        done <<EOF
-        $$(mc admin user info biletflow "$$S3_ACCESS_KEY_ID")
-        EOF
-        if [ "$$attached" != yes ]; then
-          echo "Policy biletflow-bucket-rw is not attached to $$S3_ACCESS_KEY_ID." >&2
-          exit 1
-        fi
-        echo "Bucket $$S3_BUCKET and its app account are ready."
+        done
+        umask 077
+        printf '{"identities":[
+          {"name":"biletflow-storage-admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],
+           "actions":["Admin","Read","Write","List","Tagging"]},
+          {"name":"biletflow-app","credentials":[{"accessKey":"%s","secretKey":"%s"}],
+           "actions":["Read:%s","Write:%s","List:%s"]}]}\n' \
+          "$$STORAGE_ADMIN_ACCESS_KEY_ID" "$$STORAGE_ADMIN_SECRET_ACCESS_KEY" \
+          "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" "$$S3_BUCKET" "$$S3_BUCKET" "$$S3_BUCKET" \
+          >/tmp/s3-identities.json
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3-identities.json
+    volumes:
+      - object_storage:/data
+    healthcheck:
+      # Any HTTP answer on the S3 port (403 without credentials) means the gateway is up;
+      # storage-init then waits until the store actually accepts writes.
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # Creates the private bucket with the administrator and proves the setup took effect: the app
+  # account can write, read, list and delete in the bucket, cannot create buckets, and the bucket
+  # refuses anonymous requests (backend/app/storage_provision.py). Any failure stops the stack:
+  # api and worker start only after it succeeded. Idempotent: it runs on every `docker compose up`.
+  storage-init:
+    build: ./backend
+    command: ["python", "-m", "app.storage_provision"]
+    environment:
+      S3_ENDPOINT_URL: http://storage:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in .env}
+      STORAGE_ADMIN_ACCESS_KEY_ID: ${STORAGE_ADMIN_ACCESS_KEY_ID:?Set STORAGE_ADMIN_ACCESS_KEY_ID in .env}
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ${STORAGE_ADMIN_SECRET_ACCESS_KEY:?Set STORAGE_ADMIN_SECRET_ACCESS_KEY in .env}
     depends_on:
       storage:
         condition: service_healthy

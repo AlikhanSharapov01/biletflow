@@ -137,13 +137,18 @@ short-lived signed link. The API and the worker must use the same storage.
 
 - **Natively and in tests** (`STORAGE_BACKEND=local`): files below `STORAGE_ROOT`.
 - **Docker Compose** (`STORAGE_BACKEND=s3`, set by `docker-compose.yml`): the `storage` service
-  is MinIO, an S3-compatible object store with its data in the `object_storage` volume and no
-  port published on the host. The one-off `storage-init` service creates the private bucket
-  `S3_BUCKET` (no anonymous access) and the app account `S3_ACCESS_KEY_ID`, whose policy allows
-  only listing that bucket and reading, writing and deleting its objects. It runs on every
-  `docker compose up` (it is idempotent), and `api` and `worker` start only after it succeeded,
-  which in turn waits for a healthy `storage`. `api` and `worker` share the bucket and the account
-  and never see the storage root account (`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`).
+  is SeaweedFS (`weed server -s3`, S3 API on port 8333 inside the stack, nothing published on the
+  host), with its data in the `object_storage` volume. Its two static S3 identities are written
+  from `.env` when it starts: the storage administrator (`STORAGE_ADMIN_ACCESS_KEY_ID`/
+  `STORAGE_ADMIN_SECRET_ACCESS_KEY`) and the app account (`S3_ACCESS_KEY_ID`), which may only
+  read, write (including delete) and list objects in `S3_BUCKET`. Unsigned requests are refused.
+  The one-off `storage-init` service (`python -m app.storage_provision`) creates the bucket with
+  the administrator, then proves that the app account can write, read, list and delete there,
+  cannot create buckets, and that the bucket refuses anonymous requests; any failure stops the
+  start. It runs on every `docker compose up` (it is idempotent), and `api` and `worker` start
+  only after it succeeded, which in turn waits for a healthy `storage`. `api` and `worker` share
+  the bucket and the app account and never receive the administrator credential. (MinIO was used
+  first but its images were withdrawn in 2026; see the [operations notes](../docs/operations/backup.md#why-seaweedfs).)
 
 `S3FileStorage` talks to any S3-compatible service with path-style URLs and AWS Signature
 Version 4 (implemented with `httpx`, no AWS SDK). To use another service, set
@@ -164,7 +169,7 @@ Everything lives in `app/`, one module group per area:
 |---|---|
 | `main.py` | App factory, router registration, error handling, security headers |
 | `observability.py`, `operations_*.py` | Correlation IDs, redacted JSON logs, request metrics; protected operational metrics |
-| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py`, `storage_backup.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage (local or S3-compatible) and its backup/restore |
+| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py`, `storage_backup.py`, `storage_provision.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage (local or S3-compatible), its backup/restore and the Docker object-store provisioning check |
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
 | `*_service.py` | Business rules and transactions |
