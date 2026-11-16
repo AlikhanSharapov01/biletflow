@@ -6,7 +6,8 @@ document, **not** the database the application runs on.
 
 > **Deployed schema vs this design.** The running application uses the schema created by
 > `backend/migrations/` — 16 migrations and 66 tables in the verified disposable test database at
-> `0016_image_cleanup` on 9 November 2026 (see
+> `0016_image_cleanup` on 9 November 2026; the current chain runs through `0021_job_correlation`,
+> 20 migrations and 69 tables, not yet verified that way (see
 > [`backend/README.md`](../../backend/README.md#database-and-migrations)). Never run
 > `BiletFlow_PostgreSQL_Schema.sql` against the application database.
 

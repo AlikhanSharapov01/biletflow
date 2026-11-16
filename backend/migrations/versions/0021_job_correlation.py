@@ -6,7 +6,7 @@ Nullable without a backfill: jobs queued before this revision run under a fresh 
 from alembic import op
 
 revision = "0021_job_correlation"
-down_revision = "0017_ticket_pdf_cleanup"
+down_revision = "0020_ga4_analytics"
 branch_labels = None
 depends_on = None
 

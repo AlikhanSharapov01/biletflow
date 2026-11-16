@@ -199,16 +199,17 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 ## Database and migrations
 
 - Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016, 0017, 0019 and 0021 use inline SQL).
-  There are **18 migrations and 66 tables** in the `biletflow` schema:
+  There are **20 migrations and 69 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
   `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0019_admin_retry`
   (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
-  (adds `ga4_connection`, `analytics_export`, `ga4_cache`; not yet included in the verified count)
-  → `0021_job_correlation` (nullable `outbox_job.correlation_id`, no table).
-  The chain through `0017` was verified on a disposable test database on 13 November 2026;
+  (adds `ga4_connection`, `analytics_export`, `ga4_cache`) → `0021_job_correlation` (nullable
+  `outbox_job.correlation_id`, no table). Revision `0018` is not used yet.
+  The chain through `0017` (17 migrations, 66 tables) was verified on a disposable test database
+  on 13 November 2026; `0019`–`0021` and the 69-table count are not yet verified that way;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
@@ -219,7 +220,7 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
 - `docs/database/` holds a 66-table **reference design**. Its table set differs from the implemented
-  schema (GA4/claim tables versus authentication extensions); see the
+  schema (claim table versus authentication extensions; the GA4 tables are migrated in `0020`); see the
   [design/implementation matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation). It is a target — never run its DDL against this database.
 
 ---

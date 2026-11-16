@@ -8,7 +8,7 @@ from pathlib import Path
 from alembic import op
 
 revision = "0020_ga4_analytics"
-down_revision = "0017_ticket_pdf_cleanup"
+down_revision = "0019_admin_retry"
 branch_labels = None
 depends_on = None
 
