@@ -187,7 +187,10 @@ def valid_png(data):
                 if inflater.eof:
                     return False  # data after the end of the zlib stream
                 pending = body[start : start + INFLATE_STEP]
-                while pending:
+                # Stop at the end of the stream: input after it is unused_data, and on some
+                # Python versions (3.12) it also stays in unconsumed_tail, so looping on the
+                # tail alone would never end.
+                while pending and not inflater.eof:
                     produced += len(inflater.decompress(pending, INFLATE_STEP))
                     if produced > expected:
                         return False
@@ -399,7 +402,7 @@ def inflate(raw, start, stop):
     inflater, produced, kept = zlib.decompressobj(), 0, []
     for begin in range(0, len(raw), INFLATE_STEP):
         pending = raw[begin : begin + INFLATE_STEP]
-        while pending and produced < stop:
+        while pending and produced < stop and not inflater.eof:
             part = inflater.decompress(pending, min(INFLATE_STEP, stop - produced))
             if produced + len(part) > start:
                 kept.append(part[max(0, start - produced) :])

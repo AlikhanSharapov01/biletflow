@@ -76,8 +76,11 @@ def pdf(comment=b"", size=None):
     return bytes(out)
 
 
-def xref_stream_pdf():
-    """PDF 1.5 layout: the cross-reference data is a compressed stream object."""
+def xref_stream_pdf(trailing=b""):
+    """PDF 1.5 layout: the cross-reference data is a compressed stream object.
+
+    `trailing` lands inside the stream, after the end of its zlib data.
+    """
     out = bytearray(b"%PDF-1.5\n")
     offsets = []
     for number, body in enumerate(
@@ -88,7 +91,7 @@ def xref_stream_pdf():
     xref = len(out)
     rows = b"\x00\x00\x00\xff" + b"".join(b"\x01" + struct.pack(">H", o) + b"\x00" for o in offsets)
     rows += b"\x01" + struct.pack(">H", xref) + b"\x00"
-    data = zlib.compress(rows)
+    data = zlib.compress(rows) + trailing
     out += (
         b"3 0 obj\n<< /Type /XRef /Size 4 /W [1 2 1] /Root 1 0 R /Filter /FlateDecode "
         b"/Length %d >>\nstream\n%s\nendstream\nendobj\nstartxref\n%d\n%%%%EOF\n"
@@ -640,6 +643,51 @@ def test_png_image_data_is_fed_in_slices_without_losing_the_stream_end():
         idat_png(300, 300, 8, 2, packed[:-1]),
     ]:
         assert not valid_content("image/png", bad)
+
+
+REAL_DECOMPRESSOBJ = zlib.decompressobj
+
+
+class TailKeepingInflater:
+    """zlib.decompressobj with the end-of-stream behaviour Python 3.12 can show, on any version.
+
+    On 3.12 input after the end of the zlib stream can stay in unconsumed_tail as well as in
+    unused_data (3.13 empties the tail), so a loop that feeds the tail back until it is empty
+    never ends. This hung the CI suite on 3.12 in the PNG inflation tests above.
+    """
+
+    def __init__(self, *args):
+        self.inner = REAL_DECOMPRESSOBJ(*args)
+
+    def decompress(self, data, max_length=0):
+        assert not self.inner.eof, "decompress() called again after the end of the stream"
+        return self.inner.decompress(data, max_length)
+
+    eof = property(lambda self: self.inner.eof)
+    unused_data = property(lambda self: self.inner.unused_data)
+    unconsumed_tail = property(
+        lambda self: self.inner.unused_data if self.inner.eof else self.inner.unconsumed_tail
+    )
+
+
+def test_inflation_stops_at_the_stream_end_when_zlib_keeps_the_tail(monkeypatch):
+    noise = bytes((index * 7919 + index // 251) % 256 for index in range(300 * 901))
+    packed = zlib.compress(noise, 0)
+    row = bytes(1 + 4000 * 8)
+    packer = zlib.compressobj(1)
+    zeros = b"".join(packer.compress(row) for _ in range(4000)) + packer.flush()
+    cases = [
+        ("image/png", idat_png(300, 300, 8, 2, packed)),
+        ("image/png", idat_png(300, 300, 8, 2, packed + b"x")),
+        ("image/png", idat_png(300, 300, 8, 2, packed + b"x" * 200_000)),
+        ("image/png", idat_png(4000, 4000, 16, 6, zeros + b"j" * (1 << 20))),
+        ("application/pdf", xref_stream_pdf()),
+        ("application/pdf", xref_stream_pdf(b"\x00junk")),
+    ]
+    expected = [valid_content(kind, data) for kind, data in cases]
+    assert expected == [True, False, False, False, True, True]
+    monkeypatch.setattr(zlib, "decompressobj", TailKeepingInflater)
+    assert [valid_content(kind, data) for kind, data in cases] == expected
 
 
 def test_jpeg_fill_bytes_and_stuffed_scan_data_are_skipped_in_linear_time():
