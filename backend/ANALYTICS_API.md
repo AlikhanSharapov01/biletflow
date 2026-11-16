@@ -98,6 +98,89 @@ are prefixed with `'` so spreadsheets do not evaluate them. Only aggregates and 
 ticket-type/campaign labels are exported: no order, ticket, payment or attendee IDs, names, emails,
 promo codes or event descriptions.
 
+## GA4 traffic and funnel integration (#71)
+
+Optional and **disabled by default** (`GA4_ENABLED=false`). It supplements, and never replaces,
+the operational reports above: GA4 numbers are traffic/conversion measurements of consenting
+signed-in visitors, never sales, revenue or attribution. Orders, refunds and campaign attribution
+are always written to PostgreSQL first; checkout and refund code never calls GA4.
+
+Settings, from the environment only: `GA4_ENABLED`, `GA4_MEASUREMENT_ID` (`G-...`, the platform
+web stream, normally the same as the web build's `VITE_GA4_MEASUREMENT_ID`), `GA4_API_SECRET`
+(Measurement Protocol secret of that stream), `GA4_PROPERTY_ID` (numeric), `GA4_CREDENTIALS_JSON`
+(a service-account key with read access to the property) and `GA4_CACHE_SECONDS` (default 900).
+No credential is stored in the database or returned by any endpoint. In the GA4 property, register
+an event-scoped custom dimension for the parameter `event_ref`.
+
+### Organization connection
+
+`GET|PUT /api/v1/organizations/{organization_id}/ga4-connection` (organization owner only;
+others get 404/403). `PUT {"is_enabled": true|false}` connects or disconnects the organization's
+events to the platform property; enabling returns 409 `ga4_disabled` while the integration is off.
+The view is `{organization_id, property_id, is_enabled, enabled_at, integration}` with
+`integration: enabled|disabled`; a missing row is reported as not enabled. Changes are audited.
+Only orders confirmed after the latest `enabled_at` are exported (no backfill).
+
+### Shared measurement contract (web and mobile)
+
+| Measurement | GA4 event | Produced by | Parameters sent to GA4 |
+|---|---|---|---|
+| `campaign_landing` | `campaign_landing` | client | `event_ref`, `campaign_ref`?, `platform`, `page_location`?, `engagement_time_msec` |
+| `event_view` | `view_item` | client | same as above |
+| `checkout_start` | `begin_checkout` | client | same as above |
+| `purchase` | `purchase` | server (worker) | `event_ref`, `campaign_ref`?, `platform: server`, `transaction_id`, `currency: KZT`, `value`, `tickets` |
+| `refund` | `refund` | server (worker) | `event_ref`, `platform: server`, `transaction_id`, `currency: KZT`, `value` |
+
+Clients post `POST /api/v1/analytics/measurements` with exactly
+`{name, analytics_event_id, event_id, campaign_id?, platform: web|mobile, page_path?}`; unknown
+fields, `purchase`/`refund` names or a campaign of another event return 422. The response is
+202 `{status: accepted|duplicate|skipped, reason}`; `skipped` with `disabled`,
+`consent_required` (the account's `analytics_consent` is off; anonymous visitors are never
+tracked) or `not_connected` is never an error, so refusal cannot break a client flow. The event
+must be visible to the caller (404 otherwise). `analytics_event_id` is a client-generated UUID used
+only for deduplication: a repeat returns `duplicate` and is sent once.
+
+Only allowlisted parameters leave: `event_ref`, `campaign_ref`, `transaction_id` and the
+Measurement Protocol `client_id` are HMAC references derived from the server secret, distinct
+from and not reversible to event, campaign, order or user IDs. `page_path` is reduced to a public
+route template (`/discover`, `/events/event`, `/c/campaign`) on `FRONTEND_URL`; query strings,
+fragments, IDs and every other route are dropped, as in the web client. Names, emails, phone
+numbers, user/order/ticket/payment IDs, QR/entry/session tokens, promo codes, support text and
+event titles/descriptions are never sent. Purchase `value` is the order's payable amount in KZT
+units; the refund of the fulfilling charge reuses the purchase `transaction_id`.
+
+### Durable export
+
+Rows of `analytics_export` (status `pending|sent|skipped|failed`) are the outbox. Every 15 seconds
+the worker records purchase measurements for confirmed orders of connected organizations whose
+buyer currently consents, and refund measurements for succeeded refunds of exported purchases
+(looking back 7 days, at most 200 of each per pass). Unique keys on `analytics_event_id` and on
+(connection, order|refund, kind) make enqueueing and retries idempotent. It then leases up to 20
+due rows (`FOR UPDATE SKIP LOCKED`, attempt number as fence), sends them outside the transaction,
+and records `sent` or a retry with back-off (`last_error` `ga4_unavailable|ga4_error|
+ga4_send_failed`, no provider text). After 5 attempts a row becomes `failed`; rows of a
+disconnected organization become `skipped`. Rows remain visible.
+
+### Cached aggregates
+
+`GET /api/v1/events/{event_id}/analytics/traffic?from=YYYY-MM-DD&to=YYYY-MM-DD` (reports
+permission, 404/403 as above; `to` exclusive, default the 28 days up to today in the event time
+zone, at most 366 days; invalid range 422) returns
+
+`{event_id, source: "ga4", state, error, timezone, range: {from, to}, fetched_at, expires_at,
+metrics, definitions}`.
+
+`metrics` maps every measurement name to `{event_count, users}` from the GA4 Data API, filtered by
+the event's `event_ref`. Results are cached in `ga4_cache` per connection, event and query for
+`GA4_CACHE_SECONDS`. `state` is `disabled` (integration off or no reporting credentials),
+`not_connected`, `fresh`, `stale` (refresh failed; last cached values with `error`),
+`unavailable` (outage, no cache) or `error` (rejected request or credentials, no cache).
+`unavailable`/`error`/`disabled`/`not_connected` return `metrics: null`, never zeros. The provider
+call holds no transaction. Missing GA4 purchases are not missing sales.
+
+Fixture tests cover consent, allowlists, deduplication, outage and disabled states; live
+collection and reporting against a real property have not been verified (credentials required).
+
 Review handoff: Yershuak/Adil should review definitions, campaign reconciliation,
 filter semantics and client additive metadata before client integration. This
 document is the handoff; no messages were sent to reviewers.

@@ -18,6 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from . import schemas as s
 from .config import Settings
 from .db import database
+from .ga4_client import GA4Client
 from .google import GoogleClient
 from .models import AccountToken, AuthSession, ExternalIdentity, OAuthAttempt, User
 from .security import (
@@ -63,6 +64,7 @@ def create_app(settings: Settings | None = None):
     app = FastAPI(title="BiletFlow API", version="0.1.0", lifespan=lifespan)
     app.state.settings, app.state.engine, app.state.sessions = settings, engine, factory
     app.state.google = GoogleClient(settings)
+    app.state.ga4 = GA4Client(settings)
     app.state.storage = storage_from_settings(settings)
     app.add_middleware(
         CORSMiddleware,
@@ -514,6 +516,7 @@ def create_app(settings: Settings | None = None):
     from .checkout_api import router as checkout_router
     from .event_api import router as event_router
     from .finance_api import router as finance_router
+    from .ga4_api import router as ga4_router
     from .notification_api import router as notification_router
     from .offline_api import router as offline_router
     from .organization_api import router as organization_router
@@ -532,6 +535,7 @@ def create_app(settings: Settings | None = None):
     app.include_router(admission_router(factory, settings, principal))
     app.include_router(admission_history_router(factory, settings, principal))
     app.include_router(analytics_router(factory, settings, principal))
+    app.include_router(ga4_router(factory, settings, principal))
     app.include_router(finance_router(factory, settings, principal))
     app.include_router(calendar_router(factory, settings, principal))
     app.include_router(notification_router(factory, settings, principal))

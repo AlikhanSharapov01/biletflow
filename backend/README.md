@@ -118,6 +118,7 @@ substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
+| `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON` | Optional GA4 export and traffic reports, off by default; see [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
 
 ---
 
@@ -155,7 +156,7 @@ remaining scope.
 | [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
 | [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting |
 | [REFUNDS_API.md](REFUNDS_API.md) | Full refunds, retry, free cancellation and event cancellation |
-| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports, sales series and CSV export |
+| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports, sales series, CSV export and optional GA4 traffic |
 | [FINANCE_API.md](FINANCE_API.md) | Finance summary, simulated payouts and retained adjustments |
 | [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
 | [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
@@ -176,7 +177,8 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
   `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0019_admin_retry`
-  (retry counters on `outbox_job` and `notification_delivery`).
+  (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
+  (adds `ga4_connection`, `analytics_export`, `ga4_cache`; not yet included in the verified count).
   The chain through `0017` was verified on a disposable test database on 13 November 2026;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
@@ -201,8 +203,8 @@ retries with back-off and marks a job `dead` after 5 attempts. It handles:
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds and reconciling orphan event images and abandoned ticket PDF writes
-  every 15 seconds.
+- releasing expired holds, reconciling orphan event images and abandoned ticket PDF writes, and
+  exporting consented GA4 measurements when GA4 is enabled, every 15 seconds.
 
 Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
 five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
@@ -388,8 +390,8 @@ Open backend work, from the audit in #85, in dependency order (see the
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
 3. Moderation notices (#74), the S3-compatible storage service required by requirements §2.1
    (#77; only local protected storage exists today), correlation IDs and metrics (#78).
-4. GA4 collection and aggregate reporting (#71), demo fixtures and reset (#79). The analytics
-   CSV export (#81) is implemented.
+4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
+   (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
 5. Measured load (#80) and real process-kill recovery (#83).
 
 Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,

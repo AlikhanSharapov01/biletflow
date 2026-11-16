@@ -19,6 +19,8 @@ from .config import Settings
 from .db import database
 from .email_templates import copy
 from .event_image_service import reconcile_images
+from .ga4_client import GA4Client
+from .ga4_service import export_ga4_once
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .payments_service import dispatch_refund_once, initialize_once, process_received_once
@@ -260,6 +262,7 @@ def main():
     settings = Settings()
     engine, factory = database(settings.database_url.get_secret_value())
     storage = storage_from_settings(settings)
+    ga4 = GA4Client(settings)
     next_sweep = 0.0
     try:
         while True:
@@ -278,6 +281,10 @@ def main():
                     reconcile_ticket_pdfs(factory, storage)
                 except Exception:
                     pass  # abandoned ticket PDF writes stay scheduled in stored_file
+                try:
+                    export_ga4_once(factory, settings, ga4)
+                except Exception:
+                    pass  # GA4 measurements stay pending in analytics_export
             try:
                 busy = (
                     initialize_once(factory)

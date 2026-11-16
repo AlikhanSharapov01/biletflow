@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     attachment_max_bytes: int = Field(5 * 1024 * 1024, ge=1024)
     attachment_max_per_message: int = Field(5, ge=1, le=20)
     attachment_link_seconds: int = Field(300, ge=30, le=3600)
+    # BF-19: optional GA4 integration, off unless enabled; credentials only from the environment.
+    ga4_enabled: bool = False
+    ga4_measurement_id: str = Field("", pattern=r"^(G-[A-Z0-9]+)?$")
+    ga4_api_secret: SecretStr = SecretStr("")
+    ga4_property_id: str = Field("", pattern=r"^[0-9]*$")
+    ga4_credentials_json: SecretStr = SecretStr("")
+    ga4_cache_seconds: int = Field(900, ge=60, le=86400)
 
     @model_validator(mode="after")
     def secure_settings(self):
