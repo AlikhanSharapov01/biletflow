@@ -5,6 +5,8 @@ files (PNG/JPEG through Pillow, PDF written by hand with exact cross-reference o
 """
 
 import struct
+import time
+import tracemalloc
 import zlib
 from io import BytesIO
 
@@ -360,3 +362,73 @@ def test_pdf_root_must_resolve_to_a_catalog():
     xref = int(update[update.rindex(b"startxref") + 10 :].split()[0])
     looped = update.replace(b"/Prev ", b"/Prev %d " % xref + b"/Old ")
     assert not valid_content("application/pdf", looped)
+
+
+def zeros_deflated(size):
+    """zlib stream of `size` zero bytes, built without holding them in memory."""
+    packer, chunk, parts = zlib.compressobj(9), bytes(64 * 1024), []
+    for _ in range(size // len(chunk)):
+        parts.append(packer.compress(chunk))
+    return b"".join(parts) + packer.flush()
+
+
+def xref_stream_bomb(entries, predictor=False):
+    """A few KB declaring millions of one-byte xref rows (/W [0 1 0])."""
+    packed = zeros_deflated(entries * (2 if predictor else 1))
+    parms = b"/DecodeParms << /Columns 1 /Predictor 12 >> " if predictor else b""
+    out = b"%PDF-1.7\n"
+    return out + (
+        b"1 0 obj\n<< /Type /XRef /Size %d /W [0 1 0] /Root 1 0 R /Filter /FlateDecode %s"
+        b"/Length %d >>\nstream\n%s\nendstream\nendobj\nstartxref\n%d\n%%%%EOF\n"
+        % (entries, parms, len(packed), packed, len(out))
+    )
+
+
+def objects_without_endobj(count):
+    """`count` in-use entries whose objects only close at the very end of the body."""
+    out = bytearray(b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\n")
+    offsets = [9]
+    for number in range(2, count + 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n<<>>\n" % number
+    out += b"endobj\n"  # the only close: a per-entry endobj search would scan to here each time
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (count + 1)
+    out += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (count + 1, xref)
+    return bytes(out)
+
+
+def timed(data):
+    start = time.perf_counter()
+    result = valid_content("application/pdf", data)
+    return result, time.perf_counter() - start
+
+
+@pytest.mark.parametrize("predictor", [False, True])
+def test_xref_stream_bomb_is_rejected_cheaply(predictor):
+    bomb = xref_stream_bomb(16_000_000, predictor)
+    assert len(bomb) < 40_000
+    tracemalloc.start()
+    try:
+        result, elapsed = timed(bomb)
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert result is False
+    # More entries than a file this small can hold objects for: refused before inflating.
+    assert elapsed < 0.5 and peak < 5 * 1024 * 1024
+
+
+def test_many_objects_validate_in_linear_time():
+    data = objects_without_endobj(40_000)
+    result, elapsed = timed(data)
+    assert result is True  # structurally valid: every entry points at its object header
+    assert elapsed < 2.0
+    # Doubling the objects roughly doubles the work, it does not quadruple it.
+    bigger, larger_elapsed = timed(objects_without_endobj(80_000))
+    assert bigger is True and larger_elapsed < 4.0
+
+
+def test_entry_budget_caps_declared_objects():
+    assert not valid_content("application/pdf", objects_without_endobj(200_000))  # > 100 000

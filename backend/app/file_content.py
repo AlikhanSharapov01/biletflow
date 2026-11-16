@@ -67,9 +67,16 @@ PDF_PREDICTOR = re.compile(rb"/Predictor[\s]+(\d{1,2})")
 PDF_COLUMNS = re.compile(rb"/Columns[\s]+(\d{1,3})")
 # Cross-reference sections followed through /Prev (incremental updates) before giving up.
 PDF_MAX_SECTIONS = 16
+# Entries over all sections: never more than one per PDF_MIN_OBJECT_BYTES of the file (an
+# object's header and endobj alone take that much), and never more than PDF_MAX_ENTRIES.
+PDF_MAX_ENTRIES = 100_000
+PDF_MIN_OBJECT_BYTES = 8
+# Bound for searches inside one object's dictionary (catalog, stream dictionaries, trailers).
+PDF_DICT_LIMIT = 64 * 1024
+PDF_STREAM_END = re.compile(rb"[\r\n\s]*endstream")
 # Only the end of the file is searched for the final startxref.
 PDF_TAIL_BYTES = 2048
-# A decoded cross-reference or object stream larger than this is not a plausible upload.
+# A decoded object stream larger than this is not a plausible upload.
 MAX_PDF_STREAM = 16 * 1024 * 1024
 
 
@@ -244,6 +251,16 @@ def valid_jpeg(data):
 
 
 # --- PDF -----------------------------------------------------------------------------------
+#
+# Work is bounded on hostile input: at most PDF_MAX_SECTIONS cross-reference sections, at most
+# `entry_budget(data)` entries over all of them (an in-use object needs at least its header, so
+# a small file cannot declare many), xref streams inflate only to what that many rows need, each
+# in-use entry is checked by an anchored header match only, and `endobj`/dictionary searches are
+# bounded by PDF_DICT_LIMIT except one search per stream for its end.
+
+
+def entry_budget(data):
+    return min(PDF_MAX_ENTRIES, max(16, len(data) // PDF_MIN_OBJECT_BYTES))
 
 
 def valid_pdf(data):
@@ -257,19 +274,25 @@ def valid_pdf(data):
         return False
     section, end = int(tails[-1].group(1)), tails[-1].start()
     entries, root, seen = {}, None, set()
+    budget = [entry_budget(data)]
     while True:
         if section in seen or len(seen) >= PDF_MAX_SECTIONS or not 0 < section < end:
             return False
         seen.add(section)
         if data.startswith(b"xref", section):
-            parsed = xref_table(data, section + 4)
+            parsed = xref_table(data, section + 4, budget)
         else:
-            parsed = xref_stream(data, section)
+            parsed = xref_stream(data, section, budget)
         if parsed is None:
             return False
         found, trailer = parsed
-        for number, entry in found.items():
-            entries.setdefault(number, entry)  # the newest section wins
+        for number, entry in found:
+            if number in entries:
+                continue  # the newest section wins
+            # An in-use entry must point at the object it names (anchored header match only).
+            if entry[0] == "n" and object_header(data, entry[1], number) is None:
+                return False
+            entries[number] = entry
         if root is None:
             match = PDF_ROOT.search(trailer)
             root = (int(match.group(1)), int(match.group(2))) if match else None
@@ -277,167 +300,191 @@ def valid_pdf(data):
         if not previous:
             break
         section = int(previous.group(1))
-    if root is None:
-        return False
-    for number, entry in entries.items():
-        if entry[0] == "n" and object_body(data, entry[1], number) is None:
-            return False  # an in-use entry must point at the object it names
-    return catalog(data, entries, *root)
+    return root is not None and catalog(data, entries, *root)
 
 
-def xref_table(data, position):
-    """({number: entry}, trailer dictionary) of a classic cross-reference section, or None."""
-    found = {}
+def spend(budget, count):
+    budget[0] -= count
+    return budget[0] >= 0
+
+
+def xref_table(data, position, budget):
+    """([(number, entry)], trailer dictionary) of a classic cross-reference section, or None."""
+    found = []
     while not PDF_TRAILER.match(data, position):
         section = PDF_SUBSECTION.match(data, position)
         if not section:
             return None
         first, count = int(section.group(1)), int(section.group(2))
         position = section.end()
-        if count > (len(data) - position) // 19:
+        if count > (len(data) - position) // 19 or not spend(budget, count):
             return None
         for number in range(first, first + count):
             entry = PDF_ENTRY.match(data, position)
             if not entry:
                 return None
             if entry.group(3) == b"n":
-                found[number] = ("n", int(entry.group(1)), int(entry.group(2)))
+                found.append((number, ("n", int(entry.group(1)), int(entry.group(2)))))
             else:
-                found[number] = ("f",)
+                found.append((number, ("f",)))
             position = entry.end()
-    trailer_end = data.find(b"startxref", position)
+    trailer_end = data.find(b"startxref", position, position + PDF_DICT_LIMIT)
     if trailer_end < 0:
         return None
     return found, data[position:trailer_end]
 
 
-def object_body(data, offset, number):
-    """Bytes between `number G obj` at `offset` and its `endobj`, or None."""
+def object_header(data, offset, number):
+    """The `number G obj` match at `offset`, or None."""
     found = PDF_OBJECT.match(data, offset) if 0 <= offset < len(data) else None
-    if not found or int(found.group(1)) != number:
-        return None
-    end = data.find(b"endobj", found.end())
-    return None if end < 0 else data[found.end() : end]
+    return found if found and int(found.group(1)) == number else None
 
 
-def stream_data(body):
-    """(dictionary, decoded stream bytes) of a stream object body, or None.
+def stream_parts(data, start):
+    """(dictionary, raw bytes) of the stream object whose `obj` header ends at `start`, or None.
 
-    Only unfiltered and FlateDecode streams are decoded; inflation is capped.
+    One search for the stream end; a direct /Length is used when it lands on `endstream`.
     """
-    start = body.find(b"stream")
-    if start < 0:
+    keyword = data.find(b"stream", start, start + PDF_DICT_LIMIT)
+    if keyword < 0:
         return None
-    dictionary, position = body[:start], start + len(b"stream")
-    if body.startswith(b"\r\n", position):
+    dictionary, position = data[start:keyword], keyword + len(b"stream")
+    if data.startswith(b"\r\n", position):
         position += 2
-    elif body.startswith(b"\n", position):
+    elif data.startswith(b"\n", position):
         position += 1
     else:
         return None
-    finish = body.rfind(b"endstream")
-    if finish < position:
-        return None
-    raw = body[position:finish]
     length = PDF_LENGTH.search(dictionary)
-    if length and int(length.group(1)) <= len(raw):
-        raw = raw[: int(length.group(1))]  # a direct /Length is exact; binary may end in EOLs
+    if length:
+        stop = position + int(length.group(1))
+        if PDF_STREAM_END.match(data, stop):
+            return dictionary, data[position:stop]
+    stop = data.find(b"endstream", position)
+    if stop < 0:
+        return None
+    return dictionary, data[position:stop].rstrip(b"\r\n")
+
+
+def decode(dictionary, raw, cap):
+    """Decoded stream bytes (unfiltered or FlateDecode only), at most `cap` bytes, or None."""
     filters = PDF_FILTER.search(dictionary)
     if filters is None:
-        return dictionary, raw if length else raw.rstrip(b"\r\n")
+        return raw if len(raw) <= cap else None
     if filters.group(1) != b"FlateDecode":
         return None
-    inflater, pending, output = zlib.decompressobj(), raw, []
-    produced = 0
+    inflater, pending, output, produced = zlib.decompressobj(), raw, [], 0
     while pending and not inflater.eof:
         part = inflater.decompress(pending, INFLATE_STEP)
         produced += len(part)
-        if produced > MAX_PDF_STREAM:
+        if produced > cap:
             return None
         output.append(part)
         pending = inflater.unconsumed_tail
     if not inflater.eof:
         return None
-    return dictionary, b"".join(output)
+    return b"".join(output)
+
+
+def swar_add(a, b, mask_low, mask_high):
+    """Byte-wise addition modulo 256 of two equal-length big-endian integers."""
+    return ((a & mask_low) + (b & mask_low)) ^ ((a ^ b) & mask_high)
 
 
 def png_unpredict(rows, columns):
-    """Undo the PNG predictors (DecodeParms /Predictor 10-15) on 1-byte samples."""
+    """Undo the PNG predictors (DecodeParms /Predictor 10-15) on 1-byte samples.
+
+    "None" and "Up" rows, which cross-reference streams use, are decoded a whole row at a time.
+    """
     width = columns + 1
     if len(rows) % width:
         return None
-    previous, output = bytes(columns), bytearray()
+    mask_low, mask_high = int.from_bytes(b"\x7f" * columns), int.from_bytes(b"\x80" * columns)
+    previous, output = 0, bytearray()
     for start in range(0, len(rows), width):
-        kind, line = rows[start], bytearray(rows[start + 1 : start + width])
-        for i in range(columns):
-            left = line[i - 1] if i else 0
-            up, corner = previous[i], previous[i - 1] if i else 0
-            if kind == 1:
-                line[i] = (line[i] + left) & 0xFF
-            elif kind == 2:
-                line[i] = (line[i] + up) & 0xFF
-            elif kind == 3:
-                line[i] = (line[i] + (left + up) // 2) & 0xFF
-            elif kind == 4:
-                p = left + up - corner
-                pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
-                best = left if pa <= pb and pa <= pc else up if pb <= pc else corner
-                line[i] = (line[i] + best) & 0xFF
-            elif kind != 0:
-                return None
-        output += line
-        previous = line
+        kind = rows[start]
+        if kind in (0, 2):
+            value = int.from_bytes(rows[start + 1 : start + width])
+            if kind == 2:
+                value = swar_add(value, previous, mask_low, mask_high)
+        elif kind in (1, 3, 4):
+            above = previous.to_bytes(columns)
+            line = bytearray(rows[start + 1 : start + width])
+            for i in range(columns):
+                left = line[i - 1] if i else 0
+                up, corner = above[i], above[i - 1] if i else 0
+                if kind == 1:
+                    line[i] = (line[i] + left) & 0xFF
+                elif kind == 3:
+                    line[i] = (line[i] + (left + up) // 2) & 0xFF
+                else:
+                    p = left + up - corner
+                    pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
+                    best = left if pa <= pb and pa <= pc else up if pb <= pc else corner
+                    line[i] = (line[i] + best) & 0xFF
+            value = int.from_bytes(line)
+        else:
+            return None
+        output += value.to_bytes(columns)
+        previous = value
     return bytes(output)
 
 
-def xref_stream(data, offset):
-    """({number: entry}, stream dictionary) of a cross-reference stream, or None."""
+def xref_stream(data, offset, budget):
+    """([(number, entry)], stream dictionary) of a cross-reference stream, or None."""
     found = PDF_OBJECT.match(data, offset)
-    if not found:
+    parts = stream_parts(data, found.end()) if found else None
+    if parts is None:
         return None
-    body = object_body(data, offset, int(found.group(1)))
-    decoded = stream_data(body) if body is not None else None
-    if decoded is None:
-        return None
-    dictionary, rows = decoded
+    dictionary, raw = parts
     widths = PDF_WIDTHS.search(dictionary)
     size = PDF_SIZE.search(dictionary)
     if not PDF_XREF_TYPE.search(dictionary) or not widths or not size:
         return None
     widths = [int(width) for width in widths.groups()]
-    if any(width > 8 for width in widths) or widths[1] == 0:
-        return None
-    predictor = PDF_PREDICTOR.search(dictionary)
-    if predictor and int(predictor.group(1)) >= 10:
-        columns = PDF_COLUMNS.search(dictionary)
-        if not columns or int(columns.group(1)) != sum(widths):
-            return None
-        rows = png_unpredict(rows, sum(widths))
-    elif predictor and int(predictor.group(1)) != 1:
+    width = sum(widths)
+    # Real writers use a few bytes per field ([1 4 2] and the like).
+    if any(w > 8 for w in widths) or width > 16 or widths[1] == 0:
         return None
     index = PDF_INDEX.search(dictionary)
     numbers = [int(n) for n in index.group(1).split()] if index else [0, int(size.group(1))]
-    if len(numbers) % 2 or rows is None:
+    if len(numbers) % 2:
         return None
     sections = list(zip(numbers[::2], numbers[1::2]))
-    width = sum(widths)
-    if sum(count for _, count in sections) * width > len(rows):
+    total = sum(count for _, count in sections)
+    if not spend(budget, total):
+        return None  # more entries than the file can hold objects for
+    predictor = PDF_PREDICTOR.search(dictionary)
+    predicted = bool(predictor) and int(predictor.group(1)) >= 10
+    if predictor and not predicted and int(predictor.group(1)) != 1:
         return None
-    entries, position = {}, 0
+    # Inflate only as far as the declared rows need.
+    rows = decode(dictionary, raw, total * (width + predicted))
+    if rows is None:
+        return None
+    if predicted:
+        columns = PDF_COLUMNS.search(dictionary)
+        if not columns or int(columns.group(1)) != width:
+            return None
+        rows = png_unpredict(rows, width)
+        if rows is None:
+            return None
+    if total * width > len(rows):
+        return None
+    entries, position = [], 0
     for first, count in sections:
         for number in range(first, first + count):
-            fields, cursor = [], position
+            fields = []
             for size_ in widths:
-                fields.append(int.from_bytes(rows[cursor : cursor + size_], "big"))
-                cursor += size_
-            position = cursor
+                fields.append(int.from_bytes(rows[position : position + size_]))
+                position += size_
             kind = fields[0] if widths[0] else 1
             if kind == 1:
-                entries[number] = ("n", fields[1], fields[2])
+                entries.append((number, ("n", fields[1], fields[2])))
             elif kind == 2:
-                entries[number] = ("c", fields[1], fields[2])
+                entries.append((number, ("c", fields[1], fields[2])))
             else:
-                entries[number] = ("f",)
+                entries.append((number, ("f",)))
     return entries, dictionary
 
 
@@ -447,35 +494,32 @@ def catalog(data, entries, number, generation):
     if entry is None or entry[0] == "f":
         return False
     if entry[0] == "n":
-        body = object_body(data, entry[1], number)
-        found = PDF_OBJECT.match(data, entry[1])
-        return (
-            body is not None
-            and entry[2] == generation
-            and int(found.group(2)) == generation
-            and bool(PDF_CATALOG.search(body))
-        )
+        found = object_header(data, entry[1], number)
+        if found is None or entry[2] != generation or int(found.group(2)) != generation:
+            return False
+        end = data.find(b"endobj", found.end(), found.end() + PDF_DICT_LIMIT)
+        return end >= 0 and bool(PDF_CATALOG.search(data, found.end(), end))
     # Compressed into an object stream: objects there always have generation 0.
     container = entries.get(entry[1])
     if generation != 0 or container is None or container[0] != "n":
         return False
-    body = object_body(data, container[1], entry[1])
-    decoded = stream_data(body) if body is not None else None
-    if decoded is None or not PDF_OBJSTM_TYPE.search(decoded[0]):
+    found = object_header(data, container[1], entry[1])
+    parts = stream_parts(data, found.end()) if found else None
+    content = decode(parts[0], parts[1], MAX_PDF_STREAM) if parts else None
+    if content is None or not PDF_OBJSTM_TYPE.search(parts[0]):
         return False
-    dictionary, content = decoded
-    first = PDF_FIRST.search(dictionary)
+    first = PDF_FIRST.search(parts[0])
     if not first or int(first.group(1)) > len(content):
         return False
+    base = int(first.group(1))
     # The header is integer pairs; PDF comments may sit between them.
-    head = re.sub(rb"%[^\r\n]*", b" ", content[: int(first.group(1))]).split()
+    head = re.sub(rb"%[^\r\n]*", b" ", content[:base]).split()
     if len(head) % 2 or not all(item.isdigit() for item in head):
         return False
     offsets = [(int(n), int(o)) for n, o in zip(head[::2], head[1::2])]
     for position, (member, start) in enumerate(offsets):
         if member == number:
             stop = offsets[position + 1][1] if position + 1 < len(offsets) else None
-            base = int(first.group(1))
             text = content[base + start : None if stop is None else base + stop]
             return bool(PDF_CATALOG.search(text))
     return False
