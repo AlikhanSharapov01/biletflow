@@ -44,6 +44,11 @@ INFLATE_STEP = 64 * 1024
 # Frame headers (SOF0-SOF15 except DHT C4, JPG C8 and DAC CC); the lossless ones allow 2-16 bits.
 JPEG_FRAMES = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
 JPEG_LOSSLESS = {0xC3, 0xC7, 0xCB, 0xCF}
+# A run of fill bytes before a marker.
+JPEG_FILL = re.compile(rb"\xff+")
+# Entropy-coded data ends at the first 0xFF that is not a stuffed byte (FF 00), a restart marker
+# (FF D0-D7) or a fill byte (FF FF).
+JPEG_SCAN_END = re.compile(rb"\xff[^\x00\xd0-\xd7\xff]")
 
 PDF_HEADER = re.compile(rb"%PDF-[12]\.\d")
 PDF_TAIL = re.compile(rb"startxref[\s]+(\d{1,10})[\s]+%%EOF[\s\0]*\Z")
@@ -64,11 +69,20 @@ PDF_INDEX = re.compile(rb"/Index[\s]*\[([\d\s]*)\]")
 PDF_LENGTH = re.compile(rb"/Length[\s]+(\d{1,10})(?![\d])(?![\s]+\d+[\s]+R)")
 PDF_FIRST = re.compile(rb"/First[\s]+(\d{1,10})")
 PDF_COUNT = re.compile(rb"/N[\s]+(\d{1,10})")
-# One integer of an object stream header; whitespace and comments may precede it (bounded).
-PDF_OBJSTM_TOKEN = re.compile(rb"(?:[\s]{1,64}|%[^\r\n]{0,256}){0,8}(\d{1,10})")
+# An object stream header is integers separated by whitespace and comments. It is read by
+# objstm_integer() with these three patterns: each is one character class with nothing after it
+# to backtrack for, and the skipping loop only ever moves forward.
+PDF_SPACE = re.compile(rb"[\s\0]*")
+PDF_LINE_END = re.compile(rb"[\r\n]")
+PDF_INTEGER = re.compile(rb"(\d{1,10})(?![\d])")
 # An object stream header holds N pairs of integers of at most 10 digits plus separators.
 PDF_OBJSTM_PAIR_BYTES = 24
-PDF_FILTER = re.compile(rb"/Filter[\s]*\[?[\s]*/(\w+)[\s]*\]?")
+# Comments skipped in one object stream header. qpdf's QDF mode writes its comments after the
+# pairs, so real headers need none; the cap keeps the skipping loop short.
+PDF_OBJSTM_COMMENTS = 256
+# The name of the filter, or of the first one in an array. The optional `[` sits between the two
+# whitespace runs inside its own group so a run can only be matched one way.
+PDF_FILTER = re.compile(rb"/Filter[\s]*(?:\[[\s]*)?/(\w+)")
 PDF_PREDICTOR = re.compile(rb"/Predictor[\s]+(\d{1,2})")
 PDF_COLUMNS = re.compile(rb"/Columns[\s]+(\d{1,3})")
 # Cross-reference sections followed through /Prev (incremental updates) before giving up.
@@ -79,7 +93,9 @@ PDF_MAX_ENTRIES = 100_000
 PDF_MIN_OBJECT_BYTES = 8
 # Bound for searches inside one object's dictionary (catalog, stream dictionaries, trailers).
 PDF_DICT_LIMIT = 64 * 1024
-PDF_STREAM_END = re.compile(rb"[\r\n\s]*endstream")
+# After the /Length bytes of a stream: an end-of-line and `endstream`. The run is bounded because
+# every cross-reference section may point its /Length at the same place.
+PDF_STREAM_END = re.compile(rb"[\s]{0,32}endstream")
 # Only the end of the file is searched for the final startxref.
 PDF_TAIL_BYTES = 2048
 # A decoded object stream larger than this is not a plausible upload.
@@ -166,12 +182,16 @@ def valid_png(data):
             if image_ended or (header[1] == 3 and not palette):
                 return False
             image_started = True
-            pending = body
-            while pending:
-                produced += len(inflater.decompress(pending, INFLATE_STEP))
-                if produced > expected:
-                    return False
-                pending = inflater.unconsumed_tail
+            # zlib copies the input a call leaves unconsumed, so the chunk goes in by slices.
+            for start in range(0, length, INFLATE_STEP):
+                if inflater.eof:
+                    return False  # data after the end of the zlib stream
+                pending = body[start : start + INFLATE_STEP]
+                while pending:
+                    produced += len(inflater.decompress(pending, INFLATE_STEP))
+                    if produced > expected:
+                        return False
+                    pending = inflater.unconsumed_tail
             continue
         if image_started:
             image_ended = True  # IDAT chunks must be consecutive
@@ -202,12 +222,13 @@ def valid_jpeg(data):
     position, end = 2, len(data)
     frame, scans = False, 0
     while True:
-        if position >= end or data[position] != 0xFF:
+        if position + 1 >= end or data[position] != 0xFF:
             return False
-        while position < end and data[position] == 0xFF:
-            position += 1  # fill bytes may precede any marker
-        if position >= end:
-            return False
+        position += 1
+        if data[position] == 0xFF:  # fill bytes may precede any marker
+            position = JPEG_FILL.match(data, position).end()
+            if position >= end:
+                return False
         marker = data[position]
         position += 1
         if marker == 0xD9:  # EOI
@@ -243,17 +264,10 @@ def valid_jpeg(data):
             if not frame or not 1 <= components <= 4 or len(body) != 4 + 2 * components:
                 return False
             scans += 1
-            while True:
-                position = data.find(b"\xff", position)
-                if position < 0 or position + 1 >= end:
-                    return False
-                following = data[position + 1]
-                if following == 0x00 or 0xD0 <= following <= 0xD7:
-                    position += 2  # stuffed 0xFF data byte or restart marker
-                elif following == 0xFF:
-                    position += 1
-                else:
-                    break
+            scan_end = JPEG_SCAN_END.search(data, position)
+            if not scan_end:
+                return False
+            position = scan_end.start()
 
 
 # --- PDF -----------------------------------------------------------------------------------
@@ -262,7 +276,9 @@ def valid_jpeg(data):
 # `entry_budget(data)` entries over all of them (an in-use object needs at least its header, so
 # a small file cannot declare many), xref streams inflate only to what that many rows need, each
 # in-use entry is checked by an anchored header match only, and `endobj`/dictionary searches are
-# bounded by PDF_DICT_LIMIT except one search per stream for its end.
+# bounded by PDF_DICT_LIMIT except one search per stream for its end. Streams are inflated by
+# inflate(), which keeps only the range asked for. No pattern has two quantifiers that can share
+# the same bytes, and an object stream header is scanned by objstm_integer(), not by one pattern.
 
 
 def entry_budget(data):
@@ -373,6 +389,27 @@ def stream_parts(data, start):
     return dictionary, data[position:stop].rstrip(b"\r\n")
 
 
+def inflate(raw, start, stop):
+    """(bytes [start:stop) of the inflated zlib stream `raw`, whether the stream ended).
+
+    Nothing past `stop` is decoded and nothing outside the range is kept. Input goes in by
+    INFLATE_STEP slices and output comes out in INFLATE_STEP pieces: zlib copies the input a call
+    leaves unconsumed, so feeding everything at once would cost the input size per piece.
+    """
+    inflater, produced, kept = zlib.decompressobj(), 0, []
+    for begin in range(0, len(raw), INFLATE_STEP):
+        pending = raw[begin : begin + INFLATE_STEP]
+        while pending and produced < stop:
+            part = inflater.decompress(pending, min(INFLATE_STEP, stop - produced))
+            if produced + len(part) > start:
+                kept.append(part[max(0, start - produced) :])
+            produced += len(part)
+            pending = inflater.unconsumed_tail
+        if inflater.eof or produced >= stop:
+            break
+    return b"".join(kept), inflater.eof
+
+
 def decode(dictionary, raw, cap):
     """Decoded stream bytes (unfiltered or FlateDecode only), at most `cap` bytes, or None."""
     filters = PDF_FILTER.search(dictionary)
@@ -380,17 +417,24 @@ def decode(dictionary, raw, cap):
         return raw if len(raw) <= cap else None
     if filters.group(1) != b"FlateDecode":
         return None
-    inflater, pending, output, produced = zlib.decompressobj(), raw, [], 0
-    while pending and not inflater.eof:
-        part = inflater.decompress(pending, INFLATE_STEP)
-        produced += len(part)
-        if produced > cap:
-            return None
-        output.append(part)
-        pending = inflater.unconsumed_tail
-    if not inflater.eof:
+    # One byte past the cap tells a stream that fits from one that is too long.
+    output, ended = inflate(raw, 0, cap + 1)
+    return output if ended and len(output) <= cap else None
+
+
+def decoded_range(dictionary, raw, start, stop):
+    """Bytes [start:stop) of a decoded stream (fewer if it ends first), or None.
+
+    Never decodes past `stop` or MAX_PDF_STREAM.
+    """
+    if stop > MAX_PDF_STREAM:
         return None
-    return b"".join(output)
+    filters = PDF_FILTER.search(dictionary)
+    if filters is None:
+        return raw[start:stop]
+    if filters.group(1) != b"FlateDecode":
+        return None
+    return inflate(raw, start, stop)[0]
 
 
 def swar_add(a, b, mask_low, mask_high):
@@ -531,19 +575,20 @@ def catalog(data, entries, number, generation):
         return False
     # Read pairs only up to the member asked for.
     position, previous, start = 0, -1, None
+    comments = [PDF_OBJSTM_COMMENTS]
     for _ in range(count):
-        member = PDF_OBJSTM_TOKEN.match(head, position)
-        offset = PDF_OBJSTM_TOKEN.match(head, member.end()) if member else None
+        member = objstm_integer(head, position, comments)
+        offset = objstm_integer(head, member[1], comments) if member else None
         if offset is None:
             return False
-        position, value = offset.end(), int(offset.group(1))
+        value, position = offset
         if value < previous:
             return False  # offsets increase
         previous = value
         if start is not None:
             stop = value
             break
-        if int(member.group(1)) == number:
+        if member[0] == number:
             start = value
     else:
         if start is None:
@@ -555,30 +600,23 @@ def catalog(data, entries, number, generation):
     return text is not None and bool(PDF_CATALOG.search(text))
 
 
-def decoded_range(dictionary, raw, start, stop):
-    """Bytes [start:stop) of a decoded stream (fewer if it ends first), or None.
+def objstm_integer(head, position, comments):
+    """(value, end) of the next integer in an object stream header from `position`, or None.
 
-    Inflates incrementally, keeps only the requested range and never decodes past `stop` or
-    MAX_PDF_STREAM.
+    Whitespace and comments before it are skipped in one forward pass: each step consumes what it
+    matched, nothing is scanned twice, and at most `comments[0]` comments are skipped over all
+    calls on one header.
     """
-    if stop > MAX_PDF_STREAM:
-        return None
-    filters = PDF_FILTER.search(dictionary)
-    if filters is None:
-        return raw[start:stop]
-    if filters.group(1) != b"FlateDecode":
-        return None
-    inflater, pending, produced, kept = zlib.decompressobj(), raw, 0, []
-    while produced < stop and not inflater.eof:
-        part = inflater.decompress(pending, min(INFLATE_STEP, stop - produced))
-        progressed = bool(part) or len(inflater.unconsumed_tail) < len(pending)
-        pending = inflater.unconsumed_tail
-        if produced + len(part) > start:
-            kept.append(part[max(0, start - produced) :])
-        produced += len(part)
-        if not progressed:
-            break  # input exhausted (truncated stream) or no progress possible
-    return b"".join(kept)
+    while True:
+        position = PDF_SPACE.match(head, position).end()
+        if not head.startswith(b"%", position):
+            break
+        line_end = PDF_LINE_END.search(head, position)
+        if line_end is None or not spend(comments, 1):
+            return None  # the comment runs to the end of the header, or there are too many
+        position = line_end.end()
+    found = PDF_INTEGER.match(head, position)
+    return (int(found.group(1)), found.end()) if found else None
 
 
 CHECKS = {"image/png": valid_png, "image/jpeg": valid_jpeg, "application/pdf": valid_pdf}

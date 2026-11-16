@@ -399,9 +399,9 @@ def objects_without_endobj(count):
     return bytes(out)
 
 
-def timed(data):
+def timed(data, content_type="application/pdf"):
     start = time.perf_counter()
-    result = valid_content("application/pdf", data)
+    result = valid_content(content_type, data)
     return result, time.perf_counter() - start
 
 
@@ -510,3 +510,157 @@ def test_empty_xref_subsections_count_toward_the_budget():
     padded = good[: xref + 5] + b"0 0\n" * 100_000 + good[xref + 5 :]
     result, elapsed = timed(padded)
     assert result is False and elapsed < 0.5
+
+
+# --- every pattern and loop stays linear on hostile input (review round 4) ---------------------
+
+
+@pytest.mark.parametrize(
+    "head",
+    [
+        b" " * 64 + b"x",  # the reported case: a whitespace run that no integer follows
+        b" " * 200 + b"x",
+        b" " * 5000 + b"x",
+        b"\n" * 60_000 + b"x",
+        (b"%" + b"a" * 256 + b" ") * 8 + b"x",  # comments with no line end
+        b"%" * 60_000,
+        b"% " * 30_000,
+        b"%\n" * 30_000 + b"x",  # one comment per line
+        b"1" + b" " * 5000 + b"x",  # the run sits between the two integers of a pair
+        b"1 %" + b" %" * 30_000,
+    ],
+)
+def test_object_stream_header_without_integers_is_rejected_in_linear_time(head):
+    data = objstm_pdf(zlib.compress(head + b"<< /Type /Catalog >>", 9), len(head), 1)
+    assert len(data) < 2000
+    result, elapsed = timed(data)
+    assert result is False and elapsed < 0.5
+
+
+def test_object_stream_header_allows_whitespace_and_a_few_comments():
+    member = b"<< /Type /Catalog >>"
+    for head, ok in [
+        (b" " * 5000 + b"1 0 ", True),
+        (b"1" + b"\r\n" * 2500 + b"0\n", True),
+        (b"% qpdf-style comment\n1 0\n%% Object stream: object 1, index 0\n", True),
+        (b"%a\r\n" * 200 + b"1 % between the pair\n 0 ", True),
+        (b"%a\n" * 300 + b"1 0 ", False),  # more comments than any writer puts there
+        (b"% 1 0 ", False),  # integers inside a comment are not a pair
+        (b"12345678901 0 ", False),  # not an object number
+    ]:
+        data = objstm_pdf(zlib.compress(head + member), len(head), 1)
+        assert valid_content("application/pdf", data) is ok, head
+
+
+def test_filter_pattern_is_linear_on_a_whitespace_run():
+    # `/Filter` followed by 60 000 spaces and no name: tried once, not once per split of the run.
+    good = xref_stream_pdf()
+    for junk in (b"/Filter" + b" " * 60_000 + b"x ", b"/Filter [" + b" " * 60_000 + b"x "):
+        data = good.replace(b"/Root 1 0 R ", b"/Root 1 0 R /Junk << " + junk + b">> ")
+        result, elapsed = timed(data)
+        assert result is True and elapsed < 0.5  # the real /Filter comes later and still counts
+        data = good.replace(b"/Filter /FlateDecode ", junk)
+        result, elapsed = timed(data)
+        assert result is False and elapsed < 0.5
+    spaced = good.replace(b"/Filter /FlateDecode", b"/Filter\n[ /FlateDecode ]")
+    assert valid_content("application/pdf", spaced)
+
+
+def test_stream_length_pointing_at_a_whitespace_run_is_not_rescanned_per_section():
+    # 16 cross-reference streams chained by /Prev; every /Length lands on the same 5 MiB run of
+    # spaces, which is not followed by `endstream`, so each falls back to its own `endstream`.
+    sections, lengths = 16, [0] * 16
+    for _ in range(2):  # the second pass knows where the run starts
+        out = bytearray(b"%PDF-1.5\n")
+        catalog = len(out)
+        out += b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+        rows = b"\x00" + bytes(4) + b"\xff" + b"\x01" + struct.pack(">I", catalog) + b"\x00"
+        offsets, starts = [], []
+        for index in range(sections):
+            offsets.append(len(out))
+            previous = b"/Prev %010d " % offsets[index - 1] if index else b""
+            out += (
+                b"%d 0 obj\n<< /Type /XRef /Size 2 /W [1 4 1] /Root 1 0 R %s/Length %010d >>\n"
+                b"stream\n" % (index + 2, previous, lengths[index])
+            )
+            starts.append(len(out))
+            out += rows + b"\nendstream\nendobj\n"
+        lengths = [len(out) - start for start in starts]
+    out += b" " * (5 * 1024 * 1024 - 8192) + b"x\nstartxref\n%d\n%%%%EOF\n" % offsets[-1]
+    result, elapsed = timed(bytes(out))
+    assert result is True and elapsed < 0.25
+
+
+def test_stream_length_with_padding_before_endstream_is_accepted():
+    good = xref_stream_pdf()
+    for padding in (b"\r\n", b"\n" * 20, b" " * 200):
+        assert valid_content(
+            "application/pdf", good.replace(b"\nendstream", padding + b"endstream")
+        )
+
+
+def idat_png(width, height, depth, color, body):
+    header = struct.pack(">IIBBBBB", width, height, depth, color, 0, 0, 0)
+    chunks = [chunk(b"IHDR", header), chunk(b"IDAT", body), chunk(b"IEND", b"")]
+    return b"\x89PNG\r\n\x1a\n" + b"".join(chunks)
+
+
+def test_png_inflation_does_not_recopy_the_rest_of_the_chunk():
+    # 4000x4000 16-bit RGBA of zeros packs into ~125 KB; 4 MiB of junk follows it in the same
+    # IDAT chunk. Inflating in small steps must not copy that junk once per step.
+    row = bytes(1 + 4000 * 8)
+    packer = zlib.compressobj(1)
+    packed = b"".join(packer.compress(row) for _ in range(4000)) + packer.flush()
+    assert len(packed) < 1024 * 1024
+    result, elapsed = timed(idat_png(4000, 4000, 16, 6, packed), "image/png")
+    assert result is True and elapsed < 1.0
+    result, elapsed = timed(idat_png(4000, 4000, 16, 6, packed + b"j" * (4 << 20)), "image/png")
+    assert result is False and elapsed < 0.3
+
+
+def test_png_image_data_is_fed_in_slices_without_losing_the_stream_end():
+    noise = bytes((index * 7919 + index // 251) % 256 for index in range(300 * 901))
+    packed = zlib.compress(noise, 0)  # stored blocks: larger than one inflate step
+    assert len(packed) > 4 * 64 * 1024
+    assert valid_content("image/png", idat_png(300, 300, 8, 2, packed))
+    header = chunk(b"IHDR", struct.pack(">IIBBBBB", 300, 300, 8, 2, 0, 0, 0))
+    pieces = [packed[start : start + 100_000] for start in range(0, len(packed), 100_000)]
+
+    def split(parts):
+        chunks = [chunk(b"IDAT", part) for part in parts]
+        return b"\x89PNG\r\n\x1a\n" + header + b"".join(chunks) + chunk(b"IEND", b"")
+
+    assert valid_content("image/png", split(pieces))
+    assert valid_content("image/png", split([*pieces, b""]))
+    for bad in [
+        idat_png(300, 300, 8, 2, packed + b"x"),  # data after the zlib stream, same slice
+        idat_png(300, 300, 8, 2, packed + b"x" * 200_000),  # ... in a later slice
+        split([*pieces, b"x"]),  # ... in a later chunk
+        split(pieces[:-1]),  # truncated stream
+        idat_png(300, 300, 8, 2, packed[:-1]),
+    ]:
+        assert not valid_content("image/png", bad)
+
+
+def test_jpeg_fill_bytes_and_stuffed_scan_data_are_skipped_in_linear_time():
+    good = jpeg()
+    scan = good.index(b"\xff\xda")
+    data_start = scan + 2 + int.from_bytes(good[scan + 2 : scan + 4], "big")
+    size = 5 * 1024 * 1024
+    for data in [
+        good[:scan] + b"\xff" * size + good[scan:],  # fill bytes before a marker
+        good[:data_start] + b"\xff" * size + good[-2:],  # fill bytes ending the scan
+        good[:data_start] + b"\xff\x00" * (size // 2) + good[data_start:],  # stuffed bytes
+        good[:data_start] + b"\xff\xd0" * (size // 2) + good[data_start:],  # restart markers
+    ]:
+        result, elapsed = timed(data, "image/jpeg")
+        assert result is True and elapsed < 0.3
+    for bad in [
+        good[:scan] + b"\xff" * 64,  # fill bytes and then nothing
+        good[:data_start] + b"\xff\x00" * 64,  # the scan never ends
+        good[:data_start] + b"\xff" * 64,
+        good[:data_start] + b"\x12\xff",
+        good[:-2] + b"\xff\x00\xd9",  # a stuffed byte is not a marker
+    ]:
+        assert not valid_content("image/jpeg", bad)
+    assert valid_content("image/jpeg", good[:-2] + b"\xff\xff\xff\xd9")
