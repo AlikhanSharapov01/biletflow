@@ -196,8 +196,8 @@ SEARCHES = {
 }
 
 
-def search_page(db, kind, limit, offset, **filters):
-    query, order = SEARCHES[kind](**filters)
+def search_page(db, kind, limit, offset, searches=SEARCHES, **filters):
+    query, order = searches[kind](**filters)
     total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
     rows = db.execute(query.order_by(*order).limit(limit).offset(offset)).mappings().all()
     return {"items": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}

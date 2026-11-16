@@ -74,7 +74,7 @@ Response `201`: `{"case": CaseView, "message": MessageView}`.
 | Method and path | Purpose |
 |---|---|
 | `POST /cases` | Open a case (above) |
-| `GET /cases` | Paginated list. `view=mine` (default, own cases) or `view=queue` (cases the caller works as support or platform). Filters `status`, `category`, `event_id`; `limit` 1-100 (default 50), `offset`. Returns `{items,total,limit,offset}` ordered by last activity |
+| `GET /cases` | Paginated list. `view=mine` (default, own cases) or `view=queue` (cases the caller works as support or platform). Filters `status`, `category`, `event_id` and the exact triage identifiers `case_id`, `requester_user_id`, `order_id`, `ticket_id` (they only narrow the caller's own view); `limit` 1-100 (default 50), `offset`. Returns `{items,total,limit,offset}` ordered by last activity |
 | `GET /cases/{case_id}` | Case with `viewer_roles` and `last_seq` |
 | `POST /cases/{case_id}/messages` | Body `{"client_message_id": "<uuid>", "body": "...", "attachment_ids": []}`. `201` new, `200` identical retry (`replayed: true`), `409 client_message_conflict` for the same id with a different body or a different `attachment_ids` list |
 | `POST /cases/{case_id}/attachments?filename=<name>` | Upload one file (raw body). See "Attachments" |

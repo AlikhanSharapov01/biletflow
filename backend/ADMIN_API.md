@@ -1,9 +1,9 @@
 # Platform administration API
 
 Stage E, platform-admin scope (SRS 4.12, backend plan BF-21). Covers the admin role, search,
-user/event and paid-sales suspension, event reports, platform settings, payment/refund inspection
-and CSV export. Other operational views remain outside this increment; see
-[Not yet implemented](#not-yet-implemented).
+user/event and paid-sales suspension, event reports, platform settings, payment/refund inspection,
+read-only support/order/activation/campaign/offline-conflict inspection and CSV export. Other
+operational views remain outside this increment; see [Not yet implemented](#not-yet-implemented).
 
 All endpoints need a verified signed-in account (`Authorization: Bearer`) and return errors as
 `{"detail": {"code": "..."}}`. Admin endpoints live under `/api/v1/admin`.
@@ -35,6 +35,11 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 | `GET /admin/orders` | Search. Filters `q` (buyer email, order id or buyer id), `status`, `event_id`, `buyer_user_id` |
 | `GET /admin/tickets` | Search. Filters `q` (recipient email, ticket id or order id), `status`, `event_id`, `order_id` |
 | `GET /admin/payments`, `GET /admin/failed-payments`, `GET /admin/refunds` | Paginated authoritative commerce records; filters below |
+| `GET /admin/orders/{order_id}` | Read-only order detail with linked records; see [Operational inspection](#operational-inspection) |
+| `GET /admin/support-cases`, `GET /admin/support-cases/{case_id}` | Support triage search and read-only case detail |
+| `GET /admin/activations` | Paid-sales activation search; filters `status`, `event_id`, `organization_id` |
+| `GET /admin/campaigns`, `GET /admin/campaigns/{campaign_id}` | Campaign activity search and detail |
+| `GET /admin/sync-conflicts`, `GET /admin/sync-conflicts/{conflict_id}` | Offline-conflict search and detail |
 | `GET /admin/events/{event_id}/paid-sales` | Activation checklist, saved fee, latest payment, missing prerequisites and suspension reason |
 | `POST /admin/events/{event_id}/paid-sales/suspend`, `.../reinstate` | Body `{"reason"}` (trimmed, 1-500 characters); optional `Idempotency-Key` |
 | `POST /admin/users/{id}/suspend`, `.../reinstate` | Body `{"reason"}` (1-500 characters) |
@@ -52,8 +57,30 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 Search lists return `{"items": [...], "total", "limit", "offset"}` with `limit` 1-100 (default 50)
 and a deterministic order (newest first, ties by id). Search text is matched literally: `%` and
 `_` are not wildcards. Responses never include password hashes, token hashes or QR material.
-Order and ticket search show the same fields an organizer already sees. Support-case search
-remains outside this API.
+Order and ticket search show the same fields an organizer already sees.
+
+## Operational inspection
+
+Read-only views for investigating a report or failure (BF-21). They all use the admin guard and
+the search envelope above (`limit` 1-100, `offset` 0-100000, newest first then id); invalid UUIDs,
+enums and booleans are `422`. Each view names its columns. None of them writes a row, and
+inspecting a record never grants an ownership, organizer or support role: every action stays
+behind the owning module's permission check.
+
+| View | Filters (exact unless noted) | Rows and detail |
+|---|---|---|
+| `support-cases` | `q` (literal subject text or exact case id), `case_id`, `requester_user_id`, `order_id`, `ticket_id`, `event_id`, `organization_id`, `status`, `category`, `kind` (`attendee`, `organizer_platform`), `escalated` (`true`/`false`) | Case metadata, linked ids, assignment/escalation/resolution times, `last_seq` and `platform_access` (platform admins may work it). Ordered by last activity. Detail adds `viewer_roles` (the caller's current support roles), `message_count`, the append-only status/assignment/escalation history, and the linked order/ticket id and status. Message text and attachments are never included |
+| `orders/{id}` | - | The buyer order view (items, recipients, tickets, payment, refunds, promo) with `qr_payload` always `null`, plus linked support cases, ticket delivery jobs (status, attempts, safe error code) and the audit trail of the order, its tickets, payment attempts and refunds (action, entity, actor, time; at most 100 each) |
+| `activations` | `status` (`incomplete`, `pending`, `active`, `failed`, `suspended`), `event_id`, `organization_id` | Activation id, event and title, organization, status, saved fee, paid attempt, activation time and suspension reason. The per-event checklist stays `GET /admin/events/{event_id}/paid-sales` |
+| `campaigns` | `q` (literal name or exact campaign id), `event_id`, `organization_id`, `enabled` | Campaign terms, `redemptions` and `active_reservations`. Detail adds the promo `code`, the reconciled campaign report, the latest 100 redemptions (order, discount, time) and reservation counts by status. Promo link tokens and URLs are omitted |
+| `sync-conflicts` | `status` (`open`, `resolved`), `event_id`, `organization_id`, `ticket_id` | Conflict, operation, device, ticket and existing check-in ids with times. Detail is the organizer conflict view (operation, device and server clocks, existing check-in) plus `organization_id`. Resolution stays with event staff holding `attendees` |
+
+`GET /admin/orders/{id}` answers `404 order_not_found`; the other details answer
+`404 case_not_found`, `campaign_not_found` or `sync_conflict_not_found`. The buyer-only
+`GET /orders/{id}` and the organizer conflict routes are unchanged and do not admit admins.
+Admins still work only platform and escalated cases through `/support` (see
+[SUPPORT_API.md](SUPPORT_API.md)), which also gained the same exact identifier filters for every
+caller's own scope.
 
 ## Payment and refund inspection
 
@@ -218,6 +245,5 @@ deliberately raises, like earlier migrations.
 
 ## Not yet implemented
 
-- Dispute, campaign and offline-conflict admin views, and admin search/inspection of support
-  cases (escalation itself exists: `POST /support/cases/{id}/escalation`) (#72).
+- Advanced dispute and chargeback handling (excluded from #72).
 - Views of exhausted jobs and failed notification deliveries (#73).

@@ -43,7 +43,7 @@ The web and mobile clients both talk to this one backend.
 | Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
 | Reporting and finance | Scoped operational analytics/time series; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
-| Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
+| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
 "Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
 web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
@@ -384,7 +384,7 @@ Open backend work, from the audit in #85, in dependency order (see the
 2. Campaign report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
-3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
+3. Admin views of exhausted jobs and deliveries (#73), moderation
    notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
    protected storage exists today), correlation IDs and metrics (#78).
 4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset

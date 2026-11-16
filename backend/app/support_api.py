@@ -110,12 +110,24 @@ def router(factory, settings, principal, storage):
         status: Literal[STATUSES] | None = None,
         category: Literal[CATEGORIES] | None = None,
         event_id: UUID | None = None,
+        case_id: UUID | None = None,
+        requester_user_id: UUID | None = None,
+        order_id: UUID | None = None,
+        ticket_id: UUID | None = None,
         limit: int = Query(50, ge=1, le=100),
         offset: int = Query(0, ge=0),
     ):
+        identifiers = {
+            "case_id": case_id,
+            "requester_user_id": requester_user_id,
+            "order_id": order_id,
+            "ticket_id": ticket_id,
+        }
         with factory() as db:
             user, _ = valid_session(db, *ids)
-            total, rows = list_cases(db, user, view, status, category, event_id, limit, offset)
+            total, rows = list_cases(
+                db, user, view, status, category, event_id, limit, offset, identifiers
+            )
             return {
                 "items": case_views(db, rows),
                 "total": total,
