@@ -155,8 +155,8 @@ outcome. In one transaction, under the row lock, it checks in this order and ans
 
 | Code | When |
 |---|---|
-| `retry_not_supported` | Payment jobs and other kinds outside the table below; in-app deliveries |
-| `already_completed` | The row is `done`/`sent`, or the business work already happened (see below) |
+| `retry_not_supported` | Payment jobs and other kinds outside the table below; an in-app delivery that is not `sent` |
+| `already_completed` | The row is `done`/`sent`, or the business work already happened (see below). In-app deliveries are written as `sent`, so retrying one answers this code: a delivery is checked for `sent` before its channel |
 | `not_exhausted` | The row is `pending`/`leased`: the worker still owns it |
 | `retry_limit_reached` | The row already had 3 admin retries (also a database CHECK) |
 | `target_obsolete` | The current target state no longer supports sending it (see below) |
