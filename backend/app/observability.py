@@ -43,13 +43,20 @@ def bind_correlation(value):
 
 
 def correlated_job(function):
-    """Run each call in its own context under a fresh correlation ID."""
+    """Run each call in its own context under a fresh correlation ID.
+
+    An exception is logged by type under the (possibly re-bound) job ID, then re-raised.
+    """
 
     @wraps(function)
     def run(*args, **kwargs):
         def scoped():
             _correlation.set(uuid4())
-            return function(*args, **kwargs)
+            try:
+                return function(*args, **kwargs)
+            except Exception as error:
+                signal("job.step_failed", step=function.__name__, error_type=type(error).__name__)
+                raise
 
         return copy_context().run(scoped)
 
@@ -172,6 +179,10 @@ def configure_logging(level=logging.INFO):
         handler.setFormatter(JsonFormatter())
         root.addHandler(handler)
     root.setLevel(level)
+    # Uvicorn's own handlers (startup lines, websocket/lifespan errors) get the same redacting
+    # formatter, so no exception text or traceback is printed in plain text.
+    for handler in logging.getLogger("uvicorn").handlers:
+        handler.setFormatter(JsonFormatter())
 
 
 # ---------------------------------------------------------------- request metrics
@@ -240,11 +251,16 @@ class RequestMetrics:
         }
 
 
+INTERNAL_ERROR = b'{"detail":{"code":"internal_error"}}'
+
+
 class RequestObservability:
     """Pure ASGI middleware: correlation ID, one structured log line and metrics per request.
 
     The route template (``/api/v1/campaign-links/{token}``) is logged, never the raw path or
-    query string, which can carry tokens, codes or addresses.
+    query string, which can carry tokens, codes or addresses. An unhandled exception ends here:
+    it is logged by type only and answered with a generic 500, so the server never prints its
+    message or traceback (database errors can echo parameter values).
     """
 
     def __init__(self, app, metrics):
@@ -255,10 +271,11 @@ class RequestObservability:
             await self.app(scope, receive, send)
             return
         identifier, started = uuid4(), perf_counter()
-        state = {"status": 500, "error_type": None}
+        state = {"status": 500, "error_type": None, "started": False}
 
         async def send_with_id(message):
             if message["type"] == "http.response.start":
+                state["started"] = True
                 state["status"] = message["status"]
                 message["headers"] = [
                     *message.get("headers", ()),
@@ -271,7 +288,21 @@ class RequestObservability:
             await self.app(scope, receive, send_with_id)
         except Exception as error:
             state["error_type"] = type(error).__name__
-            raise
+            if not state["started"]:
+                await send_with_id(
+                    {
+                        "type": "http.response.start",
+                        "status": 500,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"cache-control", b"no-store"),
+                            (b"x-content-type-options", b"nosniff"),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": INTERNAL_ERROR})
+            # A response already under way cannot change status; the connection just ends.
+            state["status"] = 500
         finally:
             elapsed = perf_counter() - started
             route = getattr(scope.get("route"), "path", None) or "unmatched"

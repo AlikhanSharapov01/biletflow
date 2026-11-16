@@ -1,6 +1,6 @@
 """Log redaction, request metrics and correlation scoping (no database needed)."""
 
-import asyncio
+import io
 import json
 import logging
 import sys
@@ -13,6 +13,7 @@ from app.observability import (
     RequestMetrics,
     RequestObservability,
     bind_correlation,
+    configure_logging,
     correlated_job,
     correlation_id,
     current_correlation,
@@ -142,7 +143,10 @@ def run_asgi(app, path="/api/v1/thing"):
         sent.append(message)
 
     scope = {"type": "http", "method": "GET", "path": path, "headers": []}
-    asyncio.run(app(scope, receive, send))
+    # Driven by hand in the caller's context (no task copy), so a missing reset would show.
+    coroutine = app(scope, receive, send)
+    with pytest.raises(StopIteration):
+        coroutine.send(None)
     return scope, sent
 
 
@@ -171,15 +175,21 @@ def test_middleware_sets_correlation_header_and_logs_route_template(caplog):
     assert metrics.snapshot()["routes"][0]["route"] == "/api/v1/campaign-links/{token}"
 
 
-def test_middleware_records_unhandled_error_as_server_error(caplog):
+def test_middleware_answers_unhandled_error_itself_without_its_text(caplog):
     caplog.set_level(logging.INFO, logger="app")
 
     async def boom(scope, receive, send):
         raise RuntimeError(f"failed for {EMAIL}")
 
     metrics = RequestMetrics()
-    with pytest.raises(RuntimeError):
-        run_asgi(RequestObservability(boom, metrics), "/no/such/path")
+    # Not re-raised: the server's own traceback logging never sees the exception.
+    _, sent = run_asgi(RequestObservability(boom, metrics), "/no/such/path")
+    start, body = sent
+    assert start["status"] == 500
+    headers = dict(start["headers"])
+    assert UUID(headers[b"x-request-id"].decode()) and headers[b"cache-control"] == b"no-store"
+    assert json.loads(body["body"]) == {"detail": {"code": "internal_error"}}
+    assert current_correlation() is None
     snapshot = metrics.snapshot()
     assert snapshot["server_errors"] == 1 and snapshot["routes"][0]["route"] == "unmatched"
     [record] = [r for r in caplog.records if r.getMessage() == "http.request"]
@@ -187,6 +197,42 @@ def test_middleware_records_unhandled_error_as_server_error(caplog):
     entry = json.loads(output)
     assert entry["status"] == 500 and entry["error_type"] == "RuntimeError"
     assert EMAIL not in output
+
+
+def test_middleware_error_after_response_started_counts_as_server_error(caplog):
+    caplog.set_level(logging.INFO, logger="app")
+
+    async def broken_stream(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise OSError(f"stream lost for {EMAIL}")
+
+    metrics = RequestMetrics()
+    _, sent = run_asgi(RequestObservability(broken_stream, metrics))
+    assert [m["type"] for m in sent] == ["http.response.start"]
+    assert metrics.snapshot()["server_errors"] == 1
+    [record] = [r for r in caplog.records if r.getMessage() == "http.request"]
+    entry = json.loads(JsonFormatter().format(record))
+    assert entry["status"] == 500 and entry["error_type"] == "OSError"
+
+
+def test_configure_logging_puts_uvicorn_handlers_behind_redaction():
+    uvicorn = logging.getLogger("uvicorn")
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    uvicorn.addHandler(handler)
+    try:
+        configure_logging()
+        assert isinstance(handler.formatter, JsonFormatter)
+        try:
+            raise ValueError(f"insert failed for {EMAIL} password={PASSWORD}")
+        except ValueError:
+            logging.getLogger("uvicorn.error").exception("Exception in ASGI application")
+    finally:
+        uvicorn.removeHandler(handler)
+    output = stream.getvalue()
+    assert json.loads(output)["error_type"] == "ValueError"
+    assert "Traceback" not in output
+    assert_clean(output)
 
 
 def test_worker_task_logs_failure_type_and_scopes_correlation(caplog):
@@ -217,3 +263,22 @@ def test_correlated_job_binding_does_not_leak():
     assert current_correlation() is None
     # Outside any request or job every audit row still gets its own ID.
     assert correlation_id() != correlation_id()
+
+
+def test_correlated_job_logs_step_failure_under_bound_id_and_reraises(caplog):
+    caplog.set_level(logging.INFO, logger="app")
+    request_correlation = uuid4()
+
+    @correlated_job
+    def dispatch():
+        bind_correlation(request_correlation)
+        raise RuntimeError(f"provider echoed {EMAIL}")
+
+    with pytest.raises(RuntimeError):
+        dispatch()
+    [record] = [r for r in caplog.records if r.getMessage() == "job.step_failed"]
+    output = JsonFormatter().format(record)
+    entry = json.loads(output)
+    assert entry["correlation_id"] == str(request_correlation)
+    assert entry["step"] == "dispatch" and entry["error_type"] == "RuntimeError"
+    assert EMAIL not in output and current_correlation() is None

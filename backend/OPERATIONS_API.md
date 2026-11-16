@@ -13,11 +13,13 @@ request middleware), `app/operations_service.py` and `app/operations_api.py`.
   cannot choose the ID its audit rows are filed under. Quote the value when reporting a problem.
 - Audit rows written while the request runs (`audit_log.correlation_id`) and outbox jobs it
   queues (`outbox_job.correlation_id`, migration `0021_job_correlation`) store the same ID.
-- The worker re-binds a job's stored ID while it delivers that email, so the worker's log lines
-  for the job match the request that queued it. Jobs queued before `0021` have no stored ID and
-  run under a fresh one.
-- Each worker pass (hold sweep, image and ticket PDF reconciliation, payment processing) runs
-  under its own fresh ID; audit rows the pass writes (for example `checkout.holds_expired`) share it.
+- The worker re-binds a job's stored ID while it runs that job (emails, `payment_initialize`,
+  `refund_dispatch`), so its log lines and anything it writes match the request that queued it.
+  Jobs queued before `0021` have no stored ID and run under a fresh one.
+- Each worker pass (hold sweep, image and ticket PDF reconciliation, provider-event processing)
+  runs under its own fresh ID; audit rows the pass writes (for example `checkout.holds_expired`,
+  `payments.refund_succeeded`) share it. Provider events arrive in their own request and store no
+  correlation ID, so their processing is not linked back to that request.
 - Outside a request or job (CLI, seed) every audit row still gets its own random ID, as before.
   Support-case audit rows keep the case ID as their correlation, as before.
 
@@ -38,9 +40,18 @@ The API and the worker write one JSON object per line to stderr for every `app.*
 | `job.dead` | error | `job_id`, `kind`, `attempt`, `last_error`, `error_type` (null when attempts were already exhausted at claim) |
 | `job.lease_lost` | warning | `job_id`, `kind` — the lease expired before the result was recorded; the job is retried |
 | `job.attachment_failed` | warning | `job_id`, `error_type` — the ticket email goes out without its PDF |
+| `job.done` | info | `job_id`, `kind` — a payment initialization or refund dispatch job finished |
+| `job.step_failed` | warning | `step` (worker function), `error_type` — an unexpected error in a job step, under the job's ID; the job stays due and is retried |
+| `notification.email_retry` / `notification.email_failed` | warning | `delivery_id`, `attempt`, `last_error`, `error_type` — a notification email failed and is retried / gave up after 5 attempts |
 | `worker.task_failed` | warning | `task` (`hold_sweep`, `image_reconcile`, `ticket_pdf_reconcile`, `payments`), `error_type` |
 
 Uvicorn's own access log stays disabled (`--no-access-log`): it prints raw paths and query strings.
+Uvicorn's remaining handlers use the same redacting JSON formatter.
+
+An unhandled exception in a request never reaches the server's traceback logging: the middleware
+logs it as `http.request` (status 500, `error_type`) and answers
+`500 {"detail": {"code": "internal_error"}}` with the `X-Request-ID` header. If the response had
+already started, the connection is closed and the request is still counted and logged as a 500.
 
 What is never logged:
 

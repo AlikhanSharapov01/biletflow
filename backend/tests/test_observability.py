@@ -9,11 +9,16 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import select, update
 
+from app import payments_service
 from app.admin_cli import set_admin
 from app.models import AuditLog, OutboxJob
+from app.notification_models import NotificationDelivery
+from app.notification_service import email_once, fanout_once
 from app.observability import JsonFormatter, correlation_id
+from app.payments_service import dispatch_refund_once, initialize_once
 from app.security import now
 from app.worker import deliver_once, main
+from tests.test_notifications import buy, drain, edit_title, published
 
 API = "/api/v1"
 METRICS = API + "/admin/operations/metrics"
@@ -235,3 +240,87 @@ def test_worker_loop_logs_task_failures_and_keeps_running(monkeypatch, tmp_path,
     assert len({e["correlation_id"] for e in logged.values()}) == 4
     output = json.dumps(list(logged.values()))
     assert EMAIL not in output and "secret/path" not in output and "token=abc" not in output
+
+
+def test_unhandled_error_is_answered_and_logged_without_its_text(client, monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    broken = MagicMock()
+    broken.hash.side_effect = RuntimeError(f"INSERT failed for {EMAIL} password={PASSWORD}")
+    monkeypatch.setattr("app.main.passwords", broken)
+    response = client.post(
+        API + "/auth/register",
+        json={"email": EMAIL, "password": PASSWORD, "display_name": "Observed"},
+    )
+    assert response.status_code == 500
+    assert response.json() == {"detail": {"code": "internal_error"}}
+    correlation = response.headers["X-Request-ID"]
+    [entry] = entries(caplog, "http.request")
+    assert entry["correlation_id"] == correlation and entry["status"] == 500
+    assert entry["error_type"] == "RuntimeError"
+    assert EMAIL not in caplog.text and PASSWORD not in caplog.text
+
+
+def queue(factory, kind, payload, correlation):
+    with factory.begin() as db:
+        db.add(
+            OutboxJob(
+                kind=kind,
+                deduplication_key=f"{kind}:{uuid4()}",
+                payload={"version": 1, **payload},
+                correlation_id=correlation,
+            )
+        )
+
+
+def test_payment_and_refund_jobs_run_under_the_queuing_request_id(factory, monkeypatch, caplog):
+    caplog.set_level(logging.INFO, logger="app")
+    initialize, dispatch = uuid4(), uuid4()
+    queue(factory, "payment_initialize", {"attempt_id": str(uuid4())}, initialize)
+    queue(factory, "refund_dispatch", {"refund_id": str(uuid4())}, dispatch)
+    assert initialize_once(factory) and dispatch_refund_once(factory)
+    done = {e["kind"]: e["correlation_id"] for e in entries(caplog, "job.done")}
+    assert done == {"payment_initialize": str(initialize), "refund_dispatch": str(dispatch)}
+    # A failing step is reported under the same ID, then re-raised for the worker's retry.
+    failing = uuid4()
+    queue(factory, "refund_dispatch", {"refund_id": str(uuid4())}, failing)
+
+    def crash(job):
+        raise RuntimeError(f"provider echoed {EMAIL}")
+
+    monkeypatch.setattr(payments_service, "finish", crash)
+    with pytest.raises(RuntimeError):
+        dispatch_refund_once(factory)
+    [failed] = entries(caplog, "job.step_failed")
+    assert failed["correlation_id"] == str(failing)
+    assert failed["step"] == "dispatch_refund_once" and failed["error_type"] == "RuntimeError"
+    assert EMAIL not in json.dumps(failed)
+
+
+def test_notification_email_retries_and_failure_are_signalled(
+    client, setup, account, factory, settings, caplog
+):
+    f = published(client, setup)
+    email, _, holder = account()
+    buy(client, f, email, holder)
+    drain(factory, settings)
+    edit_title(client, f)
+    assert fanout_once(factory)
+    caplog.set_level(logging.INFO, logger="app")
+
+    def broken(message):
+        raise OSError(f"smtp rejected {message['To']}")
+
+    for _ in range(5):
+        assert email_once(factory, settings, broken)
+        with factory.begin() as db:
+            db.execute(
+                update(NotificationDelivery)
+                .where(NotificationDelivery.status == "pending")
+                .values(next_attempt_at=now())
+            )
+    retries = entries(caplog, "notification.email_retry")
+    [failed] = entries(caplog, "notification.email_failed")
+    assert [e["attempt"] for e in retries] == [1, 2, 3, 4] and failed["attempt"] == 5
+    for entry in [*retries, failed]:
+        assert entry["error_type"] == "OSError" and entry["last_error"] == "email_delivery_failed"
+    assert email not in json.dumps([*retries, failed])
