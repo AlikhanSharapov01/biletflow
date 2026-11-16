@@ -81,12 +81,15 @@ class NotificationDelivery(Base):
         Column("sent_at", DateTime(timezone=True), nullable=True),
         Column("last_error", Text, nullable=True),
         _created(),
+        # Audited admin retries (0019_admin_retry); each one restarts attempt_count.
+        Column("admin_retry_count", Integer, nullable=False, server_default=text("0")),
         CheckConstraint("channel IN ('email','in_app')", name="notification_delivery_ck1"),
         CheckConstraint("status IN ('pending','sent','failed')", name="notification_delivery_ck2"),
         CheckConstraint("attempt_count >= 0", name="notification_delivery_ck3"),
         CheckConstraint(
             "status <> 'sent' OR sent_at IS NOT NULL", name="notification_delivery_ck4"
         ),
+        CheckConstraint("admin_retry_count BETWEEN 0 AND 3", name="notification_delivery_ck5"),
         UniqueConstraint("notification_id", "channel", name="notification_delivery_uq1"),
         ForeignKeyConstraint(
             ["notification_id"],

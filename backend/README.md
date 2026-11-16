@@ -43,7 +43,7 @@ The web and mobile clients both talk to this one backend.
 | Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
 | Reporting and finance | Scoped operational analytics/time series; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
-| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
+| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, exhausted job and failed delivery views with bounded audited retry, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
 "Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
 web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
@@ -132,7 +132,7 @@ Everything lives in `app/`, one module group per area:
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
 | `*_service.py` | Business rules and transactions |
-| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin` |
+| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin`, `admin_jobs` |
 | `worker.py` | Background job loop |
 | `bootstrap.py`, `seed.py`, `admin_cli.py` | Migrations + role setup, demo seed, admin grant CLI |
 
@@ -169,19 +169,21 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 and 0017 use inline SQL).
-  There are **17 migrations and 66 tables** in the `biletflow` schema:
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016, 0017 and 0019 use inline SQL).
+  There are **18 migrations and 66 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
-  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only).
-  This revision/count was verified on a disposable test database on 13 November 2026;
+  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0019_admin_retry`
+  (retry counters on `outbox_job` and `notification_delivery`).
+  The chain through `0017` was verified on a disposable test database on 13 November 2026;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
 - Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
-  downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
+  downgrades tested up/down/up on a disposable database (`0019` has a scoped downgrade that has not
+  been round-trip tested yet); finance/gallery rollback loses their
   new history/links. Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
@@ -384,9 +386,8 @@ Open backend work, from the audit in #85, in dependency order (see the
 2. Campaign report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
-3. Admin views of exhausted jobs and deliveries (#73), moderation
-   notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
-   protected storage exists today), correlation IDs and metrics (#78).
+3. Moderation notices (#74), the S3-compatible storage service required by requirements §2.1
+   (#77; only local protected storage exists today), correlation IDs and metrics (#78).
 4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
    (#79).
 5. Measured load (#80) and real process-kill recovery (#83).

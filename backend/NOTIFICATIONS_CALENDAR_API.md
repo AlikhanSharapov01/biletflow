@@ -197,10 +197,10 @@ The calendar needs no table. Both tables follow `docs/database`. The migration h
 ## Known limits
 
 - Fan-out expands the whole audience in one transaction; very large events would benefit from batching.
-- The platform-admin module ([ADMIN_API.md](ADMIN_API.md)) has no view of exhausted fan-out jobs
-  or failed email deliveries yet (#73); failed rows are queryable in `notification_delivery`.
-  Apart from the ticket email resend (`POST /tickets/{id}/delivery/resend`, see
-  [TICKET_PDF_API.md](TICKET_PDF_API.md)), a failed notification delivery cannot be resent.
+- Platform admins see exhausted fan-out jobs and failed email deliveries and may send one back
+  to the worker up to 3 times after it is revalidated (see
+  [ADMIN_API.md](ADMIN_API.md#background-work-and-deliveries)). Users themselves can resend only
+  the ticket email (`POST /tickets/{id}/delivery/resend`, see [TICKET_PDF_API.md](TICKET_PDF_API.md)).
 - Users affected by a moderation decision (suspension, reinstatement, report outcome) are not
   notified yet (#74).
 - Order/ticket-scoped calendar URLs are not separate: ticket holders use the event endpoints.

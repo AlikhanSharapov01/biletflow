@@ -505,6 +505,7 @@ def create_app(settings: Settings | None = None):
 
     from .activation_api import router as activation_router
     from .admin_api import router as admin_router
+    from .admin_jobs_api import router as admin_jobs_router
     from .admission_api import router as admission_router
     from .admission_history_api import router as admission_history_router
     from .analytics_api import router as analytics_router
@@ -535,6 +536,7 @@ def create_app(settings: Settings | None = None):
     app.include_router(calendar_router(factory, settings, principal))
     app.include_router(notification_router(factory, settings, principal))
     app.include_router(admin_router(factory, settings, principal))
+    app.include_router(admin_jobs_router(factory, settings, principal))
     app.include_router(offline_router(factory, settings, principal))
     app.include_router(support_router(factory, settings, principal, storage=app.state.storage))
     app.include_router(activation_router(factory, settings, principal))
