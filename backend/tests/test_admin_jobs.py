@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
@@ -110,7 +110,9 @@ def test_temporary_failure_and_exhaustion_are_visible_with_safe_context(
     settle(factory)
     register(client, "outage@example.com")
     assert deliver_once(factory, settings, broken)
-    pending = client.get(ADMIN + "/jobs", headers=headers, params={"kind": "auth_email"}).json()
+    listed = client.get(ADMIN + "/jobs", headers=headers, params={"kind": "auth_email"})
+    assert listed.status_code == 200, listed.text
+    pending = listed.json()
     row = next(r for r in pending["items"] if r["status"] == "pending" and r["attempt_count"])
     assert row["attempt_count"] == 1 and row["last_error"] == "email_delivery_failed"
     assert row["max_attempts"] == 5 and row["retryable"] is False
@@ -121,7 +123,7 @@ def test_temporary_failure_and_exhaustion_are_visible_with_safe_context(
         with factory.begin() as db:
             db.execute(update(OutboxJob).values(available_at=now() - timedelta(seconds=1)))
     dead = client.get(ADMIN + "/jobs", headers=headers, params={"status": "dead"}).json()
-    assert dead["total"] == 1
+    assert dead["total"] == 1, dead
     row = dead["items"][0]
     assert row["kind"] == "auth_email" and row["attempt_count"] == 5
     assert row["retryable"] is True and row["admin_retry_count"] == 0
@@ -133,9 +135,10 @@ def test_temporary_failure_and_exhaustion_are_visible_with_safe_context(
     text = str(client.get(ADMIN + f"/jobs/{row['id']}", headers=headers).json())
     assert str(token.id) not in text and "hunter2" not in text and "outage@" not in text
     linked = client.get(ADMIN + "/jobs", headers=headers, params={"linked_id": str(user.id)})
-    assert [r["id"] for r in linked.json()["items"]] == [row["id"]]
+    assert [r["id"] for r in linked.json()["items"]] == [row["id"]], linked.text
     for status in ("pending", "leased", "done", "dead"):
-        assert client.get(ADMIN + "/jobs", headers=headers, params={"status": status}).ok
+        listed = client.get(ADMIN + "/jobs", headers=headers, params={"status": status})
+        assert listed.status_code == 200, (status, listed.text)
     invalid = client.get(ADMIN + "/jobs", headers=headers, params={"status": "failed"})
     assert invalid.status_code == 422
     assert client.get(ADMIN + f"/jobs/{uuid4()}", headers=headers).status_code == 404
@@ -211,16 +214,24 @@ def test_retry_revalidates_target_and_rejects_completed_work(client, admin, fact
     settle(factory)
     register(client)
     job = exhaust_job(factory, settings)
-    with factory.begin() as db:
-        db.execute(update(AccountToken).values(expires_at=now() - timedelta(minutes=1)))
-    expired = retry_job(client, headers, job.id)
-    assert expired.status_code == 409 and code(expired) == "target_obsolete"
+    token = AccountToken.id == UUID(job.payload["account_token_id"])
+    # account_token_expiry requires expires_at > created_at, so age the token as a whole.
     with factory.begin() as db:
         db.execute(
-            update(AccountToken).values(expires_at=now() + timedelta(hours=1), consumed_at=now())
+            update(AccountToken)
+            .where(token)
+            .values(created_at=now() - timedelta(days=2), expires_at=now() - timedelta(minutes=1))
+        )
+    expired = retry_job(client, headers, job.id)
+    assert expired.status_code == 409 and code(expired) == "target_obsolete", expired.text
+    with factory.begin() as db:
+        db.execute(
+            update(AccountToken)
+            .where(token)
+            .values(expires_at=now() + timedelta(hours=1), consumed_at=now())
         )
     consumed = retry_job(client, headers, job.id)
-    assert consumed.status_code == 409 and code(consumed) == "already_completed"
+    assert consumed.status_code == 409 and code(consumed) == "already_completed", consumed.text
     assert only_job(factory).status == "dead" and not audits(factory, "admin.job_retried")
     # Work that never exhausts (payment steps) has no admin retry.
     with factory.begin() as db:
@@ -234,7 +245,8 @@ def test_retry_revalidates_target_and_rejects_completed_work(client, admin, fact
         db.flush()
         other_id = other.id
     unsupported = retry_job(client, headers, other_id)
-    assert unsupported.status_code == 409 and code(unsupported) == "retry_not_supported"
+    assert unsupported.status_code == 409, unsupported.text
+    assert code(unsupported) == "retry_not_supported"
 
 
 def test_ticket_delivery_retry_is_superseded_by_a_later_delivery(
