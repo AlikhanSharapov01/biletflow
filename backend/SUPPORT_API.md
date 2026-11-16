@@ -151,8 +151,9 @@ for a clean file, `202` for a quarantined one (same body):
   `422 attachment_empty` for an empty body; `422 invalid_input` for a missing or over-long
   (200 characters) `filename`. Path separators and control characters in `filename` become `_`.
 - `429 rate_limited`: 20 uploads per minute per account. Non-participants get `404 case_not_found`.
-- `503 storage_unavailable` when the object store fails or cannot be reached; no row is kept and
-  the upload can be retried.
+- `503 storage_unavailable` when the object store fails or cannot be reached; the write intent is
+  fenced as `deleted` (never linkable, see the upload lifecycle below) and the upload can be
+  retried.
 - `expires_at` is one hour after the upload: until then the uploader can link the file.
 
 **Upload lifecycle and recovery** (#76): storage writes cannot join a database transaction, so a

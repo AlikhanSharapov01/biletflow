@@ -175,8 +175,9 @@ archive format did not change, so moving them into the bucket is a backup and a 
 ## When the object store fails
 
 `api` and `worker` keep running when `storage` is down. Image and support attachment uploads and
-downloads answer `503 storage_unavailable` (nothing half-written is kept: a failed upload leaves no
-database row, and the worker cleans up any unlinked image object later), ticket PDFs are rendered
+downloads answer `503 storage_unavailable` (nothing half-written is served: a failed
+image upload leaves no database row, a failed support upload leaves only a fenced `deleted` write
+intent, and the worker cleans up unlinked image and attachment objects later), ticket PDFs are rendered
 on request instead of read from storage, and a ticket email sent meanwhile goes out without its
 PDF attachment (the ticket link keeps working). All of it works again as soon as `storage` is back (`docker compose up -d storage`; its restart policy
 also restarts it). If the `object_storage` volume itself is lost, restore the latest backup.
