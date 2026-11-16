@@ -166,6 +166,10 @@ requires a short-lived entry confirmation: the attendee opens their ticket and s
 confirmation, and the scanner reads that second QR (or its 8-digit code). For quicker demos set
 it to `false` in `.env` and run `docker compose up -d` again.
 
+**Attachments tip:** before demoing support attachments, wait until `clamav` shows `healthy` in
+`docker compose ps` (its first start downloads signatures for a few minutes). Until then uploads
+stay `quarantined` and cannot be sent with a message.
+
 To create realistic data quickly, the smoke tests in `tools/` drive the whole flow through the
 API against a running stack:
 
