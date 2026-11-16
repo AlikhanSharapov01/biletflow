@@ -77,10 +77,17 @@ docker compose up -d
 
 echo "Checking that every file the database links to came back..."
 # Reads the restored bucket back (not the backup's archive), so it checks what the app will serve.
+# Read separately: an object store that cannot be read is not a missing file.
+if ! docker compose run --rm --no-deps -T api python -m app.storage_backup export \
+  >"$work/restored-files.tar.gz"; then
+  echo "Restore finished, but the restored files could not be read back from object storage for" >&2
+  echo "the check (above). The stack is running; check 'docker compose ps storage' and run" >&2
+  echo "the restore again." >&2
+  exit 1
+fi
 checked=0
-docker compose run --rm --no-deps -T api python -m app.storage_backup export |
-  docker compose run --rm --no-deps -T api python -c "$(cat tools/check_backup_consistency.py)" \
-    --storage-archive - ||
+docker compose run --rm --no-deps -T api python -c "$(cat tools/check_backup_consistency.py)" \
+  --storage-archive - <"$work/restored-files.tar.gz" ||
   checked=$?
 if [ "$checked" -eq 1 ]; then
   echo "Restore finished, but the files above are missing or damaged. The stack is running;" >&2

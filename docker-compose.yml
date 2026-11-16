@@ -143,15 +143,24 @@ services:
         printf '%s' '{"Version":"2012-10-17","Statement":[
           {"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::'"$$S3_BUCKET"'"]},
           {"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
-           "Resource":["arn:aws:s3:::'"$$S3_BUCKET"'/*"]}]}' >/tmp/biletflow-app.json
-        mc admin policy create biletflow biletflow-app /tmp/biletflow-app.json
+           "Resource":["arn:aws:s3:::'"$$S3_BUCKET"'/*"]}]}' >/tmp/policy.json
+        mc admin policy create biletflow biletflow-bucket-rw /tmp/policy.json
         mc admin user add biletflow "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" >/dev/null ||
           mc admin user info biletflow "$$S3_ACCESS_KEY_ID" >/dev/null
-        if ! mc admin policy attach biletflow biletflow-app --user "$$S3_ACCESS_KEY_ID"; then
-          case "$$(mc admin user info biletflow "$$S3_ACCESS_KEY_ID")" in
-            *biletflow-app*) echo "Policy biletflow-app is already attached." ;;
-            *) exit 1 ;;
+        # Attaching an already attached policy fails, so the result is checked afterwards: the
+        # account's PolicyName line must name the policy, or provisioning fails.
+        mc admin policy attach biletflow biletflow-bucket-rw --user "$$S3_ACCESS_KEY_ID" || true
+        attached=no
+        while IFS= read -r line; do
+          case "$$line" in
+            *PolicyName:*biletflow-bucket-rw*) attached=yes ;;
           esac
+        done <<EOF
+        $$(mc admin user info biletflow "$$S3_ACCESS_KEY_ID")
+        EOF
+        if [ "$$attached" != yes ]; then
+          echo "Policy biletflow-bucket-rw is not attached to $$S3_ACCESS_KEY_ID." >&2
+          exit 1
         fi
         echo "Bucket $$S3_BUCKET and its app account are ready."
     depends_on:

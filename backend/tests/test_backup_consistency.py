@@ -196,6 +196,89 @@ def test_only_writers_that_were_running_are_started_again(stack, tmp_path):
     assert running == {"api"}
 
 
+RESTORE = REPO / "tools" / "restore.sh"
+
+# Stand-in docker for tools/restore.sh: every step succeeds except the read-back export of the
+# restored bucket (FAKE_EXPORT_FAIL) and the file check, which exits with FAKE_CHECK.
+FAKE_RESTORE_DOCKER = r"""#!/usr/bin/env bash
+[ "$1" = compose ] || exit 64
+shift
+echo "$*" >>"$FAKE_LOG"
+case "$*" in
+  *"SELECT 1 FROM pg_database"*) echo 1 ;;
+  *"storage_backup export"*)
+    [ -z "${FAKE_EXPORT_FAIL:-}" ] || { echo "Object storage export failed" >&2; exit 1; }
+    tar -czf - -C "$FAKE_STORAGE" . ;;
+  *"python -c"*) cat >/dev/null; exit "${FAKE_CHECK:-0}" ;;
+  run*|exec*) cat >/dev/null ;;
+esac
+exit 0
+"""
+
+
+@pytest.fixture
+def restore(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "docker").write_text(FAKE_RESTORE_DOCKER)
+    (bin_dir / "docker").chmod(0o755)
+    storage = tmp_path / "bucket"
+    storage.mkdir()
+    (storage / "drill-marker.txt").write_bytes(b"restored-ok")
+    parts = tmp_path / "parts"
+    parts.mkdir()
+    (parts / "db.dump").write_bytes(b"dump")
+    with tarfile.open(parts / "files.tar.gz", "w:gz") as tar:
+        tar.add(storage, arcname=".")
+    (parts / "manifest.txt").write_text("consistency=quiesced\n")
+    subprocess.run(
+        "sha256sum db.dump files.tar.gz manifest.txt >SHA256SUMS",
+        shell=True,
+        cwd=parts,
+        check=True,
+    )
+    backup = tmp_path / "biletflow-test.tar"
+    with tarfile.open(backup, "w") as tar:
+        tar.add(parts, arcname=".")
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "FAKE_LOG": str(tmp_path / "compose.log"),
+        "FAKE_STORAGE": str(storage),
+    }
+
+    def run(**extra):
+        return subprocess.run(
+            ["bash", str(RESTORE), "--yes", str(backup)],
+            env={**env, **extra},
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    return run
+
+
+@needs_shell
+@pytest.mark.parametrize(
+    "extra,status,message",
+    [
+        ({}, 0, "Restore finished."),
+        ({"FAKE_CHECK": "1"}, 3, "files above are missing or damaged"),
+        ({"FAKE_CHECK": "2"}, 1, "the file check could not run"),
+        ({"FAKE_EXPORT_FAIL": "1"}, 1, "could not be read back"),
+    ],
+)
+def test_restore_reports_the_file_check_outcome(restore, extra, status, message):
+    result = restore(**extra)
+    assert result.returncode == status, result.stderr
+    assert message in result.stdout + result.stderr
+    if extra.get("FAKE_EXPORT_FAIL"):
+        # An object store that cannot be read is not reported as missing files.
+        assert "missing or damaged" not in result.stderr
+
+
 def checker():
     spec = importlib.util.spec_from_file_location(
         "check_backup_consistency", REPO / "tools" / "check_backup_consistency.py"

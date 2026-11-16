@@ -264,6 +264,8 @@ def test_missing_bucket_is_not_a_missing_object(s3):
     with pytest.raises(StorageError) as raised:
         storage.get("a/b")
     assert not isinstance(raised.value, FileNotFoundError)
+    with pytest.raises(StorageError):
+        storage.delete("a/b")  # not "already deleted": the bucket itself is missing
 
 
 def test_unreachable_store_raises_without_echoing_keys_or_credentials(s3):

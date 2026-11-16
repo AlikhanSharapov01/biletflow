@@ -222,7 +222,8 @@ class S3FileStorage:
 
     def delete(self, key: str) -> None:
         response = self._request("delete", "DELETE", self._object_path(key))
-        if not (response.is_success or response.status_code == 404):
+        missing = response.status_code == 404 and _error_code(response) != "NoSuchBucket"
+        if not (response.is_success or missing):
             raise self._refused("delete", response)
 
     def keys(self):
