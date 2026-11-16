@@ -226,6 +226,8 @@ def test_worker_loop_logs_task_failures_and_keeps_running(monkeypatch, tmp_path,
     for idle in ("dispatch_refund_once", "process_received_once", "deliver_notifications_once"):
         monkeypatch.setattr(f"app.worker.{idle}", MagicMock(return_value=False))
     monkeypatch.setattr("app.worker.export_ga4_once", MagicMock(return_value=0))
+    monkeypatch.setattr("app.worker.reconcile_attachments", MagicMock(return_value=0))
+    monkeypatch.setattr("app.worker.scan_attachments_once", MagicMock(return_value=False))
     monkeypatch.setattr("app.worker.time.sleep", MagicMock(side_effect=KeyboardInterrupt))
     with pytest.raises(KeyboardInterrupt):
         main()
