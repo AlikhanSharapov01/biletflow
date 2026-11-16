@@ -323,8 +323,11 @@ def main():
             scanned = False  # quarantined files keep their durable scan job
             with worker_task("attachment_scan"):
                 scanned = scan_attachments_once(factory, storage, scanner)
-            worked = deliver_once(factory, settings, storage=storage)
-            if not (deliver_notifications_once(factory, settings) or worked or busy or scanned):
+            worked = False  # email jobs and deliveries keep their state for the next pass
+            with worker_task("email_delivery"):
+                worked = deliver_once(factory, settings, storage=storage)
+                worked = deliver_notifications_once(factory, settings) or worked
+            if not (worked or busy or scanned):
                 time.sleep(2)
     finally:
         engine.dispose()

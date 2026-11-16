@@ -245,6 +245,36 @@ def test_worker_loop_logs_task_failures_and_keeps_running(monkeypatch, tmp_path,
     assert EMAIL not in output and "secret/path" not in output and "token=abc" not in output
 
 
+def test_worker_loop_survives_an_email_delivery_failure(monkeypatch, tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="app")
+    monkeypatch.setattr("app.worker.HEARTBEAT_FILE", tmp_path / "heartbeat")
+    monkeypatch.setattr("app.worker.Settings", MagicMock())
+    monkeypatch.setattr("app.worker.database", lambda url: (MagicMock(), MagicMock()))
+    monkeypatch.setattr("app.worker.storage_from_settings", MagicMock())
+    for idle in (
+        "sweep_expired_holds",
+        "reconcile_images",
+        "reconcile_ticket_pdfs",
+        "reconcile_attachments",
+        "initialize_once",
+        "dispatch_refund_once",
+        "process_received_once",
+        "export_ga4_once",
+        "scan_attachments_once",
+        "deliver_notifications_once",
+    ):
+        monkeypatch.setattr(f"app.worker.{idle}", MagicMock(return_value=False))
+    # A database drop mid-delivery: logged by type, then the loop goes on to sleep.
+    error = ConnectionError("postgresql://biletflow_app:s3cretpw@db/biletflow")
+    monkeypatch.setattr("app.worker.deliver_once", MagicMock(side_effect=error))
+    monkeypatch.setattr("app.worker.time.sleep", MagicMock(side_effect=KeyboardInterrupt))
+    with pytest.raises(KeyboardInterrupt):
+        main()
+    [failed] = entries(caplog, "worker.task_failed")
+    assert (failed["task"], failed["error_type"]) == ("email_delivery", "ConnectionError")
+    assert "s3cretpw" not in json.dumps(failed)
+
+
 def test_unhandled_error_is_answered_and_logged_without_its_text(client, monkeypatch, caplog):
     caplog.set_level(logging.INFO)
     broken = MagicMock()
