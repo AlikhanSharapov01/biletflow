@@ -173,8 +173,10 @@ def test_support_storage_outage_answers_503_and_recovers(client, factory, world,
     failed = upload_attachment(client, w["buyer"], case_id)
     assert failed.status_code == 503 and failed.json()["detail"]["code"] == "storage_unavailable"
     with factory() as db:
-        # The failed upload left no row behind (its transaction rolled back).
-        assert db.scalars(select(StoredFile.id)).all() == [UUID(file_id)]
+        # The failed upload's write intent is fenced as deleted (#76); it can never be linked.
+        rows = dict(db.execute(select(StoredFile.id, StoredFile.status)).all())
+        assert rows.pop(UUID(file_id)) == "clean"
+        assert list(rows.values()) == ["deleted"]
 
     s3.down = False
     assert client.get(url).content == PNG
