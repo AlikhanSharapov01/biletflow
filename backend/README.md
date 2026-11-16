@@ -61,7 +61,7 @@ Docker is controlled from the repository root:
 
 ```bash
 cp .env.example .env
-docker compose up --build -d db migrate api worker mailpit
+docker compose up --build -d db migrate storage storage-init api worker mailpit
 docker compose logs -f api worker
 ```
 
@@ -98,8 +98,8 @@ In a second terminal, from `backend/`:
 uv run python -m app.worker
 ```
 
-Uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage` natively,
-the `file_storage` volume in Docker). The API and worker must share it.
+Natively, uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage`); see
+[Private file storage](#private-file-storage) for the Docker stack's S3-compatible bucket.
 
 Ticket PDFs need no system font setup on Windows, macOS or Linux: DejaVu Sans 2.37 (regular and
 bold, which cover Kazakh and Russian Cyrillic) is bundled in `app/fonts/` with its license and is
@@ -119,6 +119,32 @@ substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
 | `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON` | Optional GA4 export and traffic reports, off by default; see [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
+| `STORAGE_BACKEND` | `local` (default; files under `STORAGE_ROOT`) or `s3`; see [Private file storage](#private-file-storage) |
+
+### Private file storage
+
+Event images, stored ticket PDFs and support attachments go through `app/storage.py`. Nothing is
+ever served from storage directly: the API checks access and streams the bytes, or hands out a
+short-lived signed link. The API and the worker must use the same storage.
+
+- **Natively and in tests** (`STORAGE_BACKEND=local`): files below `STORAGE_ROOT`.
+- **Docker Compose** (`STORAGE_BACKEND=s3`, set by `docker-compose.yml`): the `storage` service
+  is MinIO, an S3-compatible object store with its data in the `object_storage` volume and no
+  port published on the host. The one-off `storage-init` service creates the private bucket
+  `S3_BUCKET` (no anonymous access) and the app account `S3_ACCESS_KEY_ID`, whose policy allows
+  only listing that bucket and reading, writing and deleting its objects. It runs on every
+  `docker compose up` (it is idempotent), and `api` and `worker` start only after it succeeded,
+  which in turn waits for a healthy `storage`. `api` and `worker` share the bucket and the account
+  and never see the storage root account (`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`).
+
+`S3FileStorage` talks to any S3-compatible service with path-style URLs and AWS Signature
+Version 4 (implemented with `httpx`, no AWS SDK). To use another service, set
+`S3_ENDPOINT_URL` (`http://` or `https://`), `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and
+`S3_SECRET_ACCESS_KEY`; the API refuses to start when one is missing. Keep the credentials in
+`.env` (never committed; `.env.example` holds local placeholders only) and replace them before any
+shared deployment. If the store is unavailable, image and attachment uploads and downloads answer
+`503 storage_unavailable` and work again once it is back; ticket PDFs are rendered on request
+instead. Backups include the bucket ([backup and restore](../docs/operations/backup.md)).
 
 ---
 
@@ -130,7 +156,7 @@ Everything lives in `app/`, one module group per area:
 |---|---|
 | `main.py` | App factory, router registration, error handling, security headers |
 | `observability.py`, `operations_*.py` | Correlation IDs, redacted JSON logs, request metrics; protected operational metrics |
-| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage |
+| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py`, `storage_backup.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage (local or S3-compatible) and its backup/restore |
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
 | `*_service.py` | Business rules and transactions |
@@ -396,8 +422,7 @@ Open backend work, from the audit in #85, in dependency order (see the
 2. Campaign report reconciliation (#67); platform
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
-3. Moderation notices (#74), the S3-compatible storage service required by requirements §2.1
-   (#77; only local protected storage exists today).
+3. Moderation notices (#74).
 4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
    (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
 5. Measured load (#80) and real process-kill recovery (#83).

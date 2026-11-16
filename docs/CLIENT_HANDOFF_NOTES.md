@@ -218,7 +218,8 @@ except where marked. The guides `backend/SUPPORT_API.md`, `backend/TICKET_PDF_AP
 
 ### Operations note for both
 
-Uploaded files and ticket PDFs live below `STORAGE_ROOT`. In Docker Compose this is the `file_storage` volume at
-`/app/var/storage` shared by `api` and `worker`; `docker compose down --volumes` deletes it. After pulling this
+Uploaded files and ticket PDFs live below `STORAGE_ROOT` when the API runs natively. In Docker Compose they are in
+a private S3-compatible bucket (the `storage` service, MinIO) shared by `api` and `worker` (#77);
+`docker compose down --volumes` deletes it. After pulling this
 increment, rebuild and re-run the `migrate` service (`docker compose up --build`) so migration
 `0009_files_admission` is applied and the app database role is granted on the two new tables.

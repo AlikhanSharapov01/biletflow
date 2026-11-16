@@ -28,6 +28,9 @@ from tests.test_event_images import upload
 
 REPO = Path(__file__).resolve().parents[2]
 BACKUP = REPO / "tools" / "backup.sh"
+# The object-store archive (#77): every object of the private bucket, read through the app's
+# own storage account. The stand-in docker answers every `run` with the stand-in bucket.
+EXPORT = "run --rm --no-deps -T api python -m app.storage_backup export"
 API = "/api/v1"
 
 needs_shell = pytest.mark.skipif(
@@ -47,6 +50,7 @@ case "$1" in
   exec)
     case "$*" in
       *pg_isready*) ;;
+      *"storage mc ready"*) [ -z "${FAKE_STORAGE_DOWN:-}" ] || exit 1 ;;
       *pg_stat_activity*) echo "${FAKE_SESSIONS:-0}" ;;
       *pg_dump*) [ -z "${FAKE_FAIL_DUMP:-}" ] || exit 1; echo dump ;;
       *pg_restore*) cat >/dev/null ;;
@@ -119,7 +123,7 @@ def test_quiesced_backup_keeps_an_image_deleted_between_dump_and_archive(stack):
     result, log, backups, running = stack(BACKUP_TEST_HOOK=DELETE_IF_API_RUNNING)
     assert result.returncode == 0, result.stderr
     stop, dump = index(log, "stop api worker"), index(log, "exec -T db pg_dump")
-    hook, archive = index(log, "hook:"), index(log, "run --rm --no-deps -T api tar")
+    hook, archive = index(log, "hook:"), index(log, EXPORT)
     start = index(log, "start ")
     assert stop < dump < hook < archive < start
     assert index(log, "exec -T db psql") < dump  # waited for other sessions to close
@@ -160,6 +164,16 @@ def test_open_database_session_aborts_before_the_dump(stack):
     assert result.returncode == 1
     assert "Other database sessions are still open" in result.stderr
     assert not [line for line in log if "pg_dump" in line]
+    assert running == {"api", "worker"}
+    assert backups == []
+
+
+@needs_shell
+def test_unready_object_store_aborts_before_anything_is_stopped(stack):
+    result, log, backups, running = stack(FAKE_STORAGE_DOWN="1")
+    assert result.returncode != 0
+    assert "Backup FAILED" in result.stderr
+    assert not [line for line in log if line.startswith(("stop", "start", "run"))]
     assert running == {"api", "worker"}
     assert backups == []
 

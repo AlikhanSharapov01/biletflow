@@ -41,6 +41,8 @@ jobs:
       PASSWORD: correct horse battery staple
       # The owner role on the published port, with the password from .env.example.
       DRILL_DATABASE_URL: postgresql://biletflow_owner:biletflow-owner-local-password@127.0.0.1:5433/biletflow
+      # Opens the api container's object storage (the private S3-compatible bucket, #77).
+      STORE: from app.config import Settings; from app.storage import storage_from_settings as s; store = s(Settings())
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -58,7 +60,8 @@ jobs:
         run: |
           curl -fsS -o /dev/null -H 'Content-Type: application/json' \
             -d "{\"email\":\"before@example.com\",\"password\":\"$PASSWORD\",\"display_name\":\"Before\"}" "$REGISTER_URL"
-          docker compose exec -T api sh -c 'echo restored-ok > /app/var/storage/drill-marker.txt'
+          # An object no database row links to: the whole bucket is backed up, not only linked files.
+          docker compose exec -T api python -c "$STORE; store.put('drill-marker.txt', b'restored-ok')"
           cd backend && uv run python ../tools/backup_drill.py prepare
 
       # Negative control: proves the check below detects the problem #69 describes.
@@ -103,7 +106,7 @@ jobs:
           count="$(docker compose exec -T db psql -U biletflow_owner -d biletflow -tA \
             -c "SELECT count(*) FROM biletflow.app_user WHERE email = 'before@example.com'")"
           test "$count" = 1
-          test "$(docker compose exec -T api cat /app/var/storage/drill-marker.txt)" = restored-ok
+          test "$(docker compose exec -T api python -c "$STORE; print(store.get('drill-marker.txt').decode())")" = restored-ok
           cd backend && uv run python ../tools/backup_drill.py verify
       - name: Check the app can write to the restored database
         run: |

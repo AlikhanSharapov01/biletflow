@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     offline_package_minutes: int = Field(720, ge=5, le=2880)
     # BF-16: private file storage (app/storage.py) and support attachment limits.
     storage_root: str = "var/storage"
+    # #77: "local" keeps files under STORAGE_ROOT (development, tests); "s3" uses one private
+    # bucket on an S3-compatible service (the Docker stack's MinIO) with a bucket-scoped account.
+    storage_backend: Literal["local", "s3"] = "local"
+    s3_endpoint_url: str = ""
+    s3_region: str = "us-east-1"
+    s3_bucket: str = Field("", pattern=r"^$|^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
+    s3_access_key_id: str = ""
+    s3_secret_access_key: SecretStr = SecretStr("")
     attachment_max_bytes: int = Field(5 * 1024 * 1024, ge=1024)
     attachment_max_per_message: int = Field(5, ge=1, le=20)
     attachment_link_seconds: int = Field(300, ge=30, le=3600)
@@ -61,6 +69,16 @@ class Settings(BaseSettings):
             raise ValueError("Use two different random secrets of at least 32 bytes")
         if not self.database_url.get_secret_value().startswith("postgresql+psycopg://"):
             raise ValueError("A PostgreSQL psycopg URL is required")
+        if self.storage_backend == "s3" and not (
+            self.s3_endpoint_url.startswith(("http://", "https://"))
+            and self.s3_bucket
+            and self.s3_access_key_id
+            and self.s3_secret_access_key.get_secret_value()
+        ):
+            raise ValueError(
+                "S3 storage needs S3_ENDPOINT_URL (http:// or https://), S3_BUCKET, "
+                "S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY"
+            )
         if self.environment == "production":
             if not self.cookie_secure or any(
                 not x.startswith("https://") for x in self.allowed_origins

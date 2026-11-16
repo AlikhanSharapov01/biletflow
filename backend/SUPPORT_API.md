@@ -130,6 +130,8 @@ participant (requester, support, platform) may upload, also to a resolved case. 
   `422 attachment_empty` for an empty body; `422 invalid_input` for a missing or over-long
   (200 characters) `filename`. Path separators and control characters in `filename` become `_`.
 - `429 rate_limited`: 20 uploads per minute per account. Non-participants get `404 case_not_found`.
+- `503 storage_unavailable` when the object store fails or cannot be reached; no row is kept and
+  the upload can be retried.
 - `expires_at` is one hour after the upload: until then the uploader can link the file.
 
 **Linking**: send the `file_id`s as `attachment_ids` in `POST /cases/{id}/messages`. `POST /cases`
@@ -152,17 +154,19 @@ HMAC token (attachment id, user id, expiry, signed with `CHALLENGE_SECRET`) is t
 On every request the server verifies the token (`401 download_link_invalid` or
 `401 download_link_expired`) and re-checks that the token's user is still active and still
 related to the case; a user who lost access gets `404 attachment_not_found`, as does a missing
-object. The response carries `Content-Type` of the stored type, `Content-Disposition: attachment`
+object. If the object store fails or cannot be reached the answer is `503 storage_unavailable`
+(after the same checks). The response carries `Content-Type` of the stored type, `Content-Disposition: attachment`
 (ASCII `filename` plus UTF-8 `filename*`), `Cache-Control: no-store` and
 `X-Content-Type-Options: nosniff`.
 
-**Storage and configuration**: bytes are stored through `app/storage.py` (`FileStorage`,
-`LocalFileStorage`) under `support/<case_id>/<file_id>`, metadata in `stored_file` and
-`support_attachment` (migration `0009_files_admission`). The local backend writes atomically below
-`STORAGE_ROOT` (default `var/storage`, relative to the working directory; use a persistent volume
-in production); an S3-compatible backend, required for the Docker demonstration by the
-requirements (§2.1) and tracked in #77, will be another `FileStorage` implementation selected in
-`storage_from_settings`. Settings: `STORAGE_ROOT`, `ATTACHMENT_MAX_BYTES` (default 5 MiB),
+**Storage and configuration**: bytes are stored through `app/storage.py` (`FileStorage`) under
+`support/<case_id>/<file_id>`, metadata in `stored_file` and `support_attachment` (migration
+`0009_files_admission`). `STORAGE_BACKEND` selects the backend: `local` (default) writes
+atomically below `STORAGE_ROOT` (default `var/storage`, relative to the working directory);
+`s3` (`S3FileStorage`, used by Docker Compose, #77) writes to one private bucket on an
+S3-compatible service (`S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`,
+`S3_SECRET_ACCESS_KEY`), see the [README](README.md#private-file-storage). Objects are never
+public in either backend. Settings: `STORAGE_ROOT`, `ATTACHMENT_MAX_BYTES` (default 5 MiB),
 `ATTACHMENT_MAX_PER_MESSAGE` (default 5, max 20), `ATTACHMENT_LINK_SECONDS` (default 300).
 Audit: `support.attachment_uploaded` (file id, size and type only). Upload validation is
 synchronous: a file goes `pending` -> `clean` in the same request.
@@ -239,7 +243,6 @@ Differences from the reference DDL: status value is `waiting_for_customer`; `seq
 
 - Malware scanning and quarantine of attachments, which the requirements (BF-16) require: uploads are validated by content type and size only; the `pending`/`quarantined` states are kept for the scanner (#75).
 - Recovery of interrupted uploads and cleanup of uploaded files that are never linked (#76).
-- An S3-compatible storage backend; only `LocalFileStorage` exists (#77).
 - Email-channel notifications through the BF-15 fan-out: support events create in-app inbox entries (`support_reply`, `support_status`) while the email link is sent by the support worker (`support_email`).
 
 Support emails are localized (kk/ru/en with English fallback, using the account's locale); see

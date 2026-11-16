@@ -38,7 +38,7 @@ is complete, it is merged, each client is integrated, and the journey is accepta
 | Database (`backend/migrations/`) | Current | 17 migrations, 66 tables (through `0017_ticket_pdf_cleanup`). |
 | Web (`web/`) | Mostly integrated | Campaigns, promo checkout and refunds use the final contracts; Kazakh/Russian/English interface. Analytics, finance and image upload still call their planned contracts and need checking against the merged API (#45). |
 | Mobile app (`mobile/`) | Full app + scanner, integration behind | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning. Promo, campaigns, refunds, analytics, finance and images use the final contracts, not yet checked on a device (#51); Kazakh, Russian and English (#52). |
-| Environment | Local demo works | Docker Compose with health checks and restart policies, demo data with a guarded reset, and [backup and restore](docs/operations/backup.md) that briefly stops the API and worker so the database and files match. No TLS yet (#49). Files are on a local volume; the required S3-compatible storage is not provided yet (#77). |
+| Environment | Local demo works | Docker Compose with health checks and restart policies, demo data with a guarded reset, and [backup and restore](docs/operations/backup.md) that briefly stops the API and worker so the database and files match. No TLS yet (#49). Uploaded files are in a private S3-compatible bucket (MinIO) shared by the API and worker, included in backups (#77). |
 | Tests and CI | Backend strong, no browser/device end-to-end | Backend PostgreSQL suite (see [`backend/VALIDATION.md`](backend/VALIDATION.md)); web and mobile unit tests; CI runs backend, web, mobile, API smoke flows and a backup/restore drill with file checks. Opt-in process-kill recovery and load harnesses run locally. No browser or real-device end-to-end tests. |
 
 No SRS journey is acceptance-verified end to end on both clients yet. API smoke tests in CI
@@ -98,8 +98,11 @@ docker compose up --build
 ```
 
 The first start creates the database, applies migrations, seeds demo categories and a demo
-venue with a seat layout, creates the restricted database role, starts the API and worker,
-builds the web app and starts Caddy.
+venue with a seat layout, creates the restricted database role, starts the private S3-compatible
+file storage (MinIO) and creates its bucket and restricted account, starts the API and worker,
+builds the web app and starts Caddy. Uploaded images, ticket PDFs and support attachments are kept
+in that bucket, which is not reachable from outside the stack (see
+[private file storage](backend/README.md#private-file-storage)).
 
 | What | Address |
 |---|---|
@@ -115,7 +118,7 @@ Stop the stack (data is kept):
 docker compose down
 ```
 
-Start again from an empty database:
+Start again from an empty database and empty file storage:
 
 ```bash
 docker compose down --volumes
@@ -129,6 +132,12 @@ docker compose up --build
 
 > `.env.example` contains development-only secrets. Never commit `.env`, and replace every
 > password and secret before any shared deployment.
+>
+> **Upgrading an existing stack to the S3-compatible storage (#77):** add the new `S3_*` and
+> `MINIO_ROOT_*` settings from `.env.example` to your `.env` (Compose stops with
+> `Set ... in .env` otherwise). Files uploaded earlier are in the old `file_storage` volume, which
+> the API no longer reads: take a backup with the old checkout first and restore it after
+> updating ([backup and restore](docs/operations/backup.md#upgrading-from-the-file-volume)).
 
 ---
 
@@ -225,7 +234,7 @@ PDF text (#82).
    to checkout and activation (#70), attachment malware quarantine (#75), recovery of abandoned
    uploads (#76).
 2. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
-   moderation notices (#74), S3-compatible storage (#77), correlation IDs and metrics (#78).
+   moderation notices (#74), correlation IDs and metrics (#78).
 3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
    integration (#51); HTTPS for the shared
    demo (#49).

@@ -225,19 +225,23 @@ def router(factory, settings, principal, storage):
             return upload_limit(db, settings)
 
     def store_upload(ids, case_id, filename, content_type, data):
-        with factory.begin() as db:
-            user, _ = valid_session(db, *ids)
-            file = upload_attachment(
-                db, storage, settings, user, case_id, filename, content_type, data
-            )
-            return {
-                "file_id": file.id,
-                "mime_type": file.mime_type,
-                "size_bytes": file.size_bytes,
-                "sha256": file.sha256,
-                "status": file.status,
-                "expires_at": link_expires_at(file),
-            }
+        try:
+            with factory.begin() as db:
+                user, _ = valid_session(db, *ids)
+                file = upload_attachment(
+                    db, storage, settings, user, case_id, filename, content_type, data
+                )
+                return {
+                    "file_id": file.id,
+                    "mime_type": file.mime_type,
+                    "size_bytes": file.size_bytes,
+                    "sha256": file.sha256,
+                    "status": file.status,
+                    "expires_at": link_expires_at(file),
+                }
+        except OSError:
+            # The object store failed; the transaction rolled back, so no row was kept.
+            fail("storage_unavailable", 503)
 
     @routes.get(
         "/cases/{case_id}/attachments/{attachment_id}/download-link",
@@ -258,10 +262,14 @@ def router(factory, settings, principal, storage):
     ):
         """Open this URL directly: the signed token is the credential, so no bearer header is
         needed. Access is re-checked on every request."""
-        with factory() as db:
-            data, mime_type, filename = download_content(
-                db, storage, settings, token, attachment_id
-            )
+        try:
+            with factory() as db:
+                data, mime_type, filename = download_content(
+                    db, storage, settings, token, attachment_id
+                )
+        except OSError:
+            # A missing object is already 404 attachment_not_found; this is the store failing.
+            fail("storage_unavailable", 503)
         return Response(
             data,
             media_type=mime_type,

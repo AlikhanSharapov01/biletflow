@@ -12,7 +12,9 @@ Unlinked, pending, rejected and deleted files are not required to have bytes.
 Exit status: 0 consistent, 1 a linked file is missing or differs, 2 could not check (usage,
 database or archive error). Read-only. Needs
 only psycopg, which the backend image has, so tools/restore.sh and tools/verify_backup.sh run it
-inside the api container. Runbook: docs/operations/backup.md
+inside the api container. With the S3-compatible bucket of the Docker stack (#77) they check an
+archive: the backup's own, or the restored bucket read back by `python -m app.storage_backup
+export`. Runbook: docs/operations/backup.md
 """
 
 import argparse

@@ -37,16 +37,20 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
-      STORAGE_ROOT: /app/var/storage
       # Trust Caddy's X-Forwarded-For so per-address rate limits see the real client.
       # Port 8000 is published on localhost only, so nobody outside can forge this header.
       FORWARDED_ALLOW_IPS: "*"
-    volumes:
-      - file_storage:/app/var/storage
+      # Object storage (#77): see the storage services below.
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: http://storage:9000
+      MINIO_ROOT_USER: ""
+      MINIO_ROOT_PASSWORD: ""
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
     healthcheck:
       test:
@@ -67,12 +71,16 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
-      STORAGE_ROOT: /app/var/storage
-    volumes:
-      - file_storage:/app/var/storage
+      # Object storage (#77): the same bucket and account as api.
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: http://storage:9000
+      MINIO_ROOT_USER: ""
+      MINIO_ROOT_PASSWORD: ""
     command: ["python", "-m", "app.worker"]
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
       mailpit:
         condition: service_started
@@ -95,6 +103,63 @@ services:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"
 
+  # --- Object storage (#77) ---------------------------------------------------------------
+  # Private S3-compatible storage for event images, ticket PDFs and support attachments, shared
+  # by api and worker. Not published on the host. The root account (MINIO_ROOT_*) is used only
+  # here and by storage-init; api and worker get the bucket-scoped app account (S3_*).
+  storage:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - object_storage:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Provisions the private bucket and the app account, then exits. Idempotent: it runs on every
+  # `docker compose up`, and api/worker start only after it succeeded. The app account may only
+  # list the bucket and read, write and delete its objects (listing makes a missing object a
+  # 404 rather than a 403, and lets tools/backup.sh archive the bucket).
+  storage-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in .env}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set biletflow http://storage:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        mc mb --ignore-existing "biletflow/$$S3_BUCKET"
+        mc anonymous set none "biletflow/$$S3_BUCKET"
+        printf '%s' '{"Version":"2012-10-17","Statement":[
+          {"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::'"$$S3_BUCKET"'"]},
+          {"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],
+           "Resource":["arn:aws:s3:::'"$$S3_BUCKET"'/*"]}]}' >/tmp/biletflow-app.json
+        mc admin policy create biletflow biletflow-app /tmp/biletflow-app.json
+        mc admin user add biletflow "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" >/dev/null ||
+          mc admin user info biletflow "$$S3_ACCESS_KEY_ID" >/dev/null
+        if ! mc admin policy attach biletflow biletflow-app --user "$$S3_ACCESS_KEY_ID"; then
+          case "$$(mc admin user info biletflow "$$S3_ACCESS_KEY_ID")" in
+            *biletflow-app*) echo "Policy biletflow-app is already attached." ;;
+            *) exit 1 ;;
+          esac
+        fi
+        echo "Bucket $$S3_BUCKET and its app account are ready."
+    depends_on:
+      storage:
+        condition: service_healthy
+    restart: "no"
+  # --- End of object storage ----------------------------------------------------------------
+
   proxy:
     restart: unless-stopped
     build:
@@ -108,4 +173,4 @@ services:
 
 volumes:
   postgres_data:
-  file_storage:
+  object_storage:
