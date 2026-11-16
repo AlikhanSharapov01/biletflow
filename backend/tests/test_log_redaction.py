@@ -86,6 +86,21 @@ def test_formatter_redacts_secrets_in_message_and_fields():
     assert entry["scanned"][0].startswith("biletflow:ticket:")
 
 
+def test_credentials_in_any_url_scheme_are_dropped():
+    output = render(
+        "connect %s via %s",
+        "postgresql+psycopg://biletflow_app:s3cretpw@db:5432/biletflow",
+        "smtp://mailer:smtp-pw@mail.example:587",
+        broker="redis://:redis-pw@cache:6379/0",
+    )
+    for secret in ("s3cretpw", "smtp-pw", "redis-pw", "biletflow_app", "mailer"):
+        assert secret not in output, secret
+    entry = json.loads(output)
+    assert "postgresql+psycopg://db:5432/biletflow" in entry["event"]
+    assert "smtp://mail.example:587" in entry["event"]
+    assert entry["broker"] == "redis://cache:6379/0"
+
+
 def test_formatter_keeps_only_exception_type():
     try:
         raise OSError(f"smtp rejected {EMAIL} token={CHALLENGE}")

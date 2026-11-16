@@ -88,9 +88,12 @@ SENSITIVE_KEY = re.compile(
 )
 SENSITIVE_EXACT = {"code", "state", "qr", "otp"}
 PATTERNS = [
-    # URLs keep scheme, host and path; credentials, query and fragment are dropped.
+    # URLs of any scheme (database, SMTP, ...) keep scheme, host and path; credentials, query and
+    # fragment are dropped.
     (
-        re.compile(r"\b(https?://)(?:[^\s/?#@]*@)?([^\s/?#]+)([^\s?#]*)(\?[^\s#]*)?(#\S*)?"),
+        re.compile(
+            r"\b([a-z][a-z0-9+.-]*://)(?:[^\s/?#@]*@)?([^\s/?#]+)([^\s?#]*)(\?[^\s#]*)?(#\S*)?"
+        ),
         lambda m: (
             m[1] + m[2] + m[3] + ("?" + REDACTED if m[4] else "") + ("#" + REDACTED if m[5] else "")
         ),
