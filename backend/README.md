@@ -129,6 +129,7 @@ Everything lives in `app/`, one module group per area:
 | Files | Responsibility |
 |---|---|
 | `main.py` | App factory, router registration, error handling, security headers |
+| `observability.py`, `operations_*.py` | Correlation IDs, redacted JSON logs, request metrics; protected operational metrics |
 | `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage |
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
@@ -163,6 +164,7 @@ remaining scope.
 | [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments, WebSocket |
 | [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md) | In-app notifications and calendar export |
 | [ADMIN_API.md](ADMIN_API.md) | Platform administration |
+| [OPERATIONS_API.md](OPERATIONS_API.md) | Correlation IDs, structured log events and redaction, operational metrics |
 
 Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code to a message.
 
@@ -170,7 +172,7 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016, 0017 and 0019 use inline SQL).
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016, 0017, 0019 and 0021 use inline SQL).
   There are **18 migrations and 66 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
@@ -178,7 +180,8 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
   `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0019_admin_retry`
   (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
-  (adds `ga4_connection`, `analytics_export`, `ga4_cache`; not yet included in the verified count).
+  (adds `ga4_connection`, `analytics_export`, `ga4_cache`; not yet included in the verified count)
+  → `0021_job_correlation` (nullable `outbox_job.correlation_id`, no table).
   The chain through `0017` was verified on a disposable test database on 13 November 2026;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
@@ -215,6 +218,11 @@ referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#store
 user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
+
+A failed pass, retry or dead-lettered job is logged as a structured, redacted JSON line
+(`worker.task_failed`, `job.retry_scheduled`, `job.dead`) under the correlation ID of the request
+that queued the job; backlog, retry and dead counts are in the protected metrics view. See
+[OPERATIONS_API.md](OPERATIONS_API.md).
 
 ---
 
@@ -389,7 +397,7 @@ Open backend work, from the audit in #85, in dependency order (see the
    settings applied to checkout and activation (#70); attachment malware scanning and quarantine
    (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
 3. Moderation notices (#74), the S3-compatible storage service required by requirements §2.1
-   (#77; only local protected storage exists today), correlation IDs and metrics (#78).
+   (#77; only local protected storage exists today).
 4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
    (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
 5. Measured load (#80) and real process-kill recovery (#83).

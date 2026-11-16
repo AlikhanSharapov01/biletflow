@@ -21,6 +21,12 @@ from .db import database
 from .ga4_client import GA4Client
 from .google import GoogleClient
 from .models import AccountToken, AuthSession, ExternalIdentity, OAuthAttempt, User
+from .observability import (
+    REQUEST_ID_HEADER,
+    RequestMetrics,
+    RequestObservability,
+    configure_logging,
+)
 from .security import (
     DUMMY_PASSWORD,
     access_token,
@@ -54,6 +60,7 @@ AUTH_PATH = "/api/v1/auth"
 
 def create_app(settings: Settings | None = None):
     settings = settings or Settings()
+    configure_logging()
     engine, factory = database(settings.database_url.get_secret_value())
 
     @asynccontextmanager
@@ -66,12 +73,14 @@ def create_app(settings: Settings | None = None):
     app.state.google = GoogleClient(settings)
     app.state.ga4 = GA4Client(settings)
     app.state.storage = storage_from_settings(settings)
+    app.state.metrics = RequestMetrics()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        expose_headers=[REQUEST_ID_HEADER],
     )
 
     @app.middleware("http")
@@ -82,6 +91,9 @@ def create_app(settings: Settings | None = None):
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
+
+    # Outermost: every response (CORS preflight and errors too) is correlated, logged and counted.
+    app.add_middleware(RequestObservability, metrics=app.state.metrics)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, error):
@@ -519,6 +531,7 @@ def create_app(settings: Settings | None = None):
     from .ga4_api import router as ga4_router
     from .notification_api import router as notification_router
     from .offline_api import router as offline_router
+    from .operations_api import router as operations_router
     from .organization_api import router as organization_router
     from .paid_checkout_api import router as paid_checkout_router
     from .refund_api import router as refund_router
@@ -548,4 +561,5 @@ def create_app(settings: Settings | None = None):
     app.include_router(campaign_router(factory, settings, principal))
     app.include_router(refund_router(factory, settings, principal))
     app.include_router(settings_router(factory, settings, principal))
+    app.include_router(operations_router(factory, settings, principal, app.state.metrics))
     return app

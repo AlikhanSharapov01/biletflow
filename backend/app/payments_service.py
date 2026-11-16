@@ -19,6 +19,7 @@ from sqlalchemy.exc import OperationalError
 from .catalog_models import Event
 from .commerce_models import PaymentAttempt, PaymentIntent, ProviderEvent, Refund, RefundAttempt
 from .models import AuditLog, OutboxJob
+from .observability import correlation_id
 from .security import fail, now
 
 PROVIDER = "biletflow-simulator"
@@ -112,7 +113,7 @@ def audit(db, event, action, target, change=None):
             entity_id=target.id,
             description=action,
             safe_change=change or {},
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 

@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from sqlalchemy import func, select
 
 from .catalog_models import (
@@ -13,6 +11,7 @@ from .catalog_models import (
     StaffPermission,
 )
 from .models import AuditLog
+from .observability import correlation_id
 from .security import fail, now
 
 
@@ -154,7 +153,7 @@ def catalog_audit(db, user, action, org, event=None, target=None):
             entity_type=target.__table__.name if target else "event" if event else "organization",
             entity_id=target.id if target else event.id if event else org.id,
             description=action,
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 

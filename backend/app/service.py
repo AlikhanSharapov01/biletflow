@@ -7,6 +7,7 @@ from sqlalchemy import case, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from .models import AccountToken, AuditLog, AuthSession, OutboxJob, RateBucket, RefreshToken, User
+from .observability import correlation_id
 from .security import challenge_value, derive, digest, fail, now
 
 
@@ -18,7 +19,7 @@ def audit(db, user, action, entity_id=None, entity_type="app_user"):
             entity_type=entity_type,
             entity_id=entity_id or user.id,
             description=action,
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 
