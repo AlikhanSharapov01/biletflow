@@ -51,6 +51,7 @@ from .file_content import valid_content
 from .file_models import StoredFile, SupportAttachment
 from .malware_scanner import ScannerUnavailable
 from .models import AuditLog, OutboxJob, User
+from .observability import signal
 from .platform_settings import upload_limit
 from .security import fail, now
 from .service import valid_session
@@ -312,6 +313,13 @@ def scan_attachments_once(factory, storage, scanner):
                 seconds=min(SCAN_RETRY_MAX_SECONDS, 2**job.attempt_count)
             )
             job.last_error = "scanner_unavailable"
+            signal(
+                "attachment.scan_deferred",
+                job_id=job.id,
+                file_id=file_id,
+                attempt=job.attempt_count,
+                last_error=job.last_error,
+            )
             return True
         job.status, job.completed_at, job.last_error = "done", now(), None
         if outcome is None:

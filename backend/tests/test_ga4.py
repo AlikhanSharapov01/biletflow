@@ -5,6 +5,7 @@ not part of this suite.
 """
 
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
@@ -476,7 +477,10 @@ def test_long_outage_never_exhausts_attempts(client, setup, account, factory, ap
     assert row.status == "sent" and row.sent_at and row.last_error is None
 
 
-def test_rejected_sends_fail_after_the_fifth_attempt(client, setup, account, factory, app, ga4):
+def test_rejected_sends_fail_after_the_fifth_attempt(
+    client, setup, account, factory, app, ga4, caplog
+):
+    caplog.set_level(logging.INFO, logger="app")
     f = paid_event(client, setup)
     connect(client, f)
     paid_consenting_order(client, account, f)
@@ -489,6 +493,11 @@ def test_rejected_sends_fail_after_the_fifth_attempt(client, setup, account, fac
         due(factory)
     assert run(app, ga4) == 0  # failed rows stay visible and are not retried
     assert exports(factory)[0].status == "failed" and ga4.sent == []
+    # Each rejection leaves a log line (IDs and codes only); the last one says it gave up.
+    logged = [r for r in caplog.records if r.getMessage() == "ga4.export_failed"]
+    assert [(r.export_id, r.attempt, r.last_error, r.final) for r in logged] == [
+        (exports(factory)[0].id, attempt, "ga4_error", attempt == 5) for attempt in range(1, 6)
+    ]
 
 
 def test_send_budget_defers_without_using_attempts(

@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -283,8 +284,9 @@ def test_infected_upload_is_rejected_and_never_stored(client, app, world, factor
 
 
 def test_scanner_outage_quarantines_until_the_worker_gets_a_verdict(
-    client, app, world, factory, malware_scanner
+    client, app, world, factory, malware_scanner, caplog
 ):
+    caplog.set_level(logging.INFO, logger="app")
     w = world
     storage = app.state.storage
     case_id = new_case(client, w)
@@ -313,6 +315,9 @@ def test_scanner_outage_quarantines_until_the_worker_gets_a_verdict(
     assert job.status == "pending" and job.attempt_count == 1 and job.available_at > now()
     assert job.last_error == "scanner_unavailable"
     assert stored(factory, file_id).status == "quarantined"
+    [deferred] = [r for r in caplog.records if r.getMessage() == "attachment.scan_deferred"]
+    assert (deferred.job_id, str(deferred.file_id), deferred.attempt) == (job.id, file_id, 1)
+    assert deferred.last_error == "scanner_unavailable"
     assert scan_attachments_once(factory, storage, malware_scanner) is False  # not due yet
 
     # The scanner is back: the next attempt releases the file.

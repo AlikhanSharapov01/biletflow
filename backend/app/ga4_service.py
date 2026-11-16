@@ -23,6 +23,7 @@ from .campaign_models import Campaign
 from .catalog_service import event_guard
 from .ga4_client import GA4Error, GA4Unavailable
 from .ga4_models import MEASUREMENTS, AnalyticsExport, GA4Cache, GA4Connection
+from .observability import signal
 from .security import fail, now
 from .service import rate_limit, valid_session
 
@@ -378,6 +379,15 @@ def export_ga4_once(factory, settings, provider):
                 }
                 if attempt >= MAX_ATTEMPTS:
                     values["status"] = "failed"
+            if error not in (None, "deferred"):
+                # IDs and error codes only: these rows are on neither the jobs page nor metrics.
+                signal(
+                    "ga4.export_failed",
+                    export_id=identifier,
+                    attempt=attempt,
+                    last_error=error,
+                    final=values.get("status") == "failed",
+                )
             db.execute(
                 update(AnalyticsExport)
                 .where(

@@ -42,6 +42,8 @@ The API and the worker write one JSON object per line to stderr for every `app.*
 | `job.attachment_failed` | warning | `job_id`, `error_type` — the ticket email goes out without its PDF |
 | `job.done` | info | `job_id`, `kind` — a payment initialization or refund dispatch job finished |
 | `job.step_failed` | warning | `step` (worker function), `error_type` — an unexpected error in a job step, under the job's ID; the job stays due and is retried |
+| `ga4.export_failed` | warning | `export_id`, `attempt`, `last_error` (`ga4_unavailable`, `ga4_error`, `ga4_send_failed`), `final` (true when the row is now `failed` after 5 attempts) — a GA4 measurement was not accepted |
+| `attachment.scan_deferred` | warning | `job_id`, `file_id`, `attempt`, `last_error` (`scanner_unavailable`) — no verdict from ClamAV or storage; the upload stays quarantined and the scan is retried |
 | `notification.email_retry` / `notification.email_failed` | warning | `delivery_id`, `attempt`, `last_error`, `error_type` — a notification email failed and is retried / gave up after 5 attempts |
 | `worker.task_failed` | warning | `task` (`hold_sweep`, `image_reconcile`, `ticket_pdf_reconcile`, `attachment_reconcile`, `payments`, `ga4_export`, `attachment_scan`), `error_type` |
 
