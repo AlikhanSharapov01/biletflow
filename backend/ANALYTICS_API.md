@@ -136,7 +136,11 @@ Clients post `POST /api/v1/analytics/measurements` with exactly
 fields, `purchase`/`refund` names or a campaign of another event return 422. The response is
 202 `{status: accepted|duplicate|skipped, reason}`; `skipped` with `disabled`,
 `consent_required` (the account's `analytics_consent` is off; anonymous visitors are never
-tracked) or `not_connected` is never an error, so refusal cannot break a client flow. The event
+tracked), `not_connected` or `backlog_full` (10,000 pending rows for the connection) is never an
+error, so refusal cannot break a client flow. Consented posts are rate limited on the shared rate
+buckets to 60 per account and 600 per IP per `RATE_WINDOW_SECONDS` (429 `rate_limited`); clients
+should ignore analytics failures. A consenting account can still report views of any event it can
+see, so client funnel counts are indicative, unlike server-side purchases. The event
 must be visible to the caller (404 otherwise). `analytics_event_id` is a client-generated UUID used
 only for deduplication: a repeat returns `duplicate` and is sent once.
 
@@ -156,10 +160,13 @@ the worker records purchase measurements for confirmed orders of connected organ
 buyer currently consents, and refund measurements for succeeded refunds of exported purchases
 (looking back 7 days, at most 200 of each per pass). Unique keys on `analytics_event_id` and on
 (connection, order|refund, kind) make enqueueing and retries idempotent. It then leases up to 20
-due rows (`FOR UPDATE SKIP LOCKED`, attempt number as fence), sends them outside the transaction,
-and records `sent` or a retry with back-off (`last_error` `ga4_unavailable|ga4_error|
-ga4_send_failed`, no provider text). After 5 attempts a row becomes `failed`; rows of a
-disconnected organization become `skipped`. Rows remain visible.
+due rows (`FOR UPDATE SKIP LOCKED`, attempt number as fence) and sends them outside the
+transaction, after the worker's payment steps and within a 5-second budget for starting sends.
+Rows not attempted (budget spent, or after an outage in the same pass) wait without using an
+attempt. An outage (`ga4_unavailable`: timeout, network, 429, 5xx) never uses an attempt and is
+retried every 5 minutes for as long as it lasts. A rejected send (`ga4_error`, `ga4_send_failed`;
+no provider text is kept) uses one attempt with back-off, and after the fifth the row becomes
+`failed`. Rows of a disconnected organization become `skipped`. Rows remain visible.
 
 ### Cached aggregates
 

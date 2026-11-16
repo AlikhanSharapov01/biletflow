@@ -14,10 +14,24 @@ import time
 import httpx
 import jwt
 
-# httpx logs request URLs at INFO; the Measurement Protocol secret is a query parameter.
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
 COLLECT_URL = "https://www.google-analytics.com/mp/collect"
+
+
+class DropCollectRequests(logging.Filter):
+    """httpx logs request URLs at INFO; a collect URL carries the Measurement Protocol secret.
+
+    Only those records are dropped; other httpx logging is unchanged.
+    """
+
+    def filter(self, record):
+        try:
+            message = record.getMessage()
+        except Exception:
+            return False
+        return "/mp/collect" not in message and "api_secret" not in message
+
+
+logging.getLogger("httpx").addFilter(DropCollectRequests())
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 REPORT_URL = "https://analyticsdata.googleapis.com/v1beta/properties/{}:runReport"
 SCOPE = "https://www.googleapis.com/auth/analytics.readonly"

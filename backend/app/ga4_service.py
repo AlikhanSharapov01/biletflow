@@ -10,12 +10,13 @@ import hashlib
 import hmac
 import json
 import re
+import time
 from datetime import timedelta
 from urllib.parse import urlsplit
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from .campaign_models import Campaign
@@ -23,7 +24,7 @@ from .catalog_service import event_guard
 from .ga4_client import GA4Error, GA4Unavailable
 from .ga4_models import MEASUREMENTS, AnalyticsExport, GA4Cache, GA4Connection
 from .security import fail, now
-from .service import valid_session
+from .service import rate_limit, valid_session
 
 GA4_NAMES = {
     "campaign_landing": "campaign_landing",
@@ -38,6 +39,13 @@ ENQUEUE_LIMIT = 200
 LOOKBACK = timedelta(days=7)
 LEASE = timedelta(seconds=120)
 MAX_ATTEMPTS = 5
+# Wall-clock budget for starting sends in one worker pass, so a slow provider cannot hold up the
+# shared worker loop; unsent rows wait for the next pass without using an attempt.
+SEND_BUDGET_SECONDS = 5
+OUTAGE_RETRY = timedelta(minutes=5)
+# Per-account client measurements per RATE_WINDOW_SECONDS, and pending rows per connection.
+MEASUREMENT_LIMIT = 60
+PENDING_CAP = 10_000
 DEFAULT_RANGE_DAYS = 28
 MAX_RANGE_DAYS = 366
 DEFINITIONS = {
@@ -84,7 +92,10 @@ def scrub_page(settings, value):
     """Public route template only; query strings, fragments, IDs and private routes are dropped."""
     if not value:
         return None
-    path = urlsplit(value).path.rstrip("/") or "/"
+    try:
+        path = urlsplit(value).path.rstrip("/") or "/"
+    except ValueError:  # untrusted input, e.g. "//[" is an invalid IPv6 netloc
+        return None
     if path in ("/", "/discover"):
         template = "/discover"
     elif re.fullmatch(r"/events/[^/]+", path):
@@ -144,12 +155,33 @@ def set_connection(db, settings, org, enabled):
     return row
 
 
-def collect(db, settings, user, data):
-    """Store one allowlisted client measurement; refusal or disabled GA4 is not an error."""
+def refusal(settings, user):
+    """Why a client measurement is not collected at all, checked before any rate counting."""
     if not collection_ready(settings):
         return {"status": "skipped", "reason": "disabled"}
     if not user.analytics_consent:
         return {"status": "skipped", "reason": "consent_required"}
+    return None
+
+
+def measurement_rate_limit(factory, settings, ip, user_id):
+    """Per-account (and looser per-IP) budget on the shared rate buckets; 429 when exceeded."""
+    rate_limit(
+        factory,
+        settings,
+        ip,
+        "ga4_measurement",
+        user_id,
+        ip_limit=MEASUREMENT_LIMIT * 10,
+        identity_limit=MEASUREMENT_LIMIT,
+    )
+
+
+def collect(db, settings, user, data):
+    """Store one allowlisted client measurement; refusal or disabled GA4 is not an error."""
+    refused = refusal(settings, user)
+    if refused:
+        return refused
     event = event_guard(db, user, data.event_id)
     if data.campaign_id and not db.scalar(
         select(Campaign.id).where(Campaign.id == data.campaign_id, Campaign.event_id == event.id)
@@ -158,6 +190,14 @@ def collect(db, settings, user, data):
     connection = enabled_connection(db, event.organization_id)
     if not connection:
         return {"status": "skipped", "reason": "not_connected"}
+    # A bounded outbox: past the cap new client measurements are dropped, never queued.
+    pending = select(AnalyticsExport.id).where(
+        AnalyticsExport.connection_id == connection.id, AnalyticsExport.status == "pending"
+    )
+    if db.scalar(select(func.count()).select_from(pending.limit(PENDING_CAP).subquery())) >= (
+        PENDING_CAP
+    ):
+        return {"status": "skipped", "reason": "backlog_full"}
     params = {
         "event_ref": event_ref(settings, event.id),
         "platform": data.platform,
@@ -298,9 +338,10 @@ def export_ga4_once(factory, settings, provider):
                 row.available_at = now() + LEASE
                 leased.append((row.id, row.attempt_count, row.safe_payload))
     outcomes, outage = [], False
+    deadline = time.monotonic() + SEND_BUDGET_SECONDS
     for identifier, attempt, body in leased:
-        if outage:
-            # Not attempted: after one outage the rest of the batch waits instead of timing out.
+        if outage or time.monotonic() >= deadline:
+            # Not attempted: after an outage or past the budget the rest of the batch waits.
             outcomes.append((identifier, attempt, "deferred"))
             continue
         try:
@@ -320,7 +361,15 @@ def export_ga4_once(factory, settings, provider):
             elif error == "deferred":
                 values = {
                     "attempt_count": attempt - 1,
-                    "available_at": now() + timedelta(seconds=60),
+                    "available_at": now() + (OUTAGE_RETRY if outage else timedelta(0)),
+                }
+            elif error == "ga4_unavailable":
+                # An outage is not the measurement's fault: no attempt is used, so a long outage
+                # never turns queued purchases/refunds into permanent failures.
+                values = {
+                    "attempt_count": attempt - 1,
+                    "available_at": now() + OUTAGE_RETRY,
+                    "last_error": error,
                 }
             else:
                 values = {

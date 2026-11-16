@@ -13,7 +13,14 @@ from .ga4_schemas import (
     MeasurementResult,
     TrafficReport,
 )
-from .ga4_service import collect, connection_view, set_connection, traffic_report
+from .ga4_service import (
+    collect,
+    connection_view,
+    measurement_rate_limit,
+    refusal,
+    set_connection,
+    traffic_report,
+)
 from .service import valid_session
 
 
@@ -40,7 +47,14 @@ def router(factory, settings, principal):
             return connection_view(settings, org.id, row)
 
     @routes.post("/analytics/measurements", status_code=202, response_model=MeasurementResult)
-    def measurement(data: Measurement, ids=Depends(principal)):
+    def measurement(data: Measurement, request: Request, ids=Depends(principal)):
+        with factory() as db:
+            user, _ = valid_session(db, *ids)
+            refused = refusal(settings, user)
+        if refused:
+            return refused
+        ip = request.client.host if request.client else "unknown"
+        measurement_rate_limit(factory, settings, ip, user.id)
         with factory.begin() as db:
             user, _ = valid_session(db, *ids)
             return collect(db, settings, user, data)

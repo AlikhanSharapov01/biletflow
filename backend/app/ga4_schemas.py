@@ -32,7 +32,7 @@ class Measurement(BaseModel):
 
 class MeasurementResult(BaseModel):
     status: Literal["accepted", "duplicate", "skipped"]
-    reason: Literal["disabled", "consent_required", "not_connected"] | None = None
+    reason: Literal["disabled", "consent_required", "not_connected", "backlog_full"] | None = None
 
 
 class FunnelStep(BaseModel):

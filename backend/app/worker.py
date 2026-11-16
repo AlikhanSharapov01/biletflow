@@ -263,7 +263,7 @@ def main():
     engine, factory = database(settings.database_url.get_secret_value())
     storage = storage_from_settings(settings)
     ga4 = GA4Client(settings)
-    next_sweep = 0.0
+    next_sweep = next_ga4 = 0.0
     try:
         while True:
             HEARTBEAT_FILE.touch()
@@ -281,10 +281,6 @@ def main():
                     reconcile_ticket_pdfs(factory, storage)
                 except Exception:
                     pass  # abandoned ticket PDF writes stay scheduled in stored_file
-                try:
-                    export_ga4_once(factory, settings, ga4)
-                except Exception:
-                    pass  # GA4 measurements stay pending in analytics_export
             try:
                 busy = (
                     initialize_once(factory)
@@ -293,6 +289,13 @@ def main():
                 )
             except Exception:
                 busy = False  # retried next loop; payment state lives in the database
+            # Optional GA4 export runs after payment work, with its own time budget.
+            if time.monotonic() >= next_ga4:
+                next_ga4 = time.monotonic() + HOLD_SWEEP_SECONDS
+                try:
+                    export_ga4_once(factory, settings, ga4)
+                except Exception:
+                    pass  # GA4 measurements stay pending in analytics_export
             worked = deliver_once(factory, settings, storage=storage)
             if not (deliver_notifications_once(factory, settings) or worked or busy):
                 time.sleep(2)

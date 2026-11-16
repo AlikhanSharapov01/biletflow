@@ -24,6 +24,7 @@ from test_campaign_report_reconciliation import mixed_event, mixed_order
 from test_paid_orders import paid_event, pay
 from test_refunds import refund, settle
 
+from app import ga4_service
 from app.config import Settings
 from app.ga4_client import GA4Client, GA4Error, GA4Unavailable
 from app.ga4_models import AnalyticsExport, GA4Cache
@@ -58,11 +59,13 @@ class FixtureGA4:
 
     def __init__(self):
         self.sent, self.reports = [], []
-        self.outage = self.error = False
+        self.outage = self.error = self.rejects = False
 
     def send(self, payload):
         if self.outage:
             raise GA4Unavailable()
+        if self.rejects:
+            raise GA4Error()
         self.sent.append(payload)
 
     def run_report(self, property_id, body):
@@ -153,7 +156,17 @@ def test_scrub_page_keeps_only_public_route_templates():
     )
     assert scrub_page(settings, "/") == "https://biletflow.example/discover"
     assert scrub_page(settings, "/c/campaign-link-token") == "https://biletflow.example/c/campaign"
-    for private in ("/tickets/1", "/orders/2", "/account", "/admin", "/support/cases/3", "", None):
+    for private in (
+        "/tickets/1",
+        "/orders/2",
+        "/account",
+        "/admin",
+        "/support/cases/3",
+        "",
+        None,
+        "//[",
+        "http://[::1/events/x",
+    ):
         assert scrub_page(settings, private) is None
 
 
@@ -297,6 +310,57 @@ def test_concurrent_duplicate_measurements_store_one_row(client, setup, account,
     assert len(ga4.sent) == 1
 
 
+def test_measurements_are_rate_limited_and_capped(
+    client, setup, account, factory, app, ga4, monkeypatch
+):
+    f = paid_event(client, setup)
+    connect(client, f)
+    _, _, refusing = account()
+    for _ in range(5):  # refusal is answered before any rate counting
+        assert measure(client, refusing, f).json()["reason"] == "consent_required"
+    _, _, visitor = account()
+    consent(client, visitor)
+    monkeypatch.setattr(ga4_service, "MEASUREMENT_LIMIT", 2)
+    assert [measure(client, visitor, f).status_code for _ in range(3)] == [202, 202, 429]
+    assert len(exports(factory)) == 2
+    _, _, other = account()
+    consent(client, other)
+    monkeypatch.setattr(ga4_service, "PENDING_CAP", 2)
+    full = measure(client, other, f)
+    assert full.status_code == 202
+    assert full.json() == {"status": "skipped", "reason": "backlog_full"}
+    assert len(exports(factory)) == 2
+
+
+def test_malformed_page_path_is_dropped_not_an_error(client, setup, account, app, ga4):
+    f = paid_event(client, setup)
+    connect(client, f)
+    _, _, visitor = account()
+    consent(client, visitor)
+    r = measure(client, visitor, f, page_path="//[")
+    assert r.status_code == 202 and r.json()["status"] == "accepted"
+    run(app, ga4)
+    assert "page_location" not in ga4.sent[0]["events"][0]["params"]
+
+
+def test_collect_urls_are_kept_out_of_httpx_logs():
+    import logging
+
+    from app.ga4_client import DropCollectRequests
+
+    def record(url):
+        return logging.LogRecord(
+            "httpx", logging.INFO, "", 0, "HTTP Request: POST %s", (url,), None
+        )
+
+    keep = DropCollectRequests()
+    assert not keep.filter(
+        record("https://www.google-analytics.com/mp/collect?measurement_id=G-1&api_secret=s")
+    )
+    assert keep.filter(record("https://oauth2.googleapis.com/token"))
+    assert any(isinstance(f, DropCollectRequests) for f in logging.getLogger("httpx").filters)
+
+
 def test_purchase_and_refund_export_once_without_private_data(
     client, setup, account, factory, app, ga4
 ):
@@ -368,7 +432,8 @@ def test_refused_tracking_and_outage_cannot_affect_checkout_or_attribution(
     assert run(app, ga4) == 1  # the consenting buyer only; the send fails
     (pending,) = exports(factory)
     assert pending.order_id == UUID(order["id"]) and pending.status == "pending"
-    assert pending.attempt_count == 1 and pending.last_error == "ga4_unavailable"
+    # An outage does not use up an attempt.
+    assert pending.attempt_count == 0 and pending.last_error == "ga4_unavailable"
     after = analytics(client, f).json()
     assert after["revenue"] == before["revenue"] and after["by_campaign"] == before["by_campaign"]
     report = traffic(client, f).json()
@@ -380,21 +445,67 @@ def test_refused_tracking_and_outage_cannot_affect_checkout_or_attribution(
     assert run(app, ga4) == 1
     assert exports(factory)[0].status == "sent" and len(ga4.sent) == 1
 
-    # Exhausted retries end as failed and stay visible; nothing is retried forever.
-    third, payer = mixed_order(client, account, f, other)
-    consent(client, payer)
-    pay(client, payer, third["payment"]["id"], "succeeded")
-    ga4.outage = True
-    run(app, ga4)
+
+def due(factory):
     with factory.begin() as db:
-        db.execute(
-            update(AnalyticsExport)
-            .where(AnalyticsExport.order_id == UUID(third["id"]))
-            .values(attempt_count=5, available_at=now() - timedelta(seconds=1))
-        )
+        db.execute(update(AnalyticsExport).values(available_at=now() - timedelta(seconds=1)))
+
+
+def paid_consenting_order(client, account, f):
+    from test_paid_orders import buyer_order
+
+    order, buyer, _ = buyer_order(client, account, f)
+    consent(client, buyer)
+    pay(client, buyer, order["payment"]["id"], "succeeded")
+    return order
+
+
+def test_long_outage_never_exhausts_attempts(client, setup, account, factory, app, ga4):
+    f = paid_event(client, setup)
+    connect(client, f)
+    order = paid_consenting_order(client, account, f)
+    ga4.outage = True
+    for _ in range(12):  # far more passes than MAX_ATTEMPTS
+        run(app, ga4)
+        due(factory)
+    (row,) = exports(factory)
+    assert (row.status, row.attempt_count, row.last_error) == ("pending", 0, "ga4_unavailable")
+    ga4.outage = False
+    assert run(app, ga4) == 1
+    (row,) = exports(factory, order_id=UUID(order["id"]))
+    assert row.status == "sent" and row.sent_at and row.last_error is None
+
+
+def test_rejected_sends_fail_after_the_fifth_attempt(client, setup, account, factory, app, ga4):
+    f = paid_event(client, setup)
+    connect(client, f)
+    paid_consenting_order(client, account, f)
+    ga4.rejects = True
+    for attempt in range(1, 6):
+        assert run(app, ga4) == 1
+        (row,) = exports(factory)
+        assert row.attempt_count == attempt and row.last_error == "ga4_error"
+        assert row.status == ("failed" if attempt == 5 else "pending")
+        due(factory)
+    assert run(app, ga4) == 0  # failed rows stay visible and are not retried
+    assert exports(factory)[0].status == "failed" and ga4.sent == []
+
+
+def test_send_budget_defers_without_using_attempts(
+    client, setup, account, factory, app, ga4, monkeypatch
+):
+    f = paid_event(client, setup)
+    connect(client, f)
+    for _ in range(2):
+        paid_consenting_order(client, account, f)
+    monkeypatch.setattr(ga4_service, "SEND_BUDGET_SECONDS", 0)
     run(app, ga4)
-    (failed,) = exports(factory, order_id=UUID(third["id"]))
-    assert failed.status == "failed" and failed.last_error == "attempts_exhausted"
+    rows = exports(factory)
+    assert [(row.status, row.attempt_count) for row in rows] == [("pending", 0)] * 2
+    assert ga4.sent == []
+    monkeypatch.setattr(ga4_service, "SEND_BUDGET_SECONDS", 5)
+    assert run(app, ga4) == 2  # deferred rows are due again at once
+    assert len(ga4.sent) == 2
 
 
 def test_orders_before_connection_and_disconnected_orgs_are_not_exported(
@@ -429,7 +540,7 @@ def test_outage_defers_the_rest_of_the_batch(client, setup, account, factory, ap
     rows = exports(factory)
     assert sorted((row.attempt_count, row.last_error or "") for row in rows) == [
         (0, ""),
-        (1, "ga4_unavailable"),
+        (0, "ga4_unavailable"),
     ]
     assert {row.status for row in rows} == {"pending"} and ga4.sent == []
 
