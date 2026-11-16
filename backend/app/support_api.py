@@ -14,8 +14,8 @@ from .attachment_service import (
     attach_files,
     clean_filename,
     content_disposition,
-    download_content,
     download_link,
+    download_target,
     upload_attachment,
     upload_status,
 )
@@ -269,13 +269,14 @@ def router(factory, settings, principal, storage, scanner):
     ):
         """Open this URL directly: the signed token is the credential, so no bearer header is
         needed. Access is re-checked on every request."""
+        with factory() as db:
+            key, mime_type, filename = download_target(db, settings, token, attachment_id)
+        # Read after the session closes, so a slow store holds no database connection.
         try:
-            with factory() as db:
-                data, mime_type, filename = download_content(
-                    db, storage, settings, token, attachment_id
-                )
+            data = storage.get(key)
+        except FileNotFoundError:
+            fail("attachment_not_found", 404)
         except OSError:
-            # A missing object is already 404 attachment_not_found; this is the store failing.
             fail("storage_unavailable", 503)
         return Response(
             data,

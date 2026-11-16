@@ -541,7 +541,11 @@ def download_link(db, settings, user, case_id, attachment_id):
     }
 
 
-def download_content(db, storage, settings, token, attachment_id):
+def download_target(db, settings, token, attachment_id):
+    """(object key, mime type, filename) of an attachment the token's user may still read.
+
+    The caller reads the object after closing the session: storage is a network call.
+    """
     claims = read_download_token(settings, token)
     if claims is None or claims[0] != attachment_id:
         fail("download_link_invalid", 401)
@@ -561,11 +565,7 @@ def download_content(db, storage, settings, token, attachment_id):
         or file.status != "clean"
     ):
         fail("attachment_not_found", 404)
-    try:
-        data = storage.get(file.object_key)
-    except FileNotFoundError:
-        fail("attachment_not_found", 404)
-    return data, file.mime_type, attachment.original_filename
+    return file.object_key, file.mime_type, attachment.original_filename
 
 
 def content_disposition(filename):

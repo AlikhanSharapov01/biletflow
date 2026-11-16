@@ -49,22 +49,33 @@ def attachment_name(ticket_id):
     return f"biletflow-ticket-{ticket_id}.pdf"
 
 
-def stored_ticket_pdf(db, storage, ticket):
-    """The stored bytes for a valid ticket whose PDF is a clean file with a readable object.
+def stored_ticket_key(db, ticket):
+    """The object key of a valid ticket's PDF when it is a clean stored file, else None.
 
     Checked-in tickets are never served from storage: the rendered status mark differs, so a
-    stored copy would freeze it at "VALID". Any storage error means "render instead".
+    stored copy would freeze it at "VALID".
     """
     if ticket.status != "valid" or not ticket.pdf_file_id:
         return None
     stored = db.get(StoredFile, ticket.pdf_file_id)
     if not stored or stored.status != "clean":
         return None
+    return stored.object_key
+
+
+def read_ticket_pdf(storage, key):
+    """The stored bytes, or None on any storage error (meaning "render instead")."""
     try:
-        return storage.get(stored.object_key)
+        return storage.get(key)
     except Exception:
         # No exception text is kept: storage errors may echo paths.
         return None
+
+
+def stored_ticket_pdf(db, storage, ticket):
+    """The stored bytes for a valid ticket whose PDF is a clean file with a readable object."""
+    key = stored_ticket_key(db, ticket)
+    return read_ticket_pdf(storage, key) if key else None
 
 
 def ensure_ticket_pdf(factory, settings, storage, ticket_id):

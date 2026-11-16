@@ -550,6 +550,27 @@ def test_missing_object_and_wrong_case(client, app, world):
     assert gone.status_code == 404 and gone.json()["detail"]["code"] == "attachment_not_found"
 
 
+def test_download_reads_storage_without_holding_a_connection(client, app, world, monkeypatch):
+    # The object store is a network call: a slow one must not keep a pooled connection busy.
+    w = world
+    case_id = new_case(client, w)
+    file_id = upload(client, w["buyer"], case_id).json()["file_id"]
+    attachment_id = send(client, w["buyer"], case_id, [file_id]).json()["attachments"][0]["id"]
+    url = client.get(
+        SUPPORT + f"/cases/{case_id}/attachments/{attachment_id}/download-link", headers=w["buyer"]
+    ).json()["url"]
+    real_get, in_use = app.state.storage.get, []
+
+    def get(key):
+        in_use.append(app.state.engine.pool.checkedout())
+        return real_get(key)
+
+    monkeypatch.setattr(app.state.storage, "get", get)
+    response = client.get(url)
+    assert response.status_code == 200 and response.content == PNG
+    assert in_use == [0]
+
+
 def test_upload_rate_limit(client, world):
     w = world
     case_id = new_case(client, w)
