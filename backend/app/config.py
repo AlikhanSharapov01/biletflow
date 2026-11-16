@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     ga4_property_id: str = Field("", pattern=r"^[0-9]*$")
     ga4_credentials_json: SecretStr = SecretStr("")
     ga4_cache_seconds: int = Field(900, ge=60, le=86400)
+    # BF-16 malware scanning (app/malware_scanner.py): ClamAV's clamd over TCP (INSTREAM).
+    # "disabled" marks uploads clean unscanned; only for local development, refused in production.
+    malware_scanner: Literal["clamav", "disabled"] = "clamav"
+    clamav_host: str = "localhost"
+    clamav_port: int = Field(3310, ge=1, le=65535)
+    clamav_timeout_seconds: float = Field(15.0, gt=0, le=120)
 
     @model_validator(mode="after")
     def secure_settings(self):
@@ -88,4 +94,6 @@ class Settings(BaseSettings):
                 "https://"
             ) or not self.google_redirect_uri.startswith("https://"):
                 raise ValueError("Production callback and frontend URLs must use HTTPS")
+            if self.malware_scanner == "disabled":
+                raise ValueError("Production requires malware scanning (MALWARE_SCANNER=clamav)")
         return self

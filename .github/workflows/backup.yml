@@ -54,6 +54,12 @@ jobs:
         run: |
           worker="$(docker compose ps -q worker)"
           timeout 120 sh -c "until [ \"\$(docker inspect -f '{{.State.Health.Status}}' $worker)\" = healthy ]; do sleep 2; done"
+      # The drill links a support attachment right after uploading it; uploads stay quarantined
+      # until clamd has loaded its signatures (#75).
+      - name: Wait for a healthy ClamAV
+        run: |
+          clamav="$(docker compose ps -q clamav)"
+          timeout 600 sh -c "until [ \"\$(docker inspect -f '{{.State.Health.Status}}' $clamav)\" = healthy ]; do sleep 5; done"
       - run: uv sync --frozen --python 3.12
         working-directory: backend
       - name: Create data to protect

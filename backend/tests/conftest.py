@@ -11,6 +11,7 @@ from sqlalchemy.engine import make_url
 
 from app.config import Settings
 from app.main import create_app
+from app.malware_scanner import ScannerUnavailable
 from app.models import AccountToken, Base, User
 from app.security import challenge_value, now
 from app.seed import seed_catalog, seed_id
@@ -182,3 +183,29 @@ def setup(client, account, factory):
 def private_storage(settings, tmp_path, monkeypatch):
     """Every test gets its own storage root; nothing is written under backend/var."""
     monkeypatch.setattr(settings, "storage_root", str(tmp_path / "storage"))
+
+
+class FakeScanner:
+    """Stands in for clamd: clean unless a test sets `signature` (infected) or `down`."""
+
+    enabled = True
+
+    def __init__(self):
+        self.signature, self.down, self.scanned = None, False, []
+
+    def scan(self, data):
+        self.scanned.append(data)
+        if self.down:
+            raise ScannerUnavailable
+        return self.signature
+
+
+@pytest.fixture(autouse=True)
+def malware_scanner(monkeypatch):
+    """No test reaches a real ClamAV: the API and the worker both get this fake."""
+    from app import main, worker
+
+    fake = FakeScanner()
+    monkeypatch.setattr(main, "scanner_from_settings", lambda settings: fake)
+    monkeypatch.setattr(worker, "scanner_from_settings", lambda settings: fake)
+    return fake

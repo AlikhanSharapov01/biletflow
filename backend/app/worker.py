@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import and_, or_, select
 
 from . import all_models  # noqa: F401
+from .attachment_service import scan_attachments_once
 from .catalog_models import Invitation
 from .catalog_service import organization_guard
 from .checkout_expiry import sweep_expired_holds
@@ -22,6 +23,7 @@ from .email_templates import copy
 from .event_image_service import reconcile_images
 from .ga4_client import GA4Client
 from .ga4_service import export_ga4_once
+from .malware_scanner import scanner_from_settings
 from .models import AccountToken, OutboxJob, User
 from .notification_service import deliver_notifications_once
 from .observability import bind_correlation, configure_logging, correlated_job, signal, worker_task
@@ -290,6 +292,7 @@ def main():
     engine, factory = database(settings.database_url.get_secret_value())
     storage = storage_from_settings(settings)
     ga4 = GA4Client(settings)
+    scanner = scanner_from_settings(settings)
     next_sweep = next_ga4 = 0.0
     try:
         while True:
@@ -315,8 +318,11 @@ def main():
                 next_ga4 = time.monotonic() + HOLD_SWEEP_SECONDS
                 with worker_task("ga4_export"):
                     export_ga4_once(factory, settings, ga4)  # measurements stay pending
+            scanned = False  # quarantined files keep their durable scan job
+            with worker_task("attachment_scan"):
+                scanned = scan_attachments_once(factory, storage, scanner)
             worked = deliver_once(factory, settings, storage=storage)
-            if not (deliver_notifications_once(factory, settings) or worked or busy):
+            if not (deliver_notifications_once(factory, settings) or worked or busy or scanned):
                 time.sleep(2)
     finally:
         engine.dispose()

@@ -78,6 +78,7 @@ Response `201`: `{"case": CaseView, "message": MessageView}`.
 | `GET /cases/{case_id}` | Case with `viewer_roles` and `last_seq` |
 | `POST /cases/{case_id}/messages` | Body `{"client_message_id": "<uuid>", "body": "...", "attachment_ids": []}`. `201` new, `200` identical retry (`replayed: true`), `409 client_message_conflict` for the same id with a different body or a different `attachment_ids` list |
 | `POST /cases/{case_id}/attachments?filename=<name>` | Upload one file (raw body). See "Attachments" |
+| `GET /cases/{case_id}/uploads/{file_id}` | The caller's own upload and its current `status` (e.g. while quarantined) |
 | `GET /cases/{case_id}/attachments/{attachment_id}/download-link` | Short-lived signed link `{url, expires_at}` |
 | `GET /attachments/{attachment_id}/content?token=` | Download the bytes; the token is the credential |
 | `GET /cases/{case_id}/messages` | Messages only, `?after=<seq>&limit=` |
@@ -115,7 +116,8 @@ Files are uploaded first and linked to a message afterwards; they are never publ
 
 **Upload** `POST /cases/{case_id}/attachments?filename=<display name>`: the request body is the
 file itself (no multipart) and the `Content-Type` header is its declared type. Any case
-participant (requester, support, platform) may upload, also to a resolved case. Response `201`:
+participant (requester, support, platform) may upload, also to a resolved case. Response `201`
+for a clean file, `202` for a quarantined one (same body):
 
 ```json
 {"file_id": "<uuid>", "mime_type": "image/png", "size_bytes": 1234,
@@ -123,9 +125,28 @@ participant (requester, support, platform) may upload, also to a resolved case. 
 ```
 
 - Allowed types: `image/png`, `image/jpeg`, `application/pdf`. Any other declared type is
-  `415 unsupported_media_type` before the body is read. The leading bytes must match the declared
-  type (magic number), otherwise `422 attachment_rejected`; a `stored_file` row with status
-  `rejected` is kept for audit and no bytes are stored.
+  `415 unsupported_media_type` before the body is read.
+- **Content validation** (`app/file_content.py`, standard library only): the whole file must be
+  structurally valid for its declared type, not just start with its magic number. PNG: chunk
+  lengths and CRCs, a valid header, a palette where required, image data that inflates to exactly
+  the declared size (bounded, so decompression bombs are refused) and nothing after `IEND`. JPEG:
+  the marker/segment sequence from start to end-of-image with a frame header before the first
+  scan, and nothing after end-of-image. PDF: a version header, a final `startxref` pointing at a
+  cross-reference table whose in-use entries point at the objects they name (or at a
+  cross-reference stream), a trailer with `/Root`, and nothing after the final `%%EOF`. Failing
+  files get `422 attachment_rejected`; a `stored_file` row with status `rejected` is kept and no
+  bytes are stored. Damaged files that viewers silently repair (for example a wrong `startxref`
+  offset) are rejected too.
+- **Malware scanning** (`app/malware_scanner.py`): a valid file is streamed to ClamAV's clamd
+  (`INSTREAM` over TCP) before anything is stored. Infected: `422 attachment_infected`, a
+  `rejected` row with `scanned_at`, no bytes stored, and the signature name in the audit row only.
+  Clean: status `clean` (`201`). No verdict (clamd unreachable, timed out or answering with an
+  error): fail closed. The file is stored with status `quarantined` (`202`) and an
+  `attachment_scan` job is queued; the worker retries the scan with back-off (at most a minute
+  apart) until it gets a verdict or the one-hour link window ends. A quarantined file is never
+  linkable, listed or downloadable. A later clean verdict makes it `clean`; an infected one makes
+  it `rejected` and deletes its bytes. Poll `GET /cases/{case_id}/uploads/{file_id}` (uploader
+  only; others get `404 attachment_not_found`) to see the status change.
 - `413 attachment_too_large` above `ATTACHMENT_MAX_BYTES` (checked while the body streams in);
   `422 attachment_empty` for an empty body; `422 invalid_input` for a missing or over-long
   (200 characters) `filename`. Path separators and control characters in `filename` become `_`.
@@ -167,9 +188,18 @@ atomically below `STORAGE_ROOT` (default `var/storage`, relative to the working 
 S3-compatible service (`S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`,
 `S3_SECRET_ACCESS_KEY`), see the [README](README.md#private-file-storage). Objects are never
 public in either backend. Settings: `STORAGE_ROOT`, `ATTACHMENT_MAX_BYTES` (default 5 MiB),
-`ATTACHMENT_MAX_PER_MESSAGE` (default 5, max 20), `ATTACHMENT_LINK_SECONDS` (default 300).
-Audit: `support.attachment_uploaded` (file id, size and type only). Upload validation is
-synchronous: a file goes `pending` -> `clean` in the same request.
+`ATTACHMENT_MAX_PER_MESSAGE` (default 5, max 20), `ATTACHMENT_LINK_SECONDS` (default 300),
+`MALWARE_SCANNER` (`clamav`, the default, or `disabled`), `CLAMAV_HOST` (default `localhost`;
+Compose sets `clamav`), `CLAMAV_PORT` (3310), `CLAMAV_TIMEOUT_SECONDS` (15). The Compose `clamav`
+service runs `clamav/clamav:1.4`; the API and worker do not wait for it, so uploads are quarantined
+until it has loaded its signatures. `MALWARE_SCANNER=disabled` is only for local development
+without ClamAV: uploads are marked `clean` without a scan (`scanned_at` stays empty, the audit row
+says `scanned: False`), and `ENVIRONMENT=production` refuses it. The default never marks a file
+clean without a scan.
+
+Audit: `support.attachment_uploaded` (file id, size, type, resulting `status`, `scanned`; for an
+infected upload the `malware` signature name) and `support.attachment_scanned` (service actor
+`attachment_scanner`: the worker's later verdict, `status` and `malware` when infected).
 
 ## Cursor, polling and ordering
 
@@ -233,7 +263,7 @@ BF-15 and are not created here.
 | `support_case` | One thread: requester, organization/event/order/ticket context (composite foreign keys keep them consistent), kind, category, status, assignee, escalation, `last_seq` |
 | `support_message` | Append-only; unique `(case_id, author_user_id, client_message_id)` and `(case_id, seq)` |
 | `case_change` | Append-only status/assignment/escalation history with `seq` |
-| `stored_file` | Private object metadata: key, purpose, validated type, size, SHA-256, `status` (`pending`, `clean`, `rejected`, ...), uploader, display name |
+| `stored_file` | Private object metadata: key, purpose, validated type, size, SHA-256, `status` (`pending`, `quarantined` awaiting a scan, `clean`, `rejected` malformed or infected, `deleted`), `scanned_at`, uploader, display name |
 | `support_attachment` | Links one clean file (unique) to one message of the same case, with its display name |
 
 Differences from the reference DDL: status value is `waiting_for_customer`; `seq` columns and
@@ -241,7 +271,6 @@ Differences from the reference DDL: status value is `waiting_for_customer`; `seq
 
 ## Not implemented
 
-- Malware scanning and quarantine of attachments, which the requirements (BF-16) require: uploads are validated by content type and size only; the `pending`/`quarantined` states are kept for the scanner (#75).
 - Recovery of interrupted uploads and cleanup of uploaded files that are never linked (#76).
 - Email-channel notifications through the BF-15 fan-out: support events create in-app inbox entries (`support_reply`, `support_status`) while the email link is sent by the support worker (`support_email`).
 

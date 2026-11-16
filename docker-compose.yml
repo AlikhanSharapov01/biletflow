@@ -37,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
+      CLAMAV_HOST: clamav
       # Trust Caddy's X-Forwarded-For so per-address rate limits see the real client.
       # Port 8000 is published on localhost only, so nobody outside can forge this header.
       FORWARDED_ALLOW_IPS: "*"
@@ -71,6 +72,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
+      CLAMAV_HOST: clamav
       # Object storage (#77): the same bucket and account as api.
       STORAGE_BACKEND: s3
       S3_ENDPOINT_URL: http://storage:9000
@@ -169,6 +171,26 @@ services:
     restart: "no"
   # --- End of object storage ----------------------------------------------------------------
 
+  # --- Malware scanning for support attachments (BF-16, #75) ---------------------------------
+  # clamd answers INSTREAM on 3310 (published on localhost for a native API/worker). The API and
+  # worker deliberately do not wait for it: until it answers, uploads stay quarantined and the
+  # worker retries their scan. The first start downloads the signature database (a few minutes);
+  # the clamav_data volume keeps it across restarts.
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+  # --- end of malware scanning ----------------------------------------------------------------
+
   proxy:
     restart: unless-stopped
     build:
@@ -183,3 +205,4 @@ services:
 volumes:
   postgres_data:
   object_storage:
+  clamav_data: # malware signatures (#75)

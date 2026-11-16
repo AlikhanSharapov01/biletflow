@@ -16,8 +16,8 @@ from .attachment_service import (
     content_disposition,
     download_content,
     download_link,
-    link_expires_at,
     upload_attachment,
+    upload_status,
 )
 from .platform_settings import upload_limit
 from .security import decode_access, fail
@@ -78,7 +78,7 @@ def check_attachment_count(settings, data):
         fail("invalid_input", 422)
 
 
-def router(factory, settings, principal, storage):
+def router(factory, settings, principal, storage, scanner):
     routes = APIRouter(prefix="/api/v1/support", tags=["support"])
     hub = Hub()
     # 20 uploads a minute per account; the per-address bucket is only a coarse flood guard.
@@ -183,14 +183,21 @@ def router(factory, settings, principal, storage):
             hub.publish(case_id)
         return result
 
-    @routes.post("/cases/{case_id}/attachments", response_model=s.UploadedFile, status_code=201)
+    @routes.post(
+        "/cases/{case_id}/attachments",
+        response_model=s.UploadedFile,
+        status_code=201,
+        responses={202: {"model": s.UploadedFile, "description": "Stored, awaiting a scan"}},
+    )
     async def upload(
         case_id: UUID,
         request: Request,
+        response: Response,
         filename: str = Query(""),
         ids=Depends(principal),
     ):
-        """Raw-body upload: the body is the file, Content-Type its declared type."""
+        """Raw-body upload: the body is the file, Content-Type its declared type. `201` when the
+        file is clean, `202` while it is quarantined waiting for the malware scanner."""
         await run_in_threadpool(
             rate_limit,
             factory,
@@ -213,9 +220,21 @@ def router(factory, settings, principal, storage):
             if size > limit:
                 fail("attachment_too_large", 413)
             chunks.append(chunk)
-        return await run_in_threadpool(
-            store_upload, ids, case_id, name, content_type, b"".join(chunks)
+        result = await run_in_threadpool(
+            upload_attachment,
+            factory,
+            storage,
+            scanner,
+            settings,
+            ids,
+            case_id,
+            name,
+            content_type,
+            b"".join(chunks),
         )
+        if result["status"] == "quarantined":
+            response.status_code = 202
+        return result
 
     def participant_check(ids, case_id):
         # Strangers are turned away before any body is buffered.
@@ -224,24 +243,12 @@ def router(factory, settings, principal, storage):
             get_case(db, user, case_id)
             return upload_limit(db, settings)
 
-    def store_upload(ids, case_id, filename, content_type, data):
-        try:
-            with factory.begin() as db:
-                user, _ = valid_session(db, *ids)
-                file = upload_attachment(
-                    db, storage, settings, user, case_id, filename, content_type, data
-                )
-                return {
-                    "file_id": file.id,
-                    "mime_type": file.mime_type,
-                    "size_bytes": file.size_bytes,
-                    "sha256": file.sha256,
-                    "status": file.status,
-                    "expires_at": link_expires_at(file),
-                }
-        except OSError:
-            # The object store failed; the transaction rolled back, so no row was kept.
-            fail("storage_unavailable", 503)
+    @routes.get("/cases/{case_id}/uploads/{file_id}", response_model=s.UploadedFile)
+    def uploaded_file(case_id: UUID, file_id: UUID, ids=Depends(principal)):
+        """The uploader's own upload, e.g. to see a quarantined file become clean."""
+        with factory() as db:
+            user, _ = valid_session(db, *ids)
+            return upload_status(db, user, case_id, file_id)
 
     @routes.get(
         "/cases/{case_id}/attachments/{attachment_id}/download-link",

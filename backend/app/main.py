@@ -20,6 +20,7 @@ from .config import Settings
 from .db import database
 from .ga4_client import GA4Client
 from .google import GoogleClient
+from .malware_scanner import scanner_from_settings
 from .models import AccountToken, AuthSession, ExternalIdentity, OAuthAttempt, User
 from .observability import (
     REQUEST_ID_HEADER,
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None):
     app.state.ga4 = GA4Client(settings)
     app.state.storage = storage_from_settings(settings)
     app.state.metrics = RequestMetrics()
+    app.state.scanner = scanner_from_settings(settings)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -555,7 +557,11 @@ def create_app(settings: Settings | None = None):
     app.include_router(admin_router(factory, settings, principal))
     app.include_router(admin_jobs_router(factory, settings, principal))
     app.include_router(offline_router(factory, settings, principal))
-    app.include_router(support_router(factory, settings, principal, storage=app.state.storage))
+    app.include_router(
+        support_router(
+            factory, settings, principal, storage=app.state.storage, scanner=app.state.scanner
+        )
+    )
     app.include_router(activation_router(factory, settings, principal))
     app.include_router(paid_checkout_router(factory, settings, principal))
     app.include_router(campaign_router(factory, settings, principal))

@@ -1,21 +1,25 @@
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import func, select, update
 
-from app.attachment_service import make_download_token
+from app.attachment_service import SCAN_KIND, make_download_token, scan_attachments_once
 from app.catalog_models import StaffPermission
+from app.config import Settings
 from app.file_models import StoredFile, SupportAttachment
-from app.models import AuditLog
+from app.models import AuditLog, OutboxJob
 from app.security import now
 from app.storage import LocalFileStorage
 from tests.test_admission import free_ticket, published, staff
+from tests.test_file_content import jpeg, pdf, png
 from tests.test_support import SUPPORT, me, open_case
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"png-body" * 20
-JPEG = b"\xff\xd8\xff\xe0" + b"jpeg-body" * 20
-PDF = b"%PDF-1.7\n" + b"pdf-body" * 20
+# Real, structurally valid files (#75): magic bytes alone are rejected.
+PNG = png(size=(6, 6))
+JPEG = jpeg()
+PDF = pdf(b"support receipt")
 
 
 @pytest.fixture
@@ -55,6 +59,38 @@ def send(client, headers, case_id, file_ids, cmid=None, text="see attached"):
             "attachment_ids": file_ids,
         },
     )
+
+
+def upload_status(client, headers, case_id, file_id):
+    return client.get(SUPPORT + f"/cases/{case_id}/uploads/{file_id}", headers=headers)
+
+
+def scan_jobs(factory):
+    with factory() as db:
+        return list(db.scalars(select(OutboxJob).where(OutboxJob.kind == SCAN_KIND)))
+
+
+def stored(factory, file_id):
+    with factory() as db:
+        return db.get(StoredFile, UUID(str(file_id)))
+
+
+def audits(factory, action):
+    with factory() as db:
+        return list(
+            db.scalars(
+                select(AuditLog).where(AuditLog.action == action).order_by(AuditLog.created_at)
+            )
+        )
+
+
+def make_scan_due(factory):
+    with factory.begin() as db:
+        db.execute(
+            update(OutboxJob)
+            .where(OutboxJob.kind == SCAN_KIND)
+            .values(available_at=now() - timedelta(seconds=1))
+        )
 
 
 def new_case(client, w):
@@ -168,6 +204,7 @@ def test_staff_attachment_pdf_jpeg_and_audit(client, app, world, factory):
         "application/pdf",
         "image/jpeg",
     }
+    assert {a.safe_change["status"] for a in uploaded} == {"clean"}
     assert all("object_key" not in a.safe_change for a in uploaded)
 
 
@@ -194,6 +231,182 @@ def test_content_mismatch_is_rejected_and_recorded(client, app, world, factory):
         rejected_id = str(row.id)
     linked = send(client, w["buyer"], case_id, [rejected_id])
     assert linked.status_code == 409 and linked.json()["detail"]["file_id"] == rejected_id
+
+
+def test_malformed_files_are_rejected_without_storing_bytes(
+    client, app, world, factory, malware_scanner
+):
+    w = world
+    case_id = new_case(client, w)
+    malformed = [
+        (b"\x89PNG\r\n\x1a\n" + b"png-body" * 20, "image/png"),  # signature only
+        (PNG[:-12], "image/png"),  # truncated
+        (PNG + b"<html><script>", "image/png"),  # content appended after IEND
+        (b"\xff\xd8\xff\xe0" + b"jpeg-body" * 20, "image/jpeg"),
+        (JPEG[:-2], "image/jpeg"),  # no end-of-image marker
+        (b"%PDF-1.7\n" + b"pdf-body" * 20, "application/pdf"),
+        (b"%PDF-1.4\n% no objects\n%%EOF\n", "application/pdf"),
+    ]
+    for data, content_type in malformed:
+        r = upload(client, w["buyer"], case_id, data, content_type)
+        assert r.status_code == 422, r.text
+        assert r.json()["detail"]["code"] == "attachment_rejected"
+    with factory() as db:
+        rows = db.scalars(select(StoredFile)).all()
+    assert len(rows) == len(malformed) and {row.status for row in rows} == {"rejected"}
+    for row in rows:
+        with pytest.raises(FileNotFoundError):
+            app.state.storage.get(row.object_key)
+    assert malware_scanner.scanned == []  # malformed content never reaches the scanner
+    assert scan_jobs(factory) == []
+
+
+def test_infected_upload_is_rejected_and_never_stored(client, app, world, factory, malware_scanner):
+    w = world
+    case_id = new_case(client, w)
+    malware_scanner.signature = "Eicar-Test-Signature"
+    r = upload(client, w["buyer"], case_id, PDF, "application/pdf", "invoice.pdf")
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "attachment_infected"
+    assert "Eicar" not in r.text
+    assert malware_scanner.scanned == [PDF]
+    with factory() as db:
+        row = db.scalars(select(StoredFile)).one()
+    assert row.status == "rejected" and row.scanned_at is not None
+    with pytest.raises(FileNotFoundError):
+        app.state.storage.get(row.object_key)
+    [audit] = audits(factory, "support.attachment_uploaded")
+    assert audit.safe_change["status"] == "rejected"
+    assert audit.safe_change["malware"] == "Eicar-Test-Signature"
+    linked = send(client, w["buyer"], case_id, [str(row.id)])
+    assert linked.status_code == 409 and linked.json()["detail"]["file_id"] == str(row.id)
+    assert scan_jobs(factory) == []
+
+
+def test_scanner_outage_quarantines_until_the_worker_gets_a_verdict(
+    client, app, world, factory, malware_scanner
+):
+    w = world
+    storage = app.state.storage
+    case_id = new_case(client, w)
+    malware_scanner.down = True
+    r = upload(client, w["buyer"], case_id)
+    assert r.status_code == 202, r.text
+    file_id = r.json()["file_id"]
+    assert r.json()["status"] == "quarantined"
+    assert stored(factory, file_id).scanned_at is None
+
+    # Fail closed: an unscanned file can be neither linked nor listed; only its uploader sees it.
+    blocked = send(client, w["buyer"], case_id, [file_id])
+    assert blocked.status_code == 409 and blocked.json()["detail"]["file_id"] == file_id
+    status = upload_status(client, w["buyer"], case_id, file_id)
+    assert status.status_code == 200 and status.json()["status"] == "quarantined"
+    other = upload_status(client, w["support"], case_id, file_id)
+    assert other.status_code == 404 and other.json()["detail"]["code"] == "attachment_not_found"
+    assert upload_status(client, w["other"], case_id, file_id).status_code == 404
+    [job] = scan_jobs(factory)
+    assert job.payload == {"version": 1, "file_id": file_id, "case_id": case_id}
+    assert storage.get(stored(factory, file_id).object_key) == PNG  # kept for the retry
+
+    # Still down: the durable job backs off and the file stays quarantined.
+    assert scan_attachments_once(factory, storage, malware_scanner) is True
+    [job] = scan_jobs(factory)
+    assert job.status == "pending" and job.attempt_count == 1 and job.available_at > now()
+    assert job.last_error == "scanner_unavailable"
+    assert stored(factory, file_id).status == "quarantined"
+    assert scan_attachments_once(factory, storage, malware_scanner) is False  # not due yet
+
+    # The scanner is back: the next attempt releases the file.
+    malware_scanner.down = False
+    make_scan_due(factory)
+    assert scan_attachments_once(factory, storage, malware_scanner) is True
+    [job] = scan_jobs(factory)
+    assert job.status == "done" and job.attempt_count == 2 and job.last_error is None
+    row = stored(factory, file_id)
+    assert row.status == "clean" and row.scanned_at is not None
+    [scanned] = audits(factory, "support.attachment_scanned")
+    assert scanned.service_actor == "attachment_scanner"
+    assert scanned.safe_change["status"] == "clean" and scanned.safe_change["file_id"] == file_id
+    assert upload_status(client, w["buyer"], case_id, file_id).json()["status"] == "clean"
+    sent = send(client, w["buyer"], case_id, [file_id])
+    assert sent.status_code == 201, sent.text
+    attachment_id = sent.json()["attachments"][0]["id"]
+    link = client.get(
+        SUPPORT + f"/cases/{case_id}/attachments/{attachment_id}/download-link",
+        headers=w["support"],
+    )
+    assert client.get(link.json()["url"]).content == PNG
+    # A finished job is never picked up again.
+    make_scan_due(factory)
+    assert scan_attachments_once(factory, storage, malware_scanner) is False
+
+
+def test_worker_rejects_a_quarantined_file_found_infected(
+    client, app, world, factory, malware_scanner
+):
+    w = world
+    case_id = new_case(client, w)
+    malware_scanner.down = True
+    file_id = upload(client, w["buyer"], case_id).json()["file_id"]
+    key = stored(factory, file_id).object_key
+    malware_scanner.down, malware_scanner.signature = False, "Win.Test.EICAR_HDB-1"
+    assert scan_attachments_once(factory, app.state.storage, malware_scanner) is True
+    row = stored(factory, file_id)
+    assert row.status == "rejected" and row.scanned_at is not None
+    with pytest.raises(FileNotFoundError):
+        app.state.storage.get(key)
+    [scanned] = audits(factory, "support.attachment_scanned")
+    assert scanned.safe_change["status"] == "rejected"
+    assert scanned.safe_change["malware"] == "Win.Test.EICAR_HDB-1"
+    assert [job.status for job in scan_jobs(factory)] == ["done"]
+    assert send(client, w["buyer"], case_id, [file_id]).status_code == 409
+    assert upload_status(client, w["buyer"], case_id, file_id).json()["status"] == "rejected"
+
+
+def test_revoked_uploader_cannot_use_a_file_released_later(
+    client, app, world, factory, malware_scanner
+):
+    w = world
+    case_id = new_case(client, w)
+    malware_scanner.down = True
+    file_id = upload(client, w["support"], case_id).json()["file_id"]
+    with factory.begin() as db:
+        db.execute(update(StaffPermission).values(revoked_at=func.now()))
+    malware_scanner.down = False
+    assert scan_attachments_once(factory, app.state.storage, malware_scanner) is True
+    assert stored(factory, file_id).status == "clean"  # the verdict does not depend on access
+    # Linking and status reads re-check the relationship to the case.
+    denied = send(client, w["support"], case_id, [file_id])
+    assert denied.status_code == 404 and denied.json()["detail"]["code"] == "case_not_found"
+    assert upload_status(client, w["support"], case_id, file_id).status_code == 404
+    # Nobody else may link it either.
+    assert send(client, w["buyer"], case_id, [file_id]).status_code == 409
+
+
+def test_disabled_scanner_is_explicit_and_records_no_scan(client, world, factory, malware_scanner):
+    w = world
+    case_id = new_case(client, w)
+    malware_scanner.enabled = False
+    r = upload(client, w["buyer"], case_id)
+    assert r.status_code == 201 and r.json()["status"] == "clean"
+    assert stored(factory, r.json()["file_id"]).scanned_at is None
+    [audit] = audits(factory, "support.attachment_uploaded")
+    assert audit.safe_change["scanned"] == "False"
+
+
+def test_production_refuses_a_disabled_scanner(settings):
+    production = {
+        "_env_file": None,
+        "database_url": settings.database_url.get_secret_value(),
+        "jwt_secret": "j" * 48,
+        "challenge_secret": "c" * 48,
+        "environment": "production",
+        "allowed_origins": ["https://biletflow.example"],
+        "frontend_url": "https://biletflow.example",
+        "google_redirect_uri": "https://biletflow.example/api/v1/auth/google/callback",
+    }
+    assert Settings(**production).malware_scanner == "clamav"
+    with pytest.raises(ValidationError, match="malware scanning"):
+        Settings(**production, malware_scanner="disabled")
 
 
 def test_size_type_and_empty_limits(client, world, factory):

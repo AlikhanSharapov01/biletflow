@@ -17,6 +17,7 @@ from app.platform_settings import effective_setting
 from app.security import now
 from tests.test_admin import ADMIN, code
 from tests.test_admission import free_ticket, published, staff
+from tests.test_file_content import pdf
 from tests.test_paid_orders import PRICE, body, hold, paid_event, pay
 from tests.test_support import SUPPORT, open_case
 
@@ -257,9 +258,6 @@ def test_activation_fee_setting_cannot_be_zero(client, admin):
 # ------------------------------------------------------------------ upload limits
 
 
-PDF = b"%PDF-1.7\n"
-
-
 def test_support_uploads_follow_the_setting_and_never_exceed_the_deployment_cap(
     client, setup, account, factory, settings, admin
 ):
@@ -273,7 +271,7 @@ def test_support_uploads_follow_the_setting_and_never_exceed_the_deployment_cap(
         return client.post(
             SUPPORT + f"/cases/{case_id}/attachments",
             params={"filename": "note.pdf"},
-            content=PDF + b"x" * (size - len(PDF)),
+            content=pdf(size=size),  # a valid PDF of exactly `size` bytes
             headers={**buyer, "Content-Type": "application/pdf"},
         )
 

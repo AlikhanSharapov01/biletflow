@@ -61,7 +61,7 @@ Docker is controlled from the repository root:
 
 ```bash
 cp .env.example .env
-docker compose up --build -d db migrate storage storage-init api worker mailpit
+docker compose up --build -d db migrate storage storage-init api worker mailpit clamav
 docker compose logs -f api worker
 ```
 
@@ -85,7 +85,7 @@ Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Keep PostgreSQL an
 Docker:
 
 ```bash
-docker compose up -d db migrate mailpit     # from the repository root
+docker compose up -d db migrate mailpit clamav   # from the repository root
 cd backend
 cp .env.example .env                        # keep APP_DB_PASSWORD equal to the root .env
 uv sync --frozen
@@ -100,6 +100,13 @@ uv run python -m app.worker
 
 Natively, uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage`); see
 [Private file storage](#private-file-storage) for the Docker stack's S3-compatible bucket.
+
+Support attachments are scanned by ClamAV (`clamav` Compose service, clamd on
+`localhost:3310`; its first start downloads signatures for a few minutes). While clamd is not
+reachable, uploads are stored as `quarantined`, cannot be linked or downloaded, and the worker
+retries their scan. To develop natively without ClamAV, set `MALWARE_SCANNER=disabled` in
+`backend/.env`: uploads are then marked clean without a scan. Production refuses that setting.
+See [SUPPORT_API.md](SUPPORT_API.md#attachments).
 
 Ticket PDFs need no system font setup on Windows, macOS or Linux: DejaVu Sans 2.37 (regular and
 bold, which cover Kazakh and Russian Cyrillic) is bundled in `app/fonts/` with its license and is
@@ -119,6 +126,7 @@ substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
 | `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON` | Optional GA4 export and traffic reports, off by default; see [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
+| `MALWARE_SCANNER` / `CLAMAV_HOST` / `CLAMAV_PORT` / `CLAMAV_TIMEOUT_SECONDS` | Attachment scanning: `clamav` (default; clamd at host:port, default `localhost:3310`, 15 s timeout) or `disabled` (local development only, refused in production) |
 | `STORAGE_BACKEND` | `local` (default; files under `STORAGE_ROOT`) or `s3`; see [Private file storage](#private-file-storage) |
 
 ### Private file storage
@@ -231,6 +239,8 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 retries with back-off and marks a job `dead` after 5 attempts. It handles:
 
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
+- malware scan retries for quarantined support attachments (`attachment_scan` jobs, back-off up
+  to one minute, until a verdict or the end of the one-hour link window);
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
 - releasing expired holds, reconciling orphan event images and abandoned ticket PDF writes, and
@@ -421,8 +431,8 @@ Open backend work, from the audit in #85, in dependency order (see the
 1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
    database and file backups (#69, with operations).
 2. Campaign report reconciliation (#67); platform
-   settings applied to checkout and activation (#70); attachment malware scanning and quarantine
-   (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
+   settings applied to checkout and activation (#70); upload recovery (#76). Attachment content
+   validation and ClamAV malware quarantine (#75) are implemented.
 3. Moderation notices (#74).
 4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
    (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
