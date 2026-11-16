@@ -81,10 +81,6 @@ def check_attachment_count(settings, data):
 def router(factory, settings, principal, storage, scanner):
     routes = APIRouter(prefix="/api/v1/support", tags=["support"])
     hub = Hub()
-    # 20 uploads a minute per account; the per-address bucket is only a coarse flood guard.
-    upload_limits = settings.model_copy(
-        update={"rate_identity_limit": 20, "rate_ip_limit": 200, "rate_window_seconds": 60}
-    )
 
     @routes.post("/cases", response_model=s.CaseCreated, status_code=201)
     def create_case(data: s.CaseCreate, response: Response, ids=Depends(principal)):
@@ -198,13 +194,17 @@ def router(factory, settings, principal, storage, scanner):
     ):
         """Raw-body upload: the body is the file, Content-Type its declared type. `201` when the
         file is clean, `202` while it is quarantined waiting for the malware scanner."""
+        # 20 uploads per window (60 s by default) per account; the per-address bucket is only a
+        # coarse flood guard.
         await run_in_threadpool(
             rate_limit,
             factory,
-            upload_limits,
+            settings,
             request.client.host if request.client else "unknown",
             "support_upload",
             str(ids[0]),
+            ip_limit=200,
+            identity_limit=20,
         )
         content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type not in ALLOWED_TYPES:
