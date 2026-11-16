@@ -228,14 +228,13 @@ for areas already merged does not have to wait for steps 1–2.
 Done on 12–13 November: the docs reconcile (#84), demo fixtures (#79), crash recovery (#83) and
 load (#80) harnesses, stale refund callbacks (#65), campaign revalidation at paid fulfilment
 (#66), committed ticket PDFs and their cleanup (#68), consistent backups (#69) and Kazakh/Russian
-PDF text (#82).
+PDF text (#82). API-implemented on the `dauka-backend` branch, pending merge and a full suite run:
+#71, #72, #73, #75, #76, #77, #78, #81.
 
-1. **Campaigns, settings, uploads:** reconcile campaign reports (#67), apply platform settings
-   to checkout and activation (#70), attachment malware quarantine (#75), recovery of abandoned
-   uploads (#76).
-2. **Admin and operations:** exhausted jobs and deliveries (#73), admin search and detail (#72),
-   moderation notices (#74), correlation IDs and metrics (#78).
-3. **Reporting and clients:** GA4 (#71), analytics export (#81); web integration (#45); mobile
+1. **Campaigns, settings:** reconcile campaign reports (#67), apply platform settings
+   to checkout and activation (#70).
+2. **Admin:** moderation notices (#74).
+3. **Reporting and clients:** live GA4 data (#71 needs a property); web integration (#45); mobile
    integration (#51); HTTPS for the shared
    demo (#49).
 4. **Acceptance:** real devices (#53); rerun the load and crash harnesses and the
