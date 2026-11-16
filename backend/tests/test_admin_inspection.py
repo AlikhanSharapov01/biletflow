@@ -44,10 +44,11 @@ def test_inspection_is_admin_only(client, setup, account):
     f = setup()  # an organizer owner is not a platform admin
     _, _, attendee_headers = account()
     for path in INSPECTION_CALLS:
-        assert client.get(ADMIN + path).status_code == 401, path
+        anonymous = client.get(ADMIN + path)
+        assert anonymous.status_code == 401, (path, anonymous.text)
         for headers in (f["headers"], attendee_headers):
             r = client.get(ADMIN + path, headers=headers)
-            assert r.status_code == 403 and code(r) == "admin_required", path
+            assert r.status_code == 403 and code(r) == "admin_required", (path, r.text)
 
 
 def support_world(client, setup, account, factory):
@@ -77,7 +78,9 @@ def test_support_case_search_by_identifiers_and_fields(client, setup, account, a
         assert [row["id"] for row in page["items"]] == [case["id"]], params
     # Text search matches the subject literally; LIKE wildcards are not patterns.
     assert ok(get(client, headers, "/support-cases", q="100%_done"))["total"] == 1
-    assert ok(get(client, headers, "/support-cases", q="%"))["total"] == 0
+    # "%" as a pattern would match both cases; literally it matches only the subject holding it.
+    literal = ok(get(client, headers, "/support-cases", q="%"))
+    assert [row["id"] for row in literal["items"]] == [other["id"]], literal
     scoped = ok(
         get(
             client,
@@ -143,8 +146,8 @@ def test_support_detail_is_read_only_and_grants_no_role(
     )
     assert r.status_code == 200, r.text
     detail = ok(get(client, headers, f"/support-cases/{case['id']}"))
-    assert detail["viewer_roles"] == ["platform"]
-    assert [h["change_kind"] for h in detail["history"]] == ["escalation"]
+    assert detail["viewer_roles"] == ["platform"], detail
+    assert [h["change_kind"] for h in detail["history"]] == ["escalation"], detail
     assert ok(get(client, headers, "/support-cases", escalated="true"))["total"] == 1
     missing = get(client, headers, f"/support-cases/{uuid4()}")
     assert missing.status_code == 404 and code(missing) == "case_not_found"

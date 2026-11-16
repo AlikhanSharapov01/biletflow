@@ -44,7 +44,7 @@ def support_cases_query(
     organization_id=None,
     status=None,
     category=None,
-    kind=None,
+    case_kind=None,
     escalated=None,
     **_,
 ):
@@ -87,7 +87,7 @@ def support_cases_query(
             (SupportCase.organization_id, organization_id),
             (SupportCase.status, status),
             (SupportCase.category, category),
-            (SupportCase.case_kind, kind),
+            (SupportCase.case_kind, case_kind),
         ),
     )
     if escalated is not None:

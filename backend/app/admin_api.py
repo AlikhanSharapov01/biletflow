@@ -188,7 +188,8 @@ def router(factory, settings, principal):
             organization_id=organization_id,
             status=status,
             category=category,
-            kind=kind,
+            # Not `kind=`: inspection_page/search_page take the search name as `kind`.
+            case_kind=kind,
             escalated=escalated,
         )
 
