@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from sqlalchemy import func, select, update
 
+from . import analytics_service
 from .campaign_models import (
     Campaign,
     CampaignTicketType,
@@ -18,8 +19,6 @@ from .campaign_models import (
 )
 from .catalog_models import Organization, TicketType
 from .catalog_service import catalog_audit, editable, event_caps, event_guard
-from .checkout_models import OrderItem, Ticket, TicketOrder
-from .commerce_models import Refund
 from .pricing import is_eligible
 from .security import derive, digest, fail, now
 from .ticket_pdf import qr_matrix
@@ -283,46 +282,37 @@ def disable_campaign(db, settings, user, event_id, campaign_id):
     return campaign_view(db, settings, campaign)
 
 
+REPORT_DEFINITIONS = {
+    "attribution": "Eligible lines only; other lines of the same order are not part of the campaign.",
+    "tickets": "Tickets sold on eligible lines, kept in history after a refund.",
+    "tickets_refunded": "Historical: eligible tickets later refunded.",
+    "tickets_kept": "Current: eligible tickets that are still valid or checked in.",
+    "gross_minor": analytics_service.DEFINITIONS["gross_minor"],
+    "collected_minor": analytics_service.DEFINITIONS["collected_minor"],
+    "fees_minor": analytics_service.DEFINITIONS["fees_minor"],
+    "pending_refunds_minor": analytics_service.DEFINITIONS["pending_refunds_minor"],
+    "net_minor": analytics_service.DEFINITIONS["net_minor"],
+}
+
+
 def campaign_report(db, campaign):
-    orders = list(
-        db.scalars(
-            select(TicketOrder)
-            .join(PromoRedemption, PromoRedemption.order_id == TicketOrder.id)
-            .where(PromoRedemption.campaign_id == campaign.id)
-        )
-    )
-    order_ids = [order.id for order in orders]
-    statuses = list(
-        db.scalars(
-            select(Ticket.status)
-            .join(OrderItem, OrderItem.id == Ticket.order_item_id)
-            .where(OrderItem.order_id.in_(order_ids))
-        )
-    )
-    attempts = [
-        o.fulfillment_payment_attempt_id for o in orders if o.fulfillment_payment_attempt_id
-    ]
-    refunds = db.scalar(
-        select(func.coalesce(func.sum(Refund.amount_minor), 0)).where(
-            Refund.payment_attempt_id.in_(attempts), Refund.status == "succeeded"
-        )
-    )
-    collected = sum(order.payable_minor for order in orders)
-    fees = sum(order.processing_fee_minor for order in orders)
-    refunded = sum(status == "refunded" for status in statuses)
+    """Same attribution, fee/refund and net definitions as the event analytics (BF-09/BF-18)."""
+    metrics = analytics_service.campaign_totals(db, campaign.event_id, campaign.id)
     return {
         "campaign_id": campaign.id,
-        "redemptions": len(orders),
-        "orders": len(orders),
-        "tickets": len(statuses),
-        "tickets_refunded": refunded,
-        "tickets_kept": sum(status in ("valid", "checked_in") for status in statuses),
-        "gross_minor": sum(order.gross_minor for order in orders),
-        "discount_minor": sum(order.discount_minor for order in orders),
-        "collected_minor": collected,
-        "refunds_minor": refunds,
-        "fees_minor": fees,
-        "net_minor": collected - refunds - fees,
+        "redemptions": metrics["redemptions"],
+        "orders": metrics["redemptions"],
+        "tickets": metrics["original_tickets"],
+        "tickets_refunded": metrics["refunded_tickets"],
+        "tickets_kept": metrics["issued"],
+        "gross_minor": metrics["gross_minor"],
+        "discount_minor": metrics["discount_minor"],
+        "collected_minor": metrics["collected_minor"],
+        "refunds_minor": metrics["refunds_minor"],
+        "pending_refunds_minor": metrics["pending_refunds_minor"],
+        "fees_minor": metrics["fees_minor"],
+        "net_minor": metrics["net_minor"],
+        "definitions": REPORT_DEFINITIONS,
         "generated_at": now(),
     }
 

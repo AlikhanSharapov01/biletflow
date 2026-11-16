@@ -77,8 +77,10 @@ class CampaignReport(BaseModel):
     discount_minor: int
     collected_minor: int
     refunds_minor: int
+    pending_refunds_minor: int
     fees_minor: int
     net_minor: int
+    definitions: dict[str, str]
     generated_at: datetime
 
 
