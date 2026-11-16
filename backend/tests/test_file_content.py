@@ -95,6 +95,70 @@ def xref_stream_pdf():
     return bytes(out)
 
 
+def compressed_pdf():
+    """PDF 1.5 with the catalog inside an object stream and a PNG-predicted xref stream."""
+    out = bytearray(b"%PDF-1.5\n")
+    members = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [] /Count 0 >>"]
+    head, body = b"", b""
+    for number, member in enumerate(members, 1):
+        head += b"%d %d " % (number, len(body))
+        body += member + b"\n"
+    packed = zlib.compress(head + body)
+    objstm = len(out)
+    out += (
+        b"3 0 obj\n<< /Type /ObjStm /N 2 /First %d /Filter /FlateDecode /Length %d >>\n"
+        b"stream\n%s\nendstream\nendobj\n" % (len(head), len(packed), packed)
+    )
+    xref = len(out)
+    entries = [(0, 0, 255), (2, 3, 0), (2, 3, 1), (1, objstm, 0), (1, xref, 0)]
+    rows, previous = b"", bytes(4)
+    for entry in entries:
+        line = bytes([entry[0]]) + struct.pack(">H", entry[1]) + bytes([entry[2]])
+        rows += b"\x02" + bytes((a - b) & 0xFF for a, b in zip(line, previous))  # PNG "Up"
+        previous = line
+    packed = zlib.compress(rows)
+    out += (
+        b"4 0 obj\n<< /Type /XRef /Size 5 /W [1 2 1] /Root 1 0 R /Filter /FlateDecode "
+        b"/DecodeParms << /Columns 4 /Predictor 12 >> /Length %d >>\nstream\n%s\n"
+        b"endstream\nendobj\nstartxref\n%d\n%%%%EOF\n" % (len(packed), packed, xref)
+    )
+    return bytes(out)
+
+
+def incremental_pdf():
+    """An incremental update: the newest xref section only lists the changed object."""
+    base = pdf()
+    previous = int(base[base.rindex(b"startxref") + 10 :].split()[0])
+    out = bytearray(base)
+    offset = len(out)
+    out += b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] >>\nendobj\n"
+    xref = len(out)
+    out += b"xref\n3 1\n%010d 00000 n \n" % offset
+    out += b"trailer\n<< /Size 4 /Root 1 0 R /Prev %d >>\nstartxref\n%d\n%%%%EOF\n" % (
+        previous,
+        xref,
+    )
+    return bytes(out)
+
+
+def fake_tail_pdf(payload):
+    """Arbitrary bytes behind a syntactically plausible but empty cross-reference table."""
+    out = b"%PDF-1.7\n" + payload
+    xref = len(out)
+    return out + (
+        b"xref\n0 1\n0000000000 65535 f \ntrailer<</Root 9 0 R>>\nstartxref\n%d\n%%%%EOF\n" % xref
+    )
+
+
+def fake_xref_stream_pdf(payload):
+    out = b"%PDF-1.7\n" + payload
+    xref = len(out)
+    return out + (
+        b"1 0 obj<</Type/XRef/Root 9 0 R>>stream\nGARBAGE\nendstream endobj\n"
+        b"startxref\n%d\n%%%%EOF\n" % xref
+    )
+
+
 def pdf_from_reportlab():
     from reportlab.pdfgen import canvas
 
@@ -146,7 +210,15 @@ def test_jpeg_with_exif_and_restart_markers_is_accepted():
 
 
 @pytest.mark.parametrize(
-    "data", [pdf(), pdf(b"padding" * 100), pdf_from_reportlab(), xref_stream_pdf()]
+    "data",
+    [
+        pdf(),
+        pdf(b"padding" * 100),
+        pdf_from_reportlab(),
+        xref_stream_pdf(),
+        compressed_pdf(),
+        incremental_pdf(),
+    ],
 )
 def test_real_pdf_files_are_accepted(data):
     assert valid_content("application/pdf", data)
@@ -256,3 +328,35 @@ def test_malformed_pdf_is_rejected():
     stream = xref_stream_pdf()
     assert not valid_content("application/pdf", stream.replace(b"/Type /XRef", b"/Type /XRaf"))
     assert not valid_content("application/pdf", stream.replace(b"/Root 1 0 R", b"/Rost 1 0 R"))
+
+
+@pytest.mark.parametrize(
+    "payload", [b"MZ\x90\x00" + bytes(200), b"<html><script>alert(1)</script></html>\n"]
+)
+def test_arbitrary_content_behind_a_fake_pdf_tail_is_rejected(payload):
+    assert not valid_content("application/pdf", fake_tail_pdf(payload))
+    assert not valid_content("application/pdf", fake_xref_stream_pdf(payload))
+
+
+def test_pdf_root_must_resolve_to_a_catalog():
+    good = pdf()
+    # Root names an object that is not in the table, is free, or is not a catalog.
+    assert not valid_content("application/pdf", good.replace(b"/Root 1 0 R", b"/Root 9 0 R"))
+    assert not valid_content("application/pdf", good.replace(b"/Root 1 0 R", b"/Root 2 0 R"))
+    assert not valid_content("application/pdf", good.replace(b"/Root 1 0 R", b"/Root 1 5 R"))
+    assert not valid_content("application/pdf", good.replace(b"/Type /Catalog", b"/Type /Catxlog"))
+    catalog_entry = good.index(b"65535 f \n") + len(b"65535 f \n") + 17  # object 1's n/f flag
+    assert good[catalog_entry : catalog_entry + 1] == b"n"
+    freed = good[:catalog_entry] + b"f" + good[catalog_entry + 1 :]
+    assert not valid_content("application/pdf", freed)
+    # The same rules for a catalog compressed into an object stream.
+    packed = compressed_pdf()
+    assert not valid_content("application/pdf", packed.replace(b"/Root 1 0 R", b"/Root 2 0 R"))
+    assert not valid_content("application/pdf", packed.replace(b"/Type /ObjStm", b"/Type /ObjStx"))
+    assert not valid_content("application/pdf", packed.replace(b"/Predictor 12", b"/Predictor 2"))
+    assert not valid_content("application/pdf", packed.replace(b"/Columns 4", b"/Columns 5"))
+    # A broken /Prev chain (loop or bad offset) is refused.
+    update = incremental_pdf()
+    xref = int(update[update.rindex(b"startxref") + 10 :].split()[0])
+    looped = update.replace(b"/Prev ", b"/Prev %d " % xref + b"/Old ")
+    assert not valid_content("application/pdf", looped)

@@ -205,6 +205,10 @@ def test_failed_cleanup_delete_stays_scheduled(client, app, world, factory, monk
     monkeypatch.setattr(storage, "delete", real_delete)
     make_due(factory, row.id)
     assert reconcile_attachments(factory, storage) == 1
+    # The retried delete succeeded: still a tombstone, now with only the late-write check left.
+    [row] = support_files(factory)
+    assert row.status == "deleted" and not exists(storage, row.object_key)
+    assert row.cleanup_after == row.created_at + attachments.LATE_WRITE_CHECK
 
 
 # --------------------------------------------------------------------------------------------

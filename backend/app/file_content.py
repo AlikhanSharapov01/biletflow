@@ -8,9 +8,11 @@ container format with the standard library only:
   as soon as it overshoots, which bounds decompression bombs), and IEND as the last bytes.
 - JPEG: the marker/segment sequence from SOI to EOI with a frame header before the first scan,
   skipping entropy-coded data by its byte-stuffing rules, and nothing after EOI.
-- PDF: a version header, a final `startxref` offset that points at a cross-reference table (every
-  in-use entry must point at the object it names) or at a cross-reference stream, a trailer with a
-  document catalog (`/Root`), and nothing after the final `%%EOF`.
+- PDF: a version header, a final `startxref` offset and every cross-reference section reachable
+  from it through `/Prev` (classic tables, or decoded cross-reference streams with their PNG
+  predictors), each in-use entry pointing at the object it names, and a `/Root` that resolves to a
+  `/Type /Catalog` object, directly or inside a decoded object stream. Nothing may follow the
+  final `%%EOF`. Stream decoding is FlateDecode only and capped.
 
 These are format checks, not malware checks: malware_scanner.py decides whether a well-formed file
 is safe. Pixel data and PDF content streams are not interpreted.
@@ -49,10 +51,26 @@ PDF_SUBSECTION = re.compile(rb"[\s]*(\d{1,10})[ ]+(\d{1,10})[ \t]*(?:\r\n|\r|\n)
 PDF_ENTRY = re.compile(rb"(\d{10}) (\d{5}) ([nf])[ ]?(?:\r\n|\r|\n)")
 PDF_OBJECT = re.compile(rb"[\s\0]*(\d{1,10})[\s]+(\d{1,5})[\s]+obj\b")
 PDF_TRAILER = re.compile(rb"[\s]*trailer[\s]*<<")
+PDF_ROOT = re.compile(rb"/Root[\s]*(\d{1,10})[\s]+(\d{1,5})[\s]+R")
+PDF_PREV = re.compile(rb"/Prev[\s]+(\d{1,10})")
+PDF_CATALOG = re.compile(rb"/Type[\s]*/Catalog\b")
+PDF_XREF_TYPE = re.compile(rb"/Type[\s]*/XRef\b")
+PDF_OBJSTM_TYPE = re.compile(rb"/Type[\s]*/ObjStm\b")
+PDF_WIDTHS = re.compile(rb"/W[\s]*\[[\s]*(\d)[\s]+(\d)[\s]+(\d)[\s]*\]")
+PDF_SIZE = re.compile(rb"/Size[\s]+(\d{1,10})")
+PDF_INDEX = re.compile(rb"/Index[\s]*\[([\d\s]*)\]")
+# A direct /Length (not an indirect `N G R` reference).
+PDF_LENGTH = re.compile(rb"/Length[\s]+(\d{1,10})(?![\d])(?![\s]+\d+[\s]+R)")
+PDF_FIRST = re.compile(rb"/First[\s]+(\d{1,10})")
+PDF_FILTER = re.compile(rb"/Filter[\s]*\[?[\s]*/(\w+)[\s]*\]?")
+PDF_PREDICTOR = re.compile(rb"/Predictor[\s]+(\d{1,2})")
+PDF_COLUMNS = re.compile(rb"/Columns[\s]+(\d{1,3})")
+# Cross-reference sections followed through /Prev (incremental updates) before giving up.
+PDF_MAX_SECTIONS = 16
 # Only the end of the file is searched for the final startxref.
 PDF_TAIL_BYTES = 2048
-# An inflated cross-reference stream larger than this is not a plausible upload.
-MAX_XREF_STREAM = 16 * 1024 * 1024
+# A decoded cross-reference or object stream larger than this is not a plausible upload.
+MAX_PDF_STREAM = 16 * 1024 * 1024
 
 
 def valid_content(content_type, data):
@@ -229,81 +247,238 @@ def valid_jpeg(data):
 
 
 def valid_pdf(data):
+    """Header, final startxref, every cross-reference section (following /Prev) and a /Root that
+    resolves to a /Type /Catalog object, directly or inside an object stream."""
     if not PDF_HEADER.match(data):
         return False
     tail_start = max(0, len(data) - PDF_TAIL_BYTES)
     tails = list(PDF_TAIL.finditer(data, tail_start))
     if not tails:
         return False
-    offset = int(tails[-1].group(1))
-    if not 0 < offset < tails[-1].start():
+    section, end = int(tails[-1].group(1)), tails[-1].start()
+    entries, root, seen = {}, None, set()
+    while True:
+        if section in seen or len(seen) >= PDF_MAX_SECTIONS or not 0 < section < end:
+            return False
+        seen.add(section)
+        if data.startswith(b"xref", section):
+            parsed = xref_table(data, section + 4)
+        else:
+            parsed = xref_stream(data, section)
+        if parsed is None:
+            return False
+        found, trailer = parsed
+        for number, entry in found.items():
+            entries.setdefault(number, entry)  # the newest section wins
+        if root is None:
+            match = PDF_ROOT.search(trailer)
+            root = (int(match.group(1)), int(match.group(2))) if match else None
+        previous = PDF_PREV.search(trailer)
+        if not previous:
+            break
+        section = int(previous.group(1))
+    if root is None:
         return False
-    if data.startswith(b"xref", offset):
-        return valid_xref_table(data, offset + 4)
-    return valid_xref_stream(data, offset)
+    for number, entry in entries.items():
+        if entry[0] == "n" and object_body(data, entry[1], number) is None:
+            return False  # an in-use entry must point at the object it names
+    return catalog(data, entries, *root)
 
 
-def valid_xref_table(data, position):
-    in_use = []
+def xref_table(data, position):
+    """({number: entry}, trailer dictionary) of a classic cross-reference section, or None."""
+    found = {}
     while not PDF_TRAILER.match(data, position):
         section = PDF_SUBSECTION.match(data, position)
         if not section:
-            return False
+            return None
         first, count = int(section.group(1)), int(section.group(2))
         position = section.end()
         if count > (len(data) - position) // 19:
-            return False
+            return None
         for number in range(first, first + count):
             entry = PDF_ENTRY.match(data, position)
             if not entry:
-                return False
+                return None
             if entry.group(3) == b"n":
-                in_use.append((number, int(entry.group(1))))
+                found[number] = ("n", int(entry.group(1)), int(entry.group(2)))
+            else:
+                found[number] = ("f",)
             position = entry.end()
     trailer_end = data.find(b"startxref", position)
-    if trailer_end < 0 or not re.search(
-        rb"/Root[\s]*\d+[\s]+\d+[\s]+R", data[position:trailer_end]
-    ):
-        return False
-    for number, offset in in_use:
-        found = PDF_OBJECT.match(data, offset) if offset < len(data) else None
-        if not found or int(found.group(1)) != number:
-            return False
-    return True
+    if trailer_end < 0:
+        return None
+    return found, data[position:trailer_end]
 
 
-def valid_xref_stream(data, offset):
+def object_body(data, offset, number):
+    """Bytes between `number G obj` at `offset` and its `endobj`, or None."""
+    found = PDF_OBJECT.match(data, offset) if 0 <= offset < len(data) else None
+    if not found or int(found.group(1)) != number:
+        return None
+    end = data.find(b"endobj", found.end())
+    return None if end < 0 else data[found.end() : end]
+
+
+def stream_data(body):
+    """(dictionary, decoded stream bytes) of a stream object body, or None.
+
+    Only unfiltered and FlateDecode streams are decoded; inflation is capped.
+    """
+    start = body.find(b"stream")
+    if start < 0:
+        return None
+    dictionary, position = body[:start], start + len(b"stream")
+    if body.startswith(b"\r\n", position):
+        position += 2
+    elif body.startswith(b"\n", position):
+        position += 1
+    else:
+        return None
+    finish = body.rfind(b"endstream")
+    if finish < position:
+        return None
+    raw = body[position:finish]
+    length = PDF_LENGTH.search(dictionary)
+    if length and int(length.group(1)) <= len(raw):
+        raw = raw[: int(length.group(1))]  # a direct /Length is exact; binary may end in EOLs
+    filters = PDF_FILTER.search(dictionary)
+    if filters is None:
+        return dictionary, raw if length else raw.rstrip(b"\r\n")
+    if filters.group(1) != b"FlateDecode":
+        return None
+    inflater, pending, output = zlib.decompressobj(), raw, []
+    produced = 0
+    while pending and not inflater.eof:
+        part = inflater.decompress(pending, INFLATE_STEP)
+        produced += len(part)
+        if produced > MAX_PDF_STREAM:
+            return None
+        output.append(part)
+        pending = inflater.unconsumed_tail
+    if not inflater.eof:
+        return None
+    return dictionary, b"".join(output)
+
+
+def png_unpredict(rows, columns):
+    """Undo the PNG predictors (DecodeParms /Predictor 10-15) on 1-byte samples."""
+    width = columns + 1
+    if len(rows) % width:
+        return None
+    previous, output = bytes(columns), bytearray()
+    for start in range(0, len(rows), width):
+        kind, line = rows[start], bytearray(rows[start + 1 : start + width])
+        for i in range(columns):
+            left = line[i - 1] if i else 0
+            up, corner = previous[i], previous[i - 1] if i else 0
+            if kind == 1:
+                line[i] = (line[i] + left) & 0xFF
+            elif kind == 2:
+                line[i] = (line[i] + up) & 0xFF
+            elif kind == 3:
+                line[i] = (line[i] + (left + up) // 2) & 0xFF
+            elif kind == 4:
+                p = left + up - corner
+                pa, pb, pc = abs(p - left), abs(p - up), abs(p - corner)
+                best = left if pa <= pb and pa <= pc else up if pb <= pc else corner
+                line[i] = (line[i] + best) & 0xFF
+            elif kind != 0:
+                return None
+        output += line
+        previous = line
+    return bytes(output)
+
+
+def xref_stream(data, offset):
+    """({number: entry}, stream dictionary) of a cross-reference stream, or None."""
     found = PDF_OBJECT.match(data, offset)
     if not found:
+        return None
+    body = object_body(data, offset, int(found.group(1)))
+    decoded = stream_data(body) if body is not None else None
+    if decoded is None:
+        return None
+    dictionary, rows = decoded
+    widths = PDF_WIDTHS.search(dictionary)
+    size = PDF_SIZE.search(dictionary)
+    if not PDF_XREF_TYPE.search(dictionary) or not widths or not size:
+        return None
+    widths = [int(width) for width in widths.groups()]
+    if any(width > 8 for width in widths) or widths[1] == 0:
+        return None
+    predictor = PDF_PREDICTOR.search(dictionary)
+    if predictor and int(predictor.group(1)) >= 10:
+        columns = PDF_COLUMNS.search(dictionary)
+        if not columns or int(columns.group(1)) != sum(widths):
+            return None
+        rows = png_unpredict(rows, sum(widths))
+    elif predictor and int(predictor.group(1)) != 1:
+        return None
+    index = PDF_INDEX.search(dictionary)
+    numbers = [int(n) for n in index.group(1).split()] if index else [0, int(size.group(1))]
+    if len(numbers) % 2 or rows is None:
+        return None
+    sections = list(zip(numbers[::2], numbers[1::2]))
+    width = sum(widths)
+    if sum(count for _, count in sections) * width > len(rows):
+        return None
+    entries, position = {}, 0
+    for first, count in sections:
+        for number in range(first, first + count):
+            fields, cursor = [], position
+            for size_ in widths:
+                fields.append(int.from_bytes(rows[cursor : cursor + size_], "big"))
+                cursor += size_
+            position = cursor
+            kind = fields[0] if widths[0] else 1
+            if kind == 1:
+                entries[number] = ("n", fields[1], fields[2])
+            elif kind == 2:
+                entries[number] = ("c", fields[1], fields[2])
+            else:
+                entries[number] = ("f",)
+    return entries, dictionary
+
+
+def catalog(data, entries, number, generation):
+    """True when object `number generation` is a /Type /Catalog dictionary."""
+    entry = entries.get(number)
+    if entry is None or entry[0] == "f":
         return False
-    start = data.find(b"stream", found.end())
-    if start < 0:
+    if entry[0] == "n":
+        body = object_body(data, entry[1], number)
+        found = PDF_OBJECT.match(data, entry[1])
+        return (
+            body is not None
+            and entry[2] == generation
+            and int(found.group(2)) == generation
+            and bool(PDF_CATALOG.search(body))
+        )
+    # Compressed into an object stream: objects there always have generation 0.
+    container = entries.get(entry[1])
+    if generation != 0 or container is None or container[0] != "n":
         return False
-    dictionary = data[found.end() : start]
-    if not re.search(rb"/Type[\s]*/XRef\b", dictionary) or not re.search(
-        rb"/Root[\s]*\d+[\s]+\d+[\s]+R", dictionary
-    ):
+    body = object_body(data, container[1], entry[1])
+    decoded = stream_data(body) if body is not None else None
+    if decoded is None or not PDF_OBJSTM_TYPE.search(decoded[0]):
         return False
-    body_start = start + len(b"stream")
-    if data.startswith(b"\r\n", body_start):
-        body_start += 2
-    elif data.startswith(b"\n", body_start):
-        body_start += 1
-    else:
+    dictionary, content = decoded
+    first = PDF_FIRST.search(dictionary)
+    if not first or int(first.group(1)) > len(content):
         return False
-    body_end = data.find(b"endstream", body_start)
-    if body_end < 0 or data.find(b"endobj", body_end) < 0:
+    # The header is integer pairs; PDF comments may sit between them.
+    head = re.sub(rb"%[^\r\n]*", b" ", content[: int(first.group(1))]).split()
+    if len(head) % 2 or not all(item.isdigit() for item in head):
         return False
-    if re.search(rb"/Filter[\s]*/FlateDecode\b", dictionary):
-        inflater, pending, produced = zlib.decompressobj(), data[body_start:body_end], 0
-        while pending and not inflater.eof:
-            produced += len(inflater.decompress(pending, INFLATE_STEP))
-            if produced > MAX_XREF_STREAM:
-                return False
-            pending = inflater.unconsumed_tail
-        if not inflater.eof:
-            return False
-    return True
+    offsets = [(int(n), int(o)) for n, o in zip(head[::2], head[1::2])]
+    for position, (member, start) in enumerate(offsets):
+        if member == number:
+            stop = offsets[position + 1][1] if position + 1 < len(offsets) else None
+            base = int(first.group(1))
+            text = content[base + start : None if stop is None else base + stop]
+            return bool(PDF_CATALOG.search(text))
+    return False
 
 
 CHECKS = {"image/png": valid_png, "image/jpeg": valid_jpeg, "application/pdf": valid_pdf}
