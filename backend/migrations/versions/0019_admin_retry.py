@@ -8,7 +8,7 @@ transaction, so writers are not blocked while existing rows are checked.
 from alembic import op
 
 revision = "0019_admin_retry"
-down_revision = "0017_ticket_pdf_cleanup"
+down_revision = "0018_attachment_cleanup"
 branch_labels = None
 depends_on = None
 

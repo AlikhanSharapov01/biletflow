@@ -207,7 +207,7 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 ## Database and migrations
 
 - Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 to 0019 and 0021 use inline SQL).
-  There are **20 migrations and 69 tables** in the `biletflow` schema:
+  There are **21 migrations and 69 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
@@ -218,7 +218,7 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
   (adds `ga4_connection`, `analytics_export`, `ga4_cache`) → `0021_job_correlation` (nullable
   `outbox_job.correlation_id`, no table).
   The chain through `0017` (17 migrations, 66 tables) was verified on a disposable test database
-  on 13 November 2026; `0019`–`0021` and the 69-table count are not yet verified that way;
+  on 13 November 2026; `0018`–`0021` and the 69-table count are not yet verified that way;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
