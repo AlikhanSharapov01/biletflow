@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from .file_models import StoredFile, SupportAttachment
 from .models import User
+from .platform_settings import upload_limit
 from .security import fail, now
 from .signing import b64, unb64
 from .support_models import SupportCase
@@ -76,7 +77,7 @@ def upload_attachment(db, storage, settings, user, case_id, filename, content_ty
     name = clean_filename(filename)
     if not data:
         fail("attachment_empty", 422)
-    if len(data) > settings.attachment_max_bytes:
+    if len(data) > upload_limit(db, settings):
         fail("attachment_too_large", 413)
     file_id = uuid4()
     mime_type = sniff(db, user, case.id, file_id, name, content_type, data)

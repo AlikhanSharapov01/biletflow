@@ -23,6 +23,7 @@ from .checkout_service import (
     add_items,
     confirm_free,
     held_allocations,
+    hold_rate_bps,
     issue_tickets,
     locked_hold,
     matched_recipients,
@@ -42,7 +43,7 @@ from .payments_service import (
     latest_attempt,
     new_attempt,
 )
-from .pricing import PROCESSING_RATE_BPS, quote
+from .pricing import quote
 from .security import fail, now
 
 
@@ -63,11 +64,14 @@ def start_checkout(db, settings, user, hold_id, data):
     if reservation:
         revalidate(db, reservation)
     snapshot = reservation.discount_snapshot if reservation else None
-    totals, prices = quote(types, allocations, data, snapshot=snapshot)
+    # The quote keeps the rate the hold was created under, so the buyer pays the fee that the
+    # hold showed even if an administrator changed the rate while they filled in the form.
+    rate_bps = hold_rate_bps(db, hold)
+    totals, prices = quote(types, allocations, data, rate_bps, snapshot)
     if totals["subtotal"] == 0:
         # A zero-total basket needs no payment (TX-07 hands it straight to TX-08).
         return confirm_free(db, settings, user, hold_id, data)
-    order = new_order(db, event, hold, user, "pending", totals, PROCESSING_RATE_BPS, reservation)
+    order = new_order(db, event, hold, user, "pending", totals, rate_bps, reservation)
     add_items(db, event, hold, order, data, allocations, types, prices)
     intent = PaymentIntent(
         event_id=event.id,

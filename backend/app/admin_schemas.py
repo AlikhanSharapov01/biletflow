@@ -9,7 +9,7 @@ from .schemas import Input
 # Setting registry: key -> (default, minimum, maximum, description). All values are integers.
 SETTINGS = {
     "hold_minutes": (10, 1, 60, "Checkout hold duration in minutes"),
-    "activation_fee_minor": (500000, 0, 100_000_000, "Demo paid-sales activation fee, KZT minor"),
+    "activation_fee_minor": (500000, 1, 100_000_000, "Demo paid-sales activation fee, KZT minor"),
     "processing_rate_bps": (300, 0, 10000, "Demo processing rate in basis points"),
     "upload_max_mb": (5, 1, 50, "Maximum size of one uploaded file in megabytes"),
 }

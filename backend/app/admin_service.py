@@ -13,6 +13,7 @@ from .catalog_models import Event, Organization
 from .catalog_service import catalog_audit, changed, event_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .models import AuditLog, User
+from .platform_settings import effective_setting, setting_lock_key  # noqa: F401 (re-exported)
 from .security import fail, now
 from .service import locked_user, revoke_all, valid_session
 
@@ -394,18 +395,6 @@ def report_page(db, limit, offset, status=None, event_id=None):
 # ---------------------------------------------------------------- platform settings
 
 
-def effective_setting(db, key, at=None):
-    """Value in force at `at` (default now). Other modules call this when they start a new
-    hold, quote or activation; stored orders and activations keep their own snapshots."""
-    row = db.scalar(
-        select(SettingVersion.value)
-        .where(SettingVersion.setting_key == key, SettingVersion.effective_at <= (at or now()))
-        .order_by(SettingVersion.version.desc())
-        .limit(1)
-    )
-    return SETTINGS[key][0] if row is None else row
-
-
 def setting_view(db, key):
     default, minimum, maximum, description = SETTINGS[key]
     current = now()
@@ -444,18 +433,20 @@ def change_setting(db, admin, key, data):
     default, minimum, maximum, _ = SETTINGS[key]
     if not minimum <= data.value <= maximum:
         fail("setting_out_of_range", 422)
+    if data.effective_at is not None and data.effective_at.tzinfo is None:
+        fail("invalid_effective_at", 422)
+    # Serializes version assignment per key across API workers, and makes new holds, quotes
+    # and activations wait until this change is visible. The clock is read only after the lock
+    # is held, so nothing created before the change can share its effective time.
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 3))"), setting_lock_key(key)
+    )
     current = now()
     effective = data.effective_at or current
-    if effective.tzinfo is None:
-        fail("invalid_effective_at", 422)
     if effective < current - timedelta(seconds=5) or effective > current + MAX_FUTURE_SETTING:
         # Settings are prospective: history is never backdated.
         fail("invalid_effective_at", 422)
     effective = max(effective, current)
-    # Serializes version assignment per key across API workers.
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 3))"), {"key": "setting:" + key}
-    )
     latest = db.scalar(
         select(func.coalesce(func.max(SettingVersion.version), 0)).where(
             SettingVersion.setting_key == key

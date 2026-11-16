@@ -18,11 +18,12 @@ from .catalog_models import Allocation, Event, EventSeat, Hold, Organization, Ti
 from .catalog_service import active_allocations, catalog_audit, changed, event_guard
 from .checkout_expiry import close_expired, close_hold
 from .checkout_models import OrderItem, Ticket, TicketOrder
-from .checkout_schemas import HOLD_MINUTES, MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
+from .checkout_schemas import MAX_ACTIVE_HOLDS, QR_PREFIX, QR_PURPOSE
 from .commerce_models import PaymentAttempt, PaymentIntent, Refund
 from .models import OutboxJob
 from .notification_service import enqueue_ticket_delivered
 from .payments_service import attempt_view, latest_attempt, refund_view
+from .platform_settings import effective_setting, settings_now
 from .pricing import hold_quote, quote
 from .security import challenge_value, digest, fail, now
 
@@ -170,10 +171,14 @@ def create_hold(db, user, event_id, data):
                     or active_allocations(db, event.id, seat_id=seat.id)
                 ):
                     fail("seat_unavailable", 409)
+    # The hold's length and fee rate are fixed at creation: later setting changes affect only
+    # new holds, and this hold keeps its expiry and rate through checkout.
+    created, current = settings_now(db, "hold_minutes", "processing_rate_bps")
     hold = Hold(
         event_id=event.id,
         buyer_user_id=user.id,
-        expires_at=now() + timedelta(minutes=HOLD_MINUTES),
+        created_at=created,
+        expires_at=created + timedelta(minutes=current["hold_minutes"]),
     )
     db.add(hold)
     db.flush()
@@ -206,7 +211,16 @@ def create_hold(db, user, event_id, data):
     return hold
 
 
-def hold_pricing(db, allocations, reservation):
+def hold_rate_bps(db, hold):
+    """Processing rate that was in force when the hold was created."""
+    return effective_setting(db, "processing_rate_bps", hold.created_at)
+
+
+def hold_minutes(hold):
+    return round((hold.expires_at - hold.created_at).total_seconds() / 60)
+
+
+def hold_pricing(db, hold, allocations, reservation):
     types = {
         row.id: row
         for row in db.scalars(
@@ -214,7 +228,7 @@ def hold_pricing(db, allocations, reservation):
         )
     }
     snapshot = reservation.discount_snapshot if reservation else None
-    totals, lines = hold_quote(types, allocations, snapshot)
+    totals, lines = hold_quote(types, allocations, snapshot, hold_rate_bps(db, hold))
     return {
         "gross": totals["gross"],
         "discount": totals["discount"],
@@ -262,7 +276,7 @@ def hold_view(db, hold):
         "expires_at": hold.expires_at,
         "created_at": hold.created_at,
         "allocations": allocations,
-        "pricing": hold_pricing(db, rows, reservation),
+        "pricing": hold_pricing(db, hold, rows, reservation),
         "promo": promo_summary(reservation),
     }
 
@@ -360,7 +374,7 @@ def new_order(db, event, hold, user, status, totals, rate_bps, reservation=None)
             if event.refund_cutoff_at
             else None,
             "processing_rate_bps": rate_bps,
-            "hold_minutes": HOLD_MINUTES,
+            "hold_minutes": hold_minutes(hold),
         },
         event_snapshot={
             "title": event.title,
