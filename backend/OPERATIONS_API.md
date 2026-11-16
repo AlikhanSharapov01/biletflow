@@ -43,7 +43,7 @@ The API and the worker write one JSON object per line to stderr for every `app.*
 | `job.done` | info | `job_id`, `kind` — a payment initialization or refund dispatch job finished |
 | `job.step_failed` | warning | `step` (worker function), `error_type` — an unexpected error in a job step, under the job's ID; the job stays due and is retried |
 | `notification.email_retry` / `notification.email_failed` | warning | `delivery_id`, `attempt`, `last_error`, `error_type` — a notification email failed and is retried / gave up after 5 attempts |
-| `worker.task_failed` | warning | `task` (`hold_sweep`, `image_reconcile`, `ticket_pdf_reconcile`, `payments`, `ga4_export`), `error_type` |
+| `worker.task_failed` | warning | `task` (`hold_sweep`, `image_reconcile`, `ticket_pdf_reconcile`, `attachment_reconcile`, `payments`, `ga4_export`, `attachment_scan`), `error_type` |
 
 Uvicorn's own access log stays disabled (`--no-access-log`): it prints raw paths and query strings.
 Uvicorn's remaining handlers use the same redacting JSON formatter.
