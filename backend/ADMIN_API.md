@@ -121,6 +121,10 @@ of a complete result. Existing users/events/orders/tickets CSV filters remain `q
   explicit business actions.
 - Repeating a transition returns `409 user_already_suspended`, `user_not_suspended`,
   `event_already_suspended` or `event_not_suspended`.
+- **Notices.** Every user, event and paid-sales decision also records one deduplicated notification
+  intent in the same transaction (recipients, wording and delivery rules are in
+  [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md#moderation-notices)). The reason is
+  never sent. A mail or fan-out outage is retried later and never reverses the decision.
 - Each decision inserts an immutable `moderation_action` (actor, target, action, reason) and an
   audit row in the same transaction as the state change. Event audit rows carry the
   organization and event so they appear in that event's history.
@@ -217,4 +221,3 @@ deliberately raises, like earlier migrations.
 - Dispute, campaign and offline-conflict admin views, and admin search/inspection of support
   cases (escalation itself exists: `POST /support/cases/{id}/escalation`) (#72).
 - Views of exhausted jobs and failed notification deliveries (#73).
-- User-facing notices to affected users (BF-15); the audit trail already records each decision (#74).

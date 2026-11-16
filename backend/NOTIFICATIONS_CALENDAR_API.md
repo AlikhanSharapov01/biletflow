@@ -82,9 +82,39 @@ goes through that record's own endpoint and permission check.
 | `refund_started`, `refund_completed` | an order refund starts; any refund to a ticket buyer is confirmed | in-app, email |
 | `order_cancelled` | a free order or ticket is cancelled | in-app, email |
 | `payout_status` | a simulated payout changes state ([FINANCE_API.md](FINANCE_API.md)) | in-app, email |
+| `account_suspended`, `account_reinstated` | `POST /admin/users/{id}/suspend`, `.../reinstate` | in-app, email (see below) |
+| `event_suspended`, `event_reinstated` | `POST /admin/events/{id}/suspend`, `.../reinstate` | in-app, email |
+| `paid_sales_suspended`, `paid_sales_reinstated` | `POST /admin/events/{id}/paid-sales/suspend`, `.../reinstate` | in-app, email |
 
 The order kinds use `target: {type: "order", id}` and are sent once per order, attempt, refund or
 ticket, however many times the provider or client repeats the operation.
+
+### Moderation notices
+
+Raised by the admin decisions in [ADMIN_API.md](ADMIN_API.md), in the same transaction as the
+decision, with the `moderation_action` id (or, for paid sales, the audit row id) as the identity of
+that one decision. Repeating a request, replaying an `Idempotency-Key` or re-running the fan-out
+therefore creates no second intent or inbox row, and a failed fan-out or mail delivery is retried
+later without touching the decision.
+
+| Notice | Who is told |
+|---|---|
+| `account_suspended` / `account_reinstated` | The affected account only |
+| `event_suspended` / `event_reinstated` | The organization owner and staff with `event_edit` on the event. `target: {type: "organizer_event", id}` |
+| `paid_sales_suspended` / `paid_sales_reinstated` | The organization owner and active members with the `finance` capability. Same target |
+
+- **Attendees are not notified.** They see the effect on the event itself (hidden, closed for
+  sales and check-in); a cancellation notice remains a separate, explicit organizer action.
+- **Wording is fixed in Kazakh, Russian and English and carries no moderation context.** The
+  admin's reason and internal notes stay in the audit trail and `moderation_action`; the payload
+  holds only ids and the event title, and the text only says what changed and what it means.
+- **A suspended account has no session or inbox**, so `account_suspended` is delivered by email:
+  the email worker lets this one kind reach a suspended (but verified) account, and only while
+  the account is still suspended. A notice for a decision that was reversed before delivery is
+  dropped. All other kinds still skip suspended accounts. Both account emails link to `/sign-in`,
+  never to a page that needs a session; the suspension text points to BiletFlow support.
+- Other recipients are skipped when their account is not active, and the email is sent only to
+  verified addresses.
 
 Audience for event notices: accounts that are the recipient of a ticket of the event, plus buyers
 of its confirmed orders (updates: valid or checked-in tickets only; cancellations also include

@@ -13,6 +13,7 @@ from .catalog_models import Event, Organization
 from .catalog_service import catalog_audit, changed, event_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .models import AuditLog, User
+from .notification_service import enqueue_moderation_notice
 from .platform_settings import effective_setting, setting_lock_key  # noqa: F401 (re-exported)
 from .security import fail, now
 from .service import locked_user, revoke_all, valid_session
@@ -40,19 +41,20 @@ def admin_guard(db, ids):
 
 
 def admin_audit(db, admin, action, entity_type, entity_id, event=None, safe_change=None):
-    db.add(
-        AuditLog(
-            actor_user_id=admin.id,
-            organization_id=event.organization_id if event else None,
-            event_id=event.id if event else None,
-            action=action,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            description=action,
-            safe_change=safe_change or {},
-            correlation_id=uuid4(),
-        )
+    row = AuditLog(
+        id=uuid4(),
+        actor_user_id=admin.id,
+        organization_id=event.organization_id if event else None,
+        event_id=event.id if event else None,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        description=action,
+        safe_change=safe_change or {},
+        correlation_id=uuid4(),
     )
+    db.add(row)
+    return row
 
 
 # ---------------------------------------------------------------- search and export
@@ -262,6 +264,11 @@ def moderate_user(db, admin, user_id, suspend, reason):
         target.id,
         safe_change={"reason": reason, "moderation_action_id": str(action.id)},
     )
+    # Written with the decision, so a mail outage can never undo it. The suspended account has
+    # no session or inbox any more, so this one is delivered by email.
+    enqueue_moderation_notice(
+        db, "account_suspended" if suspend else "account_reinstated", action.id, user_id=target.id
+    )
     return action
 
 
@@ -295,6 +302,9 @@ def moderate_event(db, admin, event_id, suspend, reason):
         event.id,
         event=event,
         safe_change={"reason": reason, "moderation_action_id": str(action.id)},
+    )
+    enqueue_moderation_notice(
+        db, "event_suspended" if suspend else "event_reinstated", action.id, event_id=event.id
     )
     return action
 

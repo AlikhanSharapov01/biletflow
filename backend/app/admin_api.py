@@ -27,6 +27,7 @@ from .admin_service import (
 )
 from .catalog_models import Event
 from .idempotency import checked_key, fingerprint, guard, remember, remembered
+from .notification_service import enqueue_moderation_notice
 from .security import fail
 from .service import valid_session
 
@@ -161,7 +162,7 @@ def router(factory, settings, principal):
             activation = (
                 suspend(db, event_id, data.reason) if suspended else reinstate(db, event_id)
             )
-            admin_audit(
+            decision = admin_audit(
                 db,
                 admin,
                 operation,
@@ -173,6 +174,12 @@ def router(factory, settings, principal):
                     "before": "active" if suspended else "suspended",
                     "after": activation.status,
                 },
+            )
+            enqueue_moderation_notice(
+                db,
+                "paid_sales_suspended" if suspended else "paid_sales_reinstated",
+                decision.id,
+                event_id=event.id,
             )
             if key:
                 remember(
