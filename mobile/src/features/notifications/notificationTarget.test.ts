@@ -14,6 +14,11 @@ describe("notificationPath", () => {
     expect(notificationPath({ target: { type: "support_case", id: "c1" }, event_id: null })).toBe("/support/cases/c1");
   });
 
+  it("sends moderation notices to the organizer's event, and account notices to the account", () => {
+    expect(notificationPath({ target: { type: "organizer_event", id: "e1" }, event_id: "e1" })).toBe("/organizer/events/e1");
+    expect(notificationPath({ target: { type: "account", id: null }, event_id: null })).toBe("/account");
+  });
+
   it("falls back to the event, then to nothing", () => {
     expect(notificationPath({ target: { type: "other", id: null }, event_id: "e2" })).toBe("/events/e2");
     expect(notificationPath({ target: { type: "other", id: null }, event_id: null })).toBeNull();
@@ -27,6 +32,9 @@ describe("hrefForPath", () => {
     expect(hrefForPath("/orders/o1")).toEqual({ pathname: "/orders/[orderId]", params: { orderId: "o1" } });
     expect(hrefForPath("/support/cases/c1?x=1")).toEqual({ pathname: "/support/cases/[caseId]", params: { caseId: "c1" } });
     expect(hrefForPath("/support")).toBe("/support");
+    expect(hrefForPath("/organizer/events/e%201")).toEqual({ pathname: "/organizer/events/[eventId]", params: { eventId: "e 1" } });
+    expect(hrefForPath("/account")).toBe("/account");
+    expect(hrefForPath("/organizer/events")).toBeNull();
     expect(hrefForPath("/organizer/finance")).toBeNull();
   });
 
@@ -35,6 +43,11 @@ describe("hrefForPath", () => {
       pathname: "/tickets/[ticketId]",
       params: { ticketId: "t1" },
     });
+    expect(notificationHref({ target: { type: "organizer_event", id: "e1" }, event_id: "e1" })).toEqual({
+      pathname: "/organizer/events/[eventId]",
+      params: { eventId: "e1" },
+    });
+    expect(notificationHref({ target: { type: "account", id: null }, event_id: null })).toBe("/account");
     expect(notificationHref({ target: { type: "other", id: null }, event_id: null })).toBeNull();
   });
 });

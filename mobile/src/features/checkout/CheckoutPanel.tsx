@@ -24,7 +24,7 @@ interface CheckoutPanelProps {
   promoFromRoute?: string | null;
 }
 
-// Pick tickets (or seats), hold them for ten minutes, name a recipient per
+// Pick tickets (or seats), hold them for the platform's hold time, name a recipient per
 // place, then confirm (free) or pay through the simulator (paid). The app is
 // only reachable signed in, so there is no sign-in prompt here.
 export function CheckoutPanel({ event, tickets, promoFromRoute = null }: CheckoutPanelProps) {

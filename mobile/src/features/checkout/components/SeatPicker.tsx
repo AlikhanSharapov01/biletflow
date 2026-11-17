@@ -14,6 +14,8 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { SeatLegend } from "./SeatLegend";
 import { SeatMap } from "./SeatMap";
 import { quantityLabel, t, useLocale } from "@/i18n";
+import { useHoldMinutes } from "../hooks/useHoldMinutes";
+import { holdHint } from "../utils/hold";
 
 interface SeatPickerProps {
   event: EventView;
@@ -30,6 +32,7 @@ const MAX_SEATS = 100;
 // then hold exactly those seats.
 export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve }: SeatPickerProps) {
   useLocale();
+  const holdMinutes = useHoldMinutes();
   const seats = useRequest(() => listSeats(event.id), [event.id]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const sections = useMemo(() => groupSeats(seats.data ?? []), [seats.data]);
@@ -86,7 +89,7 @@ export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve
       <View style={checkoutStyles.actions}>
         <PrimaryButton label={reserveLabel} disabled={busy || chosen.length === 0} onPress={() => onReserve(seatHoldLines(all, selected))} />
         <SubtleButton label={t("checkout.refresh_seats")} disabled={busy || seats.loading} onPress={refresh} />
-        <Text style={checkoutStyles.intro}>{t("checkout.seat_hold_hint")}</Text>
+        <Text style={checkoutStyles.intro}>{holdHint("seats", holdMinutes)}</Text>
       </View>
     </View>
   );

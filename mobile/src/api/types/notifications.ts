@@ -11,10 +11,18 @@ export type NotificationKind =
   | "payment_failed"
   | "refund_started"
   | "refund_completed"
-  | "order_cancelled";
+  | "order_cancelled"
+  // Moderation decisions (backend/NOTIFICATIONS_CALENDAR_API.md, "Moderation notices").
+  | "account_suspended"
+  | "account_reinstated"
+  | "event_suspended"
+  | "event_reinstated"
+  | "paid_sales_suspended"
+  | "paid_sales_reinstated";
 
 export interface NotificationTarget {
-  type: "event" | "ticket" | "support_case" | "order" | string;
+  // organizer_event: the organizer's view of an event; account: no id.
+  type: "event" | "ticket" | "support_case" | "order" | "organizer_event" | "account" | string;
   id: string | null;
 }
 

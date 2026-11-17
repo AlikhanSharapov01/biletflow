@@ -90,6 +90,11 @@ export function categoryName(category: Category | null | undefined): string {
   return category?.[`name_${current}`] || category?.name_en || t("common.event");
 }
 
+// "1 minute", "2 минуты": the form that follows "for" / "на".
+export function minutesLabel(count: number): string {
+  return t(`mobile.time.minutes.${pluralForm(count)}` as TranslationKey, { count });
+}
+
 // "1 ticket", "2 билета", "5 билетов".
 export function quantityLabel(kind: "ticket" | "seat", count: number): string {
   return t(`count.${kind}.${pluralForm(count)}` as TranslationKey, { count });
