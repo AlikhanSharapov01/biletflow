@@ -37,16 +37,21 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
-      STORAGE_ROOT: /app/var/storage
+      CLAMAV_HOST: clamav
       # Trust Caddy's X-Forwarded-For so per-address rate limits see the real client.
       # Port 8000 is published on localhost only, so nobody outside can forge this header.
       FORWARDED_ALLOW_IPS: "*"
-    volumes:
-      - file_storage:/app/var/storage
+      # Object storage (#77): see the storage services below.
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: http://storage:8333
+      STORAGE_ADMIN_ACCESS_KEY_ID: ""
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ""
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
     healthcheck:
       test:
@@ -67,12 +72,17 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://biletflow_app:${APP_DB_PASSWORD}@db:5432/biletflow
       SMTP_HOST: mailpit
-      STORAGE_ROOT: /app/var/storage
-    volumes:
-      - file_storage:/app/var/storage
+      CLAMAV_HOST: clamav
+      # Object storage (#77): the same bucket and account as api.
+      STORAGE_BACKEND: s3
+      S3_ENDPOINT_URL: http://storage:8333
+      STORAGE_ADMIN_ACCESS_KEY_ID: ""
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ""
     command: ["python", "-m", "app.worker"]
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
       mailpit:
         condition: service_started
@@ -95,6 +105,92 @@ services:
       - "127.0.0.1:8025:8025"
       - "127.0.0.1:1025:1025"
 
+  # --- Object storage (#77) ---------------------------------------------------------------
+  # Private S3-compatible storage for event images, ticket PDFs and support attachments, shared
+  # by api and worker: SeaweedFS (`weed server -s3`, S3 API on 8333), not published on the host.
+  # Its two static identities are written from .env at start: the storage administrator
+  # (STORAGE_ADMIN_*), used only by storage-init to create the bucket, and the app account
+  # (S3_ACCESS_KEY_ID), allowed only Read, Write and List on S3_BUCKET. With identities
+  # configured, unsigned requests are refused. Values may use letters, digits, ".", "_" and "-".
+  storage:
+    image: chrislusf/seaweedfs:4.28
+    restart: unless-stopped
+    environment:
+      STORAGE_ADMIN_ACCESS_KEY_ID: ${STORAGE_ADMIN_ACCESS_KEY_ID:?Set STORAGE_ADMIN_ACCESS_KEY_ID in .env}
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ${STORAGE_ADMIN_SECRET_ACCESS_KEY:?Set STORAGE_ADMIN_SECRET_ACCESS_KEY in .env}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in .env}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for value in "$$STORAGE_ADMIN_ACCESS_KEY_ID" "$$STORAGE_ADMIN_SECRET_ACCESS_KEY" \
+          "$$S3_BUCKET" "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY"; do
+          case "$$value" in
+            *[!A-Za-z0-9._-]*) echo "Storage settings may use only letters, digits, . _ -" >&2; exit 1 ;;
+          esac
+        done
+        umask 077
+        printf '{"identities":[
+          {"name":"biletflow-storage-admin","credentials":[{"accessKey":"%s","secretKey":"%s"}],
+           "actions":["Admin","Read","Write","List","Tagging"]},
+          {"name":"biletflow-app","credentials":[{"accessKey":"%s","secretKey":"%s"}],
+           "actions":["Read:%s","Write:%s","List:%s"]}]}\n' \
+          "$$STORAGE_ADMIN_ACCESS_KEY_ID" "$$STORAGE_ADMIN_SECRET_ACCESS_KEY" \
+          "$$S3_ACCESS_KEY_ID" "$$S3_SECRET_ACCESS_KEY" "$$S3_BUCKET" "$$S3_BUCKET" "$$S3_BUCKET" \
+          >/tmp/s3-identities.json
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3-identities.json
+    volumes:
+      - object_storage:/data
+    healthcheck:
+      # Any HTTP answer on the S3 port (403 without credentials) means the gateway is up;
+      # storage-init then waits until the store actually accepts writes.
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # Creates the private bucket with the administrator and proves the setup took effect: the app
+  # account can write, read, list and delete in the bucket, cannot create buckets, and the bucket
+  # refuses anonymous requests (backend/app/storage_provision.py). Any failure stops the stack:
+  # api and worker start only after it succeeded. Idempotent: it runs on every `docker compose up`.
+  storage-init:
+    build: ./backend
+    command: ["python", "-m", "app.storage_provision"]
+    environment:
+      S3_ENDPOINT_URL: http://storage:8333
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:?Set S3_BUCKET in .env}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in .env}
+      STORAGE_ADMIN_ACCESS_KEY_ID: ${STORAGE_ADMIN_ACCESS_KEY_ID:?Set STORAGE_ADMIN_ACCESS_KEY_ID in .env}
+      STORAGE_ADMIN_SECRET_ACCESS_KEY: ${STORAGE_ADMIN_SECRET_ACCESS_KEY:?Set STORAGE_ADMIN_SECRET_ACCESS_KEY in .env}
+    depends_on:
+      storage:
+        condition: service_healthy
+    restart: "no"
+  # --- End of object storage ----------------------------------------------------------------
+
+  # --- Malware scanning for support attachments (BF-16, #75) ---------------------------------
+  # clamd answers INSTREAM on 3310 (published on localhost for a native API/worker). The API and
+  # worker deliberately do not wait for it: until it answers, uploads stay quarantined and the
+  # worker retries their scan. The first start downloads the signature database (a few minutes);
+  # the clamav_data volume keeps it across restarts.
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+  # --- end of malware scanning ----------------------------------------------------------------
+
   proxy:
     restart: unless-stopped
     build:
@@ -108,4 +204,5 @@ services:
 
 volumes:
   postgres_data:
-  file_storage:
+  object_storage:
+  clamav_data: # malware signatures (#75)

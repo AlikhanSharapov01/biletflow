@@ -78,6 +78,28 @@ def test_failed_delete_retry_and_late_writer_reconciliation(factory, app, monkey
     assert not storage.path(key).exists()
 
 
+def test_cleanup_pass_stops_at_the_first_storage_failure(factory, app, monkeypatch):
+    # A hanging store costs its timeout per delete: one failure ends the pass, not fifty.
+    storage = app.state.storage
+    stale = [orphan(factory, storage, "deleted") for _ in range(3)]
+    real_delete, attempts = storage.delete, []
+
+    def failed_delete(key):
+        attempts.append(key)
+        raise OSError("hanging storage")
+
+    monkeypatch.setattr(storage, "delete", failed_delete)
+    assert images.reconcile_images(factory, storage) == 3
+    assert len(attempts) == 1
+    with factory() as db:
+        assert all(db.get(StoredFile, identifier).cleanup_after > now() for identifier, _ in stale)
+    monkeypatch.setattr(storage, "delete", real_delete)
+    for identifier, _ in stale:
+        due_again(factory, identifier)
+    assert images.reconcile_images(factory, storage) == 3
+    assert not any(storage.path(key).exists() for _, key in stale)
+
+
 def test_live_reference_and_clean_image_are_preserved(client, setup, factory, app):
     f = setup()
     image = upload(client, f).json()

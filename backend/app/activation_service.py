@@ -17,6 +17,7 @@ from .commerce_models import (
     VerificationRecord,
 )
 from .models import AuditLog
+from .observability import correlation_id
 from .payments_service import (
     ENVIRONMENT,
     TARGETS,
@@ -281,7 +282,7 @@ def service_audit(db, event, action, target, change=None):
             entity_id=target.id,
             description=action,
             safe_change=change or {},
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 

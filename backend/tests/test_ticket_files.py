@@ -159,6 +159,26 @@ def test_storage_read_error_falls_back_to_rendering(
     assert ticket["id"] in pdf_text(response.content)
 
 
+def test_pdf_endpoint_reads_storage_without_holding_a_connection(
+    client, app, issued, factory, settings, storage, monkeypatch
+):
+    # The object store is a network call: a slow one must not keep a pooled connection busy.
+    ticket, headers = issued
+    deliver_all(factory, settings, storage, [])
+    [row] = stored_rows(factory)
+    real_get, in_use = app.state.storage.get, []
+
+    def get(key):
+        in_use.append(app.state.engine.pool.checkedout())
+        return real_get(key)
+
+    monkeypatch.setattr(app.state.storage, "get", get)
+    response = client.get(f"/api/v1/tickets/{ticket['id']}/pdf", headers=headers)
+    assert response.status_code == 200
+    assert hashlib.sha256(response.content).hexdigest() == row.sha256
+    assert in_use == [0]
+
+
 def test_failed_row_write_removes_the_new_object(issued, factory, settings, storage):
     ticket, _ = issued
 

@@ -12,6 +12,7 @@ from .ticket_document_service import (
     resend_delivery,
     ticket_pdf,
 )
+from .ticket_file_service import stored_ticket_key
 
 
 class DeliveryView(BaseModel):
@@ -39,7 +40,8 @@ def router(factory, settings, principal, storage):
         with factory() as db:
             user, _ = valid_session(db, *ids)
             ticket, item, order = recipient_ticket(db, user, ticket_id)
-            content = ticket_pdf(settings, ticket, item, order, db=db, storage=storage)
+            key = stored_ticket_key(db, ticket)
+        content = ticket_pdf(settings, ticket, item, order, key=key, storage=storage)
         return Response(
             content,
             media_type="application/pdf",

@@ -9,7 +9,7 @@ A backup is one file, `backups/biletflow-<UTC date>.tar`, containing:
 | File | What it is |
 |---|---|
 | `db.dump` | The whole PostgreSQL database (`pg_dump` custom format) |
-| `files.tar.gz` | Uploaded files (the `file_storage` volume): event images, support attachments, stored ticket PDFs |
+| `files.tar.gz` | Uploaded files, every object of the private storage bucket (`S3_BUCKET` in the `storage` service): event images, support attachments, stored ticket PDFs. Each file's name in the archive is its object key |
 | `manifest.txt` | When the backup was made, from which commit, and `consistency=quiesced` or `online` |
 | `SHA256SUMS` | Checksums, verified before a restore touches anything |
 
@@ -24,7 +24,9 @@ bash tools/backup.sh
 To write somewhere else, pass a folder: `bash tools/backup.sh /path/to/folder`.
 
 **This is a short maintenance window.** The script stops `api` and `worker`, dumps the database,
-archives the files and starts them again. While they are stopped the web pages still load but every
+archives the files and starts them again. The files are read from the object store by a one-off
+`api` container with the app's own storage account (`python -m app.storage_backup export`), so no
+storage administrator credentials are needed; `storage` itself keeps running. While they are stopped the web pages still load but every
 API call fails (`502`), so sign-ins, purchases, check-ins and uploads are unavailable; the script
 prints how long that took (seconds on demo data, growing with the database and file sizes). Take
 backups outside sales and admission times. Requests in progress when the API stops get up to 10
@@ -50,7 +52,8 @@ entry confirmations and sign-ins stop working.
 
 ### What a backup guarantees
 
-Only `api` and `worker` change the database and the uploaded files. With both stopped and no other
+Only `api` and `worker` change the database and the uploaded files (their storage account is the
+only one besides the storage administrator, which only `storage-init` uses). With both stopped and no other
 database session open, nothing can change either of them between the dump and the file archive, so
 the backup is one consistent point in time:
 
@@ -68,7 +71,8 @@ the backup is one consistent point in time:
 
 Not covered: anything changed after the backup is lost by a restore, so the backup interval is the
 most data you can lose. `.env`, Mailpit's mailbox and anything outside the database and the
-`file_storage` volume are not in the backup.
+storage bucket (such as the object store's accounts, which `storage` recreates from `.env` on every
+start) are not in the backup.
 
 ### Online backups (no downtime, no guarantee)
 
@@ -102,6 +106,8 @@ run `bash tools/backup.sh` first.
 1. Check out the repository, at the same commit as the backup or newer. `manifest.txt` names it, and
    the restore prints it.
 2. Make sure the original `.env` is in the repository root. On a brand-new machine, copy it there.
+   It must contain the `S3_*` and `STORAGE_ADMIN_*` settings (see `.env.example`); the object store
+   takes its accounts from them, and the restore creates the bucket if it does not exist yet.
 3. Run the restore and type `restore` when asked:
 
    ```bash
@@ -112,8 +118,10 @@ run `bash tools/backup.sh` first.
    leaves the whole stack running, and takes a few minutes the first time because images are built.
    Automation can pass `--yes` to skip the question.
 
-At the end the restore checks that every file the restored database links to is present with the
-recorded checksum, and prints `Restore finished.` If any is missing it lists them and exits with
+The restore writes every file of the backup into the bucket, then deletes objects the backup does
+not have, so the bucket matches the backup exactly; if it stops partway, running it again finishes
+the job. At the end it reads the restored bucket back and checks that every file the restored
+database links to is present with the recorded checksum, and prints `Restore finished.` If any is missing it lists them and exits with
 status 3 (see below); the stack is running either way. The worker then does the queued work that
 was pending in the backup.
 
@@ -135,6 +143,8 @@ docker compose ps
 |---|---|
 | `Not a BiletFlow backup` or a checksum failure | The file is damaged or incomplete. Nothing was changed. Use another copy. |
 | `service "db" is not running` during a backup | Start the stack with `docker compose up -d`. Nothing was stopped. |
+| `service "storage" is not running`, or the backup stops right after the database check | The object store is down or not ready yet. Run `docker compose up -d`, wait for `docker compose ps storage` to say `healthy`, and run the backup again. Nothing was stopped. |
+| `Object storage export failed` or `Object storage restore failed` | The object store refused or did not answer (the error type is printed). Check `docker compose ps storage` and `docker compose logs storage storage-init`, fix it and run the same command again. A failed backup wrote no file; a failed restore can be repeated. |
 | `Other database sessions are still open` | Close the listed sessions (or wait for them) and run the backup again. The app was started again and no backup was written. |
 | `Backup FAILED; no backup file was written.` | Fix the error printed above it and run the backup again. `api` and `worker` were started again. |
 | `ERROR: could not start api worker` | The backup may be fine, but the app is down: run `docker compose up -d` and check `docker compose ps`. |
@@ -150,6 +160,41 @@ missing support attachment `404 attachment_not_found`, and a missing stored tick
 re-rendered on the next download. Either restore a different backup made without `--online`, or
 keep this one and ask the organizers to upload the listed event images again.
 
+## Why SeaweedFS
+
+The object store was first MinIO. MinIO withdrew its `minio/minio` and `minio/mc` images from
+Docker Hub in 2026 (its registry on quay.io no longer allows anonymous pulls and the community
+edition is archived), so the stack could no longer start. It now runs SeaweedFS, which is
+maintained, published as `chrislusf/seaweedfs` and supports per-bucket permissions for a static
+S3 identity. The app talks plain S3 (`S3FileStorage`), so neither the code nor the backup format
+depends on the server; backups taken with MinIO restore unchanged.
+
+If `storage-init` fails, `docker compose logs storage-init` names the check that failed (bucket
+not created, app account cannot use the bucket, app account too broad, anonymous access) and
+`docker compose logs storage` shows the server side. Fix `.env` and run `docker compose up -d`.
+
+## Upgrading from the file volume
+
+Before #77 the files were in the `file_storage` Docker volume, which the API no longer reads. The
+archive format did not change, so moving them into the bucket is a backup and a restore:
+
+1. With the **old** checkout and its stack running, take a normal backup: `bash tools/backup.sh`.
+2. Update the checkout, add the new storage settings from `.env.example` to `.env`, and run
+   `bash tools/restore.sh backups/biletflow-<UTC date>.tar`. It builds the new images, starts
+   `storage`, creates the bucket and loads the files into it.
+3. Once the check at the end prints `Restore finished.`, the old volume can be removed with
+   `docker volume rm biletflow_file_storage`.
+
+## When the object store fails
+
+`api` and `worker` keep running when `storage` is down. Image and support attachment uploads and
+downloads answer `503 storage_unavailable` (nothing half-written is served: a failed
+image upload leaves no database row, a failed support upload leaves only a fenced `deleted` write
+intent, and the worker cleans up unlinked image and attachment objects later), ticket PDFs are rendered
+on request instead of read from storage, and a ticket email sent meanwhile goes out without its
+PDF attachment (the ticket link keeps working). All of it works again as soon as `storage` is back (`docker compose up -d storage`; its restart policy
+also restarts it). If the `object_storage` volume itself is lost, restore the latest backup.
+
 ## How this is tested
 
 The `Backup` GitHub workflow runs the drill for acceptance criterion AC-27 on a real Compose stack
@@ -163,7 +208,8 @@ The `Backup` GitHub workflow runs the drill for acceptance criterion AC-27 on a 
    restore must bring back.
 4. A normal backup tries the same deletion of image `b` in the same place; the API is stopped, so
    it must fail to connect, and `tools/verify_backup.sh` must pass. Image `b` is then deleted.
-5. It destroys the stack, restores into a fresh one (including the restore's file check) and checks
+5. It destroys the stack (including the storage volume), restores into a fresh one (including the
+   restore's file check, which reads the restored bucket back) and checks
    that orders, tickets, QR token hashes, object keys and checksums, audit rows and outbox keys are
    as recorded, that images `a` and `b`, the ticket PDF and the attachment read back unchanged,
    that the QR payload is the same, that the worker completes the pending job, and that the app
@@ -171,5 +217,8 @@ The `Backup` GitHub workflow runs the drill for acceptance criterion AC-27 on a 
 
 `backend/tests/test_backup_consistency.py` checks the script's ordering without Docker: the
 writers stop before the dump and start after the archive, also after a failure, an open database
-session or an interruption, and the consistency check reports an image deleted between the two
-steps.
+session, an object store that is not ready or an interruption, and the consistency check reports
+an image deleted between the two steps. `backend/tests/test_object_storage.py` checks the bucket
+export and restore (including archives of the old file volume) and the S3 adapter without a live
+object store, and `backend/tests/test_object_storage_flows.py` runs image, ticket PDF and support
+attachment uploads, downloads and storage outages through the adapter.

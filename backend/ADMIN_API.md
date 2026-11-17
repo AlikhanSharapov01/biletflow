@@ -1,9 +1,10 @@
 # Platform administration API
 
 Stage E, platform-admin scope (SRS 4.12, backend plan BF-21). Covers the admin role, search,
-user/event and paid-sales suspension, event reports, platform settings, payment/refund inspection
-and CSV export. Other operational views remain outside this increment; see
-[Not yet implemented](#not-yet-implemented).
+user/event and paid-sales suspension, event reports, platform settings, payment/refund inspection,
+read-only support/order/activation/campaign/offline-conflict inspection, background job and
+notification delivery failures with a bounded audited retry, and CSV export. Other
+operational views remain outside this increment; see [Not yet implemented](#not-yet-implemented).
 
 All endpoints need a verified signed-in account (`Authorization: Bearer`) and return errors as
 `{"detail": {"code": "..."}}`. Admin endpoints live under `/api/v1/admin`.
@@ -35,6 +36,15 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 | `GET /admin/orders` | Search. Filters `q` (buyer email, order id or buyer id), `status`, `event_id`, `buyer_user_id` |
 | `GET /admin/tickets` | Search. Filters `q` (recipient email, ticket id or order id), `status`, `event_id`, `order_id` |
 | `GET /admin/payments`, `GET /admin/failed-payments`, `GET /admin/refunds` | Paginated authoritative commerce records; filters below |
+| `GET /admin/orders/{order_id}` | Read-only order detail with linked records; see [Operational inspection](#operational-inspection) |
+| `GET /admin/support-cases`, `GET /admin/support-cases/{case_id}` | Support triage search and read-only case detail |
+| `GET /admin/activations` | Paid-sales activation search; filters `status`, `event_id`, `organization_id` |
+| `GET /admin/campaigns`, `GET /admin/campaigns/{campaign_id}` | Campaign activity search and detail |
+| `GET /admin/sync-conflicts`, `GET /admin/sync-conflicts/{conflict_id}` | Offline-conflict search and detail |
+| `GET /admin/jobs`, `GET /admin/jobs/{job_id}` | Outbox jobs; see [Background work and deliveries](#background-work-and-deliveries) |
+| `POST /admin/jobs/{job_id}/retry` | Body `{"reason"}`; optional `Idempotency-Key`. Sends one `dead` job back to the worker |
+| `GET /admin/notification-deliveries`, `GET /admin/notification-deliveries/{delivery_id}` | Per-channel notification deliveries |
+| `POST /admin/notification-deliveries/{delivery_id}/retry` | Body `{"reason"}`; optional `Idempotency-Key`. Sends one `failed` email delivery back |
 | `GET /admin/events/{event_id}/paid-sales` | Activation checklist, saved fee, latest payment, missing prerequisites and suspension reason |
 | `POST /admin/events/{event_id}/paid-sales/suspend`, `.../reinstate` | Body `{"reason"}` (trimmed, 1-500 characters); optional `Idempotency-Key` |
 | `POST /admin/users/{id}/suspend`, `.../reinstate` | Body `{"reason"}` (1-500 characters) |
@@ -52,8 +62,30 @@ and write an `admin.granted` / `admin.revoked` audit row with `service_actor = "
 Search lists return `{"items": [...], "total", "limit", "offset"}` with `limit` 1-100 (default 50)
 and a deterministic order (newest first, ties by id). Search text is matched literally: `%` and
 `_` are not wildcards. Responses never include password hashes, token hashes or QR material.
-Order and ticket search show the same fields an organizer already sees. Support-case search
-remains outside this API.
+Order and ticket search show the same fields an organizer already sees.
+
+## Operational inspection
+
+Read-only views for investigating a report or failure (BF-21). They all use the admin guard and
+the search envelope above (`limit` 1-100, `offset` 0-100000, newest first then id); invalid UUIDs,
+enums and booleans are `422`. Each view names its columns. None of them writes a row, and
+inspecting a record never grants an ownership, organizer or support role: every action stays
+behind the owning module's permission check.
+
+| View | Filters (exact unless noted) | Rows and detail |
+|---|---|---|
+| `support-cases` | `q` (literal subject text or exact case id), `case_id`, `requester_user_id`, `order_id`, `ticket_id`, `event_id`, `organization_id`, `status`, `category`, `kind` (`attendee`, `organizer_platform`), `escalated` (`true`/`false`) | Case metadata, linked ids, assignment/escalation/resolution times, `last_seq` and `platform_access` (platform admins may work it). Ordered by last activity. Detail adds `viewer_roles` (the caller's current support roles), `message_count`, the append-only status/assignment/escalation history, and the linked order/ticket id and status. Message text and attachments are never included |
+| `orders/{id}` | - | The buyer order view (items, recipients, tickets, payment, refunds, promo) with `qr_payload` always `null`, plus linked support cases, ticket delivery jobs (status, attempts, safe error code) and the audit trail of the order, its tickets, payment attempts and refunds (action, entity, actor, time; at most 100 each) |
+| `activations` | `status` (`incomplete`, `pending`, `active`, `failed`, `suspended`), `event_id`, `organization_id` | Activation id, event and title, organization, status, saved fee, paid attempt, activation time and suspension reason. The per-event checklist stays `GET /admin/events/{event_id}/paid-sales` |
+| `campaigns` | `q` (literal name or exact campaign id), `event_id`, `organization_id`, `enabled` | Campaign terms, `redemptions` and `active_reservations`. Detail adds the promo `code`, the reconciled campaign report, the latest 100 redemptions (order, discount, time) and reservation counts by status. Promo link tokens and URLs are omitted |
+| `sync-conflicts` | `status` (`open`, `resolved`), `event_id`, `organization_id`, `ticket_id` | Conflict, operation, device, ticket and existing check-in ids with times. Detail is the organizer conflict view (operation, device and server clocks, existing check-in) plus `organization_id`. Resolution stays with event staff holding `attendees` |
+
+`GET /admin/orders/{id}` answers `404 order_not_found`; the other details answer
+`404 case_not_found`, `campaign_not_found` or `sync_conflict_not_found`. The buyer-only
+`GET /orders/{id}` and the organizer conflict routes are unchanged and do not admit admins.
+Admins still work only platform and escalated cases through `/support` (see
+[SUPPORT_API.md](SUPPORT_API.md)), which also gained the same exact identifier filters for every
+caller's own scope.
 
 ## Payment and refund inspection
 
@@ -85,6 +117,78 @@ same column allowlist and deterministic ordering, and write the existing `admin.
 They are bounded snapshots of the first `limit` matching rows, not an unbounded export or a promise
 of a complete result. Existing users/events/orders/tickets CSV filters remain `q`, `status`, and
 `event_id` for orders/tickets.
+
+## Background work and deliveries
+
+BF-15/BF-21 (#73). Admin-only, paginated (`limit` 1-100, `offset` 0-100000, newest first then id,
+five-second statement timeout); invalid UUIDs and enums are `422`.
+
+**Jobs** (`outbox_job`). `status` is `pending` (waiting, possibly after a temporary failure with
+`last_error` set), `leased` (a worker holds it until `lease_until`; an expired lease is picked up
+again), `done` (completed) or `dead` (the worker gave up after `max_attempts`). Filters `status`,
+`kind`, `event_id` and `linked_id` (any linked business id below, or the account/organization
+of an auth/invitation email). Rows show id, kind, status, `attempt_count`, `max_attempts` (`5` for
+email and fan-out jobs, `null` for payment jobs, which never exhaust), `admin_retry_count`,
+`last_error`, available/lease/created/completed times, `event_id`, `retryable` (status and
+bound allow a retry; target checks run only when it is requested) and `context`.
+`context` holds only allowlisted payload identifiers (`notice`, `event_id`, `order_id`,
+`ticket_id`, `case_id`, `recipient_user_id`, `user_id`, `decision_id`, `change_id`, `payout_id`,
+`refund_id`, `attempt_id`, `calendar_sequence`); auth emails show `user_id` and `purpose`, staff
+invitations `organization_id`, never the token or invitation id behind a link.
+
+**Deliveries** (`notification_delivery`). In-app rows are written `sent`. Email rows are
+`pending` (with `next_attempt_at` and the last safe error after a temporary failure), `sent` or
+`failed` (`email_delivery_failed` after 5 attempts, or `recipient_unavailable`). Filters
+`status`, `channel`, `kind`, `recipient_user_id`, `event_id`, `notification_id`. Rows add the
+notification `kind`, recipient id, event, `target` (as in the inbox) and `provider_message_id`;
+never the address or the rendered text.
+
+`last_error` is always one of the worker's constant codes; exception text, addresses and tokens
+are never stored.
+
+### Retry
+
+A retry is an explicit recovery, not a new logical operation: the same row goes back to the
+worker with `attempt_count = 0` (a job also gets `available_at = now`, a delivery
+`next_attempt_at = now`), keeping its deduplication key and its last error until the next
+outcome. In one transaction, under the row lock, it checks in this order and answers `409`:
+
+| Code | When |
+|---|---|
+| `retry_not_supported` | Payment jobs and other kinds outside the table below; an in-app delivery that is not `sent` |
+| `already_completed` | The row is `done`/`sent`, or the business work already happened (see below). In-app deliveries are written as `sent`, so retrying one answers this code: a delivery is checked for `sent` before its channel |
+| `not_exhausted` | The row is `pending`/`leased`: the worker still owns it |
+| `retry_limit_reached` | The row already had 3 admin retries (also a database CHECK) |
+| `target_obsolete` | The current target state no longer supports sending it (see below) |
+
+Unknown rows are `404 job_not_found` / `delivery_not_found`. A successful retry returns the row
+view, increments `admin_retry_count` and writes `admin.job_retried` (entity `outbox_job`) or
+`admin.notification_delivery_retried` (entity `notification_delivery`) with the reason, kind,
+previous status and attempts and retry number, in the same transaction. Concurrent retries reset
+the row once; the others get `not_exhausted`. With an `Idempotency-Key` (8-128 characters,
+24 hours, as for paid-sales decisions) an identical repeat returns the current view without a
+second reset or audit row; the same key with another row or reason is `409 idempotency_key_reused`.
+
+| Work | Retried when | Otherwise |
+|---|---|---|
+| `auth_email` | The token is unconsumed and unexpired and the account is active; the worker signs the same link again | consumed: `already_completed`; expired, missing or inactive: `target_obsolete`. Users can also request a new verification/reset email |
+| `staff_invite_email` | The invitation is not accepted, revoked or expired | accepted: `already_completed`; otherwise `target_obsolete`. Organizers can invite again |
+| `ticket_delivery_email` | The ticket is still `valid` and no later delivery of it is done or queued | later delivery: `already_completed`; not valid: `target_obsolete`. Buyers and recipients keep `POST /tickets/{id}/delivery/resend` |
+| `support_email` | The recipient is active, verified and still related to the case | `target_obsolete` |
+| `notification_fanout` | The notice is still current (rules below); fan-out is deduplicated per recipient, so no second inbox row is created | `target_obsolete` |
+| email `notification_delivery` | The recipient can still receive that notice and it is still current | `target_obsolete` |
+
+A notice is no longer current when: `payment_failed` and the order is no longer `pending` (paid,
+expired or closed: it must not contradict a success); `event_updated` and the event was cancelled
+or updated again (the newer notice supersedes it); an account, event or paid-sales moderation
+notice whose decision has since been reversed; or its event no longer exists. Other notices
+(cancellation, purchase, refund, payout, ticket, support) only need an eligible recipient. The
+worker still applies its own send-time checks (recipient eligibility, ticket validity, token and
+invitation state); these retry rules are checked when the retry is accepted, so a notice that
+becomes obsolete only after that may still be sent.
+
+Email stays at-least-once: a retry after an uncertain SMTP outcome can deliver a duplicate, and
+nothing here promises exactly-once delivery. Ticket validity never depends on email.
 
 ## Suspension
 
@@ -201,7 +305,7 @@ that starts with `=`, `+`, `-`, `@`, tab or carriage return is prefixed with `'`
 treat user-supplied text as text. Output is capped at 5000 rows and each export writes an
 `admin.export` audit row (kind, limit and filters) in the same transaction.
 
-## Tables (`0006_admin_moderation`)
+## Tables (`0006_admin_moderation`, `0019_admin_retry`)
 
 | Table | Purpose |
 |---|---|
@@ -209,6 +313,11 @@ treat user-supplied text as text. Output is capped at 5000 rows and each export 
 | `event_report` | User reports with review state and `uq_open_report` |
 | `moderation_action` | Append-only suspend/reinstate decisions (user or event target) |
 | `platform_setting_version` | Append-only setting history |
+
+`0019_admin_retry` adds `admin_retry_count integer NOT NULL DEFAULT 0` with
+`CHECK (admin_retry_count BETWEEN 0 AND 3)` to `outbox_job` (`outbox_admin_retries`) and
+`notification_delivery` (`notification_delivery_ck5`). The check is added `NOT VALID` and validated
+outside the transaction. Its downgrade drops only the two columns.
 
 The database atlas also designs a `target_activation_id` column on `moderation_action`; the current
 deployed moderation table still has user/event targets only. Paid-sales decisions use the existing
@@ -218,6 +327,4 @@ deliberately raises, like earlier migrations.
 
 ## Not yet implemented
 
-- Dispute, campaign and offline-conflict admin views, and admin search/inspection of support
-  cases (escalation itself exists: `POST /support/cases/{id}/escalation`) (#72).
-- Views of exhausted jobs and failed notification deliveries (#73).
+- Advanced dispute and chargeback handling (excluded from #72).

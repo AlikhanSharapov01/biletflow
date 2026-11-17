@@ -17,6 +17,7 @@ from .checkout_models import OrderItem, Ticket, TicketOrder
 from .commerce_models import PaymentAttempt, PaymentIntent, Refund
 from .models import AuditLog
 from .notification_service import enqueue_order_notice
+from .observability import correlation_id
 from .payments_service import create_refund, refund_view
 from .security import fail, now
 from .support_models import SupportCase
@@ -99,7 +100,7 @@ def audit(db, user, event, action, target, note):
             entity_id=target.id,
             description=note or action,
             safe_change={"reason": note} if note else {},
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 

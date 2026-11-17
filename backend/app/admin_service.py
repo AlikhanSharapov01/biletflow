@@ -14,6 +14,7 @@ from .catalog_service import catalog_audit, changed, event_guard
 from .checkout_models import OrderItem, Ticket, TicketOrder
 from .models import AuditLog, User
 from .notification_service import enqueue_moderation_notice
+from .observability import correlation_id
 from .platform_settings import effective_setting, setting_lock_key  # noqa: F401 (re-exported)
 from .security import fail, now
 from .service import locked_user, revoke_all, valid_session
@@ -51,7 +52,7 @@ def admin_audit(db, admin, action, entity_type, entity_id, event=None, safe_chan
         entity_id=entity_id,
         description=action,
         safe_change=safe_change or {},
-        correlation_id=uuid4(),
+        correlation_id=correlation_id(),
     )
     db.add(row)
     return row
@@ -196,8 +197,8 @@ SEARCHES = {
 }
 
 
-def search_page(db, kind, limit, offset, **filters):
-    query, order = SEARCHES[kind](**filters)
+def search_page(db, kind, limit, offset, searches=SEARCHES, **filters):
+    query, order = searches[kind](**filters)
     total = db.scalar(select(func.count()).select_from(query.order_by(None).subquery()))
     rows = db.execute(query.order_by(*order).limit(limit).offset(offset)).mappings().all()
     return {"items": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}

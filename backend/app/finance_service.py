@@ -1,7 +1,5 @@
 """Authoritative cash aggregates plus simulation-only payout reservations."""
 
-from uuid import uuid4
-
 from sqlalchemy import func, select, text
 
 from .analytics_service import ITEMS, TOTALS, normalize
@@ -10,6 +8,7 @@ from .commerce_models import PaymentAttempt, PaymentIntent, PayoutProfile
 from .finance_models import DemoPayout, FinanceEntry
 from .models import AuditLog
 from .notification_service import enqueue
+from .observability import correlation_id
 from .security import fail, now
 
 FILTERS = {"from_": None, "to": None, "ticket_type_id": None, "campaign_id": None}
@@ -140,7 +139,7 @@ def notice(db, payout, state, change_id=None, actor_id=None):
             entity_id=payout.id,
             description="Simulated payout " + state,
             safe_change={"simulated": True},
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 

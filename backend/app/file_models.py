@@ -61,6 +61,13 @@ class StoredFile(Row, Base):
                 "AND cleanup_after IS NOT NULL"
             ),
         ),
+        # 0018: support upload intents, unlinked uploads and tombstones awaiting cleanup.
+        Index(
+            "ix_support_attachment_cleanup",
+            "cleanup_after",
+            "id",
+            postgresql_where=text("purpose = 'support_attachment' AND cleanup_after IS NOT NULL"),
+        ),
     )
     uploaded_by_user_id: Mapped[UUID | None] = mapped_column(PGUUID)
     object_key: Mapped[str] = mapped_column(Text)

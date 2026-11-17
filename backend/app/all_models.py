@@ -13,6 +13,7 @@ from . import (  # noqa: F401
     commerce_models,
     file_models,
     finance_models,
+    ga4_models,
     models,
     notification_models,
     offline_models,

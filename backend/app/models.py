@@ -17,6 +17,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from .observability import correlation_id as bound_correlation
+
 
 class Base(DeclarativeBase):
     metadata = MetaData(schema="biletflow")
@@ -178,6 +180,7 @@ class OutboxJob(Row, Base):
             name="outbox_lease",
         ),
         CheckConstraint("status <> 'done' OR completed_at IS NOT NULL", name="outbox_completed"),
+        CheckConstraint("admin_retry_count BETWEEN 0 AND 3", name="outbox_admin_retries"),
         ForeignKeyConstraint(
             ["event_id"], ["biletflow.event.id"], ondelete="RESTRICT", onupdate="RESTRICT"
         ),
@@ -195,3 +198,7 @@ class OutboxJob(Row, Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
+    # Audited admin retries of this row (0019_admin_retry); each one restarts attempt_count.
+    admin_retry_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    # The request/job that queued it (0021); NULL on rows queued before that migration.
+    correlation_id: Mapped[UUID | None] = mapped_column(PGUUID, default=bound_correlation)

@@ -7,6 +7,7 @@ from sqlalchemy import case, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from .models import AccountToken, AuditLog, AuthSession, OutboxJob, RateBucket, RefreshToken, User
+from .observability import correlation_id
 from .security import challenge_value, derive, digest, fail, now
 
 
@@ -18,7 +19,7 @@ def audit(db, user, action, entity_id=None, entity_type="app_user"):
             entity_type=entity_type,
             entity_id=entity_id or user.id,
             description=action,
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 
@@ -126,11 +127,15 @@ def queue_challenge(db, settings, user, purpose):
     )
 
 
-def rate_limit(factory, settings, ip, operation, identity=None):
+def rate_limit(
+    factory, settings, ip, operation, identity=None, *, ip_limit=None, identity_limit=None
+):
     # A separate committed transaction also counts rejected login attempts, across API workers.
-    keys = [(f"{operation}:ip:{ip}", settings.rate_ip_limit)]
+    keys = [(f"{operation}:ip:{ip}", ip_limit or settings.rate_ip_limit)]
     if identity:
-        keys.append((f"{operation}:identity:{identity}", settings.rate_identity_limit))
+        keys.append(
+            (f"{operation}:identity:{identity}", identity_limit or settings.rate_identity_limit)
+        )
     exceeded = False
     with factory.begin() as db:
         current = db.scalar(select(func.clock_timestamp()))

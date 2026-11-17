@@ -8,6 +8,13 @@ from . import admin_schemas as s
 from .activation_schemas import Checklist
 from .activation_service import checklist, reinstate, suspend
 from .admin_commerce import COMMERCE_KINDS, commerce_filters
+from .admin_inspection import (
+    INSPECTIONS,
+    campaign_detail,
+    order_detail,
+    support_case_detail,
+    sync_conflict_detail,
+)
 from .admin_models import EventReport, ModerationAction, SettingVersion
 from .admin_service import (
     EXPORT_MAX_ROWS,
@@ -30,6 +37,7 @@ from .idempotency import checked_key, fingerprint, guard, remember, remembered
 from .notification_service import enqueue_moderation_notice
 from .security import fail
 from .service import valid_session
+from .support_models import CATEGORIES, STATUSES
 
 ADMIN = "/api/v1/admin"
 Limit = Query(50, ge=1, le=100)
@@ -44,6 +52,7 @@ OrderStatus = Literal[
 TicketStatus = Literal["valid", "checked_in", "refund_pending", "refunded", "cancelled"]
 ReportStatus = Literal["open", "reviewing", "resolved"]
 Kind = Literal["users", "events", "orders", "tickets", "payments", "failed-payments", "refunds"]
+ActivationStatus = Literal["incomplete", "pending", "active", "failed", "suspended"]
 
 
 def router(factory, settings, principal):
@@ -135,6 +144,133 @@ def router(factory, settings, principal):
                 event_id=event_id,
                 order_id=order_id,
             )
+
+    # ------------------------------------------------------------ inspection (read-only)
+    def inspection_page(kind, ids, limit, offset, **filters):
+        with factory() as db:
+            admin_guard(db, ids)
+            return search_page(db, kind, limit, offset, searches=INSPECTIONS, **filters)
+
+    @routes.get(ADMIN + "/orders/{order_id}")
+    def order_inspection(order_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            admin = admin_guard(db, ids)
+            return order_detail(db, settings, admin, order_id)
+
+    @routes.get(ADMIN + "/support-cases", response_model=s.Page)
+    def support_cases(
+        ids=Depends(principal),
+        q: str | None = Q,
+        case_id: UUID | None = None,
+        requester_user_id: UUID | None = None,
+        order_id: UUID | None = None,
+        ticket_id: UUID | None = None,
+        event_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        status: Literal[STATUSES] | None = None,
+        category: Literal[CATEGORIES] | None = None,
+        kind: Literal["attendee", "organizer_platform"] | None = None,
+        escalated: bool | None = None,
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return inspection_page(
+            "support-cases",
+            ids,
+            limit,
+            offset,
+            q=q,
+            case_id=case_id,
+            requester_user_id=requester_user_id,
+            order_id=order_id,
+            ticket_id=ticket_id,
+            event_id=event_id,
+            organization_id=organization_id,
+            status=status,
+            category=category,
+            # Not `kind=`: inspection_page/search_page take the search name as `kind`.
+            case_kind=kind,
+            escalated=escalated,
+        )
+
+    @routes.get(ADMIN + "/support-cases/{case_id}")
+    def support_case_inspection(case_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            admin = admin_guard(db, ids)
+            return support_case_detail(db, admin, case_id)
+
+    @routes.get(ADMIN + "/activations", response_model=s.Page)
+    def activations(
+        ids=Depends(principal),
+        status: ActivationStatus | None = None,
+        event_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return inspection_page(
+            "activations",
+            ids,
+            limit,
+            offset,
+            status=status,
+            event_id=event_id,
+            organization_id=organization_id,
+        )
+
+    @routes.get(ADMIN + "/campaigns", response_model=s.Page)
+    def campaigns(
+        ids=Depends(principal),
+        q: str | None = Q,
+        event_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        enabled: bool | None = None,
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return inspection_page(
+            "campaigns",
+            ids,
+            limit,
+            offset,
+            q=q,
+            event_id=event_id,
+            organization_id=organization_id,
+            enabled=enabled,
+        )
+
+    @routes.get(ADMIN + "/campaigns/{campaign_id}")
+    def campaign_inspection(campaign_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            admin_guard(db, ids)
+            return campaign_detail(db, campaign_id)
+
+    @routes.get(ADMIN + "/sync-conflicts", response_model=s.Page)
+    def sync_conflicts(
+        ids=Depends(principal),
+        status: Literal["open", "resolved"] | None = None,
+        event_id: UUID | None = None,
+        organization_id: UUID | None = None,
+        ticket_id: UUID | None = None,
+        limit: int = Limit,
+        offset: int = Offset,
+    ):
+        return inspection_page(
+            "sync-conflicts",
+            ids,
+            limit,
+            offset,
+            status=status,
+            event_id=event_id,
+            organization_id=organization_id,
+            ticket_id=ticket_id,
+        )
+
+    @routes.get(ADMIN + "/sync-conflicts/{conflict_id}")
+    def sync_conflict_inspection(conflict_id: UUID, ids=Depends(principal)):
+        with factory() as db:
+            admin_guard(db, ids)
+            return sync_conflict_detail(db, conflict_id)
 
     # ------------------------------------------------------------ moderation
     @routes.get(ADMIN + "/events/{event_id}/paid-sales", response_model=Checklist)

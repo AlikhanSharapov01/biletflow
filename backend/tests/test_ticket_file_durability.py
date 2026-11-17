@@ -330,6 +330,24 @@ def test_failed_delete_retries_then_a_final_late_write_check(
     assert reconcile_ticket_pdfs(factory, storage) == 0
 
 
+def test_sweep_stops_at_the_first_storage_failure(factory, storage, ticket_id, monkeypatch):
+    # A hanging store costs its timeout per delete: one failure ends the pass, not fifty.
+    written = [interrupted_write(factory, storage, ticket_id) for _ in range(3)]
+    for file_id, _ in written:
+        make_due(factory, file_id)
+    real_delete, failing = storage.delete, MagicMock(side_effect=OSError("hanging storage"))
+    monkeypatch.setattr(storage, "delete", failing)
+    assert reconcile_ticket_pdfs(factory, storage) == 3
+    assert failing.call_count == 1 and len(objects(storage)) == 3
+    rows = ticket_files(factory, ticket_id)
+    assert all(row.status == "deleted" and row.cleanup_after > now() for row in rows)
+    monkeypatch.setattr(storage, "delete", real_delete)
+    for file_id, _ in written:
+        make_due(factory, file_id)
+    assert reconcile_ticket_pdfs(factory, storage) == 3
+    assert objects(storage) == []
+
+
 def test_sweep_batches_are_bounded(factory, storage, ticket_id):
     written = [interrupted_write(factory, storage, ticket_id) for _ in range(3)]
     for file_id, _ in written:

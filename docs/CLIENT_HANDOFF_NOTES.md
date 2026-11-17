@@ -178,6 +178,9 @@ except where marked. The guides `backend/SUPPORT_API.md`, `backend/TICKET_PDF_AP
      `ATTACHMENT_MAX_BYTES`), `422 attachment_empty`, `422 attachment_rejected` (the content does not match the
      type), `422 invalid_input` (missing `filename`), `429 rate_limited` (20 uploads per minute), `404
      case_not_found`.
+     **`202` (same body, `status: "quarantined"`) means "wait": the virus scanner has no verdict yet (ClamAV
+     starting or down). Do not show the file as ready; poll `GET /support/cases/{case_id}/uploads/{file_id}`
+     and attach it only once `status` is `clean` (`rejected` means it was refused; drop it).**
   2. Send the message with the ids: `POST /support/cases/{id}/messages {client_message_id, body,
      attachment_ids: [file_id, ...]}`, at most 5 distinct ids (`ATTACHMENT_MAX_PER_MESSAGE`; more than 5 `attachment_ids` gives `422 invalid_input`). A file that is
      already linked, expired, someone else's or from another case gives `409 attachment_not_available` with
@@ -218,7 +221,8 @@ except where marked. The guides `backend/SUPPORT_API.md`, `backend/TICKET_PDF_AP
 
 ### Operations note for both
 
-Uploaded files and ticket PDFs live below `STORAGE_ROOT`. In Docker Compose this is the `file_storage` volume at
-`/app/var/storage` shared by `api` and `worker`; `docker compose down --volumes` deletes it. After pulling this
+Uploaded files and ticket PDFs live below `STORAGE_ROOT` when the API runs natively. In Docker Compose they are in
+a private S3-compatible bucket (the `storage` service, SeaweedFS) shared by `api` and `worker` (#77);
+`docker compose down --volumes` deletes it. After pulling this
 increment, rebuild and re-run the `migrate` service (`docker compose up --build`) so migration
 `0009_files_admission` is applied and the app database role is granted on the two new tables.

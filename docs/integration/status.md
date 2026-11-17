@@ -5,7 +5,10 @@ Whole-project status per requirement area (BF-01 to BF-22 in
 dependency order. Replaces the milestone checklist in issue #58, which predates PR #64.
 
 - **Baseline:** `main` at `7dd19e0` (merge of PR #64), 12 November 2026; updated 13 November 2026
-  for PRs #86–#95 (issues #65, #66, #68, #69, #79, #80, #82, #83, #84).
+  for PRs #86–#95 (issues #65, #66, #68, #69, #79, #80, #82, #83, #84). Updated 17 November 2026
+  for the `dauka-backend` branch, not yet merged to `main`: #71, #72, #73, #75, #76, #77, #78 and
+  #81 are API-implemented there with backend tests written, but the PostgreSQL suite has not yet
+  been run on that branch and no client uses the new contracts. Their issues stay open until merge.
 - **Sources checked:** `backend/app/**`, `web/src/api/**`, `mobile/src/api/**` and their feature
   screens, `backend/VALIDATION.md`, the `*_API.md` contracts, merged PRs, open issues and the
   GitHub Actions runs on `main`. Audit tracker: #85.
@@ -18,7 +21,7 @@ These are separate states. One does not imply the next.
 | State | Meaning |
 |---|---|
 | **API complete** | The backend implements the BF requirements, with a contract in `backend/*_API.md` and backend tests. "Partial" means an open issue covers a missing or defective part. |
-| **Merged** | The backend work is on `main` (PR numbers). |
+| **Merged** | The backend work is on `main` (PR numbers). "`dauka-backend`, pending merge" means it is only on that branch. |
 | **Web / Mobile integrated** | The client on `main` calls the live contract for this area. "Planned contract" means the screen calls the route that now exists, but its types and behaviour have not been checked against the final contract. Since [decision 0001](../decisions/0001-mobile-app-full-scope.md), every feature needs both clients. |
 | **Acceptance verified** | The relevant AC scenarios (requirements §10) were shown working on the integrated stack, not only in backend unit/integration tests. |
 
@@ -60,11 +63,11 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 | BF-15 Notifications | Partial: no admin view of exhausted deliveries; no moderation notices | #24, #61, #64 | Yes (inbox) | Yes (inbox; moderation notices open the organizer event) | Not verified | #73, #74 |
 | BF-16 Support and attachments | Partial: no malware scan/quarantine; no recovery of abandoned uploads | #24 | Yes | Yes; document picker not tested on devices | Not verified | #75, #76, #53 |
 | BF-17 Calendar | Yes | #24 | Yes | Yes | Not verified | — |
-| BF-18 Organizer analytics | Partial: no export; campaign report reconciliation | #64 | Partial: planned contract (#45 analytics task open) | Yes; not verified on a device | Not verified; load not measured | #67, #81, #80, #45, #51 |
-| BF-19 GA4 | No | — | Partial: optional consent-aware page views only (`web/README.md`); live property not verified | No | No | #71 |
-| BF-20 History, duplication, audit | Partial: no request/job correlation IDs | Early `main`, #24, #64 (filters) | Yes | Yes | Not verified | #78 |
-| BF-21 Administration | Partial: settings not applied to commerce; search/detail, failure views and notices missing | #24, #64 (commerce monitoring) | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Partial: same | Not verified | #70, #72, #73, #74 |
-| BF-22 Operations and integration | Partial: local file storage only, no metrics | #59 (issue #57), #60 (issue #56), #87–#89, #95 | n/a | n/a | Backup/restore drill with file checks and smoke in CI; local load and process-kill harnesses; HTTPS not verified | #49, #77, #78 |
+| BF-18 Organizer analytics | Partial: campaign report reconciliation. CSV export implemented on `dauka-backend` (#81), suite not yet run there | #64; `dauka-backend`, pending merge: #81 | Partial: planned contract (#45 analytics task open) | Yes; not verified on a device | Not verified; load not measured | #67, #81, #80, #45, #51 |
+| BF-19 GA4 | Partial: optional integration implemented on `dauka-backend` (#71) with deterministic tests written, suite not yet run there; live property not verified | `dauka-backend`, pending merge: #71 | Partial: optional consent-aware page views only (`web/README.md`); live property not verified | No | No | #71 |
+| BF-20 History, duplication, audit | Partial until merged: request/job correlation IDs implemented on `dauka-backend` (#78), suite not yet run there | Early `main`, #24, #64 (filters); `dauka-backend`, pending merge: #78 | Yes | Yes | Not verified | #78 |
+| BF-21 Administration | Partial: settings not applied to commerce; notices missing. Search/detail (#72) and failure views with retry (#73) implemented on `dauka-backend`, suite not yet run there | #24, #64 (commerce monitoring); `dauka-backend`, pending merge: #72, #73 | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Partial: same | Not verified | #70, #72, #73, #74 |
+| BF-22 Operations and integration | Partial until merged: S3-compatible storage with SeaweedFS (#77) and correlation IDs, redacted logs and metrics (#78) implemented on `dauka-backend`, suite and Compose workflows not yet run there | #59 (issue #57), #60 (issue #56), #87–#89, #95; `dauka-backend`, pending merge: #77, #78 | n/a | n/a | Backup/restore drill with file checks and smoke in CI; local load and process-kill harnesses; HTTPS not verified | #49, #77, #78 |
 | SRS 7 Localization (kk/ru/en) | Yes (#43) | #64 | Yes (#46, PR #63) | Yes (#52): web catalogs plus app-only text; not verified on a device | Not verified | #52 |
 
 ### Gaps no issue tracks yet
@@ -79,7 +82,8 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 From the audit in #85. Each step depends on the ones before it; no dates are attached.
 
 Done on 12–13 November: #65, #66, #68, #69 (step 1 and part of step 2), #79, #82 (step 4) and
-#80, #83, #84 (step 5 harnesses and docs).
+#80, #83, #84 (step 5 harnesses and docs). API-implemented on `dauka-backend`, pending merge and a
+suite run (17 November): #71, #72, #73, #75, #76, #77, #78, #81.
 
 1. **Campaign reporting, prospective settings, protected uploads:** #67, #70, #75, #76.
 2. **Admin failure handling, triage and notices; object storage; observability:** #73, #72, #74,

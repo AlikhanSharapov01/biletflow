@@ -28,6 +28,9 @@ from tests.test_event_images import upload
 
 REPO = Path(__file__).resolve().parents[2]
 BACKUP = REPO / "tools" / "backup.sh"
+# The object-store archive (#77): every object of the private bucket, read through the app's
+# own storage account. The stand-in docker answers every `run` with the stand-in bucket.
+EXPORT = "run --rm --no-deps -T api python -m app.storage_backup export"
 API = "/api/v1"
 
 needs_shell = pytest.mark.skipif(
@@ -47,6 +50,7 @@ case "$1" in
   exec)
     case "$*" in
       *pg_isready*) ;;
+      *"storage sh -c"*8333*) [ -z "${FAKE_STORAGE_DOWN:-}" ] || exit 1 ;;
       *pg_stat_activity*) echo "${FAKE_SESSIONS:-0}" ;;
       *pg_dump*) [ -z "${FAKE_FAIL_DUMP:-}" ] || exit 1; echo dump ;;
       *pg_restore*) cat >/dev/null ;;
@@ -119,7 +123,7 @@ def test_quiesced_backup_keeps_an_image_deleted_between_dump_and_archive(stack):
     result, log, backups, running = stack(BACKUP_TEST_HOOK=DELETE_IF_API_RUNNING)
     assert result.returncode == 0, result.stderr
     stop, dump = index(log, "stop api worker"), index(log, "exec -T db pg_dump")
-    hook, archive = index(log, "hook:"), index(log, "run --rm --no-deps -T api tar")
+    hook, archive = index(log, "hook:"), index(log, EXPORT)
     start = index(log, "start ")
     assert stop < dump < hook < archive < start
     assert index(log, "exec -T db psql") < dump  # waited for other sessions to close
@@ -165,6 +169,16 @@ def test_open_database_session_aborts_before_the_dump(stack):
 
 
 @needs_shell
+def test_unready_object_store_aborts_before_anything_is_stopped(stack):
+    result, log, backups, running = stack(FAKE_STORAGE_DOWN="1")
+    assert result.returncode != 0
+    assert "Backup FAILED" in result.stderr
+    assert not [line for line in log if line.startswith(("stop", "start", "run"))]
+    assert running == {"api", "worker"}
+    assert backups == []
+
+
+@needs_shell
 def test_interrupted_backup_restarts_writers(stack):
     result, log, backups, running = stack(BACKUP_TEST_HOOK="kill -TERM $PPID")
     assert result.returncode == 143
@@ -180,6 +194,89 @@ def test_only_writers_that_were_running_are_started_again(stack, tmp_path):
     assert "stop api worker" in log
     assert log[index(log, "start ")] == "start api"
     assert running == {"api"}
+
+
+RESTORE = REPO / "tools" / "restore.sh"
+
+# Stand-in docker for tools/restore.sh: every step succeeds except the read-back export of the
+# restored bucket (FAKE_EXPORT_FAIL) and the file check, which exits with FAKE_CHECK.
+FAKE_RESTORE_DOCKER = r"""#!/usr/bin/env bash
+[ "$1" = compose ] || exit 64
+shift
+echo "$*" >>"$FAKE_LOG"
+case "$*" in
+  *"SELECT 1 FROM pg_database"*) echo 1 ;;
+  *"storage_backup export"*)
+    [ -z "${FAKE_EXPORT_FAIL:-}" ] || { echo "Object storage export failed" >&2; exit 1; }
+    tar -czf - -C "$FAKE_STORAGE" . ;;
+  *"python -c"*) cat >/dev/null; exit "${FAKE_CHECK:-0}" ;;
+  run*|exec*) cat >/dev/null ;;
+esac
+exit 0
+"""
+
+
+@pytest.fixture
+def restore(tmp_path):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "docker").write_text(FAKE_RESTORE_DOCKER)
+    (bin_dir / "docker").chmod(0o755)
+    storage = tmp_path / "bucket"
+    storage.mkdir()
+    (storage / "drill-marker.txt").write_bytes(b"restored-ok")
+    parts = tmp_path / "parts"
+    parts.mkdir()
+    (parts / "db.dump").write_bytes(b"dump")
+    with tarfile.open(parts / "files.tar.gz", "w:gz") as tar:
+        tar.add(storage, arcname=".")
+    (parts / "manifest.txt").write_text("consistency=quiesced\n")
+    subprocess.run(
+        "sha256sum db.dump files.tar.gz manifest.txt >SHA256SUMS",
+        shell=True,
+        cwd=parts,
+        check=True,
+    )
+    backup = tmp_path / "biletflow-test.tar"
+    with tarfile.open(backup, "w") as tar:
+        tar.add(parts, arcname=".")
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "FAKE_LOG": str(tmp_path / "compose.log"),
+        "FAKE_STORAGE": str(storage),
+    }
+
+    def run(**extra):
+        return subprocess.run(
+            ["bash", str(RESTORE), "--yes", str(backup)],
+            env={**env, **extra},
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    return run
+
+
+@needs_shell
+@pytest.mark.parametrize(
+    "extra,status,message",
+    [
+        ({}, 0, "Restore finished."),
+        ({"FAKE_CHECK": "1"}, 3, "files above are missing or damaged"),
+        ({"FAKE_CHECK": "2"}, 1, "the file check could not run"),
+        ({"FAKE_EXPORT_FAIL": "1"}, 1, "could not be read back"),
+    ],
+)
+def test_restore_reports_the_file_check_outcome(restore, extra, status, message):
+    result = restore(**extra)
+    assert result.returncode == status, result.stderr
+    assert message in result.stdout + result.stderr
+    if extra.get("FAKE_EXPORT_FAIL"):
+        # An object store that cannot be read is not reported as missing files.
+        assert "missing or damaged" not in result.stderr
 
 
 def checker():

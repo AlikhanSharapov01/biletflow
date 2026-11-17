@@ -9,6 +9,7 @@ its target always becomes a durable refund obligation that the worker dispatches
 
 import hashlib
 import json
+import logging
 from datetime import timedelta
 from uuid import UUID, uuid4, uuid5
 
@@ -19,6 +20,7 @@ from sqlalchemy.exc import OperationalError
 from .catalog_models import Event
 from .commerce_models import PaymentAttempt, PaymentIntent, ProviderEvent, Refund, RefundAttempt
 from .models import AuditLog, OutboxJob
+from .observability import bind_correlation, correlated_job, correlation_id, signal
 from .security import fail, now
 
 PROVIDER = "biletflow-simulator"
@@ -112,7 +114,7 @@ def audit(db, event, action, target, change=None):
             entity_id=target.id,
             description=action,
             safe_change=change or {},
-            correlation_id=uuid4(),
+            correlation_id=correlation_id(),
         )
     )
 
@@ -174,7 +176,7 @@ def current_refund_attempt_number(db, refund_id):
 
 
 def next_job(db, kind):
-    return db.scalar(
+    job = db.scalar(
         select(OutboxJob)
         .where(
             OutboxJob.kind == kind, OutboxJob.status == "pending", OutboxJob.available_at <= now()
@@ -183,13 +185,18 @@ def next_job(db, kind):
         .with_for_update(skip_locked=True)
         .limit(1)
     )
+    if job:
+        bind_correlation(job.correlation_id)  # the request that queued it (#78)
+    return job
 
 
 def finish(job):
     job.attempt_count += 1
     job.status, job.completed_at = "done", now()
+    signal("job.done", logging.INFO, job_id=job.id, kind=job.kind)
 
 
+@correlated_job
 def initialize_once(factory):
     """Worker step: initialize one created attempt with the simulator, after its commit."""
     with factory.begin() as db:
@@ -210,6 +217,7 @@ def initialize_once(factory):
         return True
 
 
+@correlated_job
 def dispatch_refund_once(factory):
     """Worker step: send one requested or failed refund to the simulator as a new attempt."""
     with factory.begin() as db:

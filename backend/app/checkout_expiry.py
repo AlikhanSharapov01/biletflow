@@ -1,7 +1,5 @@
 """One transactional way to close holds, used by requests and the background sweep."""
 
-from uuid import uuid4
-
 from sqlalchemy import select, update
 
 from .campaign_models import PromoReservation
@@ -9,6 +7,7 @@ from .catalog_models import Allocation, Event, Hold
 from .catalog_service import changed
 from .checkout_models import TicketOrder
 from .models import AuditLog
+from .observability import correlation_id
 from .security import now
 
 SWEEP_EVENTS = 25
@@ -70,7 +69,7 @@ def close_expired(db, event):
                 entity_id=event.id,
                 description="checkout.holds_expired",
                 safe_change={"holds": len(expired)},
-                correlation_id=uuid4(),
+                correlation_id=correlation_id(),
             )
         )
     return len(expired)

@@ -1,9 +1,13 @@
 """Read-only operational aggregates; purchase cohorts and current inventory are distinct."""
 
+import csv
+import io
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
 
+from .admin_service import csv_cell
 from .campaign_models import Campaign
 from .catalog_models import TicketType
 from .security import fail, now
@@ -366,3 +370,69 @@ def sales_series(db, event, filters, bucket):
             for row in rows
         ],
     }
+
+
+CSV_BOM = "\ufeff"
+CSV_COLUMNS = ("section", "dimension_id", "dimension_name", "metric", "value")
+SIMULATION_NOTICE = (
+    "Amounts come from BiletFlow records; simulation and sandbox amounts are not live funds."
+)
+
+
+def csv_value(value):
+    """Numbers stay numeric (a negative amount is not a formula); text is neutralized."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, list):
+        value = ";".join(value)
+    return csv_cell(value.isoformat() if isinstance(value, datetime) else value)
+
+
+def report_csv(db, event, filters, bucket):
+    """The summary and sales series of one snapshot as long-format CSV rows.
+
+    Built from the same functions as the JSON reports, so each exported number equals the
+    canonical one for the same filters. Only aggregates and organizer-defined labels leave.
+    """
+    report = summary(db, event, filters)
+    series = sales_series(db, event, filters, bucket)
+    out = io.StringIO()
+    out.write(CSV_BOM)
+    writer = csv.writer(out, lineterminator="\r\n", quoting=csv.QUOTE_ALL)
+    writer.writerow(CSV_COLUMNS)
+
+    def write(section, metric, value, dimension_id=None, name=None):
+        writer.writerow(
+            [section, csv_value(dimension_id), csv_value(name), metric, csv_value(value)]
+        )
+
+    meta = {
+        "event_id": event.id,
+        "timezone": report["timezone"],
+        "generated_at": report["generated_at"],
+        **report["filters"],
+        "bucket": bucket,
+        "currency": "KZT",
+        "money_unit": "1/100 KZT",
+        "simulation_notice": SIMULATION_NOTICE,
+    }
+    for key, value in meta.items():
+        write("metadata", key, value)
+    for key, value in report["definitions"].items():
+        write("definition", key, value)
+    for name in ("inventory", "revenue", "attendance"):
+        for key, value in report[name].items():
+            write(name, key, value)
+    for row in report["by_ticket_type"]:
+        for key in ("capacity", "sold", "checked_in", "revenue_minor"):
+            write("ticket_type", key, row[key], row["ticket_type_id"], row["name"])
+    for row in report["by_campaign"]:
+        for key, value in row.items():
+            if key not in ("campaign_id", "name"):
+                write("campaign", key, value, row["campaign_id"], row["name"])
+    for point in series["points"]:
+        for key in ("tickets", "revenue_minor"):
+            write("sales_series", key, point[key], point["bucket_start"])
+    return out.getvalue()

@@ -29,6 +29,7 @@ from pathlib import Path
 import httpx
 import psycopg
 from PIL import Image
+from reportlab.pdfgen import canvas
 
 BASE = os.environ.get("DRILL_BASE_URL", "http://127.0.0.1:8000")
 API = BASE + "/api/v1"
@@ -93,6 +94,15 @@ def headers(state, who):
 def png(color):
     output = io.BytesIO()
     Image.new("RGB", (8, 8), color).save(output, format="PNG")
+    return output.getvalue()
+
+
+def receipt_pdf(run):
+    # A real PDF: uploads are validated by structure, not only by their leading bytes (#75).
+    output = io.BytesIO()
+    page = canvas.Canvas(output)
+    page.drawString(72, 720, f"Backup drill {run}")
+    page.save()
     return output.getvalue()
 
 
@@ -246,7 +256,7 @@ def prepare():
             f"{API}/support/cases/{case['id']}/attachments",
             params={"filename": "receipt.pdf"},
             headers={**attendee, "Content-Type": "application/pdf"},
-            content=b"%PDF-1.4\n% backup drill " + state["run"].encode() + b"\n%%EOF\n",
+            content=receipt_pdf(state["run"]),
         ),
         201,
     ).json()

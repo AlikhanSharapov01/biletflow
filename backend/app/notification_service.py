@@ -28,6 +28,7 @@ from .catalog_models import (
 from .checkout_models import Ticket, TicketOrder
 from .models import OutboxJob, User
 from .notification_models import Notification, NotificationDelivery
+from .observability import signal
 from .security import now
 
 FANOUT_KIND = "notification_fanout"
@@ -794,7 +795,7 @@ def email_once(factory, settings, send=None):
         # The lease is a short retry time: if this worker dies, the row is simply due again.
         delivery.next_attempt_at = now() + timedelta(seconds=LEASE_SECONDS)
         identifier, notification_id = delivery.id, delivery.notification_id
-    outcome, message_id = "retry", None
+    outcome, message_id, error_type = "retry", None, None
     try:
         with factory() as db:
             notification = db.get(Notification, notification_id)
@@ -814,8 +815,8 @@ def email_once(factory, settings, send=None):
         if outcome == "send":
             (send or (lambda m: smtp_send(settings, m)))(message)
             outcome = "sent"
-    except Exception:
-        outcome = "retry"
+    except Exception as error:
+        outcome, error_type = "retry", type(error).__name__
     with factory.begin() as db:
         delivery = db.scalar(
             select(NotificationDelivery)
@@ -837,6 +838,16 @@ def email_once(factory, settings, send=None):
                 delivery.status, delivery.next_attempt_at = "failed", None
             else:
                 delivery.next_attempt_at = backoff(attempt)
+            # Safe signal (#78): IDs, attempt and exception type only.
+            signal(
+                "notification.email_failed"
+                if delivery.status == "failed"
+                else "notification.email_retry",
+                delivery_id=identifier,
+                attempt=attempt,
+                last_error=delivery.last_error,
+                error_type=error_type,
+            )
     return True
 
 

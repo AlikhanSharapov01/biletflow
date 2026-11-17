@@ -6,7 +6,8 @@ document, **not** the database the application runs on.
 
 > **Deployed schema vs this design.** The running application uses the schema created by
 > `backend/migrations/` — 16 migrations and 66 tables in the verified disposable test database at
-> `0016_image_cleanup` on 9 November 2026 (see
+> `0016_image_cleanup` on 9 November 2026; the current chain runs through `0021_job_correlation`,
+> 21 migrations and 69 tables, not yet verified that way (see
 > [`backend/README.md`](../../backend/README.md#database-and-migrations)). Never run
 > `BiletFlow_PostgreSQL_Schema.sql` against the application database.
 
@@ -59,11 +60,11 @@ that every developer or production database has been upgraded. Both inventories 
 | Promo campaigns | Migrated in `0013_campaigns`; campaign/discount services implemented | `campaign`, `campaign_ticket_type`, `promo_code`, `promo_reservation`, `promo_redemption` |
 | Finance and payouts | Migrated in `0014_finance`; simulated finance/payout services implemented | `finance_entry`, `demo_payout`; canonical commerce records supply totals, ledger rows retain payout debits and adjustments rather than duplicating every commerce entry |
 | Event media | Migrated in `0015_event_images`; protected gallery API implemented | `event_media`; `0016_image_cleanup` adds `stored_file.cleanup_after` and cleanup index, no table |
-| GA4 / analytics integration | Designed, not migrated or implemented | `ga4_connection`, `analytics_export`, `ga4_cache`; operational analytics is computed from authoritative commerce/inventory/admission tables |
+| GA4 / analytics integration | Migrated in `0020_ga4_analytics`; optional integration implemented, live property unverified | `ga4_connection`, `analytics_export`, `ga4_cache`; connection adds `enabled_at`/`updated_at` and a fixed `secret_reference='environment'`, export adds `organization_id` (composite keys to the connection and event), retry fields and kind/identity checks, cache adds `organization_id`; operational analytics is still computed from authoritative commerce/inventory/admission tables |
 | Ticket claims | No separate deployed table | `ticket_claim` is design-only; recipient claims are stored on `ticket` |
 | Authentication extensions | Migrated beyond the reference table inventory | `auth_rate_bucket`, `external_identity`, `oauth_attempt`, `refresh_token`; Google-only passwords are nullable |
 
-The other 62 reference table names occur in migrations; matching names do not establish identical
+The other 62 reference table names (and, since `0020`, the three GA4 tables) occur in migrations; matching names do not establish identical
 schemas or complete feature acceptance. For example, deployed `moderation_action` has user/event
 targets; paid-sales moderation uses immutable `audit_log` evidence, unlike the reference activation
 target. See [admin contract](../../backend/ADMIN_API.md) and [validation](../../backend/VALIDATION.md).

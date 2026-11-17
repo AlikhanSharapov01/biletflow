@@ -10,6 +10,7 @@ from app import (  # noqa: F401
     checkout_models,
     commerce_models,
     file_models,
+    ga4_models,
     notification_models,
     offline_models,
     support_models,

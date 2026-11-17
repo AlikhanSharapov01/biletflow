@@ -10,7 +10,7 @@ from .checkout_models import Ticket
 from .checkout_service import qr_payload, ticket_rows
 from .models import OutboxJob
 from .security import fail, now
-from .ticket_file_service import PDF_STATES, stored_ticket_pdf
+from .ticket_file_service import PDF_STATES, read_ticket_pdf
 from .ticket_pdf import TicketFontUnavailable, render_ticket_pdf
 
 RESEND_COOLDOWN = timedelta(seconds=60)
@@ -40,13 +40,18 @@ def delivery_ticket(db, user, ticket_id, lock=False):
     return row
 
 
-def ticket_pdf(settings, ticket, item, order, db=None, storage=None):
+def ticket_pdf(settings, ticket, item, order, key=None, storage=None):
+    """The ticket document: the stored object under `key` when readable, else a fresh render.
+
+    Called after the session is closed (with already loaded rows), so storage I/O and rendering
+    hold no database connection.
+    """
     # Refunded, refund-pending and cancelled tickets get no document at all, so an old
     # download can never be re-issued as something that looks valid.
     if ticket.status not in PDF_STATES:
         fail("ticket_not_valid", 409)
-    if db is not None and storage is not None:
-        stored = stored_ticket_pdf(db, storage, ticket)
+    if key is not None and storage is not None:
+        stored = read_ticket_pdf(storage, key)
         if stored is not None:
             return stored
     try:

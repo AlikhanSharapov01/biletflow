@@ -49,15 +49,17 @@ fi
 
 echo "Preparing the stack..."
 docker compose stop api worker proxy
-docker compose up -d --wait db
+docker compose up -d --wait db storage
 # A restore that failed after dropping the database must still be able to run again.
 exists="$(docker compose exec -T db psql -U biletflow_owner -d postgres -tA \
   -c "SELECT 1 FROM pg_database WHERE datname = 'biletflow'")"
 if [ "$exists" != "1" ]; then
   docker compose exec -T db createdb -U biletflow_owner biletflow
 fi
-# On a fresh stack, this creates the role the backup's grants name.
+# On a fresh stack, this creates the role the backup's grants name, and the bucket and the app
+# storage account the file restore writes with.
 docker compose run --rm migrate
+docker compose run --rm --no-deps storage-init
 docker compose exec -T db pg_restore --list <"$work/db.dump" >/dev/null
 
 echo "Restoring PostgreSQL..."
@@ -65,17 +67,27 @@ docker compose exec -T db psql -U biletflow_owner -d postgres -v ON_ERROR_STOP=1
   -c "DROP DATABASE IF EXISTS biletflow WITH (FORCE)"
 docker compose exec -T db pg_restore -U biletflow_owner -d postgres --create --exit-on-error <"$work/db.dump"
 
+# Writes every archived object, then deletes the objects the backup does not have.
 echo "Restoring uploaded files..."
-docker compose run --rm --no-deps -T api sh -c \
-  'find /app/var/storage -mindepth 1 -delete && tar -xzf - -C /app/var/storage' <"$work/files.tar.gz"
+docker compose run --rm --no-deps -T api python -m app.storage_backup restore <"$work/files.tar.gz"
 
 # Runs migrate again, which upgrades a backup taken on an older schema.
 echo "Starting the stack..."
 docker compose up -d
 
 echo "Checking that every file the database links to came back..."
+# Reads the restored bucket back (not the backup's archive), so it checks what the app will serve.
+# Read separately: an object store that cannot be read is not a missing file.
+if ! docker compose run --rm --no-deps -T api python -m app.storage_backup export \
+  >"$work/restored-files.tar.gz"; then
+  echo "Restore finished, but the restored files could not be read back from object storage for" >&2
+  echo "the check (above). The stack is running; check 'docker compose ps storage' and run" >&2
+  echo "the restore again." >&2
+  exit 1
+fi
 checked=0
-docker compose run --rm --no-deps -T api python -c "$(cat tools/check_backup_consistency.py)" ||
+docker compose run --rm --no-deps -T api python -c "$(cat tools/check_backup_consistency.py)" \
+  --storage-archive - <"$work/restored-files.tar.gz" ||
   checked=$?
 if [ "$checked" -eq 1 ]; then
   echo "Restore finished, but the files above are missing or damaged. The stack is running;" >&2

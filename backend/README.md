@@ -41,9 +41,9 @@ The web and mobile clients both talk to this one backend.
 | Notifications | In-app inbox; localized account/staff/ticket/support mail and event/purchase/payment/refund/simulated-payout notices; kk/ru/en with English fallback |
 | Campaigns | Promo codes, campaign links/QR, atomic allowance reservations/redemptions and retained attribution |
 | Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
-| Reporting and finance | Scoped operational analytics/time series; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
+| Reporting and finance | Scoped operational analytics/time series and their reconciled CSV export; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
-| Administration | Admin role, user/event/order/ticket search, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
+| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, exhausted job and failed delivery views with bounded audited retry, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
 
 "Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
 web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
@@ -61,7 +61,7 @@ Docker is controlled from the repository root:
 
 ```bash
 cp .env.example .env
-docker compose up --build -d db migrate api worker mailpit
+docker compose up --build -d db migrate storage storage-init api worker mailpit clamav
 docker compose logs -f api worker
 ```
 
@@ -85,7 +85,7 @@ Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Keep PostgreSQL an
 Docker:
 
 ```bash
-docker compose up -d db migrate mailpit     # from the repository root
+docker compose up -d db migrate mailpit clamav   # from the repository root
 cd backend
 cp .env.example .env                        # keep APP_DB_PASSWORD equal to the root .env
 uv sync --frozen
@@ -98,8 +98,15 @@ In a second terminal, from `backend/`:
 uv run python -m app.worker
 ```
 
-Uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage` natively,
-the `file_storage` volume in Docker). The API and worker must share it.
+Natively, uploaded files and ticket PDFs are stored under `STORAGE_ROOT` (`var/storage`); see
+[Private file storage](#private-file-storage) for the Docker stack's S3-compatible bucket.
+
+Support attachments are scanned by ClamAV (`clamav` Compose service, clamd on
+`localhost:3310`; its first start downloads signatures for a few minutes). While clamd is not
+reachable, uploads are stored as `quarantined`, cannot be linked or downloaded, and the worker
+retries their scan. To develop natively without ClamAV, set `MALWARE_SCANNER=disabled` in
+`backend/.env`: uploads are then marked clean without a scan. Production refuses that setting.
+See [SUPPORT_API.md](SUPPORT_API.md#attachments).
 
 Ticket PDFs need no system font setup on Windows, macOS or Linux: DejaVu Sans 2.37 (regular and
 bold, which cover Kazakh and Russian Cyrillic) is bundled in `app/fonts/` with its license and is
@@ -118,6 +125,39 @@ substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
+| `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON` | Optional GA4 export and traffic reports, off by default; see [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
+| `MALWARE_SCANNER` / `CLAMAV_HOST` / `CLAMAV_PORT` / `CLAMAV_TIMEOUT_SECONDS` | Attachment scanning: `clamav` (default; clamd at host:port, default `localhost:3310`, 15 s timeout) or `disabled` (local development only, refused in production) |
+| `STORAGE_BACKEND` | `local` (default; files under `STORAGE_ROOT`) or `s3`; see [Private file storage](#private-file-storage) |
+
+### Private file storage
+
+Event images, stored ticket PDFs and support attachments go through `app/storage.py`. Nothing is
+ever served from storage directly: the API checks access and streams the bytes, or hands out a
+short-lived signed link. The API and the worker must use the same storage.
+
+- **Natively and in tests** (`STORAGE_BACKEND=local`): files below `STORAGE_ROOT`.
+- **Docker Compose** (`STORAGE_BACKEND=s3`, set by `docker-compose.yml`): the `storage` service
+  is SeaweedFS (`weed server -s3`, S3 API on port 8333 inside the stack, nothing published on the
+  host), with its data in the `object_storage` volume. Its two static S3 identities are written
+  from `.env` when it starts: the storage administrator (`STORAGE_ADMIN_ACCESS_KEY_ID`/
+  `STORAGE_ADMIN_SECRET_ACCESS_KEY`) and the app account (`S3_ACCESS_KEY_ID`), which may only
+  read, write (including delete) and list objects in `S3_BUCKET`. Unsigned requests are refused.
+  The one-off `storage-init` service (`python -m app.storage_provision`) creates the bucket with
+  the administrator, then proves that the app account can write, read, list and delete there,
+  cannot create buckets, and that the bucket refuses anonymous requests; any failure stops the
+  start. It runs on every `docker compose up` (it is idempotent), and `api` and `worker` start
+  only after it succeeded, which in turn waits for a healthy `storage`. `api` and `worker` share
+  the bucket and the app account and never receive the administrator credential. (MinIO was used
+  first but its images were withdrawn in 2026; see the [operations notes](../docs/operations/backup.md#why-seaweedfs).)
+
+`S3FileStorage` talks to any S3-compatible service with path-style URLs and AWS Signature
+Version 4 (implemented with `httpx`, no AWS SDK). To use another service, set
+`S3_ENDPOINT_URL` (`http://` or `https://`), `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and
+`S3_SECRET_ACCESS_KEY`; the API refuses to start when one is missing. Keep the credentials in
+`.env` (never committed; `.env.example` holds local placeholders only) and replace them before any
+shared deployment. If the store is unavailable, image and attachment uploads and downloads answer
+`503 storage_unavailable` and work again once it is back; ticket PDFs are rendered on request
+instead. Backups include the bucket ([backup and restore](../docs/operations/backup.md)).
 
 ---
 
@@ -128,11 +168,12 @@ Everything lives in `app/`, one module group per area:
 | Files | Responsibility |
 |---|---|
 | `main.py` | App factory, router registration, error handling, security headers |
-| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage |
+| `observability.py`, `operations_*.py` | Correlation IDs, redacted JSON logs, request metrics; protected operational metrics |
+| `config.py`, `db.py`, `security.py`, `service.py`, `idempotency.py`, `signing.py`, `storage.py`, `storage_backup.py`, `storage_provision.py` | Settings, sessions, tokens/hashing, shared guards, idempotency keys, signing keys, file storage (local or S3-compatible), its backup/restore and the Docker object-store provisioning check |
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
 | `*_service.py` | Business rules and transactions |
-| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin` |
+| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin`, `admin_jobs` |
 | `worker.py` | Background job loop |
 | `bootstrap.py`, `seed.py`, `admin_cli.py` | Migrations + role setup, demo seed, admin grant CLI |
 
@@ -155,13 +196,14 @@ remaining scope.
 | [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
 | [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting |
 | [REFUNDS_API.md](REFUNDS_API.md) | Full refunds, retry, free cancellation and event cancellation |
-| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports and sales series |
+| [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports, sales series, CSV export and optional GA4 traffic |
 | [FINANCE_API.md](FINANCE_API.md) | Finance summary, simulated payouts and retained adjustments |
 | [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
 | [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
 | [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments, WebSocket |
 | [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md) | In-app notifications and calendar export |
 | [ADMIN_API.md](ADMIN_API.md) | Platform administration |
+| [OPERATIONS_API.md](OPERATIONS_API.md) | Correlation IDs, structured log events and redaction, operational metrics |
 
 Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code to a message.
 
@@ -169,24 +211,30 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 
 ## Database and migrations
 
-- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 and 0017 use inline SQL).
-  There are **17 migrations and 66 tables** in the `biletflow` schema:
+- Migrations live in `migrations/versions/` as `NNNN_name.py`, usually with a hand-written `NNNN_name.sql` (0016 to 0019 and 0021 use inline SQL).
+  There are **21 migrations and 69 tables** in the `biletflow` schema:
   `0001_identity` → `0002_event_setup` → `0003_checkout` → `0004_admission` →
   `0005_notifications_calendar` → `0006_admin_moderation` → `0007_entry_offline` →
   `0008_support` → `0009_files_admission` → `0010_commerce` → `0011_paid_activation` →
   `0012_paid_orders` → `0013_campaigns` → `0014_finance` → `0015_event_images` →
-  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only).
-  This revision/count was verified on a disposable test database on 13 November 2026;
+  `0016_image_cleanup` → `0017_ticket_pdf_cleanup` (index only) → `0018_attachment_cleanup`
+  (support upload cleanup index and schedule for unlinked uploads, #76) → `0019_admin_retry`
+  (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
+  (adds `ga4_connection`, `analytics_export`, `ga4_cache`) → `0021_job_correlation` (nullable
+  `outbox_job.correlation_id`, no table).
+  The chain through `0017` (17 migrations, 66 tables) was verified on a disposable test database
+  on 13 November 2026; `0018`–`0021` and the 69-table count are not yet verified that way;
   check each deployment independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
 - Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
-  downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
-  new history/links. Back up valuable data before any rollback.
+  downgrades tested up/down/up on a disposable database (`0019` has a scoped downgrade that has not
+  been round-trip tested yet); finance/gallery rollback loses their
+  new history/links. `0018` drops only its index on downgrade (not yet exercised up/down/up). Back up valuable data before any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
 - `docs/database/` holds a 66-table **reference design**. Its table set differs from the implemented
-  schema (GA4/claim tables versus authentication extensions); see the
+  schema (claim table versus authentication extensions; the GA4 tables are migrated in `0020`); see the
   [design/implementation matrix](../docs/database/README.md#how-the-design-relates-to-the-implementation). It is a target — never run its DDL against this database.
 
 ---
@@ -197,20 +245,31 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
 retries with back-off and marks a job `dead` after 5 attempts. It handles:
 
 - emails: verification/reset, staff invitations, ticket delivery (with PDF), support updates;
+- malware scan retries for quarantined support attachments (`attachment_scan` jobs, back-off up
+  to one minute, until a verdict or the end of the one-hour link window);
 - notification fan-out (in-app + email);
 - simulated payment initialization, provider events and refund dispatch;
-- releasing expired holds and reconciling orphan event images and abandoned ticket PDF writes
-  every 15 seconds.
+- releasing expired holds, reconciling orphan event images, abandoned ticket PDF writes and
+  interrupted or abandoned support uploads, and exporting consented GA4 measurements when GA4 is
+  enabled, every 15 seconds.
 
 Image recovery claims at most 50 due files per pass, with a one-hour pending-upload grace and
 five-minute retry delay. Pending/deleted tombstones are retained and revisited to catch late
 writes; eventual deletion requires the worker and storage/database availability. See
 [the gallery contract](CATALOG_API.md). Ticket PDF recovery uses the same limits for unreferenced
 pending write intents, then one final late-write check 24 hours after the intent; a clean or
-referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)). Email templates support kk/ru/en with English fallback;
+referenced PDF is never deleted (see [TICKET_PDF_API.md](TICKET_PDF_API.md#stored-pdf-lifecycle-and-recovery)).
+Support upload recovery uses the same batch, retry and late-write limits for unreferenced upload
+intents and for uploads never linked within their one-hour link window; a file linked to a message
+is never deleted (see [SUPPORT_API.md](SUPPORT_API.md#attachments)). Email templates support kk/ru/en with English fallback;
 user-authored content is preserved.
 
 Business results never wait for email or notifications; those are retried independently.
+
+A failed pass, retry or dead-lettered job is logged as a structured, redacted JSON line
+(`worker.task_failed`, `job.retry_scheduled`, `job.dead`) under the correlation ID of the request
+that queued the job; backlog, retry and dead counts are in the protected metrics view. See
+[OPERATIONS_API.md](OPERATIONS_API.md).
 
 ---
 
@@ -382,13 +441,11 @@ Open backend work, from the audit in #85, in dependency order (see the
 1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
    database and file backups (#69, with operations).
 2. Campaign report reconciliation (#67); platform
-   settings applied to checkout and activation (#70); attachment malware scanning and quarantine
-   (#75) and upload recovery (#76). Malware/quarantine handling is required by BF-16, not optional.
-3. Admin views of exhausted jobs and deliveries (#73), admin search and detail (#72), moderation
-   notices (#74), the S3-compatible storage service required by requirements §2.1 (#77; only local
-   protected storage exists today), correlation IDs and metrics (#78).
-4. GA4 collection and aggregate reporting (#71), analytics export (#81), demo fixtures and reset
-   (#79).
+   settings applied to checkout and activation (#70). Attachment content validation and ClamAV
+   malware quarantine (#75) and upload recovery (#76) are implemented.
+3. Moderation notices (#74).
+4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
+   (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
 5. Measured load (#80) and real process-kill recovery (#83).
 
 Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,

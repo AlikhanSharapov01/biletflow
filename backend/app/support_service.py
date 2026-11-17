@@ -585,7 +585,9 @@ def escalate(db, user, case_id, data):
     return case, case_roles(db, user, case), row
 
 
-def list_cases(db, user, view, status, category, event_id, limit, offset):
+def list_cases(db, user, view, status, category, event_id, limit, offset, identifiers=None):
+    """identifiers: optional exact case_id/requester_user_id/order_id/ticket_id triage filters.
+    They only narrow the caller's own scope, never widen it."""
     query = select(SupportCase)
     if view == "queue":
         query = query.where(staff_case_filter(db, user))
@@ -597,6 +599,10 @@ def list_cases(db, user, view, status, category, event_id, limit, offset):
         query = query.where(SupportCase.category == category)
     if event_id:
         query = query.where(SupportCase.event_id == event_id)
+    for name, value in (identifiers or {}).items():
+        if value is not None:
+            column = SupportCase.id if name == "case_id" else getattr(SupportCase, name)
+            query = query.where(column == value)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     cases = db.scalars(
         query.order_by(SupportCase.updated_at.desc(), SupportCase.id).limit(limit).offset(offset)

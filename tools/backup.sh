@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Backs up PostgreSQL and the uploaded files of the running Compose stack into one
-# dated archive in which the database and the files match. Runbook: docs/operations/backup.md
+# Backs up PostgreSQL and the uploaded files (the objects of the private S3-compatible bucket) of
+# the running Compose stack into one dated archive in which the database and the files match.
+# Runbook: docs/operations/backup.md
 #
 # Usage: tools/backup.sh [--online] [output-folder]    (default: backups/ in the repository)
 #
-# api and worker are the only writers of the database and the file volume. By default they are
+# api and worker are the only writers of the database and the bucket. By default they are
 # stopped for the dump and the file archive (a short maintenance window) and started again
 # afterwards, also when the backup fails or is interrupted. With them stopped and no other
 # database session open, nothing can upload or delete a file between the two steps, so every
@@ -72,6 +73,9 @@ psql_owner() {
 
 # Fails here, with Compose's "service db is not running", before anything is stopped.
 docker compose exec -T db pg_isready -q -U biletflow_owner -d biletflow
+# The object store (SeaweedFS's S3 port) must answer too, or the file archive would fail later.
+docker compose exec -T storage sh -c \
+  "wget -q -S -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"
 
 if [ "$mode" = quiesced ]; then
   running="$(docker compose ps --status running --services)"
@@ -112,9 +116,10 @@ if [ -n "${BACKUP_TEST_HOOK:-}" ]; then
   bash -c "$BACKUP_TEST_HOOK"
 fi
 
-# A one-off container reads the volume, so this also works while api is stopped.
+# A one-off api container reads the bucket with the app's storage account, so this also works
+# while api is stopped. Member names are the object keys, as in backups of the old file volume.
 echo "Archiving uploaded files..."
-docker compose run --rm --no-deps -T api tar -czf - -C /app/var/storage . >"$work/files.tar.gz"
+docker compose run --rm --no-deps -T api python -m app.storage_backup export >"$work/files.tar.gz"
 start_writers
 tar -tzf - <"$work/files.tar.gz" >/dev/null
 

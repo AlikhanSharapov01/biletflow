@@ -14,10 +14,10 @@ from .attachment_service import (
     attach_files,
     clean_filename,
     content_disposition,
-    download_content,
     download_link,
-    link_expires_at,
+    download_target,
     upload_attachment,
+    upload_status,
 )
 from .platform_settings import upload_limit
 from .security import decode_access, fail
@@ -78,13 +78,9 @@ def check_attachment_count(settings, data):
         fail("invalid_input", 422)
 
 
-def router(factory, settings, principal, storage):
+def router(factory, settings, principal, storage, scanner):
     routes = APIRouter(prefix="/api/v1/support", tags=["support"])
     hub = Hub()
-    # 20 uploads a minute per account; the per-address bucket is only a coarse flood guard.
-    upload_limits = settings.model_copy(
-        update={"rate_identity_limit": 20, "rate_ip_limit": 200, "rate_window_seconds": 60}
-    )
 
     @routes.post("/cases", response_model=s.CaseCreated, status_code=201)
     def create_case(data: s.CaseCreate, response: Response, ids=Depends(principal)):
@@ -110,12 +106,24 @@ def router(factory, settings, principal, storage):
         status: Literal[STATUSES] | None = None,
         category: Literal[CATEGORIES] | None = None,
         event_id: UUID | None = None,
+        case_id: UUID | None = None,
+        requester_user_id: UUID | None = None,
+        order_id: UUID | None = None,
+        ticket_id: UUID | None = None,
         limit: int = Query(50, ge=1, le=100),
         offset: int = Query(0, ge=0),
     ):
+        identifiers = {
+            "case_id": case_id,
+            "requester_user_id": requester_user_id,
+            "order_id": order_id,
+            "ticket_id": ticket_id,
+        }
         with factory() as db:
             user, _ = valid_session(db, *ids)
-            total, rows = list_cases(db, user, view, status, category, event_id, limit, offset)
+            total, rows = list_cases(
+                db, user, view, status, category, event_id, limit, offset, identifiers
+            )
             return {
                 "items": case_views(db, rows),
                 "total": total,
@@ -171,21 +179,32 @@ def router(factory, settings, principal, storage):
             hub.publish(case_id)
         return result
 
-    @routes.post("/cases/{case_id}/attachments", response_model=s.UploadedFile, status_code=201)
+    @routes.post(
+        "/cases/{case_id}/attachments",
+        response_model=s.UploadedFile,
+        status_code=201,
+        responses={202: {"model": s.UploadedFile, "description": "Stored, awaiting a scan"}},
+    )
     async def upload(
         case_id: UUID,
         request: Request,
+        response: Response,
         filename: str = Query(""),
         ids=Depends(principal),
     ):
-        """Raw-body upload: the body is the file, Content-Type its declared type."""
+        """Raw-body upload: the body is the file, Content-Type its declared type. `201` when the
+        file is clean, `202` while it is quarantined waiting for the malware scanner."""
+        # 20 uploads per window (60 s by default) per account; the per-address bucket is only a
+        # coarse flood guard.
         await run_in_threadpool(
             rate_limit,
             factory,
-            upload_limits,
+            settings,
             request.client.host if request.client else "unknown",
             "support_upload",
             str(ids[0]),
+            ip_limit=200,
+            identity_limit=20,
         )
         content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type not in ALLOWED_TYPES:
@@ -201,9 +220,21 @@ def router(factory, settings, principal, storage):
             if size > limit:
                 fail("attachment_too_large", 413)
             chunks.append(chunk)
-        return await run_in_threadpool(
-            store_upload, ids, case_id, name, content_type, b"".join(chunks)
+        result = await run_in_threadpool(
+            upload_attachment,
+            factory,
+            storage,
+            scanner,
+            settings,
+            ids,
+            case_id,
+            name,
+            content_type,
+            b"".join(chunks),
         )
+        if result["status"] == "quarantined":
+            response.status_code = 202
+        return result
 
     def participant_check(ids, case_id):
         # Strangers are turned away before any body is buffered.
@@ -212,20 +243,12 @@ def router(factory, settings, principal, storage):
             get_case(db, user, case_id)
             return upload_limit(db, settings)
 
-    def store_upload(ids, case_id, filename, content_type, data):
-        with factory.begin() as db:
+    @routes.get("/cases/{case_id}/uploads/{file_id}", response_model=s.UploadedFile)
+    def uploaded_file(case_id: UUID, file_id: UUID, ids=Depends(principal)):
+        """The uploader's own upload, e.g. to see a quarantined file become clean."""
+        with factory() as db:
             user, _ = valid_session(db, *ids)
-            file = upload_attachment(
-                db, storage, settings, user, case_id, filename, content_type, data
-            )
-            return {
-                "file_id": file.id,
-                "mime_type": file.mime_type,
-                "size_bytes": file.size_bytes,
-                "sha256": file.sha256,
-                "status": file.status,
-                "expires_at": link_expires_at(file),
-            }
+            return upload_status(db, user, case_id, file_id)
 
     @routes.get(
         "/cases/{case_id}/attachments/{attachment_id}/download-link",
@@ -247,9 +270,14 @@ def router(factory, settings, principal, storage):
         """Open this URL directly: the signed token is the credential, so no bearer header is
         needed. Access is re-checked on every request."""
         with factory() as db:
-            data, mime_type, filename = download_content(
-                db, storage, settings, token, attachment_id
-            )
+            key, mime_type, filename = download_target(db, settings, token, attachment_id)
+        # Read after the session closes, so a slow store holds no database connection.
+        try:
+            data = storage.get(key)
+        except FileNotFoundError:
+            fail("attachment_not_found", 404)
+        except OSError:
+            fail("storage_unavailable", 503)
         return Response(
             data,
             media_type=mime_type,
