@@ -4,7 +4,8 @@ import { localInputToIso } from "../utils/format";
 
 const id = encodeURIComponent;
 
-// PLANNED contract: event analytics (needs the `reports` capability).
+// Event analytics (backend/ANALYTICS_API.md). Needs the event's `reports`
+// permission; the organization owner has it implicitly.
 
 function query(filters: AnalyticsFilters): Record<string, string | undefined> {
   return {

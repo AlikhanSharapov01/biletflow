@@ -1,8 +1,8 @@
 # Backend contract review
 
-Reviewed against fetched `origin/main` at `eec9a75`, including backend commit
-`7195486`. Backend files were read from Git; they were not checked out or edited.
-The local branch remains `ershuku-web`. Only web files are changed.
+First reviewed against `origin/main` at `eec9a75`; updated on 2026-11-17 against
+`origin/main` at `b1b73d0` after merging it into `ershuku-web`. Backend files were
+read only; they were not edited. Only web files are changed.
 
 ## Confirmed and integrated
 
@@ -34,12 +34,55 @@ Tests cover the campaign workspace, QR download/report, failed form preservation
 sign-in promo preservation, server price summaries, zero-payable confirmation,
 refund case links, destructive-action confirmation and policy failures.
 
-## Still awaiting contracts
+## Integrated on 2026-11-17 (`b1b73d0`)
 
-`ANALYTICS_API.md` and a final finance API contract do not exist in the fetched
-tree. No event analytics, finance summary or event image upload routes were
-found there. Their planned web types and unavailable states remain explicit.
-No planned response shape has been presented as a confirmed backend contract.
+These replace the earlier planned web types. Each web type now mirrors its
+backend schema field for field.
+
+- **Analytics** (`ANALYTICS_API.md`, `analytics_schemas.py`). Applied filters,
+  definitions, inventory (`expired_held`, `blocked`, `refund_pending`,
+  `sold_percentage`), revenue (`collected`, `charged`/`reversed`/retained fees,
+  `pending_refunds`, `environments`) and attendance (`not_checked_in` plus its
+  `absent`/`not_yet_checked_in` label and `percentage`) are typed and shown.
+  Percentages are the server's 0-100 values. The null-id campaign row is shown as
+  "No campaign". The campaign filter lists the event's campaigns from the
+  campaigns API, and is hidden for staff who cannot read campaigns.
+- **Finance** (`FINANCE_API.md`, `finance_api.py`). The full `EventFinance` is
+  shown: ticket money, net activation charge, net, sent, balance, reserved,
+  estimated payable and `payout_eligible_at`. Payout history is paged by
+  limit/offset. Reservations send `{amount_minor}` with an `Idempotency-Key`
+  that is reused on retry, and are only offered when `simulation_only` is true.
+  Demo transitions follow pending→eligible→sent and pending/eligible→failed. A
+  404 from `/simulate` (simulator disabled) withdraws those buttons.
+- **Event images** (`catalog_schemas.py` `EventImageView`, `event_api.py`).
+  `EventView.images`/`cover_image_url` are typed. The gallery uploads raw PNG/JPEG
+  with `alt_text`, reorders via `PUT …/images/order`, sets the cover via
+  `PUT …/images/{id}/cover` and deletes. The list is replaced by each server
+  answer. Images are fetched with the session because draft events need it.
+- **Public settings** (`settings_api.py`). `upload_max_bytes` replaces the
+  hardcoded 5 MB limits for images and support attachments. The admin settings
+  page clears the cached values after a change.
+- **Organizations** (`organization_api.py`). `PATCH /organizations/{id}` (profile)
+  and `PUT …/members/{id}/permissions` (owner-only) are wired.
+- **Admin** (`ADMIN_API.md`, `admin_commerce.py`). Paid-sales checklist,
+  suspend and reinstate (with `Idempotency-Key`), and the payments,
+  failed-payments and refunds lists with exact filters and CSV export. Free-text
+  `q` is never sent for commerce kinds, because the server refuses it (422).
+- **Notifications** (`notification_service.py`). The seven new kinds (account,
+  event and paid-sales suspension/reinstatement, and `payout_status`) use the
+  backend wording in en/ru/kk. Targets `organizer_event` and `account` are
+  routed.
+- **Error codes.** Messages were added for the image, analytics, payout and admin
+  codes these routes return.
+
+Deliberately not wired: `PUT`/`DELETE /events/{id}/access` (it needs a user id and
+there is no organizer-visible user lookup) and the `/scanner/*` and offline routes
+(mobile app scope).
+
+Verification for this round: `tsc --noEmit` clean, 421 tests in 63 files passing,
+the translation audit clean and `vite build` succeeding. The Compose stack was
+not running, so these screens were not exercised against a live backend. The
+routers were confirmed mounted in `backend/app/main.py`.
 
 ## Live validation and CI
 

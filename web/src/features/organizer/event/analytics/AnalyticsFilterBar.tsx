@@ -8,12 +8,11 @@ interface AnalyticsFilterBarProps {
   types: TicketType[];
   campaigns: Array<{ id: string; name: string }>;
   bucket: SeriesBucket;
-  disabled?: boolean;
   onApply: (filters: AnalyticsFilters, bucket: SeriesBucket) => void;
 }
 
 // One row of filters above the charts; applied together.
-export function AnalyticsFilterBar({ types, campaigns, bucket, disabled = false, onApply }: AnalyticsFilterBarProps) {
+export function AnalyticsFilterBar({ types, campaigns, bucket, onApply }: AnalyticsFilterBarProps) {
   useLocale();
   const [draft, setDraft] = useState<AnalyticsFilters>({});
   const [draftBucket, setDraftBucket] = useState<SeriesBucket>(bucket);
@@ -32,7 +31,7 @@ export function AnalyticsFilterBar({ types, campaigns, bucket, disabled = false,
 
   return (
     <form className="filter-bar" onSubmit={submit} aria-label={t("org.analytics_filters")}>
-      <fieldset className="plain-fieldset filter-fields" disabled={disabled}>
+      <fieldset className="plain-fieldset filter-fields">
         <TextField label={t("org.from")} type="datetime-local" value={draft.from ?? ""} onChange={(e) => set("from", e.target.value)} />
         <TextField label={t("org.to")} type="datetime-local" value={draft.to ?? ""} onChange={(e) => set("to", e.target.value)} />
         <SelectField label={t("org.ticket_type")} value={draft.ticket_type_id ?? ""} onChange={(e) => set("ticket_type_id", e.target.value)}>
@@ -43,14 +42,16 @@ export function AnalyticsFilterBar({ types, campaigns, bucket, disabled = false,
             </option>
           ))}
         </SelectField>
-        <SelectField label={t("org.campaign")} value={draft.campaign_id ?? ""} onChange={(e) => set("campaign_id", e.target.value)}>
-          <option value="">{t("org.all_sales")}</option>
-          {campaigns.map((campaign) => (
-            <option key={campaign.id} value={campaign.id}>
-              {campaign.name}
-            </option>
-          ))}
-        </SelectField>
+        {campaigns.length > 0 ? (
+          <SelectField label={t("org.campaign")} value={draft.campaign_id ?? ""} onChange={(e) => set("campaign_id", e.target.value)}>
+            <option value="">{t("org.all_sales")}</option>
+            {campaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
         <SelectField label={t("org.group_by")} value={draftBucket} onChange={(e) => setDraftBucket(e.target.value as SeriesBucket)}>
           <option value="day">{t("org.day")}</option>
           <option value="hour">{t("org.hour")}</option>

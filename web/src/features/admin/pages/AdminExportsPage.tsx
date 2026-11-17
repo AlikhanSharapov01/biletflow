@@ -10,7 +10,13 @@ const KINDS: Array<{ id: ExportKind; label: string }> = [
   { id: "events", get label() { return t("common.events"); } },
   { id: "orders", get label() { return t("common.orders"); } },
   { id: "tickets", get label() { return t("common.tickets"); } },
+  { id: "payments", get label() { return t("admin.payments"); } },
+  { id: "failed-payments", get label() { return t("admin.failed_payments"); } },
+  { id: "refunds", get label() { return t("event.refunds"); } },
 ];
+
+// Payment and refund exports take exact filters only; free text is refused.
+const COMMERCE: ExportKind[] = ["payments", "failed-payments", "refunds"];
 
 // CSV exports with the same columns as the searches. Each export is audited.
 export function AdminExportsPage() {
@@ -31,7 +37,7 @@ export function AdminExportsPage() {
     }
     setState({ busy: true, message: "" });
     try {
-      await downloadExport(kind, { q, status, limit: rows });
+      await downloadExport(kind, { q: COMMERCE.includes(kind) ? undefined : q, status, limit: rows });
       notify(t("admin.csv_downloaded", { p0: kind }));
       setState({ busy: false, message: "" });
     } catch (failure) {
@@ -54,7 +60,7 @@ export function AdminExportsPage() {
           <TextField label={t("admin.rows")} type="number" min={1} max={5000} value={limit} onChange={(e) => setLimit(e.target.value)} />
         </div>
         <div className="form-grid">
-          <TextField label={t("common.search")} hint={t("common.optional")} value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} />
+          <TextField label={t("common.search")} hint={COMMERCE.includes(kind) ? t("admin.no_text_search") : t("common.optional")} value={COMMERCE.includes(kind) ? "" : q} disabled={COMMERCE.includes(kind)} onChange={(e) => setQ(e.target.value)} maxLength={100} />
           <TextField label={t("common.status")} hint={t("admin.optional_status")} value={status} onChange={(e) => setStatus(e.target.value)} maxLength={32} />
         </div>
         <FormMessage message={state.message} />

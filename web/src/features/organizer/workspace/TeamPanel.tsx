@@ -8,6 +8,7 @@ import { Button, FormMessage, ListRow, Loading, Panel, PanelHeading, StatusPill,
 import { useRequest } from "../../../hooks/useRequest";
 import { dateLabel, statusLabel } from "../../../utils/format";
 import { IDLE, text, type FormState } from "../utils/formState";
+import { MemberPermissionsForm } from "./MemberPermissionsForm";
 
 interface TeamPanelProps {
   organization: Organization;
@@ -18,6 +19,7 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
   useLocale();
   const { notify } = useToast();
   const [state, setState] = useState<FormState>(IDLE);
+  const [editingId, setEditingId] = useState("");
   const team = useRequest(
     async () => {
       const [members, invitations] = await Promise.all([listMembers(organization.id), listInvitations(organization.id)]);
@@ -79,10 +81,25 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
                   note={owner ? t("organizer.all_permissions") : member.capabilities.length ? member.capabilities.map(statusLabel).join(", ") : t("organizer.no_permissions")}
                   actions={
                     !owner && active && isOwner ? (
-                      <Button variant="danger" size="sm" onClick={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))}>{t("common.remove")}</Button>
+                      <>
+                        <Button size="sm" aria-expanded={editingId === member.id} onClick={() => setEditingId(editingId === member.id ? "" : member.id)}>{t("org.permissions")}</Button>
+                        <Button variant="danger" size="sm" onClick={() => void remove(member.display_name, () => revokeMember(organization.id, member.id))}>{t("common.remove")}</Button>
+                      </>
                     ) : null
                   }
-                />
+                >
+                  {editingId === member.id ? (
+                    <MemberPermissionsForm
+                      organizationId={organization.id}
+                      member={member}
+                      onCancel={() => setEditingId("")}
+                      onSaved={() => {
+                        setEditingId("");
+                        team.reload();
+                      }}
+                    />
+                  ) : null}
+                </ListRow>
               );
             })}
             {team.data.invitations.map((invitation) => (

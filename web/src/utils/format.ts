@@ -25,6 +25,17 @@ export function priceLabel(priceMinor: number): string {
   return new Intl.NumberFormat(getLocale(), { style: "currency", currency: "KZT", currencyDisplay: "narrowSymbol" }).format(priceMinor / 100);
 }
 
+// Accounting amounts (analytics, finance, payouts) in the currency the server
+// reports: zero stays a number and a negative balance keeps its sign.
+export function moneyLabel(amountMinor: number, currency: string): string {
+  return new Intl.NumberFormat(getLocale(), { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(amountMinor / 100);
+}
+
+// Server percentages are on a 0-100 scale.
+export function percentLabel(value: number): string {
+  return new Intl.NumberFormat(getLocale(), { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
+}
+
 export function tengeToMinor(tenge: string | number): number {
   const amount = Number(tenge);
   if (!Number.isFinite(amount) || amount < 0) return 0;
