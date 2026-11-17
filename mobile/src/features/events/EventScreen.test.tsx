@@ -18,6 +18,7 @@ jest.mock("@/features/auth/AuthContext", () => ({
 jest.mock("@/api/catalog");
 jest.mock("@/api/checkout");
 jest.mock("@/api/promo");
+jest.mock("@/api/settings");
 jest.mock("@/api/reports");
 jest.mock("@/api/calendar", () => ({
   getCalendarLinks: jest.fn(async () => ({

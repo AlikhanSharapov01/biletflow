@@ -7,8 +7,12 @@ import type { AppNotification } from "@/api/types/notifications";
 // the notification grants nothing.
 export function notificationPath(notification: Pick<AppNotification, "target" | "event_id">): string | null {
   const { type, id } = notification.target;
+  if (type === "account") return "/account";
   if (id) {
     const encoded = encodeURIComponent(id);
+    // Moderation notices go to the organizer's event, which stays reachable
+    // when the public page is hidden by a suspension.
+    if (type === "organizer_event") return `/organizer/events/${encoded}`;
     if (type === "event") return `/events/${encoded}`;
     if (type === "ticket") return `/tickets/${encoded}`;
     if (type === "support_case") return `/support/cases/${encoded}`;
@@ -32,6 +36,9 @@ export function hrefForPath(path: string): Href | null {
   if (first === "events" && second && parts.length === 2) {
     return { pathname: "/events/[eventId]", params: { eventId: decoded(second) } };
   }
+  if (first === "organizer" && second === "events" && third && parts.length === 3) {
+    return { pathname: "/organizer/events/[eventId]", params: { eventId: decoded(third) } };
+  }
   if (first === "tickets" && second && parts.length === 2) {
     return { pathname: "/tickets/[ticketId]", params: { ticketId: decoded(second) } };
   }
@@ -41,6 +48,7 @@ export function hrefForPath(path: string): Href | null {
   if (first === "support" && second === "cases" && third && parts.length === 3) {
     return { pathname: "/support/cases/[caseId]", params: { caseId: decoded(third) } };
   }
+  if (first === "account" && parts.length === 1) return "/account";
   if (first === "tickets" && parts.length === 1) return "/tickets";
   if (first === "orders" && parts.length === 1) return "/orders";
   if (first === "support" && parts.length === 1) return "/support";

@@ -57,7 +57,7 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 | BF-12 Offline verification and sync | Yes | #24 | n/a | Partial: QR offline scanning on `main` (PR #59); physical-entry rule is an [open decision](../decisions/0002-decisions-to-confirm.md) | Not verified on devices | #53, #83 |
 | BF-13 Refunds and cancellations (full-order only) | Yes (retry fix in #93) | #61, #93 | Yes (PR #63) | Yes: attendee request and cancel, organizer refund and ticket cancel; not verified on a device | API smoke | #51 |
 | BF-14 Finance and simulated payouts | Partial: fees ignore platform settings | #64 | Yes: summary, payout request and simulator steps; not verified on a device | Partial: summary on planned contract; payouts not wired | Not verified | #70, #45, #51 |
-| BF-15 Notifications | Partial: no admin view of exhausted deliveries; no moderation notices | #24, #61, #64 | Yes (inbox) | Yes (inbox) | Not verified | #73, #74 |
+| BF-15 Notifications | Partial: no admin view of exhausted deliveries; no moderation notices | #24, #61, #64 | Yes (inbox) | Yes (inbox; moderation notices open the organizer event) | Not verified | #73, #74 |
 | BF-16 Support and attachments | Partial: no malware scan/quarantine; no recovery of abandoned uploads | #24 | Yes | Yes; document picker not tested on devices | Not verified | #75, #76, #53 |
 | BF-17 Calendar | Yes | #24 | Yes | Yes | Not verified | — |
 | BF-18 Organizer analytics | Partial: no export; campaign report reconciliation | #64 | Partial: planned contract (#45 analytics task open) | Yes; not verified on a device | Not verified; load not measured | #67, #81, #80, #45, #51 |

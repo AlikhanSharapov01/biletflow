@@ -40,6 +40,19 @@ describe("NotificationsScreen", () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith({ pathname: "/tickets/[ticketId]", params: { ticketId: "ticket-1" } }));
   });
 
+  it.each([
+    ["event_suspended", "organizer_event", "event-1", { pathname: "/organizer/events/[eventId]", params: { eventId: "event-1" } }],
+    ["paid_sales_reinstated", "organizer_event", "event-1", { pathname: "/organizer/events/[eventId]", params: { eventId: "event-1" } }],
+    ["account_reinstated", "account", null, "/account"],
+  ])("opens a %s notice at its own page, not the hidden public event", async (kind, type, id, href) => {
+    const notice: AppNotification = { ...unread, id: "m1", kind, title: "Moderation update", event_id: id, target: { type, id } };
+    jest.mocked(listNotifications).mockResolvedValue([notice]);
+    jest.mocked(markNotificationRead).mockResolvedValue({ ...notice, read_at: "2026-11-01T10:05:00Z" });
+    await render(<NotificationsScreen />);
+    await fireEvent.press(await screen.findByLabelText("Unread: Moderation update"));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith(href));
+  });
+
   it("marks everything read", async () => {
     jest.mocked(listNotifications).mockResolvedValue([unread]);
     jest.mocked(markAllNotificationsRead).mockResolvedValue(1);
