@@ -7,6 +7,8 @@ import { PrimaryButton, StatusPill } from "@/components/ui";
 import { colors, fonts, statusTones } from "@/theme";
 import { priceLabel } from "@/utils/format";
 import { paidNote, ticketAvailability, totalQuantity, type Quantities } from "../utils/checkout";
+import { useHoldMinutes } from "../hooks/useHoldMinutes";
+import { holdHint } from "../utils/hold";
 import { promoDiscountFor } from "../utils/promo";
 import { checkoutStyles } from "./checkoutStyles";
 import { FormMessage } from "@/components/ui/FormMessage";
@@ -28,6 +30,7 @@ interface TicketSelectorProps {
 // Step one: choose a quantity per ticket type, then reserve them.
 export function TicketSelector({ event, tickets, quantities, setQuantities, busy, message, promo, promoSlot, onReserve }: TicketSelectorProps) {
   useLocale();
+  const holdMinutes = useHoldMinutes();
   const selected = totalQuantity(quantities);
 
   return (
@@ -70,7 +73,7 @@ export function TicketSelector({ event, tickets, quantities, setQuantities, busy
           disabled={busy || selected === 0}
           onPress={onReserve}
         />
-        <Text style={checkoutStyles.intro}>{t("checkout.hold_hint")}</Text>
+        <Text style={checkoutStyles.intro}>{holdHint("tickets", holdMinutes)}</Text>
       </View>
     </View>
   );

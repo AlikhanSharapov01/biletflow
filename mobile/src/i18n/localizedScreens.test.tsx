@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react-native";
 import type { ReactTestRendererJSON } from "react-test-renderer";
 
 import { getEventFinance, listPayouts } from "@/api/finance";
+import { getPublicSettings } from "@/api/settings";
 import type { Locale } from "@/api/types";
 import type { EventFinance } from "@/api/types/finance";
 import { CheckoutPanel } from "@/features/checkout/CheckoutPanel";
@@ -9,6 +10,8 @@ import { sampleEvent, sampleTicket } from "@/features/checkout/testing/fixtures"
 import { FinanceTab } from "@/features/organizer/event/FinanceTab";
 import { makeEvent } from "@/features/organizer/testFixtures";
 import { describeOutcome } from "@/features/scanner/outcomes";
+import { resetHoldMinutes } from "@/features/checkout/hooks/useHoldMinutes";
+import { holdHint } from "@/features/checkout/utils/hold";
 import { setLocale, t } from "@/i18n";
 
 jest.mock("@/context/ToastContext", () => ({ useToast: () => ({ notify: jest.fn() }) }));
@@ -17,6 +20,7 @@ jest.mock("@/features/auth/AuthContext", () => ({
 }));
 jest.mock("@/api/finance");
 jest.mock("@/api/promo");
+jest.mock("@/api/settings");
 
 // Words that may stay Latin: data from the fixtures, product and file names,
 // and terms the web's own Kazakh and Russian catalogs keep in Latin script.
@@ -64,7 +68,12 @@ describe.each<Locale>(["ru", "kk"])("the app in %s", (locale) => {
   afterEach(() => setLocale("en"));
 
   it("shows checkout with no English left", async () => {
+    jest.mocked(getPublicSettings).mockResolvedValue({ hold_minutes: 15, processing_rate_bps: 300, activation_fee_minor: 500000, upload_max_bytes: 5242880, currency: "KZT" });
+    resetHoldMinutes();
     await render(<CheckoutPanel event={sampleEvent} tickets={[sampleTicket()]} />);
+    // The hold time reads in this language, with its own plural form.
+    expect(await screen.findByText(holdHint("tickets", 15))).toBeTruthy();
+    expect(holdHint("tickets", 15)).toContain("15");
     // The screen really rendered, in this language.
     expect(screen.getByText(t("checkout.reserve_tickets"))).toBeTruthy();
     expect(t("checkout.reserve_tickets")).not.toBe("Reserve tickets");

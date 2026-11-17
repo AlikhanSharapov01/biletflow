@@ -18,6 +18,7 @@ jest.mock("@/features/auth/AuthContext", () => ({
 }));
 jest.mock("@/api/checkout");
 jest.mock("@/api/promo");
+jest.mock("@/api/settings");
 jest.mock("@/api/orders");
 jest.mock("@/api/paidCheckout");
 

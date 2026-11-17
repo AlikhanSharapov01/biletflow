@@ -6,7 +6,7 @@ import type { EventSeat, Hold, HoldLine, Order, RecipientInput, SeatPage } from 
 const id = encodeURIComponent;
 const SEAT_PAGE = 500;
 
-// Reserves inventory for ten minutes. A new hold on the same event replaces
+// Reserves inventory for the platform's hold time (GET /settings/public). A new hold on the same event replaces
 // the buyer's earlier active hold. `promoCode` is only sent once the planned
 // promo preview endpoint has accepted it.
 export function createHold(eventId: string, items: HoldLine[], promoCode?: string, idempotencyKey: string = randomUUID()): Promise<Hold> {

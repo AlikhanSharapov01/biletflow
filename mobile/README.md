@@ -40,11 +40,11 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Verify email / reset password from an emailed link | Done (paste the link or its token) |
 | Discover: search, category filter | Done |
 | Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done |
-| Free registration and simulated paid checkout | Done |
+| Free registration and simulated paid checkout | Done; the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
 | Orders: totals, payment retry, cancel registration, refund request | Done |
 | Support cases: list, new case, thread, attachments, staff actions | Done |
-| Notifications: inbox and unread badge in the top bar | Done |
+| Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
 | Organizer: workspaces, team, invitations, create event, every event tab | Done |
 | Platform admin portal (8 sections) | Done (shown only to platform admins); the paid-sales suspension and payment/refund monitoring added in #64 are not in the app yet |

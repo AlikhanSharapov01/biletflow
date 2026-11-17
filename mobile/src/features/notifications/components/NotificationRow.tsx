@@ -17,6 +17,12 @@ const KIND_GLYPH: Record<string, string> = {
   ticket_delivered: "T",
   support_reply: "S",
   support_status: "S",
+  account_suspended: "A",
+  account_reinstated: "A",
+  event_suspended: "E",
+  event_reinstated: "E",
+  paid_sales_suspended: "₸",
+  paid_sales_reinstated: "₸",
 };
 
 // One inbox entry. Unread items are bold with a dot; pressing the row marks
