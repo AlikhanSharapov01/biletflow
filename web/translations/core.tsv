@@ -828,7 +828,6 @@ org.chart_tooltip	{p0}: {p1} tickets · {p2}	{p0}: билетов — {p1} · {p
 org.chart_bar_label	{p0}: {p1} tickets	{p0}: билетов — {p1}	{p0}: {p1} билет
 org.analytics_meta	Times in {p0} · generated {p1}	Время в {p0} · сформировано {p1}	Уақыт белдеуі: {p0} · {p1} жасалған
 org.invalid_range	“To” must be after “From”.	Конец периода должен быть после начала.	Мерзімнің соңы басынан кейін болуы тиіс.
-org.event_finance	Event finance	Финансы мероприятия	Іс-шара қаржысы
 org.finance_intro	Gross sales, processing fees, refunds and the estimated organizer payout.	Сумма продаж, комиссии, возвраты и оценка выплаты организатору.	Жалпы сатылым, комиссиялар, қайтарулар және ұйымдастырушыға болжалды төлем.
 org.finance_loading	Loading finance…	Загрузка финансов…	Қаржы деректері жүктелуде…
 org.finance_error	We couldn’t load finance.	Не удалось загрузить финансы.	Қаржы деректерін жүктеу мүмкін болмады.
@@ -972,17 +971,13 @@ org.manage_event	Manage event · {p0}{p1}	Управление мероприя�
 org.moderation_suffix	· suspended by moderation	· приостановлено модерацией	· модерация тоқтатқан
 org.gross_amount	{p0} gross	Сумма: {p0}	Жалпы сома: {p0}
 org.refunded_amount	{p0} refunded	Возвращено: {p0}	Қайтарылғаны: {p0}
-org.event_image	Event image	Изображение мероприятия	Іс-шара суреті
-org.event_images	Event images	Изображения мероприятий	Іс-шара суреттері
-org.image_hint	Shown on the event page and in discovery. PNG, JPEG or WebP up to 5 MB.	На странице мероприятия и в афише. PNG, JPEG или WebP до 5 МБ.	Іс-шара беті мен афишада көрсетіледі. PNG, JPEG не WebP, 5 МБ дейін.
-org.image_types_error	Choose a PNG, JPEG or WebP image.	Выберите изображение PNG, JPEG или WebP.	PNG, JPEG не WebP суретін таңдаңыз.
-org.image_size_error	The image must be 5 MB or smaller.	Изображение должно быть не больше 5 МБ.	Сурет көлемі 5 МБ аспауы тиіс.
+org.event_images	Event images	Изображения мероприятия	Іс-шара суреттері
+org.image_hint	The first image is the cover on the event page and in discovery. PNG or JPEG, up to {p0} each.	Первое изображение — обложка на странице мероприятия и в афише. PNG или JPEG, до {p0} каждое.	Бірінші сурет іс-шара беті мен афишадағы мұқаба. PNG не JPEG, әрқайсысы {p0} дейін.
+org.image_types_error	Choose a PNG or JPEG image.	Выберите изображение PNG или JPEG.	PNG не JPEG суретін таңдаңыз.
+org.image_size_error	The image must be {p0} or smaller.	Изображение должно быть не больше {p0}.	Сурет көлемі {p0} аспауы тиіс.
 org.choose_image	Choose an image	Выбрать изображение	Сурет таңдау
 org.image_uploaded	Event image uploaded.	Изображение мероприятия загружено.	Іс-шара суреті жүктелді.
-org.cover_alt	Cover image for {p0}	Обложка мероприятия «{p0}»	«{p0}» іс-шарасының мұқаба суреті
 org.image_validated	The image is checked on the server before it is shown.	Перед показом изображение проверяется на сервере.	Сурет көрсетілмес бұрын серверде тексеріледі.
-org.image_not_live	Uploads open once the server side is released.	Загрузка станет доступна после выхода серверной части.	Жүктеу серверлік бөлігі шыққан соң қолжетімді болады.
-org.coming_soon	Coming soon	Скоро	Жақында
 admin.sections	Admin sections	Разделы администратора	Әкімші бөлімдері
 admin.only	Admins only	Только для администраторов	Тек әкімшілерге
 admin.checking	Checking admin access…	Проверка доступа администратора…	Әкімші рұқсаты тексерілуде…
@@ -1364,3 +1359,142 @@ notice.refund_completed.title	Refund completed: {title}	Возврат заве�
 notice.refund_completed.body	The refund for your order for {title} is complete. Order: {link}	Возврат по вашему заказу на {title} завершён. Заказ: {link}	{title} тапсырысыңыз бойынша қайтару аяқталды. Тапсырыс: {link}
 notice.order_cancelled.title	Registration cancelled: {title}	Регистрация отменена: {title}	Тіркеу тоқтатылды: {title}
 notice.order_cancelled.body	A registration for {title} was cancelled and its ticket no longer admits anyone. Order: {link}	Регистрация на {title} отменена, билет больше не действует. Заказ: {link}	{title} іс-шарасына тіркеу тоқтатылды, билет енді жарамсыз. Тапсырыс: {link}
+capability.manage_profile_hint	Edit the workspace name and contact details	Изменять название и контакты рабочего пространства	Жұмыс кеңістігінің атауы мен байланыс деректерін өзгерту
+capability.manage_staff_hint	Invite and remove team members	Приглашать и удалять участников команды	Команда мүшелерін шақыру және шығару
+capability.finance_hint	See event finance and request simulated payouts	Видеть финансы мероприятий и запрашивать учебные выплаты	Іс-шара қаржысын көру және оқу төлемдерін сұрау
+history.image	image	изображение	сурет
+history.images	images	изображения	суреттер
+history.uploaded	uploaded	загружено	жүктелді
+history.deleted	deleted	удалено	жойылды
+history.reordered	reordered	порядок изменён	реті өзгертілді
+status.eligible	Eligible	Доступна	Қолжетімді
+status.sent	Sent	Отправлена	Жіберілді
+status.adjusted	Adjusted	Скорректирована	Түзетілді
+org.unattributed	No campaign	Без кампании	Науқансыз
+org.tickets_kept_refunded	Kept / refunded	Остались / возвращены	Қалды / қайтарылды
+org.refunds_col	Refunds	Возвраты	Қайтарулар
+org.env_mixed	Simulation and sandbox	Имитация и песочница	Модельдеу және құмсалғыш
+org.env_sandbox	Sandbox payments	Платежи в песочнице	Құмсалғыш төлемдері
+org.collected_amount	{p0} collected	Получено: {p0}	Алынды: {p0}
+org.refunds_and_fees	Refunds	Возвраты	Қайтарулар
+org.fees_and_pending	Fees {p0} · pending refunds {p1}	Комиссии {p0} · ожидают возврата {p1}	Комиссиялар {p0} · күтудегі қайтарулар {p1}
+org.absent	Absent	Не пришли	Келмегендер
+org.not_yet_checked_in	Not yet checked in	Ещё не прошли	Әлі кірмегендер
+org.absent_hint	Ticket holders who did not attend	Владельцы билетов, которые не пришли	Келмеген билет иелері
+org.not_yet_hint	Valid tickets not yet admitted	Действующие билеты, ещё не прошедшие вход	Әлі кірмеген жарамды билеттер
+org.inventory_notes	Also: {p0} awaiting refund, {p1} blocked seats, {p2} expired holds still being released.	Также: ожидают возврата — {p0}, заблокировано мест — {p1}, истёкших броней в освобождении — {p2}.	Сондай-ақ: қайтаруды күтуде — {p0}, бұғатталған орын — {p1}, босатылып жатқан мерзімі өткен бронь — {p2}.
+org.finance_sales	Ticket sales	Продажа билетов	Билет сатылымы
+org.pending_refunds	Pending refunds	Ожидающие возвраты	Күтудегі қайтарулар
+org.activation_charges	Activation fee	Плата за активацию	Белсендіру төлемі
+org.payouts	Payouts	Выплаты	Төлемдер
+org.payouts_intro	Simulated payouts reserve money from the balance. They become eligible after the event ends; no money is transferred.	Учебные выплаты резервируют средства из баланса. Они становятся доступны после окончания мероприятия; деньги не переводятся.	Оқу төлемдері балансынан қаражат резервтейді. Олар іс-шара аяқталған соң қолжетімді болады; ақша аударылмайды.
+org.payouts_sent	Paid out	Выплачено	Төленді
+org.balance	Balance	Баланс	Баланс
+org.reserved	Reserved for payouts	Зарезервировано для выплат	Төлемдерге резервтелген
+org.payout_eligible_at	Payouts eligible from	Выплаты доступны с	Төлемдер қолжетімді уақыты
+org.payout_amount	Amount ({p0})	Сумма ({p0})	Сома ({p0})
+org.payout_amount_hint	up to {p0}	до {p0}	{p0} дейін
+org.payout_amount_positive	Enter an amount greater than zero.	Введите сумму больше нуля.	Нөлден үлкен соманы енгізіңіз.
+org.payout_amount_max	The most you can request now is {p0}.	Сейчас можно запросить не больше {p0}.	Қазір ең көбі {p0} сұрауға болады.
+org.payout_requested	Payout of {p0} requested.	Запрошена выплата {p0}.	{p0} төлемі сұралды.
+org.payout_nothing_payable	Nothing is payable yet. Pending refunds and reservations are held back.	Пока нечего выплачивать. Ожидающие возвраты и резервы удерживаются.	Әзірге төлейтін сома жоқ. Күтудегі қайтарулар мен резервтер ұсталады.
+org.request_payout	Request payout	Запросить выплату	Төлем сұрау
+org.payout_use_max	Use the maximum	Указать максимум	Ең көп соманы қою
+org.payout_mixed_env	This event has sandbox payment records, so simulated payouts cannot be requested.	У мероприятия есть платежи в песочнице, поэтому учебные выплаты недоступны.	Іс-шарада құмсалғыш төлемдері бар, сондықтан оқу төлемдерін сұрауға болмайды.
+org.payouts_loading	Loading payouts…	Загрузка выплат…	Төлемдер жүктелуде…
+org.payouts_error	We couldn’t load payouts.	Не удалось загрузить выплаты.	Төлемдерді жүктеу мүмкін болмады.
+org.no_payouts	No payouts requested yet.	Выплаты ещё не запрашивались.	Әлі төлем сұралмаған.
+org.payout_now	Payout is now {p0}.	Статус выплаты: {p0}.	Төлем күйі: {p0}.
+org.payout_simulator_off	The payout simulator is turned off on this server.	Симулятор выплат на этом сервере отключён.	Бұл серверде төлем симуляторы өшірулі.
+org.payout_sent_on	Sent {p0}	Отправлена {p0}	Жіберілді: {p0}
+org.payout_requested_on	Requested {p0}	Запрошена {p0}	Сұралды: {p0}
+org.payout_adjustment	Adjusted by later refunds: {p0}	Скорректирована последующими возвратами: {p0}	Кейінгі қайтарулармен түзетілді: {p0}
+org.payout_mark_eligible	Mark eligible (demo)	Сделать доступной (демо)	Қолжетімді ету (демо)
+org.payout_mark_sent	Mark sent (demo)	Отметить отправленной (демо)	Жіберілді деп белгілеу (демо)
+org.payout_mark_failed	Mark failed (demo)	Отметить ошибку (демо)	Қате деп белгілеу (демо)
+org.cover	Cover	Обложка	Мұқаба
+org.make_cover	Make cover	Сделать обложкой	Мұқаба ету
+org.cover_changed	Cover image changed.	Обложка изменена.	Мұқаба өзгертілді.
+org.images_reordered	Image order saved.	Порядок изображений сохранён.	Суреттер реті сақталды.
+org.image_deleted	Image removed.	Изображение удалено.	Сурет жойылды.
+org.image_delete_confirm	Remove the image “{p0}”?	Удалить изображение «{p0}»?	«{p0}» суретін жою керек пе?
+org.image_alt	Image description	Описание изображения	Сурет сипаттамасы
+org.image_alt_hint	Read aloud by screen readers	Озвучивается программами чтения с экрана	Экран оқу бағдарламалары оқиды
+org.image_alt_required	Describe the image before uploading it.	Опишите изображение перед загрузкой.	Жүктемес бұрын суретті сипаттаңыз.
+org.image_empty	The chosen file is empty.	Выбранный файл пуст.	Таңдалған файл бос.
+org.image_hint_unknown	The first image is the cover on the event page and in discovery. PNG or JPEG.	Первое изображение — обложка на странице мероприятия и в афише. PNG или JPEG.	Бірінші сурет іс-шара беті мен афишадағы мұқаба. PNG не JPEG.
+org.image_move_up	Move “{p0}” earlier	Переместить «{p0}» выше	«{p0}» суретін жоғары жылжыту
+org.image_move_down	Move “{p0}” later	Переместить «{p0}» ниже	«{p0}» суретін төмен жылжыту
+org.no_images	No images yet. The event uses its category artwork.	Изображений пока нет. Используется оформление категории.	Әзірге сурет жоқ. Санат безендіруі қолданылады.
+org.profile_title	Organizer profile	Профиль организатора	Ұйымдастырушы профилі
+org.profile_hint	Contact details attendees and the platform team use to reach you.	Контакты, по которым с вами связываются посетители и команда платформы.	Қатысушылар мен платформа командасы сізбен байланысатын деректер.
+org.profile_saved	Organizer profile saved.	Профиль организатора сохранён.	Ұйымдастырушы профилі сақталды.
+org.permissions	Permissions	Права	Құқықтар
+org.permissions_saved	Permissions saved for {p0}.	Права для {p0} сохранены.	{p0} құқықтары сақталды.
+org.workspace_permissions	Workspace permissions for {p0}	Права {p0} в рабочем пространстве	{p0} жұмыс кеңістігіндегі құқықтары
+api.analytics_range	That range has too many points. Choose a shorter range or group by day.	Слишком много точек. Выберите период короче или группировку по дням.	Нүкте тым көп. Қысқа кезеңді не күн бойынша топтауды таңдаңыз.
+api.analytics_filter	That filter does not belong to this event.	Этот фильтр не относится к мероприятию.	Бұл сүзгі осы іс-шараға қатысты емес.
+api.image_empty	The image file is empty.	Файл изображения пуст.	Сурет файлы бос.
+api.image_limit	This event already has the maximum number of images. Remove one first.	У мероприятия уже максимум изображений. Сначала удалите одно.	Іс-шарада суреттер саны шегіне жетті. Алдымен біреуін жойыңыз.
+api.image_missing	That image no longer exists.	Это изображение больше не существует.	Бұл сурет енді жоқ.
+api.image_rejected	The server could not read that image. Try another PNG or JPEG.	Сервер не смог прочитать изображение. Попробуйте другой PNG или JPEG.	Сервер суретті оқи алмады. Басқа PNG не JPEG қолданыңыз.
+api.image_too_large	The image is larger than the platform allows.	Изображение больше допустимого размера.	Сурет рұқсат етілген көлемнен үлкен.
+api.image_upload_expired	The upload took too long. Try again.	Загрузка заняла слишком много времени. Попробуйте ещё раз.	Жүктеу тым ұзаққа созылды. Қайталап көріңіз.
+api.image_order	The image order must list every image once. Reload and try again.	Порядок должен содержать каждое изображение один раз. Обновите страницу.	Ретте әр сурет бір рет болуы керек. Бетті жаңартыңыз.
+api.content_length	The upload was incomplete. Try again.	Загрузка прервалась. Попробуйте ещё раз.	Жүктеу толық болмады. Қайталап көріңіз.
+api.storage_unavailable	File storage is unavailable. Try again shortly.	Хранилище файлов недоступно. Повторите позже.	Файл қоймасы қолжетімсіз. Біраздан соң қайталаңыз.
+api.insufficient_balance	That is more than the payable balance.	Сумма превышает доступный баланс.	Сома төленетін баланстан асады.
+api.payout_transition	That payout cannot move to this status.	Выплату нельзя перевести в этот статус.	Төлемді бұл күйге ауыстыруға болмайды.
+api.payout_environment	Sandbox records cannot fund simulated payouts.	Платежи в песочнице не могут покрывать учебные выплаты.	Құмсалғыш жазбалары оқу төлемдерін қамтамасыз ете алмайды.
+api.payout_missing	That payout no longer exists.	Эта выплата больше не существует.	Бұл төлем енді жоқ.
+api.payout_not_eligible	Payouts become eligible after the event ends.	Выплаты доступны после окончания мероприятия.	Төлемдер іс-шара аяқталған соң қолжетімді.
+api.payout_profile	Verify the payout profile on the Paid sales tab first.	Сначала подтвердите профиль выплат на вкладке «Платные продажи».	Алдымен «Ақылы сату» бетінде төлем профилін растаңыз.
+notice.account_suspended.title	Your BiletFlow account has been suspended	Ваш аккаунт BiletFlow заблокирован	BiletFlow аккаунтыңыз бұғатталды
+notice.account_suspended.body	The platform administrators have suspended your BiletFlow account, so you can no longer sign in. If you think this is a mistake, contact BiletFlow support. BiletFlow: {link}	Администраторы платформы заблокировали ваш аккаунт BiletFlow, войти в него пока нельзя. Если вы считаете, что это ошибка, обратитесь в поддержку BiletFlow. BiletFlow: {link}	Платформа әкімшілері BiletFlow аккаунтыңызды бұғаттады, қазір жүйеге кіре алмайсыз. Қателік деп ойласаңыз, BiletFlow қолдау қызметіне хабарласыңыз. BiletFlow: {link}
+notice.account_reinstated.title	Your BiletFlow account is active again	Ваш аккаунт BiletFlow снова активен	BiletFlow аккаунтыңыз қайта белсенді
+notice.account_reinstated.body	Your BiletFlow account has been reinstated. You can sign in again: {link}	Ваш аккаунт BiletFlow восстановлен. Теперь вы снова можете войти: {link}	BiletFlow аккаунтыңыз қалпына келтірілді. Енді қайта кіре аласыз: {link}
+notice.event_suspended.title	Event suspended: {title}	Мероприятие приостановлено: {title}	Іс-шара тоқтатыла тұрды: {title}
+notice.event_suspended.body	The platform administrators have suspended {title}. It is hidden from attendees, tickets cannot be sold and check-in is paused until it is reinstated. Event: {link}	Администраторы платформы приостановили мероприятие {title}. Оно скрыто от посетителей, продажа билетов и проверка на входе остановлены до восстановления. Мероприятие: {link}	Платформа әкімшілері {title} іс-шарасын тоқтатты. Ол қатысушыларға көрінбейді, билет сатылмайды және кіру тексеруі қалпына келтірілгенге дейін тоқтатылған. Іс-шара: {link}
+notice.event_reinstated.title	Event reinstated: {title}	Мероприятие восстановлено: {title}	Іс-шара қалпына келтірілді: {title}
+notice.event_reinstated.body	The platform administrators have reinstated {title}. It is visible again and sales and check-in can continue. Event: {link}	Администраторы платформы восстановили мероприятие {title}. Оно снова видно, продажа билетов и проверка на входе возобновлены. Мероприятие: {link}	Платформа әкімшілері {title} іс-шарасын қалпына келтірді. Ол қайта көрінеді, билет сату мен кіру тексеруі жалғаса алады. Іс-шара: {link}
+notice.paid_sales_suspended.title	Paid sales suspended: {title}	Платные продажи приостановлены: {title}	Ақылы сату тоқтатылды: {title}
+notice.paid_sales_suspended.body	The platform administrators have suspended paid ticket sales for {title}. New paid orders cannot be placed until sales are reinstated. Event: {link}	Администраторы платформы приостановили платные продажи билетов на {title}. Новые платные заказы невозможны до восстановления продаж. Мероприятие: {link}	Платформа әкімшілері {title} үшін ақылы билет сатуды тоқтатты. Сату қалпына келтірілгенше жаңа ақылы тапсырыстар берілмейді. Іс-шара: {link}
+notice.paid_sales_reinstated.title	Paid sales reinstated: {title}	Платные продажи восстановлены: {title}	Ақылы сату қалпына келтірілді: {title}
+notice.paid_sales_reinstated.body	The platform administrators have reinstated paid ticket sales for {title}. Event: {link}	Администраторы платформы восстановили платные продажи билетов на {title}. Мероприятие: {link}	Платформа әкімшілері {title} үшін ақылы билет сатуды қалпына келтірді. Іс-шара: {link}
+notice.payout_status.title	Simulated payout: {status}	Учебная выплата: {status}	Оқу төлемі: {status}
+notice.payout_status.body	Simulated payout: {status}. No real money moved. {link}	Учебная выплата: {status}. Реальные деньги не переводились. {link}	Оқу төлемі: {status}. Нақты ақша аударылған жоқ. {link}
+admin.activated_at	Activated	Активировано	Белсендірілді
+admin.commerce_filters	Payment filters	Фильтры платежей	Төлем сүзгілері
+admin.commerce_ids	Event {p0} · order or activation {p1}	Мероприятие {p0} · заказ или активация {p1}	Іс-шара {p0} · тапсырыс не белсендіру {p1}
+admin.env_simulation	Simulation	Имитация	Модельдеу
+admin.environment	Environment	Среда	Орта
+admin.export_csv	Export CSV	Экспорт CSV	CSV экспорттау
+admin.failed_payments	Failed payments	Неудачные платежи	Сәтсіз төлемдер
+admin.missing_steps	Missing steps	Незавершённые шаги	Аяқталмаған қадамдар
+admin.no_text_search	Not available for payment and refund exports	Недоступно для экспорта платежей и возвратов	Төлем мен қайтару экспортына қолжетімсіз
+admin.none	None	Нет	Жоқ
+admin.order_id	Order ID	ID заказа	Тапсырыс ID
+admin.paid_sales_error	We couldn’t load paid sales for this event.	Не удалось загрузить платные продажи мероприятия.	Іс-шараның ақылы сатуын жүктеу мүмкін болмады.
+admin.paid_sales_loading	Loading paid sales…	Загрузка платных продаж…	Ақылы сату жүктелуде…
+admin.paid_sales_not_active	Paid sales are not active for this event, so there is nothing to suspend.	Платные продажи для мероприятия не активны, приостанавливать нечего.	Бұл іс-шарада ақылы сату белсенді емес, тоқтататын ештеңе жоқ.
+admin.paid_sales_reinstated	Paid sales reinstated.	Платные продажи восстановлены.	Ақылы сату қалпына келтірілді.
+admin.paid_sales_suspended	Paid sales suspended. Existing tickets are unchanged.	Платные продажи приостановлены. Проданные билеты не изменены.	Ақылы сату тоқтатылды. Сатылған билеттер өзгермейді.
+admin.payment_detail	Processing fee {p0} · confirmed {p1}	Комиссия {p0} · подтверждено {p1}	Комиссия {p0} · расталды {p1}
+admin.payment_meta	{p0} · {p1} · {p2}	{p0} · {p1} · {p2}	{p0} · {p1} · {p2}
+admin.payments	Payments	Платежи	Төлемдер
+admin.payments_hint	Read-only payment attempts and refunds. All records are simulation or sandbox; no real money moves.	Только просмотр попыток оплаты и возвратов. Все записи — имитация или песочница, реальные деньги не движутся.	Төлем әрекеттері мен қайтаруларды тек қарау. Барлық жазба модельдеу не құмсалғыш; нақты ақша қозғалмайды.
+admin.payments_nav	Payments	Платежи	Төлемдер
+admin.payments_title	Payments and refunds	Платежи и возвраты	Төлемдер мен қайтарулар
+admin.purpose	Purpose	Назначение	Мақсаты
+admin.purpose_activation	Activation fee	Плата за активацию	Белсендіру төлемі
+admin.purpose_ticket_order	Ticket order	Заказ билетов	Билет тапсырысы
+admin.reason_suspend_paid_sales	Why are paid sales being suspended?	Почему приостанавливаются платные продажи?	Ақылы сату неге тоқтатылады?
+admin.refund_meta	{p0} · {p1} · latest attempt: {p2}	{p0} · {p1} · последняя попытка: {p2}	{p0} · {p1} · соңғы әрекет: {p2}
+admin.reinstate_paid_sales	Reinstate paid sales	Восстановить платные продажи	Ақылы сатуды қалпына келтіру
+admin.suspend_paid_sales	Suspend paid sales	Приостановить платные продажи	Ақылы сатуды тоқтату
+admin.suspension_reason	Suspension reason	Причина приостановки	Тоқтату себебі
+api.paid_sales_not_active	Paid sales are not active for this event.	Платные продажи для мероприятия не активны.	Бұл іс-шарада ақылы сату белсенді емес.
+api.paid_sales_not_suspended	Paid sales are not suspended.	Платные продажи не приостановлены.	Ақылы сату тоқтатылмаған.
+api.invalid_date_range	The end must be after the start.	Конец должен быть позже начала.	Аяқталу басталудан кейін болуы керек.
+api.invalid_admin_filter	That filter value is not accepted for this list.	Это значение фильтра не подходит для списка.	Бұл сүзгі мәні тізімге сай емес.
+admin.event_id_filter	Event ID	ID мероприятия	Іс-шара ID

@@ -3,6 +3,7 @@ export { Brand } from "./Brand";
 export { Button, ButtonLink, buttonClass, type ButtonVariant } from "./Button";
 export { DateTile } from "./DateTile";
 export { EventCard } from "./EventCard";
+export { EventImage } from "./EventImage";
 export { FactList } from "./FactList";
 export { EmptyState, ErrorPanel, FormMessage, Loading } from "./Feedback";
 export { CheckboxField, SelectField, TextAreaField, TextField } from "./Field";
