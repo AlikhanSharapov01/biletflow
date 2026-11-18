@@ -66,14 +66,14 @@ Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not v
 | BF-18 Organizer analytics | Partial: campaign report reconciliation. CSV export implemented on `dauka-backend` (#81), suite not yet run there | #64; `dauka-backend`, pending merge: #81 | Partial: planned contract (#45 analytics task open) | Yes, with CSV export through the share sheet (#114); types match `ANALYTICS_API.md`; seen on the emulator | Not verified; load not measured | #67, #81, #80, #45, #51 |
 | BF-19 GA4 | Partial: optional integration implemented on `dauka-backend` (#71) with deterministic tests written, suite not yet run there; live property not verified | `dauka-backend`, pending merge: #71 | Partial: optional consent-aware page views only (`web/README.md`); live property not verified | No | No | #71 |
 | BF-20 History, duplication, audit | Partial until merged: request/job correlation IDs implemented on `dauka-backend` (#78), suite not yet run there | Early `main`, #24, #64 (filters); `dauka-backend`, pending merge: #78 | Yes | Yes | Not verified | #78 |
-| BF-21 Administration | Partial: settings not applied to commerce; notices missing. Search/detail (#72) and failure views with retry (#73) implemented on `dauka-backend`, suite not yet run there | #24, #64 (commerce monitoring); `dauka-backend`, pending merge: #72, #73 | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Partial: same | Not verified | #70, #72, #73, #74 |
+| BF-21 Administration | Partial: settings not applied to commerce; notices missing. Search/detail (#72) and failure views with retry (#73) implemented on `dauka-backend`, suite not yet run there | #24, #64 (commerce monitoring); `dauka-backend`, pending merge: #72, #73 | Partial: paid-sales suspend and payment/refund monitoring from #64 are not wired | Yes: paid-sales suspend/reinstate and payment, failed-payment and refund lists with CSV export (#113); checked against the Compose stack | Not verified | #70, #72, #73, #74 |
 | BF-22 Operations and integration | Partial until merged: S3-compatible storage with SeaweedFS (#77) and correlation IDs, redacted logs and metrics (#78) implemented on `dauka-backend`, suite and Compose workflows not yet run there | #59 (issue #57), #60 (issue #56), #87–#89, #95; `dauka-backend`, pending merge: #77, #78 | n/a | n/a | Backup/restore drill with file checks and smoke in CI; local load and process-kill harnesses; HTTPS not verified | #49, #77, #78 |
 | SRS 7 Localization (kk/ru/en) | Yes (#43) | #64 | Yes (#46, PR #63) | Yes (#52): web catalogs plus app-only text; not verified on a device | Not verified | #52 |
 
 ### Gaps no issue tracks yet
 
-- Admin paid-sales suspension and payment/refund monitoring (merged in #64) appear in neither
-  client, and #45/#51 do not list them.
+- Admin paid-sales suspension and payment/refund monitoring (merged in #64) are in the app
+  (#113) but not yet on the web (open PR #111).
 - Finance payout actions and gallery reorder/cover/delete are not in #45/#51 either; both list
   only "Finance tab" and "image upload".
 

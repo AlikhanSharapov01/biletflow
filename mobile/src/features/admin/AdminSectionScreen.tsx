@@ -8,6 +8,7 @@ import { AdminEventsPage } from "@/features/admin/pages/AdminEventsPage";
 import { AdminExportsPage } from "@/features/admin/pages/AdminExportsPage";
 import { AdminModerationPage } from "@/features/admin/pages/AdminModerationPage";
 import { AdminOrdersPage } from "@/features/admin/pages/AdminOrdersPage";
+import { AdminPaymentsPage } from "@/features/admin/pages/AdminPaymentsPage";
 import { AdminReportsPage } from "@/features/admin/pages/AdminReportsPage";
 import { AdminSettingsPage } from "@/features/admin/pages/AdminSettingsPage";
 import { AdminTicketsPage } from "@/features/admin/pages/AdminTicketsPage";
@@ -19,6 +20,7 @@ const PAGES: Record<AdminSectionId, () => React.JSX.Element> = {
   events: AdminEventsPage,
   orders: AdminOrdersPage,
   tickets: AdminTicketsPage,
+  payments: AdminPaymentsPage,
   reports: AdminReportsPage,
   moderation: AdminModerationPage,
   settings: AdminSettingsPage,

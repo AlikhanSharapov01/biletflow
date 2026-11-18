@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { moderateEvent, searchEvents } from "@/api/admin";
 import type { AdminEventRow } from "@/api/types/admin";
@@ -8,6 +8,7 @@ import { ListRow, Panel, PanelHeading, StatusPill, SubtleButton, TextButton } fr
 import { useToast } from "@/context/ToastContext";
 import { AdminSearchForm } from "@/features/admin/components/AdminSearchForm";
 import { ModerationDialog, type ModerationRequest } from "@/features/admin/components/ModerationDialog";
+import { PaidSalesModeration } from "@/features/admin/components/PaidSalesModeration";
 import { RowTitle } from "@/features/admin/components/RowTitle";
 import { SearchResults } from "@/features/admin/components/SearchResults";
 import { SectionNote } from "@/features/admin/components/SectionNote";
@@ -24,6 +25,8 @@ export function AdminEventsPage() {
   const { notify } = useToast();
   const events = useAdminSearch(searchEvents);
   const [pending, setPending] = useState<ModerationRequest | null>(null);
+  // The event whose paid-sales record is open, one at a time.
+  const [paidOpen, setPaidOpen] = useState("");
 
   function ask(event: AdminEventRow) {
     const suspended = event.moderation_state === "suspended";
@@ -73,10 +76,17 @@ export function AdminEventsPage() {
                     <SubtleButton label={suspended ? t("admin.reinstate") : t("admin.suspend")} danger={!suspended} onPress={() => ask(event)} />
                   }
                 >
-                  <TextButton
-                    label={t("mobile.admin.open_event_page")}
-                    onPress={() => router.push({ pathname: "/events/[eventId]", params: { eventId: event.id } })}
-                  />
+                  <View style={styles.actions}>
+                    <TextButton
+                      label={t("mobile.admin.open_event_page")}
+                      onPress={() => router.push({ pathname: "/events/[eventId]", params: { eventId: event.id } })}
+                    />
+                    <TextButton
+                      label={paidOpen === event.id ? t("common.close") : t("organizer.paid_sales")}
+                      onPress={() => setPaidOpen(paidOpen === event.id ? "" : event.id)}
+                    />
+                  </View>
+                  {paidOpen === event.id ? <PaidSalesModeration eventId={event.id} /> : null}
                 </ListRow>
               );
             })}
@@ -87,3 +97,7 @@ export function AdminEventsPage() {
     </Panel>
   );
 }
+
+const styles = StyleSheet.create({
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
+});
