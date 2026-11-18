@@ -47,7 +47,7 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
 | Organizer: workspaces, team, invitations, create event, every event tab | Done |
-| Platform admin portal (8 sections) | Done (shown only to platform admins); the paid-sales suspension and payment/refund monitoring added in #64 are not in the app yet |
+| Platform admin portal (9 sections) | Done (shown only to platform admins): includes payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
@@ -315,8 +315,7 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 - **Check the connected APIs (#51):** click promo, campaigns, refunds, analytics, finance and
   the event gallery through against `docker compose up`. The event page does not show the cover
-  image yet. Also add the admin paid-sales and payment/refund
-  monitoring screens from `backend/ADMIN_API.md`, which no issue covers yet.
+  image yet.
 - **Translation review (#52):** the app-only Kazakh and Russian text
   (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and

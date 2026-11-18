@@ -15,7 +15,13 @@ const KINDS: Array<{ value: ExportKind; label: string }> = [
   { value: "events", get label() { return t("common.events"); } },
   { value: "orders", get label() { return t("common.orders"); } },
   { value: "tickets", get label() { return t("common.tickets"); } },
+  { value: "payments", get label() { return t("mobile.admin.payments"); } },
+  { value: "failed-payments", get label() { return t("mobile.admin.failed_payments"); } },
+  { value: "refunds", get label() { return t("event.refunds"); } },
 ];
+
+// Payment and refund exports take exact filters only; free text is refused (422).
+const COMMERCE: ExportKind[] = ["payments", "failed-payments", "refunds"];
 
 // CSV exports with the same columns as the searches. Each export is audited;
 // the file opens in the share sheet.
@@ -36,7 +42,7 @@ export function AdminExportsPage() {
     }
     setState({ busy: true, message: "" });
     try {
-      await downloadExport(kind, { q, status, limit: rows });
+      await downloadExport(kind, { q: COMMERCE.includes(kind) ? undefined : q, status, limit: rows });
       notify(t("admin.csv_downloaded", { p0: kind }));
       setState({ busy: false, message: "" });
     } catch (failure) {
@@ -51,7 +57,15 @@ export function AdminExportsPage() {
       <View style={styles.form}>
         <SelectField label={t("admin.export")} value={kind} options={KINDS} onChange={(next) => setKind(next as ExportKind)} />
         <TextField label={t("admin.rows")} keyboardType="number-pad" value={limit} onChangeText={setLimit} />
-        <TextField label={t("common.search")} hint={t("common.optional")} value={q} onChangeText={setQ} maxLength={100} autoCapitalize="none" />
+        <TextField
+          label={t("common.search")}
+          hint={COMMERCE.includes(kind) ? t("mobile.admin.no_text_search") : t("common.optional")}
+          value={COMMERCE.includes(kind) ? "" : q}
+          onChangeText={setQ}
+          editable={!COMMERCE.includes(kind)}
+          maxLength={100}
+          autoCapitalize="none"
+        />
         <TextField
           label={t("common.status")}
           hint={t("admin.optional_status")}
