@@ -102,6 +102,7 @@
   "mobile.org.admitted_meta": "Вход {p0}{p1} · {p2} · {p3}{p4}",
   "mobile.org.amount_above_zero": "Введите сумму больше 0 ₸.",
   "mobile.org.amount_kzt": "Сумма (KZT)",
+  "mobile.org.analytics_csv_downloaded": "CSV аналитики скачан.",
   "mobile.org.at_most": "Сейчас можно выплатить не более {p0}.",
   "mobile.org.attendee_counts": "Выдано: {p0} · Вошли: {p1}",
   "mobile.org.attendee_note": "{p0} · Привязан: {p1} · Выдан {p2}",

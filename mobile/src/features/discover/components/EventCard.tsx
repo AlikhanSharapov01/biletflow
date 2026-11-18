@@ -1,20 +1,25 @@
+import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import type { EventImage } from "@/api/types";
 import { Eyebrow, SerifText } from "@/components/ui";
+import { useEventImage } from "@/hooks/useEventImage";
 import { colors, eventArt, fonts, radii } from "@/theme";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
 
 // Discover card (web EventCard with a .live-art block): a coloured art panel
 // with the category initial, then category, title, when/where and a footer
-// row. The whole card opens the event.
+// row. The whole card opens the event. When the event has a gallery, its
+// cover replaces the art once downloaded; the art stays while it loads or fails.
 export function EventCard({
   index,
   category,
   title,
   meta,
   footer,
+  cover,
   onPress,
 }: {
   index: number;
@@ -22,10 +27,12 @@ export function EventCard({
   title: string;
   meta: string;
   footer?: ReactNode;
+  cover?: EventImage | null;
   onPress: () => void;
 }) {
   useLocale();
   const [light, dark] = eventArt[index % eventArt.length];
+  const image = useEventImage(cover);
   return (
     <Pressable
       accessibilityRole="button"
@@ -40,6 +47,9 @@ export function EventCard({
         <View style={styles.artRing}>
           <Text style={styles.artLetter}>{category.slice(0, 1)}</Text>
         </View>
+        {image?.status === "ready" ? (
+          <Image source={{ uri: image.uri }} style={StyleSheet.absoluteFill} contentFit="cover" testID="event-card-cover" />
+        ) : null}
       </View>
       <View style={styles.copy}>
         <Eyebrow style={styles.eyebrow}>{category}</Eyebrow>

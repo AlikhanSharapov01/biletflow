@@ -102,6 +102,7 @@
   "mobile.org.admitted_meta": "Admitted {p0}{p1} · {p2} · {p3}{p4}",
   "mobile.org.amount_above_zero": "Enter an amount above ₸0.",
   "mobile.org.amount_kzt": "Amount (KZT)",
+  "mobile.org.analytics_csv_downloaded": "Analytics CSV downloaded.",
   "mobile.org.at_most": "At most {p0} can be paid out now.",
   "mobile.org.attendee_counts": "{p0} issued · {p1} checked in",
   "mobile.org.attendee_note": "{p0} · Claimed: {p1} · Issued {p2}",
