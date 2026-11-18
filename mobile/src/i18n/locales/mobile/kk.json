@@ -201,6 +201,7 @@
   "mobile.org.admitted_meta": "Кірді {p0}{p1} · {p2} · {p3}{p4}",
   "mobile.org.amount_above_zero": "₸0-ден асатын соманы енгізіңіз.",
   "mobile.org.amount_kzt": "Сома (KZT)",
+  "mobile.org.analytics_csv_downloaded": "Аналитика CSV файлы жүктелді.",
   "mobile.org.at_most": "Қазір ең көбі {p0} төлеп беруге болады.",
   "mobile.org.attendee_counts": "{p0} берілді · {p1} кірді",
   "mobile.org.attendee_note": "{p0} · Бекітілген: {p1} · Берілді {p2}",

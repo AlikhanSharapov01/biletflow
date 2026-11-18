@@ -10,6 +10,7 @@ import { colors, fonts } from "@/theme";
 import { dateLabel, statusLabel } from "@/utils/format";
 import { publicationTone } from "@/utils/status";
 import { CalendarLinks } from "./components/CalendarLinks";
+import { EventCover } from "./components/EventCover";
 import { EventFacts } from "./components/EventFacts";
 import { ReportEventForm } from "./components/ReportEventForm";
 import { categoryName, t, useLocale } from "@/i18n";
@@ -55,6 +56,7 @@ export function EventScreen() {
 
   return (
     <ScrollScreen backLabel={t("event.back")} refreshing={page.loading} onRefresh={page.reload}>
+      <EventCover event={event} />
       <PageHeading
         eyebrow={categoryName(category)}
         title={event.title}

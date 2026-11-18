@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { View } from "react-native";
 
-import { getAnalytics, getSalesSeries } from "@/api/analytics";
+import { downloadAnalyticsCsv, getAnalytics, getSalesSeries } from "@/api/analytics";
 import { listTicketTypes } from "@/api/catalog";
+import { describeError } from "@/api/errors";
 import type { EventView } from "@/api/types";
 import type { AnalyticsFilters, SeriesBucket } from "@/api/types/analytics";
-import { EmptyState, ErrorPanel, LoadingState, Panel, StatusPill } from "@/components/ui";
+import { EmptyState, ErrorPanel, LoadingState, Panel, StatusPill, SubtleButton } from "@/components/ui";
+import { useToast } from "@/context/ToastContext";
 import { useRequest } from "@/hooks/useRequest";
 import { dateLabel } from "@/utils/format";
 
+import { formStyles } from "../components/formStyles";
 import { SectionHeading } from "../components/SectionHeading";
 import { AnalyticsFilterBar } from "./analytics/AnalyticsFilterBar";
 import { BreakdownTables } from "./analytics/BreakdownTables";
@@ -15,9 +19,12 @@ import { SalesChart } from "./analytics/SalesChart";
 import { StatTiles } from "./analytics/StatTiles";
 import { t, useLocale } from "@/i18n";
 
-// Read-only event analytics (backend/ANALYTICS_API.md).
+// Read-only event analytics (backend/ANALYTICS_API.md), with the same report
+// exported as CSV through the share sheet.
 export function AnalyticsTab({ event }: { event: EventView }) {
   useLocale();
+  const { notify } = useToast();
+  const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState<AnalyticsFilters>({});
   const [bucket, setBucket] = useState<SeriesBucket>("day");
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
@@ -29,6 +36,18 @@ export function AnalyticsTab({ event }: { event: EventView }) {
   const loaded = report.data && !report.loading ? report.data : null;
   // Sales no campaign applies to come back as "Unattributed" with no id; they cannot be filtered on.
   const campaigns = (report.data?.summary.by_campaign ?? []).flatMap((row) => (row.campaign_id ? [{ id: row.campaign_id, name: row.name }] : []));
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      await downloadAnalyticsCsv(event.id, filters, bucket);
+      notify(t("mobile.org.analytics_csv_downloaded"));
+    } catch (failure) {
+      notify(describeError(failure));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <>
@@ -42,6 +61,9 @@ export function AnalyticsTab({ event }: { event: EventView }) {
           }
           trailing={<StatusPill tone="pending" label={t("org.finance_demo")} />}
         />
+        <View style={[formStyles.actions, { marginBottom: 8 }]}>
+          <SubtleButton label={exporting ? t("support.preparing") : t("org.csv_download")} disabled={exporting} onPress={() => void exportCsv()} />
+        </View>
         <AnalyticsFilterBar
           types={types.data ?? []}
           campaigns={campaigns}

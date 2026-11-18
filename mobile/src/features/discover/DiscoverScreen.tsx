@@ -84,6 +84,7 @@ export function DiscoverScreen() {
               index={index}
               category={category ? categoryName(category) : t("common.community")}
               title={event.title}
+              cover={event.images?.[0] ?? null}
               meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
               onPress={() => openEvent(event.id)}
               footer={

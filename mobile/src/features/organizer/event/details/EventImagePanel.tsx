@@ -3,12 +3,13 @@ import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { deleteEventImage, fetchEventImage, setCoverImage, uploadEventImage } from "@/api/eventAdmin";
+import { deleteEventImage, setCoverImage, uploadEventImage } from "@/api/eventAdmin";
 import { describeError } from "@/api/errors";
 import type { EventImage, EventView } from "@/api/types";
 import { confirmAction, EmptyState, ListRow, Panel, StatusPill, SubtleButton } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
 import { fileSizeLabel } from "@/features/support/utils/attachments";
+import { useEventImage } from "@/hooks/useEventImage";
 
 import { FormMessage } from "@/components/ui/FormMessage";
 import { formStyles } from "../../components/formStyles";
@@ -121,27 +122,12 @@ export function EventImagePanel({ event }: { event: EventView }) {
   );
 }
 
-// Image URLs need the session, so the bytes are fetched and shown from the cache.
 function EventImagePreview({ image }: { image: EventImage }) {
   useLocale();
-  const [uri, setUri] = useState("");
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    setUri("");
-    setFailed(false);
-    fetchEventImage(image)
-      .then((file) => active && setUri(file.uri))
-      .catch(() => active && setFailed(true));
-    return () => {
-      active = false;
-    };
-  }, [image]);
-
-  if (failed) return <Intro>{t("mobile.org.cover_load_error")}</Intro>;
-  if (!uri) return <View style={styles.preview} />;
-  return <Image source={{ uri }} style={styles.preview} contentFit="cover" accessibilityLabel={image.alt_text} />;
+  const state = useEventImage(image);
+  if (state?.status === "failed") return <Intro>{t("mobile.org.cover_load_error")}</Intro>;
+  if (state?.status !== "ready") return <View style={styles.preview} />;
+  return <Image source={{ uri: state.uri }} style={styles.preview} contentFit="cover" accessibilityLabel={image.alt_text} />;
 }
 
 const styles = StyleSheet.create({
