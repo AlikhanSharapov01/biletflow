@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { getEvent, listCategories, listTicketTypes, listVenues } from "@/api/catalog";
+import { fetchEventImage } from "@/api/eventAdmin";
 import { ApiError } from "@/api/errors";
 import { sampleCategory, sampleEvent, sampleProfile, sampleTicket, sampleVenue } from "@/features/checkout/testing/fixtures";
 import { EventScreen } from "@/features/events/EventScreen";
+import { forgetEventImages } from "@/hooks/useEventImage";
 
 const mockPush = jest.fn();
 const mockProfile = sampleProfile;
@@ -16,6 +18,7 @@ jest.mock("@/features/auth/AuthContext", () => ({
   useAuth: () => ({ status: "signedIn", profile: mockProfile, login: jest.fn(), logout: jest.fn() }),
 }));
 jest.mock("@/api/catalog");
+jest.mock("@/api/eventAdmin");
 jest.mock("@/api/checkout");
 jest.mock("@/api/promo");
 jest.mock("@/api/settings");
@@ -36,8 +39,27 @@ jest.mock("@/api/files", () => ({ saveFile: jest.fn() }));
 describe("EventScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    forgetEventImages();
     jest.mocked(listCategories).mockResolvedValue([sampleCategory]);
     jest.mocked(listVenues).mockResolvedValue([sampleVenue]);
+  });
+
+  it("shows the gallery cover at the top of the page", async () => {
+    const cover = {
+      id: "img-1",
+      url: "/api/v1/events/e1/images/img-1/content",
+      alt_text: "Stage at night",
+      sort_order: 0,
+      is_cover: true,
+      mime_type: "image/jpeg",
+      size_bytes: 1000,
+    };
+    jest.mocked(fetchEventImage).mockResolvedValue({ uri: "file:///cache/img-1.jpg", filename: "img-1.jpg", mimeType: "image/jpeg" });
+    jest.mocked(getEvent).mockResolvedValue({ ...sampleEvent, images: [cover], cover_image_url: cover.url });
+    jest.mocked(listTicketTypes).mockResolvedValue([]);
+    await render(<EventScreen />);
+    expect(await screen.findByLabelText("Stage at night")).toBeTruthy();
+    expect(fetchEventImage).toHaveBeenCalledWith(cover);
   });
 
   it("loads the event with its visible ticket types", async () => {

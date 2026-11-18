@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { getDocumentAsync } from "expo-document-picker";
 
 import { deleteEventImage, fetchEventImage, setCoverImage, uploadEventImage } from "@/api/eventAdmin";
+import { forgetEventImages } from "@/hooks/useEventImage";
 import type { EventImage } from "@/api/types";
 import { confirmAction } from "@/components/ui/dialogs";
 import { EventImagePanel } from "@/features/organizer/event/details/EventImagePanel";
@@ -31,6 +32,7 @@ const gallery = [image("img-1", 0), image("img-2", 1)];
 describe("EventImagePanel", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    forgetEventImages();
     jest.mocked(fetchEventImage).mockResolvedValue({ uri: "file:///cache/img.jpg", filename: "img.jpg", mimeType: "image/jpeg" });
   });
 

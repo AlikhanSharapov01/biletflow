@@ -38,15 +38,15 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 |---|---|
 | Sign in, create account, forgot password, resend verification | Done |
 | Verify email / reset password from an emailed link | Done (paste the link or its token) |
-| Discover: search, category filter | Done |
-| Event page: details, tickets, seat map, promo code, calendar export, report event, get help | Done |
+| Discover: search, category filter, gallery cover on each card | Done |
+| Event page: cover image, details, tickets, seat map, promo code, calendar export, report event, get help | Done |
 | Free registration and simulated paid checkout | Done; the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
 | Orders: totals, payment retry, cancel registration, refund request | Done |
 | Support cases: list, new case, thread, attachments, staff actions | Done |
 | Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, every event tab | Done |
+| Organizer: workspaces, team, invitations, create event, every event tab (analytics with CSV export) | Done |
 | Platform admin portal (9 sections) | Done (shown only to platform admins): includes payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
@@ -314,8 +314,8 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 ## What is left to do
 
 - **Check the connected APIs (#51):** click promo, campaigns, refunds, analytics, finance and
-  the event gallery through against `docker compose up`. The event page does not show the cover
-  image yet.
+  the event gallery through against `docker compose up`. Covers (Discover and event page), the
+  analytics CSV export and the analytics/finance types were checked against the stack in #114.
 - **Translation review (#52):** the app-only Kazakh and Russian text
   (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
 - **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and

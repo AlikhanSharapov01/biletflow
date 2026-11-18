@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
-import { getAnalytics, getSalesSeries } from "@/api/analytics";
+import { downloadAnalyticsCsv, getAnalytics, getSalesSeries } from "@/api/analytics";
+import { ApiError } from "@/api/errors";
 import { listTicketTypes } from "@/api/catalog";
 import type { EventAnalytics, SalesSeries } from "@/api/types/analytics";
 import { AnalyticsTab } from "@/features/organizer/event/AnalyticsTab";
@@ -9,6 +10,8 @@ import { makeEvent } from "../testFixtures";
 
 jest.mock("@/api/analytics");
 jest.mock("@/api/catalog");
+const mockNotify = jest.fn();
+jest.mock("@/context/ToastContext", () => ({ useToast: () => ({ notify: mockNotify }) }));
 
 const metadata = {
   event_id: "event-1",
@@ -80,5 +83,35 @@ describe("AnalyticsTab", () => {
     await render(<AnalyticsTab event={makeEvent()} />);
     expect(await screen.findByText("We couldn’t load analytics.")).toBeTruthy();
     expect(screen.getByText("You need the reports permission for this event.")).toBeTruthy();
+  });
+
+  it("exports the report shown on screen as CSV through the share sheet", async () => {
+    jest.mocked(getAnalytics).mockResolvedValue(summary);
+    jest.mocked(getSalesSeries).mockResolvedValue(series);
+    jest.mocked(downloadAnalyticsCsv).mockResolvedValue(undefined);
+    await render(<AnalyticsTab event={makeEvent()} />);
+    await screen.findByText("Tickets sold");
+
+    await fireEvent.press(screen.getByText("▸ Filters"));
+    await fireEvent.press(screen.getByLabelText("Group by: Day"));
+    await fireEvent.press(screen.getByText("Hour"));
+    await fireEvent.press(screen.getByText("Apply"));
+    await waitFor(() => expect(getSalesSeries).toHaveBeenLastCalledWith("event-1", {}, "hour"));
+
+    await fireEvent.press(screen.getByText("Download CSV"));
+    expect(downloadAnalyticsCsv).toHaveBeenCalledWith("event-1", {}, "hour");
+    await waitFor(() => expect(mockNotify).toHaveBeenCalledWith("Analytics CSV downloaded."));
+  });
+
+  it("explains an export the server refuses", async () => {
+    jest.mocked(getAnalytics).mockResolvedValue(summary);
+    jest.mocked(getSalesSeries).mockResolvedValue(series);
+    jest.mocked(downloadAnalyticsCsv).mockRejectedValue(new ApiError("That range has too many points. Choose a shorter range or group by day.", 422, "analytics_range_too_large"));
+    await render(<AnalyticsTab event={makeEvent()} />);
+    await screen.findByText("Tickets sold");
+    await fireEvent.press(screen.getByText("Download CSV"));
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith("That range has too many points. Choose a shorter range or group by day."),
+    );
   });
 });
