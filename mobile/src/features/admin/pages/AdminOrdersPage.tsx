@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { View } from "react-native";
 
 import { searchOrders } from "@/api/admin";
-import { ListRow, Panel, PanelHeading, StatusPill } from "@/components/ui";
+import { ListRow, Panel, PanelHeading, StatusPill, TextButton } from "@/components/ui";
 import { AdminSearchForm } from "@/features/admin/components/AdminSearchForm";
+import { OrderDetail } from "@/features/admin/components/InspectDetails";
 import { RowTitle } from "@/features/admin/components/RowTitle";
 import { SearchResults } from "@/features/admin/components/SearchResults";
 import { SectionNote } from "@/features/admin/components/SectionNote";
@@ -13,10 +15,12 @@ import { t, useLocale } from "@/i18n";
 
 const STATUSES = ["pending", "confirmed", "failed", "expired", "cancelled", "refund_pending", "refunded"];
 
-// The web shows a table; on the phone each order is one row.
+// The web shows a table; on the phone each order is one row, with the
+// read-only order detail (linked cases, deliveries, audit) under it.
 export function AdminOrdersPage() {
   useLocale();
   const orders = useAdminSearch(searchOrders);
+  const [open, setOpen] = useState("");
   return (
     <Panel>
       <PanelHeading title={t("common.orders")} />
@@ -40,7 +44,13 @@ export function AdminOrdersPage() {
                 }
                 meta={t("mobile.admin.order_meta", { p0: order.buyer_email, p1: priceLabel(order.payable_minor) })}
                 note={t("mobile.admin.order_note", { p0: priceLabel(order.discount_minor), p1: priceLabel(order.processing_fee_minor), p2: order.event_id.slice(0, 8), p3: dateLabel(order.created_at) })}
-              />
+              >
+                <TextButton
+                  label={open === order.id ? t("common.close") : t("common.details")}
+                  onPress={() => setOpen(open === order.id ? "" : order.id)}
+                />
+                {open === order.id ? <OrderDetail orderId={order.id} /> : null}
+              </ListRow>
             ))}
           </View>
         )}
