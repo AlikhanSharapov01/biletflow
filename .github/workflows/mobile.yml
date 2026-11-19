@@ -1,9 +1,11 @@
 name: Mobile app
+# The app copies the web catalogs and src/i18n/catalogs.test.ts compares them
+# with web/src/i18n/locales, so a web-only catalog change must run this too.
 on:
   push:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", "web/src/i18n/locales/**", "web/translations/**", ".github/workflows/mobile.yml"]
   pull_request:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", "web/src/i18n/locales/**", "web/translations/**", ".github/workflows/mobile.yml"]
 jobs:
   test:
     runs-on: ubuntu-latest
