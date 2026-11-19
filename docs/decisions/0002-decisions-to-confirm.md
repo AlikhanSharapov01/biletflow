@@ -1,6 +1,11 @@
 # 0002 — Decisions still to confirm
 
-- **Status:** Open. Nothing here is accepted until the project owner confirms it.
+> **Answered on 19 November 2026.** The project owner kept the offline baseline (A1), the current
+> sync rules (A2) and every default in table B. The answers are in
+> [decision 0003](0003-confirmed-decisions.md). This record is kept as history; its questions are
+> no longer open.
+
+- **Status:** Closed – answered in [0003](0003-confirmed-decisions.md).
 - **Related:** requirements §1.1 (planning defaults), BF-12 boundary note, §12 item 4;
   [decision 0001](0001-mobile-app-full-scope.md); issue #84.
 
