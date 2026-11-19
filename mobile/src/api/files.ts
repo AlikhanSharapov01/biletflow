@@ -79,10 +79,15 @@ export async function fetchText(path: string, query?: Query): Promise<string> {
 // Sends the file as the raw request body (no multipart), as the backend's
 // upload endpoints expect, and returns the JSON answer.
 export async function uploadFile<T>(path: string, file: UploadFile, query?: Query): Promise<T> {
-  const body = await (await fetch(file.uri)).blob();
+  const type = file.mimeType || "application/octet-stream";
+  // React Native on Android sends a Blob body with the Blob's own type and
+  // ignores the Content-Type header; a file read from a file:// URI has an
+  // empty type, which the server refuses with 415. Re-wrap it with the type.
+  const read = await (await fetch(file.uri)).blob();
+  const body = read.type === type ? read : new Blob([read], { type });
   const response = await fetchOk(path, query, {
     method: "POST",
-    headers: { "Content-Type": file.mimeType || "application/octet-stream" },
+    headers: { "Content-Type": type },
     body,
   });
   return (await response.json()) as T;

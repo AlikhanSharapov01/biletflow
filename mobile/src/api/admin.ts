@@ -2,8 +2,18 @@ import { request } from "./http";
 import { downloadFile } from "./files";
 import type { PaidSalesChecklist } from "./types/paidSales";
 import type {
+  AdminActivationRow,
+  AdminCampaignDetail,
+  AdminCampaignRow,
+  AdminDelivery,
   AdminEventRow,
+  AdminJob,
   AdminMe,
+  AdminOrderDetail,
+  AdminSupportCaseDetail,
+  AdminSupportCaseRow,
+  AdminSyncConflictDetail,
+  AdminSyncConflictRow,
   AdminOrderRow,
   AdminPaymentRow,
   AdminRefundRow,
@@ -14,6 +24,7 @@ import type {
   EventReport,
   ExportKind,
   ModerationAction,
+  OpsFilters,
   Page,
   PlatformSetting,
   ReportStatus,
@@ -70,6 +81,52 @@ export const searchPayments = (filters: CommerceFilters, limit: number, offset: 
 export const searchFailedPayments = (filters: CommerceFilters, limit: number, offset: number) =>
   commerce<AdminPaymentRow>("failed-payments", filters, limit, offset);
 export const searchRefunds = (filters: CommerceFilters, limit: number, offset: number) => commerce<AdminRefundRow>("refunds", filters, limit, offset);
+
+// Operational inspection (#72): read-only; looking never grants a role.
+function inspect<T>(kind: string, filters: OpsFilters, limit: number, offset: number): Promise<Page<T>> {
+  return request<Page<T>>(`${ADMIN}/${kind}`, { query: { ...filters, q: filters.q?.trim() || undefined, limit, offset } });
+}
+
+export const searchSupportCases = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminSupportCaseRow>("support-cases", filters, limit, offset);
+export const searchActivations = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminActivationRow>("activations", { ...filters, q: undefined }, limit, offset);
+export const searchCampaigns = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminCampaignRow>("campaigns", { ...filters, status: undefined }, limit, offset);
+export const searchSyncConflicts = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminSyncConflictRow>("sync-conflicts", { ...filters, q: undefined }, limit, offset);
+
+export function getSupportCaseDetail(caseId: string): Promise<AdminSupportCaseDetail> {
+  return request<AdminSupportCaseDetail>(`${ADMIN}/support-cases/${id(caseId)}`);
+}
+
+export function getOrderDetail(orderId: string): Promise<AdminOrderDetail> {
+  return request<AdminOrderDetail>(`${ADMIN}/orders/${id(orderId)}`);
+}
+
+export function getCampaignDetail(campaignId: string): Promise<AdminCampaignDetail> {
+  return request<AdminCampaignDetail>(`${ADMIN}/campaigns/${id(campaignId)}`);
+}
+
+export function getSyncConflictDetail(conflictId: string): Promise<AdminSyncConflictDetail> {
+  return request<AdminSyncConflictDetail>(`${ADMIN}/sync-conflicts/${id(conflictId)}`);
+}
+
+// Background work (#73): outbox jobs and notification deliveries. A retry
+// sends one exhausted row back to the worker; a repeat with the same
+// Idempotency-Key answers the current row without a second reset.
+export const searchJobs = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminJob>("jobs", { ...filters, q: undefined }, limit, offset);
+export const searchDeliveries = (filters: OpsFilters, limit: number, offset: number) =>
+  inspect<AdminDelivery>("notification-deliveries", { ...filters, q: undefined }, limit, offset);
+
+export function retryJob(jobId: string, reason: string, idempotencyKey: string): Promise<AdminJob> {
+  return request<AdminJob>(`${ADMIN}/jobs/${id(jobId)}/retry`, { method: "POST", body: { reason }, idempotencyKey });
+}
+
+export function retryDelivery(deliveryId: string, reason: string, idempotencyKey: string): Promise<AdminDelivery> {
+  return request<AdminDelivery>(`${ADMIN}/notification-deliveries/${id(deliveryId)}/retry`, { method: "POST", body: { reason }, idempotencyKey });
+}
 
 export function listModerationActions(limit: number, offset: number): Promise<ModerationAction[]> {
   return request<ModerationAction[]>(`${ADMIN}/moderation-actions`, { query: { limit, offset } });

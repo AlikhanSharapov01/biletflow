@@ -38,6 +38,8 @@ const LABELS: Record<string, TranslationKey> = {
   activation: "history.activation", setting: "history.setting", report: "history.report", user: "history.user",
   export: "history.export", offline_package: "history.offline_package", sync_conflict: "history.sync_conflict",
   issued: "history.issued", changed: "history.changed",
+  dead: "mobile.status.dead", leased: "mobile.status.leased", done: "mobile.status.done", sent: "mobile.status.sent",
+  simulation: "mobile.admin.env_simulation", sandbox: "mobile.admin.env_sandbox",
 };
 
 export function localizedStatus(value: string): string {

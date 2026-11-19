@@ -1,10 +1,10 @@
 import * as DocumentPicker from "expo-document-picker";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { describeError } from "@/api/errors";
-import { sendMessage, uploadAttachment } from "@/api/support";
-import type { SupportMessage } from "@/api/types/support";
+import { describeError, errorCodeOf } from "@/api/errors";
+import { getUpload, sendMessage, uploadAttachment } from "@/api/support";
+import type { SupportMessage, SupportUploadedFile } from "@/api/types/support";
 import { PrimaryButton, SubtleButton, TextField } from "@/components/ui";
 import { colors, fonts } from "@/theme";
 
@@ -21,6 +21,26 @@ import { createRetryKeys } from "../utils/retryKey";
 import { PendingFiles, type PendingFile } from "./PendingFiles";
 import { t, useLocale } from "@/i18n";
 
+// How often a file waiting for its virus scan is asked about. The worker
+// retries the scan at most a minute apart, so a few seconds is plenty.
+export const SCAN_POLL_MS = 3000;
+
+// What an upload's server status means for the file in the composer.
+function fromUpload(uploaded: SupportUploadedFile): Partial<PendingFile> {
+  switch (uploaded.status) {
+    case "clean":
+      return { status: "ready", fileId: uploaded.file_id };
+    case "pending":
+    case "quarantined":
+      return { status: "checking", fileId: uploaded.file_id };
+    case "rejected":
+      return { status: "blocked", fileId: uploaded.file_id, error: t("mobile.support.blocked_hint") };
+    default:
+      // Deleted: it was not checked within its one-hour window.
+      return { status: "failed", fileId: uploaded.file_id, error: t("mobile.support.check_expired") };
+  }
+}
+
 interface ComposerProps {
   caseId: string;
   // Shown above the box, e.g. that replying reopens a resolved case.
@@ -29,7 +49,9 @@ interface ComposerProps {
 }
 
 // Reply box. Files upload when picked (raw body), then their ids go with the
-// message. A retry of the same text and files reuses its client_message_id.
+// message. A file the scanner has not judged yet is quarantined: it shows
+// "Checking file…" and is polled until it is ready or blocked. A retry of the
+// same text and files reuses its client_message_id.
 export function Composer({ caseId, hint, onSent }: ComposerProps) {
   useLocale();
   const [body, setBody] = useState("");
@@ -39,10 +61,36 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
   const keys = useMemo(() => createRetryKeys(), []);
   const nextId = useRef(0);
   const uploading = files.some((file) => file.status === "uploading");
+  const checking = files.filter((file) => file.status === "checking");
   const ready = files.filter((file) => file.status === "ready");
+  const checkingIds = checking.map((file) => `${file.localId}:${file.fileId}`).join(",");
 
   const patch = (localId: string, change: Partial<PendingFile>) =>
     setFiles((current) => current.map((file) => (file.localId === localId ? { ...file, ...change } : file)));
+
+  // Polls every quarantined file until the scanner decides. A failed poll
+  // (network) is simply tried again on the next tick.
+  useEffect(() => {
+    if (!checkingIds) return;
+    let active = true;
+    const timer = setInterval(() => {
+      for (const file of checking) {
+        if (!file.fileId) continue;
+        getUpload(caseId, file.fileId)
+          .then((uploaded) => active && patch(file.localId, fromUpload(uploaded)))
+          .catch((failure: unknown) => {
+            if (active && errorCodeOf(failure) === "attachment_not_found") {
+              patch(file.localId, { status: "failed", error: describeError(failure) });
+            }
+          });
+      }
+    }, SCAN_POLL_MS);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+    // Restarts only when the set of files being checked changes.
+  }, [caseId, checkingIds]);
 
   const pick = async () => {
     setError("");
@@ -54,7 +102,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
       return;
     }
     if (result.canceled) return;
-    const room = MAX_ATTACHMENTS_PER_MESSAGE - files.filter((file) => file.status !== "failed").length;
+    const room = MAX_ATTACHMENTS_PER_MESSAGE - files.filter((file) => file.status !== "failed" && file.status !== "blocked").length;
     if (result.assets.length > room) setError(t("support.max_files", { p0: MAX_ATTACHMENTS_PER_MESSAGE }));
     for (const asset of result.assets.slice(0, Math.max(0, room))) {
       nextId.current += 1;
@@ -67,8 +115,14 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
       ]);
       if (problem) continue;
       uploadAttachment(caseId, { uri: asset.uri, name: asset.name, mimeType })
-        .then((uploaded) => patch(localId, { status: "ready", fileId: uploaded.file_id }))
-        .catch((failure: unknown) => patch(localId, { status: "failed", error: describeError(failure) }));
+        .then((uploaded) => patch(localId, fromUpload(uploaded)))
+        .catch((failure: unknown) =>
+          patch(localId, {
+            // An infected file is refused at once; say so as a block, not a failed upload.
+            status: errorCodeOf(failure) === "attachment_infected" ? "blocked" : "failed",
+            error: describeError(failure),
+          }),
+        );
     }
   };
 
@@ -102,14 +156,22 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
       <FormMessage message={error} />
       <View style={styles.actions}>
         <PrimaryButton
-          label={busy ? t("common.sending") : uploading ? t("support.uploading_files") : t("support.send")}
-          disabled={busy || uploading}
+          label={
+            busy
+              ? t("common.sending")
+              : uploading
+                ? t("support.uploading_files")
+                : checking.length
+                  ? t("mobile.support.checking_files")
+                  : t("support.send")
+          }
+          disabled={busy || uploading || checking.length > 0}
           onPress={() => void submit()}
           style={styles.send}
         />
         <SubtleButton label={t("support.attach_file")} disabled={busy} onPress={() => void pick()} />
       </View>
-      <Text style={styles.note}>{t("support.file_types_hint")} {fileSizeLabel(MAX_ATTACHMENT_BYTES)} each</Text>
+      <Text style={styles.note}>{t("support.file_types_hint")} {t("mobile.support.size_each", { p0: fileSizeLabel(MAX_ATTACHMENT_BYTES) })}</Text>
     </View>
   );
 }
