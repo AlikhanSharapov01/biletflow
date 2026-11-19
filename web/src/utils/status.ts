@@ -20,3 +20,12 @@ export function publicationTone(state: PublicationState | string): StatusTone {
   if (state === "cancelled") return "blocked";
   return "neutral";
 }
+
+// Simulated payouts: sent is done, failed is final, adjusted means later
+// refunds were recorded against a sent payout.
+export function payoutTone(status: string): StatusTone {
+  if (status === "sent") return "positive";
+  if (status === "failed") return "blocked";
+  if (status === "adjusted") return "neutral";
+  return "pending";
+}

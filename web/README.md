@@ -14,7 +14,7 @@ as the mobile app (shared colours, type scale and components).
 3. [Folder structure](#folder-structure)
 4. [How to add or change a screen](#how-to-add-or-change-a-screen)
 5. [Routes](#routes)
-6. [Screens waiting for the backend](#screens-waiting-for-the-backend)
+6. [Backend contracts](#backend-contracts)
 7. [Tests](#tests)
 8. [What is left to do](#what-is-left-to-do)
 
@@ -29,11 +29,18 @@ as the mobile app (shared colours, type scale and components).
   activation, seating setup and the platform admin portal.
 - **Campaigns, promo checkout and refunds** now follow the merged backend contracts, including
   server pricing, zero-total checkout, campaign reports and refund support-case links.
-- **Analytics, finance and event images** now have merged backend contracts (PR #64:
-  `backend/ANALYTICS_API.md`, `FINANCE_API.md`, `CATALOG_API.md`). The web still calls them with
-  the planned types; checking them against the final contracts, plus finance payouts and gallery
-  reorder/cover/delete, is open in #45. The admin paid-sales suspension and payment/refund
-  monitoring from #64 are not in the admin portal yet.
+- **Analytics, finance and event images** follow the merged contracts (`backend/ANALYTICS_API.md`,
+  `FINANCE_API.md`, `CATALOG_API.md`). The finance tab covers simulated payouts: reserving, history
+  and the demo transitions. The gallery supports upload, cover, reorder and delete, and covers are
+  shown on Discover and the event page. No screen shows "Not available yet" any more (#45).
+- **Admin portal** now includes paid-sales suspension and reinstatement per event, plus read-only
+  payment, failed-payment and refund monitoring with CSV export (`backend/ADMIN_API.md`).
+- **Organizer workspace** can edit the organizer contact profile, and owners can set each member's
+  workspace permissions (profile, staff, finance).
+- **Platform settings are read from the server.** Upload size limits for event images and support
+  attachments come from `GET /api/v1/settings/public` (`upload_max_bytes`), not from constants.
+- **Notifications** cover every kind the backend sends, including account/event/paid-sales
+  moderation and simulated payout status.
 - **Kazakh, Russian and English** interface catalogs, profile language selection and localized
   dates, money, categories, statuses and notifications are implemented. The shared mobile handoff
   is [translations/core.tsv](translations/core.tsv).
@@ -91,20 +98,22 @@ src/
     types/              Request/response types, one file per area
   components/
     ui/                 Shared building blocks: Button, PageHeading, Panel, StatusPill, EventCard,
-                        DateTile, Field, Tabs, Feedback (Loading/ErrorPanel/EmptyState), Toast,
-                        NotAvailableYet
+                        DateTile, EventImage (authorized image loader), Field, Tabs,
+                        Feedback (Loading/ErrorPanel/EmptyState), Toast, NotAvailableYet
     layout/             AppShell, TopBar, AvatarMenu, phone TabBar, navigation, RequireAuth
   features/             One folder per area, each with its pages, components, hooks and helpers
     auth/  discover/  events/  checkout/  tickets/  orders/  account/
     support/  notifications/  organizer/  admin/
-  hooks/                useRequest (load with loading/error/reload), useCountdown
+  hooks/                useRequest (load with loading/error/reload), useCountdown,
+                        usePublicSettings (platform limits from /settings/public)
   utils/                Formatting (dates, money, seats) and status → pill tone
   styles/               tokens.css (colours, type, spacing), base, layout, components,
                         and one stylesheet per feature; index.css imports them in order
 ```
 
 `features/organizer/event/` holds one file per event tab (Details, Ticket types, Seating, Paid
-sales, Attendees, Check-ins, Staff, Campaigns, Analytics, Finance, History).
+sales, Attendees, Check-ins, Staff, Campaigns, Analytics, Finance, History). Their parts live in
+sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payouts, …).
 
 ---
 
@@ -145,11 +154,11 @@ sales, Attendees, Check-ins, Staff, Campaigns, Analytics, Finance, History).
 | `/orders`, `/orders/:orderId` | Signed in | Orders: totals, payment status, retry, refunds |
 | `/support`, `/support/new`, `/support/cases/:caseId` | Signed in | Support cases and threads |
 | `/notifications` | Signed in | Notification inbox |
-| `/organizer` | Signed in | Workspaces, events grouped by status, team and invitations |
+| `/organizer` | Signed in | Workspaces, organizer profile, events grouped by status, team, permissions and invitations |
 | `/organizer/events/:eventId` | Signed in | Event management tabs |
 | `/staff-invitations/accept#token=` | Signed in | Join a workspace from an invitation |
 | `/account` | Signed in | Profile, language preference, sessions |
-| `/admin/users`, `/events`, `/orders`, `/tickets`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
+| `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
 
 The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitations/accept`,
 `/tickets/:id`, `/events/:id` and `/support/cases/:id` — keep those paths stable. Caddy falls back to
@@ -157,21 +166,42 @@ The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitati
 
 ---
 
-## Screens waiting for the backend
+## Backend contracts
 
-These three screens were written against planned contracts. Since PR #64 (`main` at `7dd19e0`)
-the backend serves all three routes, documented in `backend/ANALYTICS_API.md`,
-`backend/FINANCE_API.md` and `backend/CATALOG_API.md` (event gallery). The screens have not been
-checked against those final contracts yet (#45). See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md).
+Every screen calls a merged backend route; types in `src/api/types/` mirror the backend schemas
+file by file. The areas integrated last, and what they rely on:
 
-| Screen | Endpoints it calls |
-|---|---|
-| Organizer *Analytics* tab | `GET /events/{id}/analytics?from=&to=&ticket_type_id=&campaign_id=`, `GET /events/{id}/analytics/sales-series?bucket=day\|hour` |
-| Organizer *Finance* tab | `GET /events/{id}/finance` |
-| Event image upload | `POST /events/{id}/images` |
+| Screen | Endpoints | Contract |
+|---|---|---|
+| Organizer *Analytics* tab | `GET /events/{id}/analytics`, `GET /events/{id}/analytics/sales-series?bucket=day\|hour` | `backend/ANALYTICS_API.md`, `analytics_schemas.py` |
+| Organizer *Finance* tab | `GET /events/{id}/finance`, `GET`/`POST /events/{id}/finance/payouts`, `POST …/payouts/{payout_id}/simulate` | `backend/FINANCE_API.md`, `finance_api.py` |
+| Event gallery (Details tab), covers on Discover and the event page | `POST /events/{id}/images`, `PUT …/images/order`, `PUT …/images/{image_id}/cover`, `DELETE …/images/{image_id}`, `GET …/images/{image_id}/content` | `catalog_schemas.py`, `event_api.py` |
+| Organizer profile and member permissions | `PATCH /organizations/{id}`, `PUT /organizations/{id}/members/{member_id}/permissions` | `catalog_schemas.py`, `organization_api.py` |
+| Admin paid sales | `GET /admin/events/{id}/paid-sales`, `POST …/paid-sales/suspend`, `POST …/paid-sales/reinstate` | `backend/ADMIN_API.md` |
+| Admin payments | `GET /admin/payments`, `/admin/failed-payments`, `/admin/refunds`, `GET /admin/exports/{kind}.csv` | `backend/ADMIN_API.md`, `admin_commerce.py` |
+| Upload limits | `GET /settings/public` | `settings_api.py` |
 
-Planned types are in `src/api/types/{analytics,finance}.ts`; the image type is beside its API
-function. Confirmed promo/campaign/checkout/refund contracts are in `src/api/types/`.
+Rules the client follows for these screens:
+
+- **No client-side money maths.** Totals, net, balance, payable amount and percentages are shown
+  exactly as the server returns them, in the currency it reports (`moneyLabel`, `percentLabel`).
+- **No assumed limits.** Upload size comes from `upload_max_bytes`; without it the client skips its
+  pre-check and the server's error is shown. Fixed backend rules (PNG/JPEG for event images, the
+  payout transition order) are documented beside the code that mirrors them.
+- **Retries are safe.** Payout reservations and admin paid-sales decisions send an
+  `Idempotency-Key` that is reused when the same request is retried.
+- **Images need the session.** Image URLs are API paths. Unpublished events require the bearer
+  token, so `components/ui/EventImage` fetches them through `api/files.ts` and shows an object URL.
+- **Demo money is labelled.** Analytics, finance and admin payment rows show simulation or sandbox
+  pills. The payout simulator buttons disappear when the server reports the simulator is off (404).
+
+Not built in the web, by design:
+
+- **Private-event access grants** (`PUT`/`DELETE /events/{id}/access`) take a raw user id, and there
+  is no user lookup an organizer may call, so the web has no form for them yet.
+- **Scanner and offline routes** (`/scanner/*`, `/events/{id}/offline-operations`) belong to the
+  mobile verification app. Offline sync is outside the MVP; the web's check-in history shows the
+  sync conflicts it needs.
 
 ---
 
@@ -181,13 +211,16 @@ function. Confirmed promo/campaign/checkout/refund contracts are in `src/api/typ
 npm test
 ```
 
-There are 391 tests in 55 files, next to the code they test (`*.test.ts(x)`); shared fixtures
+There are 421 tests in 63 files, next to the code they test (`*.test.ts(x)`); shared fixtures
 are in `tests/helpers/`. They cover the API client and error messages, formatting, checkout rules
 and components (steps, seating, payment) and the checkout flow hook, seat and promo helpers,
 payment states, the auth context and route guards, QR codes, support threads, the notification
 bell, organizer forms, charts and pagination, admin settings, the request and countdown hooks, the
 app shell, the orders page, campaign workspace, promo redirect/sign-in, refund actions,
-zero-total checkout, accessible dialogs, contrast, all locale catalogs and interface-string auditing.
+zero-total checkout, accessible dialogs, contrast, all locale catalogs and interface-string auditing,
+the analytics and finance tabs (payout validation, idempotent retries, simulator states), the
+event gallery, organizer profile and member permissions, admin paid-sales and payment monitoring,
+moderation/payout notifications and the public-settings cache.
 
 There are no full browser end-to-end tests yet. Component and source checks do not certify
 screen-reader behaviour or a running deployment.
@@ -211,9 +244,11 @@ remain unverified; see [the live validation record](CONTRACT_REVIEW.md#live-vali
   downloads and all locales in a browser. Chrome/Edge automation could not attach successfully
   in this session, so no browser acceptance is claimed.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.
-- **Merged contracts (#45):** align analytics, finance (summary and payouts) and the event gallery
-  with the contracts merged in PR #64; add the admin paid-sales and payment/refund monitoring
-  screens from `backend/ADMIN_API.md`.
+- **Live check of the newest screens:** analytics, finance/payouts, the image gallery, admin paid
+  sales and payment monitoring pass typecheck, unit/component tests and the production build, but
+  were not run against a live Compose stack (it was not running on 2026-11-17). Run the smoke
+  scripts and click through these tabs once the stack is up.
+- **Private-event access grants:** needs a backend user lookup before the web can offer a form.
 - **HTTPS (#49):** install and validate the staged configuration with the operations owner. The current
   directory restriction prevents editing `proxy/` or the repository-level operations docs.
 - **Browser tests:** add full browser automation alongside the existing API smoke coverage.
@@ -254,16 +289,17 @@ boxes are marked complete without that evidence.
 | Tickets, QR, entry confirmation, delivery | QR labels and state text; labelled download and refresh controls | Pending |
 | Orders and refund requests | Cancellation modal with Escape/cancel, safe initial focus and focus restoration | Pending |
 | Account, sessions and language | Profile labels, saved language, modal for signing out every session | Pending |
-| Organizer workspace and team | Labelled creation/invitation forms; modal for removing members/invitations | Pending |
+| Organizer workspace and team | Labelled creation/invitation/profile forms; permission checkboxes in a fieldset with a legend; modal for removing members/invitations | Pending |
 | Organizer details and ticket types | Labelled forms, native focus order, visible focus | Pending |
 | Organizer seating | Native seat buttons with location/state labels and pressed state | Pending |
 | Organizer paid sales and staff | Labelled actions; modal for revoking assignments | Pending |
 | Organizer attendees and check-ins | Reason modal for cancellations/refunds; labelled filters and conflict forms | Pending |
 | Organizer campaigns and reports | Disable confirmation modal; QR alt text; report labels | Pending |
-| Organizer analytics and finance | Focusable chart bars and table alternative; labelled filters; planned API states retained | Pending |
+| Organizer analytics and finance | Focusable chart bars and table alternative; labelled filters; labelled payout amount and demo actions; simulation pills in text | Pending |
+| Event gallery | Required image description sent as alt text; labelled move up/down buttons; delete confirmation modal | Pending |
 | Support lists, new case and thread | Form/composer/file controls labelled; state feedback preserved | Pending |
 | Notifications | Labelled inbox/filter controls; translated archived content | Pending |
-| Admin users/events/orders/tickets/reports/settings/exports/moderation | Labelled searches, forms and actions; readable pills | Pending |
+| Admin users/events/orders/tickets/payments/reports/settings/exports/moderation | Labelled searches, filters, forms and actions; tablist for payment lists; readable pills | Pending |
 
 Shared colour tests require at least 4.5:1 for body/meta/placeholder/error text and all pill tones,
 and at least 3:1 for control borders and focus outlines. The focus ring uses two colours so it is
@@ -286,8 +322,8 @@ All binary transfers use `src/api/files.ts`, including PDF and calendar download
 CSV exports, campaign QR images and uploads. It handles authentication refresh,
 server-provided filenames (including UTF-8 filenames), and browser downloads.
 
-Holds, free confirmation, paid checkout, activation and payment retries send an
-`Idempotency-Key` header. Each API invocation generates a fresh UUID, which is
+Holds, free confirmation, paid checkout, activation, payment retries, payout reservations and admin
+paid-sales decisions send an `Idempotency-Key` header. Each API invocation generates a fresh UUID, which is
 preserved through the automatic authentication retry. These functions also accept
 an explicit key: reuse the original key when retrying the same action; use a new
 key when the action or payload changes.

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { DateTile } from "./DateTile";
+import { EventImage } from "./EventImage";
 
 interface EventCardProps {
   title: string;
@@ -11,6 +12,8 @@ interface EventCardProps {
   meta?: ReactNode | ReactNode[];
   // Discover-style artwork panel: gradient by index, category initial.
   art?: { index: number; letter: string };
+  // The event's cover, drawn over the artwork once it loads.
+  cover?: { src: string; alt: string } | null;
   // Row-style card with a date tile instead of artwork.
   date?: string | null;
   footer?: ReactNode;
@@ -20,13 +23,14 @@ interface EventCardProps {
 
 // Mobile's EventCard (artwork, category, serif title, meta, footer) and its
 // date-tile row variant, used by every event-like list.
-export function EventCard({ title, to, eyebrow, meta, art, date, footer, children }: EventCardProps) {
+export function EventCard({ title, to, eyebrow, meta, art, cover, date, footer, children }: EventCardProps) {
   const lines = Array.isArray(meta) ? meta : meta ? [meta] : [];
   return (
     <article className={`event-card ${art ? "" : "event-card-row"}`}>
       {art ? (
-        <div className={`event-card-art art-${art.index % 4}`} aria-hidden="true">
-          <span>{art.letter}</span>
+        <div className={`event-card-art art-${art.index % 4}`}>
+          <span aria-hidden="true">{art.letter}</span>
+          {cover ? <EventImage className="event-card-cover" src={cover.src} alt={cover.alt} /> : null}
         </div>
       ) : null}
       <div className="event-card-body">

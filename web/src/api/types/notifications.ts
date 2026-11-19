@@ -11,10 +11,17 @@ export type NotificationKind =
   | "payment_failed"
   | "refund_started"
   | "refund_completed"
-  | "order_cancelled";
+  | "order_cancelled"
+  | "account_suspended"
+  | "account_reinstated"
+  | "event_suspended"
+  | "event_reinstated"
+  | "paid_sales_suspended"
+  | "paid_sales_reinstated"
+  | "payout_status";
 
 export interface NotificationTarget {
-  type: "event" | "ticket" | "support_case" | "order" | string;
+  type: "event" | "organizer_event" | "account" | "ticket" | "support_case" | "order" | string;
   id: string | null;
 }
 

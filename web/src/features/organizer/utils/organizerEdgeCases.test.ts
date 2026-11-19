@@ -1,5 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "../../../api/errors";
+import { describe, expect, it } from "vitest";
 import type { Attendee } from "../../../api/types";
 import type { PaidSalesChecklist } from "../../../api/types/paidSales";
 import type { PhysicalSeat, SeatAvailability } from "../../../api/types/seating";
@@ -7,7 +6,6 @@ import { countByTicketType } from "./attendees";
 import { IDLE, text } from "./formState";
 import { pageInfo } from "./paging";
 import { activationTone, canStartActivation, paymentOpen } from "./paidSales";
-import { orPlanned } from "./planned";
 import { countByStatus, priceCategories, seatEditable, seatName, seatPosition } from "./seating";
 
 function availability(status: SeatAvailability["status"]): SeatAvailability {
@@ -160,27 +158,6 @@ describe("countByTicketType edge cases", () => {
 
   it("returns nothing for no attendees", () => {
     expect(countByTicketType([])).toEqual([]);
-  });
-});
-
-describe("orPlanned", () => {
-  it("passes a value through", async () => {
-    await expect(orPlanned(async () => 42)).resolves.toEqual({ planned: false, value: 42 });
-  });
-
-  it("marks an endpoint the backend does not serve yet", async () => {
-    await expect(orPlanned(() => Promise.reject(new ApiError("x", 404)))).resolves.toEqual({ planned: true, value: null });
-    await expect(orPlanned(() => Promise.reject(new ApiError("x", 501)))).resolves.toEqual({ planned: true, value: null });
-  });
-
-  it("re-throws real failures, including a coded 404", async () => {
-    const notFound = new ApiError("Gone", 404, "event_not_found");
-    await expect(orPlanned(() => Promise.reject(notFound))).rejects.toBe(notFound);
-    const denied = new ApiError("No", 403, "permission_denied");
-    await expect(orPlanned(() => Promise.reject(denied))).rejects.toBe(denied);
-    const load = vi.fn(() => Promise.reject(new TypeError("bug")));
-    await expect(orPlanned(load)).rejects.toThrow("bug");
-    expect(load).toHaveBeenCalledTimes(1);
   });
 });
 

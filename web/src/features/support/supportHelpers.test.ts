@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SupportChange, SupportMessage, SupportThreadItem } from "../../api/types/support";
-import { attachmentProblem, fileSizeLabel, MAX_ATTACHMENT_BYTES } from "./attachments";
+import { attachmentProblem, fileSizeLabel } from "./attachments";
+
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 import { createRetryKeys } from "./retryKey";
 import { contextFromParams, contextLinks, describeChange, newCasePath, supportStatusTone } from "./supportLabels";
 import { lastSeq, mergeThreadItems } from "./thread";
@@ -84,10 +86,10 @@ describe("labels", () => {
 
 describe("attachments", () => {
   it("accepts PNG, JPEG and PDF within the size limit", () => {
-    expect(attachmentProblem({ name: "a.png", type: "image/png", size: 10 })).toBeNull();
-    expect(attachmentProblem({ name: "a.gif", type: "image/gif", size: 10 })).toContain("PNG, JPEG and PDF");
-    expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: 0 })).toContain("empty");
-    expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: MAX_ATTACHMENT_BYTES + 1 })).toContain("5.0 MB");
+    expect(attachmentProblem({ name: "a.png", type: "image/png", size: 10 }, MAX_ATTACHMENT_BYTES)).toBeNull();
+    expect(attachmentProblem({ name: "a.gif", type: "image/gif", size: 10 }, MAX_ATTACHMENT_BYTES)).toContain("PNG, JPEG and PDF");
+    expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: 0 }, MAX_ATTACHMENT_BYTES)).toContain("empty");
+    expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: MAX_ATTACHMENT_BYTES + 1 }, MAX_ATTACHMENT_BYTES)).toContain("5.0 MB");
     expect(fileSizeLabel(2048)).toBe("2 KB");
   });
 });

@@ -6,6 +6,7 @@ import { Button, ListRow, Panel, PanelHeading, StatusPill, useToast } from "../.
 import { dateLabel, statusLabel } from "../../../utils/format";
 import { publicationTone } from "../../../utils/status";
 import { AdminSearchForm } from "../components/AdminSearchForm";
+import { PaidSalesModeration } from "../components/PaidSalesModeration";
 import { ReasonForm } from "../components/ReasonForm";
 import { SearchResults } from "../components/SearchResults";
 import { useAdminSearch } from "../hooks/useAdminSearch";
@@ -16,6 +17,7 @@ export function AdminEventsPage() {
   useLocale();
   const { notify } = useToast();
   const events = useAdminSearch(searchEvents);
+  // One open panel at a time: "<event id>:moderate" or "<event id>:paid".
   const [openId, setOpenId] = useState("");
 
   return (
@@ -50,12 +52,18 @@ export function AdminEventsPage() {
                   meta={t("admin.capacity_meta", { p0: dateLabel(event.starts_at), p1: event.visibility, p2: event.capacity })}
                   note={t("admin.event_org", { p0: event.id, p1: event.organization_id })}
                   actions={
-                    <Button size="sm" variant={suspended ? "subtle" : "danger"} onClick={() => setOpenId(openId === event.id ? "" : event.id)}>
-                      {openId === event.id ? t("common.close") : suspended ? t("admin.reinstate") : t("admin.suspend")}
-                    </Button>
+                    <>
+                      <Button size="sm" aria-expanded={openId === `${event.id}:paid`} onClick={() => setOpenId(openId === `${event.id}:paid` ? "" : `${event.id}:paid`)}>
+                        {openId === `${event.id}:paid` ? t("common.close") : t("organizer.paid_sales")}
+                      </Button>
+                      <Button size="sm" variant={suspended ? "subtle" : "danger"} onClick={() => setOpenId(openId === `${event.id}:moderate` ? "" : `${event.id}:moderate`)}>
+                        {openId === `${event.id}:moderate` ? t("common.close") : suspended ? t("admin.reinstate") : t("admin.suspend")}
+                      </Button>
+                    </>
                   }
                 >
-                  {openId === event.id ? (
+                  {openId === `${event.id}:paid` ? <PaidSalesModeration eventId={event.id} /> : null}
+                  {openId === `${event.id}:moderate` ? (
                     <ReasonForm
                       label={suspended ? t("admin.reason_reinstate") : t("admin.reason_suspend_event")}
                       submitLabel={suspended ? t("admin.reinstate_event") : t("admin.suspend_event")}

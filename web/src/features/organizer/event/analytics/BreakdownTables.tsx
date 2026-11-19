@@ -1,10 +1,16 @@
 import { t, useLocale } from "../../../../i18n";
-import type { EventAnalytics } from "../../../../api/types/analytics";
+import type { CampaignMetrics, EventAnalytics } from "../../../../api/types/analytics";
 import { EmptyState, Panel, PanelHeading } from "../../../../components/ui";
-import { priceLabel } from "../../../../utils/format";
+import { moneyLabel } from "../../../../utils/format";
+
+// Sales without an eligible campaign come back as one row with a null id.
+function campaignName(row: CampaignMetrics): string {
+  return row.campaign_id === null ? t("org.unattributed") : row.name;
+}
 
 export function BreakdownTables({ data }: { data: EventAnalytics }) {
   useLocale();
+  const money = (minor: number) => moneyLabel(minor, data.revenue.currency);
   return (
     <div className="analytics-tables">
       <Panel>
@@ -30,7 +36,7 @@ export function BreakdownTables({ data }: { data: EventAnalytics }) {
                       {row.sold} / {row.capacity}
                     </td>
                     <td>{row.checked_in}</td>
-                    <td>{priceLabel(row.revenue_minor)}</td>
+                    <td>{money(row.revenue_minor)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -49,17 +55,23 @@ export function BreakdownTables({ data }: { data: EventAnalytics }) {
                 <tr>
                   <th scope="col">{t("org.campaign")}</th>
                   <th scope="col">{t("org.redemptions")}</th>
+                  <th scope="col">{t("org.tickets_kept_refunded")}</th>
                   <th scope="col">{t("common.discount")}</th>
+                  <th scope="col">{t("org.refunds_col")}</th>
                   <th scope="col">{t("org.revenue")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.by_campaign.map((row) => (
-                  <tr key={row.campaign_id}>
-                    <td>{row.name}</td>
+                  <tr key={row.campaign_id ?? "unattributed"}>
+                    <td>{campaignName(row)}</td>
                     <td>{row.redemptions}</td>
-                    <td>{priceLabel(row.discount_minor)}</td>
-                    <td>{priceLabel(row.revenue_minor)}</td>
+                    <td>
+                      {row.retained_tickets} / {row.refunded_tickets}
+                    </td>
+                    <td>{money(row.discount_minor)}</td>
+                    <td>{money(row.refunds_minor)}</td>
+                    <td>{money(row.revenue_minor)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -102,7 +102,59 @@ export interface SettingUpdate {
   reason?: string;
 }
 
-export type ExportKind = "users" | "events" | "orders" | "tickets";
+export type CommerceKind = "payments" | "failed-payments" | "refunds";
+export type ExportKind = "users" | "events" | "orders" | "tickets" | CommerceKind;
+
+// Exact-match filters shared by the payment, failed-payment and refund lists
+// and their CSV exports (ADMIN_API.md, "Payment and refund inspection").
+// `from`/`to` are offset-bearing instants on the record's created_at.
+export interface CommerceFilters {
+  status?: string;
+  event_id?: string;
+  organization_id?: string;
+  order_id?: string;
+  payer_user_id?: string;
+  purpose?: "ticket_order" | "activation";
+  environment?: "simulation" | "sandbox";
+  from?: string;
+  to?: string;
+}
+
+interface CommerceRowBase {
+  id: string;
+  event_id: string;
+  status: string;
+  created_at: string;
+  intent_id: string;
+  order_id: string | null;
+  activation_id: string | null;
+  payer_user_id: string | null;
+  purpose: "ticket_order" | "activation" | string;
+  expected_minor: number;
+  currency: string;
+  environment: "simulation" | "sandbox" | string;
+  simulated: boolean;
+  provider: string;
+  provider_payment_id: string | null;
+  organization_id: string;
+}
+
+// One payment attempt (also used for the failed-payment list).
+export interface AdminPaymentRow extends CommerceRowBase {
+  charged_minor: number | null;
+  processing_fee_minor: number | null;
+  confirmed_at: string | null;
+  next_reconcile_at: string | null;
+}
+
+// One logical full-refund obligation and its latest attempt.
+export interface AdminRefundRow extends CommerceRowBase {
+  payment_attempt_id: string;
+  reason: string | null;
+  amount_minor: number;
+  succeeded_at: string | null;
+  latest_attempt_status: string | null;
+}
 
 export interface AdminSearch {
   q?: string;

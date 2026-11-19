@@ -2,7 +2,7 @@ import { t, useLocale } from "../../../../i18n";
 import { useState } from "react";
 import type { SalesPoint, SeriesBucket } from "../../../../api/types/analytics";
 import { Button } from "../../../../components/ui";
-import { dateLabel, priceLabel } from "../../../../utils/format";
+import { dateLabel, moneyLabel } from "../../../../utils/format";
 import { barPath, layoutBars, niceMax, ticks } from "../../utils/chart";
 
 const WIDTH = 640;
@@ -13,6 +13,7 @@ const BOTTOM = 24;
 interface SalesChartProps {
   points: SalesPoint[];
   bucket: SeriesBucket;
+  currency: string;
 }
 
 function bucketLabel(value: string, bucket: SeriesBucket): string {
@@ -21,8 +22,9 @@ function bucketLabel(value: string, bucket: SeriesBucket): string {
 
 // Tickets sold per bucket as a single-series bar chart, with a focusable
 // tooltip per bar and a table view for screen readers and printing.
-export function SalesChart({ points, bucket }: SalesChartProps) {
+export function SalesChart({ points, bucket, currency }: SalesChartProps) {
   useLocale();
+  const money = (minor: number) => moneyLabel(minor, currency);
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
   const max = niceMax(Math.max(0, ...points.map((point) => point.tickets)));
@@ -54,7 +56,7 @@ export function SalesChart({ points, bucket }: SalesChartProps) {
                 <tr key={point.bucket_start}>
                   <td>{bucketLabel(point.bucket_start, bucket)}</td>
                   <td>{point.tickets}</td>
-                  <td>{priceLabel(point.revenue_minor)}</td>
+                  <td>{money(point.revenue_minor)}</td>
                 </tr>
               ))}
             </tbody>
@@ -63,7 +65,7 @@ export function SalesChart({ points, bucket }: SalesChartProps) {
       ) : (
         <div className="sales-chart-plot">
           <p className="chart-tooltip" aria-live="polite">
-            {current ? t("org.chart_tooltip", { p0: bucketLabel(current.bucket_start, bucket), p1: current.tickets, p2: priceLabel(current.revenue_minor) }) : t("org.chart_hint")}
+            {current ? t("org.chart_tooltip", { p0: bucketLabel(current.bucket_start, bucket), p1: current.tickets, p2: money(current.revenue_minor) }) : t("org.chart_hint")}
           </p>
           <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={t("org.chart_alt", { p0: period, p1: points.length, p2: Math.max(0, ...points.map((p) => p.tickets)) })}>
             {ticks(max).map((tick) => {
