@@ -65,9 +65,23 @@ describe("AccountScreen", () => {
     await render(<AccountScreen />);
     await fireEvent.changeText(screen.getByDisplayValue("Aru Nurlan"), "  Aru N. ");
     await fireEvent.press(screen.getByText("Save profile"));
-    expect(updateProfile).toHaveBeenCalledWith({ display_name: "Aru N.", locale: "en" });
+    expect(updateProfile).toHaveBeenCalledWith({ display_name: "Aru N.", locale: "en", analytics_consent: false });
     expect(await screen.findByText("Saved.")).toBeTruthy();
     // The new name reaches the shared auth state (top bar, other screens).
     expect(mockSetProfile).toHaveBeenCalledWith(expect.objectContaining({ display_name: "Aru N." }));
+  });
+
+  it("saves the optional traffic-analytics consent", async () => {
+    jest.mocked(getAdminMe).mockResolvedValue({ user_id: "user-1", is_platform_admin: false });
+    jest.mocked(updateProfile).mockResolvedValue({ ...mockProfile, analytics_consent: true });
+    await render(<AccountScreen />);
+    const box = screen.getByRole("checkbox", { name: "Allow optional traffic analytics on public event pages" });
+    expect(box.props.accessibilityState.checked).toBe(false);
+    await fireEvent.press(box);
+    await fireEvent.press(screen.getByText("Save profile"));
+    expect(updateProfile).toHaveBeenCalledWith({ display_name: "Aru Nurlan", locale: "en", analytics_consent: true });
+    // The shared profile now carries the consent, so measurements may start.
+    expect(await screen.findByText("Saved.")).toBeTruthy();
+    expect(mockSetProfile).toHaveBeenCalledWith(expect.objectContaining({ analytics_consent: true }));
   });
 });

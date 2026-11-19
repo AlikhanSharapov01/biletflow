@@ -6,6 +6,7 @@ import { describeError } from "@/api/errors";
 import type { Locale, Profile } from "@/api/types";
 import { Panel, PanelHeading, PrimaryButton, SelectField, StatusPill, TextField } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
+import { CheckboxField } from "@/features/organizer/components/CheckboxField";
 import { colors, fonts } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
@@ -15,12 +16,14 @@ const LOCALES: Array<{ value: Locale; label: string }> = [
   { value: "ru", label: "Русский" },
 ];
 
-// Display name and language preference (web ProfileForm).
+// Display name, language and the optional traffic-analytics consent (web
+// ProfileForm). Without consent the app sends no measurements at all.
 export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile: Profile) => void }) {
   useLocale();
   const { notify } = useToast();
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [locale, setLocale] = useState<Locale>(profile.locale);
+  const [consent, setConsent] = useState(profile.analytics_consent);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: "", success: false });
 
@@ -28,7 +31,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
     setSaving(true);
     setMessage({ text: "", success: false });
     try {
-      const updated = await updateProfile({ display_name: displayName.trim(), locale });
+      const updated = await updateProfile({ display_name: displayName.trim(), locale, analytics_consent: consent });
       onSaved(updated);
       notify(t("account.updated"));
       setMessage({ text: t("common.saved"), success: true });
@@ -65,6 +68,13 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
         value={locale}
         options={LOCALES}
         onChange={(next) => setLocale(next as Locale)}
+        disabled={saving}
+      />
+      <CheckboxField
+        label={t("account.analytics_consent")}
+        hint={t("mobile.account.analytics_consent_hint")}
+        checked={consent}
+        onChange={setConsent}
         disabled={saving}
       />
       {message.text ? (

@@ -5,6 +5,7 @@ import { describeError, errorCodeOf } from "@/api/errors";
 import type { EventView, Hold, HoldLine, Order, Profile, TicketType } from "@/api/types";
 import type { PromoPreview } from "@/api/types/promo";
 import { useToast } from "@/context/ToastContext";
+import { measure } from "@/features/analytics/measure";
 import { useCountdown } from "@/hooks/useCountdown";
 import { basketIsPaid, initialRecipients, recipientsComplete, recipientsPayload, type RecipientValues } from "../utils/checkout";
 import { t } from "@/i18n";
@@ -45,6 +46,8 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
     try {
       const created = await createHold(event.id, lines, promo?.code);
       setHold(created);
+      // Checkout starts once tickets are held (GA4 begin_checkout).
+      measure(profile, "checkout_start", event.id);
       setRecipients(initialRecipients(created.allocations, { name: profile.display_name, email: profile.email }));
     } catch (failure) {
       setMessage(describeError(failure));
