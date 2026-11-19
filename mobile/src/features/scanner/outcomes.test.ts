@@ -43,6 +43,21 @@ describe("describeOutcome", () => {
     expect(view.lines).toEqual(["This ticket was refunded."]);
   });
 
+  it("never shows an offline scan as an admission (decision 0003, A1)", () => {
+    const view = describeOutcome(
+      { kind: "queued", ticket_id: "t1", attendee_name: "Aru A.", ticket_type_name: "VIP", seat: null },
+      ZONE
+    );
+    expect(view.tone).toBe("pending");
+    expect(view.icon).not.toBe("✓");
+    expect(view.title).toBe("Looks valid – connect to confirm entry");
+    expect(view.lines).toEqual([
+      "Aru A.",
+      "VIP",
+      "Not admitted yet. Entry needs an online check: once this phone is back online, the scan is sent and confirmed.",
+    ]);
+  });
+
   it("offers a retry message when offline", () => {
     expect(describeOutcome({ kind: "network" }, ZONE).title).toBe("No connection");
   });

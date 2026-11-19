@@ -63,6 +63,11 @@ const toneStyles = StyleSheet.create({
   admitted: {
     backgroundColor: colors.green,
   },
+  // Neutral slate: clearly not the green "admitted" panel, and not the grey
+  // "no connection" one either.
+  pending: {
+    backgroundColor: "#3e5568",
+  },
   warning: {
     backgroundColor: "#a57324",
   },

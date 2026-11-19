@@ -63,7 +63,7 @@ describe("useScanSession", () => {
     expect(result.current.phase).toMatchObject({
       name: "result",
       retryable: false,
-      view: { title: "Accepted offline" },
+      view: { tone: "pending", title: "Looks valid – connect to confirm entry" },
       admission: undefined,
     });
   });
