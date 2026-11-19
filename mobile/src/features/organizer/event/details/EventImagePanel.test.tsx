@@ -91,4 +91,14 @@ describe("EventImagePanel", () => {
     expect(await screen.findByText("1 of 10")).toBeTruthy();
     expect(mockNotify).toHaveBeenCalledWith("Event image uploaded.");
   });
+
+  it("refuses an image over the size limit and names the limit", async () => {
+    jest
+      .mocked(getDocumentAsync)
+      .mockResolvedValueOnce({ canceled: false, assets: [{ uri: "file:///big.png", name: "big.png", mimeType: "image/png", size: 6 * 1024 * 1024, lastModified: 0 }] });
+    await render(<EventImagePanel event={makeEvent({ images: [] })} />);
+    await fireEvent.press(screen.getByText("Add an image"));
+    expect(await screen.findByText("The image must be 5.0 MB or smaller.")).toBeTruthy();
+    expect(uploadEventImage).not.toHaveBeenCalled();
+  });
 });
