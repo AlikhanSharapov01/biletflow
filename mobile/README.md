@@ -30,9 +30,21 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 
 ## Status
 
-The app uses the final contracts for promo campaigns, refunds, analytics, finance (summary and
-payouts) and the event gallery (#51). They are covered by tests with a mocked API and still need
-a click-through against `docker compose up` on a simulator or phone. Whole-project status: [integration status](../docs/integration/status.md).
+Checked against the code on 19 November 2026. Whole-project status:
+[integration status](../docs/integration/status.md).
+
+Since 8 November the app has been connected to the final contracts for promo campaigns, refunds,
+analytics, finance (summary and payouts) and the event gallery (#51, PR #97), translated (#52,
+PR #98 and #100), given one shared payment panel (#55, PR #99) and installable builds (#54,
+PR #101). Later PRs added moderation notices and the hold time from the settings (PR #105), the
+admin payments, refunds and paid-sales suspension (#113, PR #126), and event covers with the
+analytics CSV export (#114, PR #127). Offline QR scanning came earlier, in PR #59.
+
+How far each part was checked: the main screens have tests with a mocked API, and PRs #97, #105,
+#126 and #127 compared the real responses from `docker compose up` with the app's types. Checkout and the payment panel,
+covers, the analytics CSV, the Russian interface and a local Android release build were also
+clicked through on an Android emulator. Campaigns, refunds, finance and payouts, and the gallery
+upload were checked against the API but not clicked through on screen.
 
 | Area | State |
 |---|---|
@@ -40,20 +52,21 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Verify email / reset password from an emailed link | Done (paste the link or its token) |
 | Discover: search, category filter, gallery cover on each card | Done |
 | Event page: cover image, details, tickets, seat map, promo code, calendar export, report event, get help | Done |
-| Free registration and simulated paid checkout | Done; the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
+| Free registration and simulated paid checkout | Done. Checkout and the order screen share one payment panel (#55); the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
 | Orders: totals, payment retry, cancel registration, refund request | Done |
-| Support cases: list, new case, thread, attachments, staff actions | Done |
+| Support cases: list, new case, thread, attachments, staff actions | Done, except the attachment check status ("Checking file…", "Ready", "Blocked"), which is #116 |
 | Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, every event tab (analytics with CSV export) | Done |
-| Platform admin portal (9 sections) | Done (shown only to platform admins): includes payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales |
+| Organizer: workspaces, team, invitations, create event, all 11 event tabs (campaigns, analytics with CSV export, finance and payouts, gallery, offline sync conflicts) | Done |
+| Platform admin portal (9 sections) | Done, shown only to platform admins: payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales (#113). Admin search with read-only details and the jobs and deliveries list are not in the app yet (#116) |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
-| Offline scanning (bonus) | Done (QR scans only). Whether staff may let someone in on an offline result is still open, see below |
+| Offline scanning (bonus) | Works for QR scans, but the result screen is wrong: a passing offline scan shows "Accepted offline" in the green admitted style, which [decision 0003](../docs/decisions/0003-confirmed-decisions.md) rules out. #115 changes it, see [How scanning works](#how-scanning-works) |
+| Installable builds: EAS profiles, icon, splash | Done for Android (local release build tested on an emulator). No iOS build has been made: it needs the team's Expo and Apple accounts |
 | Google sign-in | Web only (decision 0001) |
-| Kazakh, Russian and English | Done (#52): the web's catalogs plus app-only text; Account → Language |
+| Kazakh, Russian and English | Done (#52): the web's catalogs plus app-only text; Account → Language. A few scanner lines built in code are still English (see [What is left to do](#what-is-left-to-do)) |
 
 Nothing here has been checked on a real phone yet (#53).
 
@@ -71,7 +84,30 @@ npm ci
 EXPO_PUBLIC_API_URL=http://localhost:8000/api/v1 npx expo start
 ```
 
-Then press `i` for the iOS Simulator, `a` for Android, or scan the QR code with Expo Go.
+Then press `i` for the iOS Simulator or `a` for Android. Because `expo-dev-client` is installed,
+`npx expo start` serves a **development build** first: `i` and `a` open the development build when
+one is installed on that simulator or emulator, and fall back to Expo Go otherwise. To use Expo Go
+on a phone, press `s` to switch to Expo Go before scanning the QR code.
+
+**Development build on the iOS Simulator (EAS).** Expo Go works for most screens, but a
+development build is the BiletFlow app itself (its own icon, identifier and native settings) that
+still loads code from your Metro server. The simulator build needs an Expo account, not an Apple
+developer account:
+
+```bash
+cd mobile
+npx eas-cli login
+npx eas-cli init            # once: links the project and adds its id to app.json
+npx eas-cli build --profile development-simulator --platform ios
+npx eas-cli build:run --platform ios --latest   # install the finished build on the simulator
+npx expo start              # then press i
+```
+
+For Android, `--profile development --platform android` gives an APK for an emulator or phone.
+The API address of a development build comes from `EXPO_PUBLIC_API_URL` when Metro starts, as
+above, so one build works with any backend. The project has not been linked to an EAS account yet
+(`app.json` has no project id); the first `eas-cli init` adds it. More profiles are in
+[Installable builds](#installable-builds).
 
 | Command | What it does |
 |---|---|
@@ -79,6 +115,11 @@ Then press `i` for the iOS Simulator, `a` for Android, or scan the QR code with 
 | `npx expo start -c` | Same, clearing the bundler cache (use after changing `EXPO_PUBLIC_API_URL`) |
 | `npm run typecheck` | Type check |
 | `npm test` | Run the tests |
+| `node scripts/audit-strings.js` | List interface text that is not translated (also part of `npm test`) |
+
+After pulling, run `npm ci` again when `package-lock.json` changed. For example,
+`offlineVerify.test.ts` and the type check fail with `Cannot find module '@noble/curves/ed25519'`
+on an older install.
 
 ---
 
@@ -137,7 +178,9 @@ npx eas-cli build --profile preview --platform android   # or ios, or all
 ```
 
 EAS prints a link and QR code to install the build. Set `EXPO_PUBLIC_API_URL` for each environment
-(`development`, `preview`, `production`) the same way.
+(`development`, `preview`, `production`) the same way. The `development` and
+`development-simulator` profiles are described in [Run it](#run-it). So far only a local Android
+release build has been made (below); no EAS build has been run.
 
 **Locally (Android only, on any OS).** You need Android Studio's SDK and JDK 17 or newer.
 
@@ -179,28 +222,38 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): 54 files. They cover:
+(`*.test.ts(x)`): **59 files, 238 tests**, all passing on 19 November 2026. They cover:
 
-- **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, ticket
-  status, support threads, notification targets, organizer forms, charts, history filters,
-  campaigns and admin settings.
-- **Screens rendered with a mocked API:** Discover, event page, checkout, campaign link, tickets,
-  ticket detail, order, support case, new case, notifications, organizer workspace and event,
-  ticket-type form, invitation, account, sessions, verify email, reset password and admin
-  sections.
+- **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, the
+  hold time, ticket status, order summary, support threads, notification targets, organizer
+  forms, charts, history filters, campaigns, admin settings and admin payment filters.
+- **Screens rendered with a mocked API:** Discover, event page and its cover, checkout and the
+  shared payment panel, campaign link, tickets, ticket detail, order, support case, new case,
+  notifications (including moderation notices), organizer workspace and event, the Campaigns,
+  Analytics (with CSV export) and Finance tabs, the event gallery, ticket-type form, invitation,
+  account, sessions, verify email, reset password, admin sections, and admin payments, refunds
+  and paid-sales suspension.
 - **The scanner:** outcome messages, the check-in request body, the scan → confirmation → admit
   flow, entry-code input and guest search.
-- **Shared UI:** list rows, the QR code drawing and date helpers.
-- **Translations:** checkout, finance and every scanner result rendered in Kazakh and Russian with
-  no English left; the web's catalogs kept identical; and `scripts/audit-strings.js`, which fails
-  when new interface text is not translated.
+- **Offline scanning:** the local check (signed entry confirmation, tampered or wrong-ticket
+  confirmations, expiry slack, duplicates, revoked tickets, admission window), saving a scan to
+  the queue before it is shown, and uploading the queue.
+- **Shared UI and API:** list rows, the QR code drawing, date helpers and idempotency keys.
+- **Translations:** checkout, finance and the scanner's error results rendered in Kazakh and
+  Russian with no English left; the web's catalogs kept identical; and `scripts/audit-strings.js`,
+  which fails when new interface text is not translated. The offline "Accepted offline" result is
+  not in the Kazakh/Russian check, and the audit does not see text added with `lines.push(...)`.
+
+`src/i18n/catalogs.test.ts` compares the app's catalogs with `web/src/i18n/locales/`, so run the
+tests from a full checkout of the repository, not from a copy of `mobile/` alone.
 
 In React Native Testing Library 14, `render` and `fireEvent` are async: write
 `await render(...)` and `await fireEvent.press(...)`. Native modules without a JavaScript version
 (for example `expo-secure-store`) are mocked in `jest.setup.js`.
 
-CI (`.github/workflows/mobile.yml`) runs `npm run typecheck` and `npm test` whenever `mobile/`
-changes.
+CI (`.github/workflows/mobile.yml`) runs `npm ci`, `npm run typecheck` and `npm test -- --ci` on
+Node 22.13 for every push and pull request that changes `mobile/` or the workflow. A change to
+the web's catalogs alone does not start it, even though `catalogs.test.ts` reads them.
 
 ---
 
@@ -216,19 +269,22 @@ src/
   api/                  One module per backend area, ported from web/src/api (same names)
     http.ts             request(): bearer token from the keychain, one refresh retry, ApiError
     files.ts            Downloads to the share sheet, SVG text, raw-body uploads
-    errors.ts           Backend error code → message; isNotImplemented() for planned endpoints
+    errors.ts           Backend error code → message
+    offline.ts          Offline scanning: device registration, offline package, sync
     session.ts          Shared token refresh (rotating refresh tokens)
     tokenStorage.ts     Keychain / keystore storage
     types/              Request/response types per area
   components/
     ui/                 Buttons, Panel, PageHeading, FactList, ListRow, SegmentedTabs, StatusPill,
-                        QrCode, ReasonDialog, confirmAction, FormMessage, NotAvailableYet, fields…
+                        QrCode, ReasonDialog, confirmAction, FormMessage, States, fields…
     layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, TabGlyph
   features/             One folder per area, like the web
     auth/ discover/ events/ checkout/ tickets/ orders/ support/ notifications/
     account/ organizer/ admin/ scanner/
-  hooks/                useRequest, useCountdown, useAppActive
+  hooks/                useRequest, useCountdown, useAppActive, useEventImage (cached covers)
   context/              Toast provider
+  i18n/                 t(), useLocale(); locales/ holds the web's en/kk/ru catalogs (copied
+                          unchanged) and locales/mobile/ the app-only text
   theme/                Colours, fonts, radii and spacing shared with the web design
   utils/                Formatting, status tones, event times
 ```
@@ -245,8 +301,9 @@ src/
    screen).
 4. **Data:** call the backend through `src/api/` and load with `useRequest`; show
    `LoadingState`, `ErrorPanel` and `EmptyState`. Show errors with `describeError`.
-5. **Planned endpoints:** when `isNotImplemented(error)` is true, render `NotAvailableYet`. Never
-   show sample data.
+5. **Text:** write interface text as `t("key")` and call `useLocale()` in the component. Reuse a
+   web key when the wording exists; otherwise add a `mobile.*` key to all three files in
+   `src/i18n/locales/mobile/`. Never edit the copied web catalogs. Never show sample data.
 6. **Browser habits:** use `confirmAction` (not `window.confirm`), `ReasonDialog` (not
    `window.prompt`), `saveFile` for downloads, and poll only while `useAppActive()` is true.
 7. **Styles:** `StyleSheet.create` with tokens from `@/theme`; no new hex colours.
@@ -271,9 +328,17 @@ src/
 | `/notifications` | Notification inbox (also from the bell) |
 | `/organizer` (tab), `/organizer/new-event`, `/organizer/events/[eventId]` | Organizer workspace and event management |
 | `/staff-invitations/accept` | Join a workspace from an invitation link |
-| `/check-in` (tab), `/events/[eventId]/scan` | Scanner |
-| `/account` (tab), `/account/sessions` | Account and sessions |
+| `/check-in` (tab), `/events/[eventId]/scan` | Scanner, with the offline bar |
+| `/account` (tab), `/account/sessions` | Account (with Language) and sessions |
 | `/admin`, `/admin/[section]` | Platform admin portal |
+
+The organizer event screen has 11 tabs: Details (with the gallery and cover), Ticket types,
+Seating, Paid sales, Attendees, Check-ins (with the offline sync conflicts to review), Staff,
+Campaigns, Analytics (with CSV export), Finance (with payouts) and History.
+
+The admin portal has 9 sections: Users, Events (with paid-sales suspend/reinstate), Orders,
+Tickets, Payments (payments, failed payments, refunds), Reports, Moderation log, Settings and
+Exports.
 
 Orders, Support, Notifications, Sessions and Admin are reached from the Account tab (and from
 shortcuts on the Tickets tab and the bell).
@@ -294,17 +359,32 @@ shortcuts on the Tickets tab and the bell).
 5. **Find guest by name:** searches `GET /scanner/events/{id}/attendees` (name or exact email)
    and checks in by ticket id, with the same rules as a scan.
 6. *Undo* calls `POST /scanner/check-ins/{id}/reverse` with a reason.
-7. **Offline:** while online, *Prepare for offline* registers the phone and saves the event's
-   signed list. If a scan then can't reach the server, the app checks the ticket and the guest's
-   entry confirmation QR on the phone and queues the scan. Queued scans upload with
-   `POST /scanner/offline/sync` on *Sync now*, or by themselves once the server answers again. An
-   offline result is provisional until then. Typed codes, guest search and undo need a connection.
+7. **Offline (bonus, QR scans only):**
+   - **Prepare:** while online, *Prepare for offline* on the scan screen registers the phone
+     (`POST /scanner/devices`, one device key per account in the keychain) and downloads the
+     event's offline package (`POST /scanner/events/{id}/offline-packages`). The package is saved
+     in the app's private files, and the bar shows until when it is valid.
+   - **Check on the phone:** when a scan can't reach the server, the app looks the ticket up in
+     the package by the QR's hash. It checks the admission window, revoked tickets and tickets
+     already admitted, and then requires the guest's entry confirmation QR, whose signature it
+     verifies with the package's public key. A typed 8-digit code can't be checked offline.
+   - **Queue:** a passing scan is saved to the queue before its result is shown; a scan that
+     could not be saved is not shown as passing. The queue survives a restart.
+   - **Sync:** queued scans upload with `POST /scanner/offline/sync` on *Sync now*, or by
+     themselves once the server answers again. The server decides each one: accepted, a
+     `conflict` for the organizer to review (Check-ins tab), or rejected. Only accepted scans
+     count as attendance. Guest search, typed codes and undo need a connection.
 
-   **Open question:** a passing offline scan currently shows "Accepted offline" in the admitted
-   style. The requirements and the backend contract say physical entry still needs online
-   confirmation. Which rule applies, and what a later sync conflict means for someone already let
-   in, is listed in [decision 0002](../docs/decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics).
-   Change the screen once that is answered.
+   **What an offline result means:** [decision 0003](../docs/decisions/0003-confirmed-decisions.md)
+   (19 November 2026) keeps the baseline. An offline scan that passes means "looks valid, connect
+   to confirm before entry". It never lets anyone through the door by itself and must not look
+   like an admission.
+
+   **The app does not follow this yet.** A passing offline scan shows **"Accepted offline"** with
+   the green tick, the admitted style and the success vibration, plus the line "Provisional until
+   this phone syncs." Staff could read that as admission. #115 changes this screen to a neutral
+   "looks valid, connect to confirm entry" result, with kk/ru/en text and a test. Until then, do
+   not let anyone in on an offline result.
 
 Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
 [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
@@ -313,17 +393,28 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Check the connected APIs (#51):** click promo, campaigns, refunds, analytics, finance and
-  the event gallery through against `docker compose up`. Covers (Discover and event page), the
-  analytics CSV export and the analytics/finance types were checked against the stack in #114.
+- **Offline result screen (#115):** replace "Accepted offline" in the admitted style with a
+  neutral "looks valid, connect to confirm entry" result, as decision 0003 requires, with
+  kk/ru/en text and a test for the screen.
+- **Admin operations and upload status (#116):** admin search with read-only details, and the
+  jobs and deliveries list with a retry button; support attachments showing "Checking file…",
+  "Ready" or "Blocked", polling while pending. The backend for both is merged (PR #104).
+- **Real iPhone and Android checks (#53):** the camera (ticket QR, entry confirmation QR,
+  campaign QR rejected as "Not a ticket"), the share sheet (PDF, calendar, CSV), document picker,
+  clipboard, deep links and sign-in after the app was in the background have been tested with
+  mocks and partly on an Android emulator. Check them on real phones and add the device checklist
+  with results to this README.
+- **iOS build:** needs the team's Expo and Apple accounts. Run `eas-cli init` and the EAS steps in
+  [Run it](#run-it) and [Installable builds](#installable-builds); only a local Android build has
+  been made and tested so far.
+- **Click-through of the connected screens:** campaigns, refunds, finance and payouts, and the
+  gallery upload were checked against the API (#51) but not yet on a simulator or emulator.
 - **Translation review (#52):** the app-only Kazakh and Russian text
   (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
-- **Device checks (#53):** the share sheet (PDF, calendar, CSV), document picker, clipboard and
-  camera have been tested with mocks. Click them through on a real iPhone and Android phone.
-- **iOS build:** run the EAS steps in [Installable builds](#installable-builds) with the team's Expo
-  and Apple accounts; only the Android build was made and tested so far.
+  A few scanner strings built in code are still English in every language: the seat line
+  ("Section · Row · Seat"), "Provisional until this phone syncs.", "Confirmed after retry." and
+  the conflict/rejected counts in the sync summary.
 - **Optional clean-up:** renaming the session kind `scanner` to something like `native` in the
   backend (decision 0001).
-- **Offline entry rule:** update the offline result screen once decision 0002 is answered.
 - **Out of scope for now (decision 0001):** push notifications, Google sign-in on mobile, offline
   browsing, app-store publication.

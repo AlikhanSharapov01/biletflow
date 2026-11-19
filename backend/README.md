@@ -32,22 +32,28 @@ The web and mobile clients both talk to this one backend.
 | Organizers | Workspaces, team invitations, organization and per-event staff permissions |
 | Events | Draft → publish/unpublish → cancel, duplicate, public/unlisted/private, registration and admission windows, capacity, refund policy, filtered history timeline, protected ordered PNG/JPEG gallery |
 | Tickets | Free and paid ticket types, sales windows, per-order limits, hidden types, inventory protection under concurrency |
-| Seating | Predefined venue layout, seat configuration, ten-minute seat holds, no double selling |
-| Checkout | Free orders; simulated paid checkout with a 3% processing fee, retries, late/duplicate payment compensation refunds |
-| Paid-sales activation | Simulated payout profile, identity check, terms, activation fee — per event |
+| Seating | Predefined venue layout, seat configuration, seat holds (10 minutes by default, platform setting), no double selling |
+| Checkout | Free orders; simulated paid checkout with a processing fee from the platform settings (3% by default, fixed on the hold), retries, late/duplicate payment compensation refunds |
+| Paid-sales activation | Simulated payout profile, identity check, terms, activation fee from the platform settings (KZT 5,000 by default, saved when activation starts) — per event |
 | Tickets after purchase | Signed QR payload, stored PDF, email delivery with resend, recipient claim |
 | Admission | Scanner event list, atomic one-time check-in, reversal, counts, manual search, verification preview, entry confirmation, offline package and sync, conflict review, organizer check-in history and CSV |
-| Support | Cases from event/order/ticket, organizer → platform cases, threads, assignment, escalation, statuses, attachments, polling cursor and WebSocket |
-| Notifications | In-app inbox; localized account/staff/ticket/support mail and event/purchase/payment/refund/simulated-payout notices; kk/ru/en with English fallback |
-| Campaigns | Promo codes, campaign links/QR, atomic allowance reservations/redemptions and retained attribution |
+| Support | Cases from event/order/ticket, organizer → platform cases, threads, assignment, escalation, statuses, polling cursor and WebSocket; attachments with full PNG/JPEG/PDF structure checks, ClamAV malware scan and quarantine, and recovery of interrupted or never-linked uploads |
+| Notifications | In-app inbox; localized account/staff/ticket/support mail and event/purchase/payment/refund/simulated-payout notices; moderation notices for user, event and paid-sales decisions (never carrying the admin's reason); kk/ru/en with English fallback |
+| Campaigns | Promo codes, campaign links/QR, atomic allowance reservations/redemptions and retained attribution; campaign reports reconciled with the event analytics definitions |
 | Refunds | Full simulated refunds, free cancellation, event cancellation, ticket invalidation and inventory quarantine until success |
-| Reporting and finance | Scoped operational analytics/time series and their reconciled CSV export; finance reconciliation, simulated payout reservations/results and immutable adjustment history |
+| Reporting and finance | Scoped operational analytics/time series and their reconciled CSV export; optional GA4 collection, export and cached traffic reports (off by default); finance reconciliation, simulated payout reservations/results and immutable adjustment history |
 | Calendar | `.ics` export with stable UID and cancellation, Google/Outlook/Office 365 links |
-| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, exhausted job and failed delivery views with bounded audited retry, suspend/reinstate, event reports, moderation log, versioned settings, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
+| Administration | Admin role, user/event/order/ticket search, read-only support/order/activation/campaign/offline-conflict inspection, exhausted job and failed delivery views with bounded audited retry, suspend/reinstate, event reports, moderation log, versioned settings applied to new holds, fees, activations and upload limits, CSV exports, paid-sales suspend/reinstate and payment/refund/failure monitoring |
+| Files and operations | Private file storage (local directory, or S3-compatible SeaweedFS in Docker); correlation IDs on requests, audit rows and jobs, redacted JSON logs, admin-only operational metrics |
 
 "Implemented and tested" means API-complete with backend tests on `main`. It does not mean the
 web or mobile client uses it yet, or that the journey has been acceptance-tested; that is tracked
 per area in the [integration status](../docs/integration/status.md).
+
+The default values above (hold length, processing fee, activation fee, upload size, entry
+confirmation, offline package lifetime, payout timing and the others) are confirmed product rules
+in [decision 0003](../docs/decisions/0003-confirmed-decisions.md). An admin may change the four
+platform settings within their ranges; a change applies only to new records.
 
 **Backend scope still open** — see [What is left to do](#what-is-left-to-do).
 
@@ -68,6 +74,16 @@ docker compose logs -f api worker
 - Swagger: <http://localhost:8000/docs> (or <http://localhost:8080/docs> through Caddy)
 - Emails: <http://localhost:8025>
 
+| Service | Role |
+|---|---|
+| `db` | PostgreSQL 17 (`localhost:5433`) |
+| `migrate` | One-off: migrations, runtime role and grants, seed (below) |
+| `storage`, `storage-init` | SeaweedFS S3-compatible bucket and its one-off provisioning check (see [Private file storage](#private-file-storage)) |
+| `api`, `worker` | This backend (`localhost:8000`) and its background worker |
+| `mailpit` | Local SMTP sink and mail viewer |
+| `clamav` | clamd for attachment malware scanning (`localhost:3310`) |
+| `proxy` | Caddy in front of the API and the built web client (`localhost:8080`); not in the command above, a plain `docker compose up -d --build` starts it too |
+
 The `migrate` service runs `python -m app.bootstrap` once per start: it applies migrations as
 `biletflow_owner`, creates the restricted `biletflow_app` role used by the API, grants it access
 to every table, and seeds the demo categories, venue and seat layout. The API never creates or
@@ -81,8 +97,8 @@ docker compose up --build -d migrate api worker
 
 ### Natively (faster reloads)
 
-Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Keep PostgreSQL and Mailpit in
-Docker:
+Requires Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Keep PostgreSQL, Mailpit and
+ClamAV in Docker (object storage is not needed: files stay on local disk):
 
 ```bash
 docker compose up -d db migrate mailpit clamav   # from the repository root
@@ -125,9 +141,15 @@ substitutes `?` for non-Latin characters. See [TICKET_PDF_API.md](TICKET_PDF_API
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API with cookies |
 | `SMTP_HOST` / `SMTP_PORT` | Mailpit locally; any SMTP server otherwise |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional, enables Google sign-in |
-| `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON` | Optional GA4 export and traffic reports, off by default; see [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
+| `GA4_ENABLED`, `GA4_MEASUREMENT_ID`, `GA4_API_SECRET`, `GA4_PROPERTY_ID`, `GA4_CREDENTIALS_JSON`, `GA4_CACHE_SECONDS` | Optional GA4 export and traffic reports, off by default (`GA4_ENABLED=false`); credentials only from the environment; cached reports kept 900 s by default. See [ANALYTICS_API.md](ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71) |
 | `MALWARE_SCANNER` / `CLAMAV_HOST` / `CLAMAV_PORT` / `CLAMAV_TIMEOUT_SECONDS` | Attachment scanning: `clamav` (default; clamd at host:port, default `localhost:3310`, 15 s timeout) or `disabled` (local development only, refused in production) |
-| `STORAGE_BACKEND` | `local` (default; files under `STORAGE_ROOT`) or `s3`; see [Private file storage](#private-file-storage) |
+| `ATTACHMENT_MAX_BYTES` / `ATTACHMENT_MAX_PER_MESSAGE` / `ATTACHMENT_LINK_SECONDS` | Upload limits: deployment cap per file (5 MiB), files per support message (5), signed download link lifetime (300 s). The admin setting `upload_max_mb` can lower the size limit for attachments and event images but never raise it above the cap |
+| `STORAGE_BACKEND` | `local` (default; files under `STORAGE_ROOT`) or `s3`, which also needs `S3_ENDPOINT_URL`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`; see [Private file storage](#private-file-storage) |
+| `ENTRY_CONFIRMATION_SECONDS` / `OFFLINE_PACKAGE_MINUTES` | Entry confirmation lifetime (120 s, range 30–600) and offline package lifetime (720 min, range 5–2880) |
+
+Logs and metrics need no setting: the API and worker always write redacted JSON lines to stderr,
+and `GET /api/v1/admin/operations/metrics` is open to platform admins only; see
+[OPERATIONS_API.md](OPERATIONS_API.md).
 
 ### Private file storage
 
@@ -173,7 +195,11 @@ Everything lives in `app/`, one module group per area:
 | `*_models.py`, `models.py`, `all_models.py` | SQLAlchemy table mappings (must match the migrations) |
 | `*_schemas.py` | Request/response models |
 | `*_service.py` | Business rules and transactions |
-| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `admin`, `admin_jobs` |
+| `platform_settings.py`, `pricing.py` | Platform settings in force for new holds, quotes, activations and uploads; fee and price arithmetic |
+| `file_content.py`, `malware_scanner.py`, `attachment_service.py` | PNG/JPEG/PDF structure checks, ClamAV client, attachment quarantine and recovery |
+| `admin_inspection.py`, `admin_commerce.py`, `admin_jobs.py` | Admin search and read-only detail, payment/refund monitoring, job and delivery retry |
+| `ga4_client.py` | GA4 Measurement Protocol and Data API calls (used only when GA4 is enabled) |
+| `*_api.py` | HTTP routes: `organization`, `event`, `checkout`, `paid_checkout`, `activation`, `campaign`, `refund`, `ticket_document`, `admission`, `admission_history`, `offline`, `support`, `notification`, `calendar`, `analytics`, `ga4`, `finance`, `settings`, `operations`, `admin`, `admin_jobs` |
 | `worker.py` | Background job loop |
 | `bootstrap.py`, `seed.py`, `admin_cli.py` | Migrations + role setup, demo seed, admin grant CLI |
 
@@ -194,15 +220,15 @@ remaining scope.
 | [CHECKOUT_API.md](CHECKOUT_API.md) | Holds, free orders, ticket claims, QR payload, attendee list |
 | [PAID_SALES_API.md](PAID_SALES_API.md) | Simulated paid-sales activation |
 | [PAID_CHECKOUT_API.md](PAID_CHECKOUT_API.md) | Simulated paid checkout, payment attempts, compensation refunds |
-| [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting |
+| [CAMPAIGNS_API.md](CAMPAIGNS_API.md) | Campaigns, promo reservations/redemptions, campaign link/QR and reporting reconciled with analytics |
 | [REFUNDS_API.md](REFUNDS_API.md) | Full refunds, retry, free cancellation and event cancellation |
 | [ANALYTICS_API.md](ANALYTICS_API.md) | Operational inventory/revenue/attendance reports, sales series, CSV export and optional GA4 traffic |
 | [FINANCE_API.md](FINANCE_API.md) | Finance summary, simulated payouts and retained adjustments |
 | [TICKET_PDF_API.md](TICKET_PDF_API.md) | Ticket PDF, delivery status and resend |
 | [ADMISSION_API.md](ADMISSION_API.md) | Scanner, check-in, entry confirmation, offline sync, check-in history |
-| [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments, WebSocket |
-| [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md) | In-app notifications and calendar export |
-| [ADMIN_API.md](ADMIN_API.md) | Platform administration |
+| [SUPPORT_API.md](SUPPORT_API.md) | Support cases, messages, attachments (validation, malware quarantine, upload recovery), WebSocket |
+| [NOTIFICATIONS_CALENDAR_API.md](NOTIFICATIONS_CALENDAR_API.md) | In-app notifications, email notices including moderation notices, and calendar export |
+| [ADMIN_API.md](ADMIN_API.md) | Platform administration: search and detail, jobs and deliveries with bounded retry, suspension, reports, platform settings and where they apply, CSV exports, paid-sales and payment/refund monitoring |
 | [OPERATIONS_API.md](OPERATIONS_API.md) | Correlation IDs, structured log events and redaction, operational metrics |
 
 Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code to a message.
@@ -222,15 +248,19 @@ Errors always have the shape `{"detail": {"code": "..."}}`; clients map the code
   (retry counters on `outbox_job` and `notification_delivery`) → `0020_ga4_analytics`
   (adds `ga4_connection`, `analytics_export`, `ga4_cache`) → `0021_job_correlation` (nullable
   `outbox_job.correlation_id`, no table).
-  The chain through `0017` (17 migrations, 66 tables) was verified on a disposable test database
-  on 13 November 2026; `0018`–`0021` and the 69-table count are not yet verified that way;
-  check each deployment independently. The count excludes `public.alembic_version`.
+  The test suite applies the whole chain to an empty `_test` database (`alembic upgrade head` in
+  `tests/conftest.py`), so the CI run on `ad5b53c` (18 November 2026) upgraded through `0021`
+  cleanly. The 69-table count is read from the migration files; a direct count on a migrated
+  database was last recorded for `0017` (66 tables, 13 November 2026). Check each deployment
+  independently. The count excludes `public.alembic_version`.
 - **Never edit an applied migration.** Add the next number, mirror the tables in a
   `*_models.py` file, and import that module in `app/all_models.py` and `migrations/env.py`.
 - Historical migrations intentionally reject downgrade. New `0014`–`0017` provide scoped
-  downgrades tested up/down/up on a disposable database (`0019` has a scoped downgrade that has not
-  been round-trip tested yet); finance/gallery rollback loses their
-  new history/links. `0018` drops only its index on downgrade (not yet exercised up/down/up). Back up valuable data before any rollback.
+  downgrades tested up/down/up on a disposable database; finance/gallery rollback loses their
+  new history/links. `0018`–`0021` also have scoped downgrades that have not been exercised
+  up/down/up yet: `0018` drops only its index, `0019` its two retry counters, `0020` its three
+  GA4/export tables with their rows, `0021` the correlation column. Back up valuable data before
+  any rollback.
 - Audit, moderation and support history rows are protected by database triggers and cannot be
   edited or deleted. The runtime role has no `DELETE` and no `UPDATE` on `audit_log`.
 - `docs/database/` holds a 66-table **reference design**. Its table set differs from the implemented
@@ -264,7 +294,10 @@ intents and for uploads never linked within their one-hour link window; a file l
 is never deleted (see [SUPPORT_API.md](SUPPORT_API.md#attachments)). Email templates support kk/ru/en with English fallback;
 user-authored content is preserved.
 
-Business results never wait for email or notifications; those are retried independently.
+Business results never wait for email or notifications; those are retried independently. A
+platform admin can send a `dead` job or a `failed` email delivery back to the worker at most
+three times each, after the business target is rechecked; every retry is audited (see
+[ADMIN_API.md](ADMIN_API.md#background-work-and-deliveries)).
 
 A failed pass, retry or dead-lettered job is logged as a structured, redacted JSON line
 (`worker.task_failed`, `job.retry_scheduled`, `job.dead`) under the correlation ID of the request
@@ -400,31 +433,52 @@ uv run ruff check app tests migrations
 uv run ruff format --check app tests migrations
 ```
 
-On 9 November 2026 the final reviewed PostgreSQL suite collected **531 cases: 530 passed, 1 failed**
-(the Windows DejaVu/Unicode PDF font case), with **96% statement coverage**. With the bundled
-font (#82) the suite on 13 November 2026 had **545 passed, 0 failed, 10 skipped** (opt-in crash
-and load harnesses) on macOS without a system DejaVu font.
-Executed commands, exact coverage and limitations are recorded in [VALIDATION.md](VALIDATION.md).
-Tests cover PostgreSQL concurrency and permission isolation across implemented areas. The workflow
-(`.github/workflows/backend-auth.yml`) configures automated checks; the hosted *Backend API*,
-*Smoke* and *Backup* runs on `main` at `7dd19e0` (PR #64 merged) succeeded.
+The suite has **623 test functions** in 59 files under `tests/` (parametrized cases make the
+collected count higher). On `main` at `ad5b53c` (after PRs #102 and #104), the hosted *Backend API*
+workflow ran the full PostgreSQL suite with **863 passed, 0 failed, 11 skipped** and **96%
+statement coverage**; Ruff lint and format checks passed. The 11 skips are the opt-in harnesses
+below (10 process-kill cases and 1 load test). That CI run is not yet recorded in
+[VALIDATION.md](VALIDATION.md), which holds the earlier executed commands, exact coverage and
+limitations (last full local run: 13 November 2026, 545 passed, 0 failed, 10 skipped).
+Tests cover PostgreSQL concurrency and permission isolation across implemented areas.
 
-Process-kill crash recovery (opt-in, POSIX): `RUN_CRASH_TESTS=1 uv run pytest -q tests/crash`;
-see [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026).
+Workflows in `../.github/workflows/`:
+
+| Workflow | What it runs |
+|---|---|
+| `backend-auth.yml` (*Backend API*) | Ruff lint and format, full pytest suite with coverage against a PostgreSQL 17 service; every push and pull request |
+| `smoke.yml` (*Smoke*) | Whole Docker stack, then the two smoke scripts below; when backend, web, proxy, Compose or smoke files change |
+| `backup.yml` (*Backup*) | Backup and restore drill of the database and object storage ([backup and restore](../docs/operations/backup.md)) |
+
+*Smoke* and *Backup* last succeeded on `main` at `b1b73d0` (PR #102 merged); their runs on
+`cb5a9bd` (PR #104 merged) were cancelled and have not been repeated, since later merges did not
+touch their paths. Rerunning them is part of #117.
+
+Two harnesses are opt-in and skipped unless their variable is set. Both need a disposable
+PostgreSQL database ending in `_test`:
+
+```bash
+# Process-kill crash recovery (POSIX only), see VALIDATION.md
+RUN_CRASH_TESTS=1 uv run pytest -q tests/crash
+
+# Checkout and admission load with concurrent analytics: starts its own API, worker and SMTP sink;
+# LOAD_DATABASE_URL defaults to TEST_DATABASE_URL, LOAD_RUNS sets runs per scenario (default 1)
+RUN_LOAD_TESTS=1 uv run pytest -q tests/load -s
+
+# The same load harness directly, with a report written to --output-dir
+LOAD_DATABASE_URL=postgresql+psycopg://user@127.0.0.1:5432/biletflow_load_test \
+  uv run python -m tests.load.load_harness --runs 3 --output-dir /tmp/biletflow-load
+```
+
+See [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026) for the crash
+harness. The last load results (#80, before #102 and #104) are in the
+[integration status](../docs/integration/status.md).
 
 End-to-end smoke tests against a running Docker stack live in `../tools/`:
 
 ```bash
 uv run python ../tools/smoke_admission.py
 uv run python ../tools/smoke_paid_checkout.py
-```
-
-Measured checkout/admission load with concurrent analytics (opt-in; starts its own API and worker
-against a `_test` database; method and results in [VALIDATION.md](VALIDATION.md)):
-
-```bash
-LOAD_DATABASE_URL=postgresql+psycopg://user@127.0.0.1:5432/biletflow_load_test \
-  uv run python -m tests.load.load_harness --runs 3
 ```
 
 ---
@@ -435,23 +489,32 @@ The agreed scope includes all required and bonus features; see the shared
 [requirements and acceptance matrix](../docs/BiletFlow_Backend_Requirements.md).
 Backend endpoints alone do not complete the integrated product.
 
-Open backend work, from the audit in #85, in dependency order (see the
-[integration status](../docs/integration/status.md#remaining-work-in-dependency-order)):
+Everything from the audit in #85 is merged. PRs #87–#95 fixed the defects #65, #68 and #69 and
+added demo fixtures (#79), measured load (#80) and process-kill recovery (#83). PRs #102 and #104
+added campaign report reconciliation (#67), platform settings for holds, fees, activation and
+uploads (#70), GA4 (#71), admin search and detail (#72), admin jobs and deliveries (#73),
+moderation notices (#74), upload validation and quarantine (#75), upload recovery (#76),
+S3-compatible storage (#77), observability (#78) and the analytics CSV export (#81). Live GA4
+collection and reporting still need a GA4 property and credentials.
 
-1. Defects: stale refund callbacks (#65), PDF objects after uncertain commits (#68), consistent
-   database and file backups (#69, with operations).
-2. Campaign report reconciliation (#67); platform
-   settings applied to checkout and activation (#70). Attachment content validation and ClamAV
-   malware quarantine (#75) and upload recovery (#76) are implemented.
-3. Moderation notices (#74).
-4. Demo fixtures and reset (#79). The analytics CSV export (#81) and the GA4 integration code
-   (#71) are implemented; live GA4 collection/reporting needs a property and credentials.
-5. Measured load (#80) and real process-kill recovery (#83).
+Open backend work, tracked in #125 (see also the
+[integration status](../docs/integration/status.md)):
 
-Also outside the backend code: web (#45) and mobile (#51) integration of the documented APIs,
-HTTPS and security headers for the shared demo (#49), and the provider sandbox once merchant
-access exists (no live financial operation). Refunds are full-order only by design; partial refunds
-are excluded by the requirements.
+1. Rerun every suite on the current `main` and record it in [VALIDATION.md](VALIDATION.md):
+   full PostgreSQL suite, both opt-in harnesses, the restore drill with SeaweedFS storage, and
+   the cancelled *Smoke* and *Backup* workflows (#117).
+2. Keep check-in fast while analytics runs: admission p95 rose from 312 ms to 743 ms with 20
+   analytics clients on one API process (#118). The chosen setup will be documented here.
+3. Example requests, responses and every error code for the routes added in #104, in
+   `ADMIN_API.md`, `OPERATIONS_API.md`, `SUPPORT_API.md` and `ANALYTICS_API.md` (#119).
+4. Compare the web and mobile API types with the backend schemas for analytics, finance,
+   campaigns, refunds and admin, and list every mismatch (#122).
+
+Also outside the backend code: web and mobile screens for the newest contracts, browser
+end-to-end tests and the acceptance walkthrough (#120, #121), HTTPS and security headers for the
+shared demo (#49), and the provider sandbox once merchant access exists (no live financial
+operation). Refunds are full-order only by design; partial refunds are excluded by the
+requirements.
 
 Promo campaigns, operational analytics, refunds/cancellations, simulated finance/payouts,
 organizer ticket-type counters, event history filters, event images with bounded recurring cleanup,
@@ -459,5 +522,5 @@ admin commerce monitoring, and backend email/category localization are implement
 API guides for exact bounds, permissions, defaults and remaining scope. Public ticket-type responses
 exclude organizer counters. `sold` includes refund quarantine; `refunded` is historical;
 `checked_in` is current eligible unreversed attendance. These counts must not be added as disjoint
-historical totals. Payout eligibility/sending after event end is an implementation default consistent
-with activation terms, not a newly confirmed product decision.
+historical totals. Payout eligibility and sending only after the event ends is a confirmed product
+rule ([decision 0003](../docs/decisions/0003-confirmed-decisions.md)).
