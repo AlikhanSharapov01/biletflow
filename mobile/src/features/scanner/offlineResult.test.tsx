@@ -65,12 +65,23 @@ describe("offline scan result", () => {
   });
 
   it.each([
-    ["kk", "Билет жарамды сияқты – кіруді растау үшін желіге қосылыңыз"],
-    ["ru", "Похоже, билет действителен – подключитесь, чтобы подтвердить вход"],
-  ] as const)("is translated in %s", async (locale, title) => {
+    ["kk", "Билет жарамды сияқты – кіруді растау үшін желіге қосылыңыз", "A секторы · 2 қатары · 7 орны"],
+    ["ru", "Похоже, билет действителен – подключитесь, чтобы подтвердить вход", "Секция A · Ряд 2 · Место 7"],
+  ] as const)("shows no English in %s, seat line included", async (locale, title, seatLine) => {
     setLocale(locale);
-    const view = describeOutcome(QUEUED, "Asia/Almaty");
-    expect(view.title).toBe(title);
-    expect(view.lines.join(" ")).not.toMatch(/[A-Za-z]{4,} [a-z]{3,}/);
+    const seated = { ...QUEUED, seat: { section_label: "A", row_label: "2", seat_label: "7" } };
+    const view = describeOutcome(seated, "Asia/Almaty");
+    await render(<ResultPanel result={{ name: "result", view, retryable: false }} onRetry={jest.fn()} onUndo={jest.fn()} onScanNext={jest.fn()} />);
+    expect(screen.getByText(title)).toBeTruthy();
+    expect(screen.getByText(seatLine)).toBeTruthy();
+    // Everything the panel shows apart from the guest's own name and ticket type.
+    const shown = [view.title, ...view.lines.slice(2)].join(" ");
+    expect(shown).not.toMatch(/[A-Za-z]{3,}/);
+  });
+
+  it("puts the seat on an online admission too, in the chosen language", () => {
+    setLocale("ru");
+    const view = describeOutcome({ ...ADMITTED, seat: { section_label: "B", row_label: "1", seat_label: "3" } }, "Asia/Almaty");
+    expect(view.lines).toContain("Секция B · Ряд 1 · Место 3");
   });
 });
