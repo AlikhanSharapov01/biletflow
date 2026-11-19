@@ -44,6 +44,18 @@ export interface EventInput {
   refund_cutoff_at: string | null;
 }
 
+// Mirrors EventImageView: `url` serves the clean image (needs the bearer token
+// for unpublished events). The first image in sort order is the cover.
+export interface EventImage {
+  id: string;
+  url: string;
+  alt_text: string;
+  sort_order: number;
+  is_cover: boolean;
+  mime_type: string;
+  size_bytes: number;
+}
+
 export interface EventView extends EventInput {
   id: string;
   created_at: string;
@@ -55,6 +67,8 @@ export interface EventView extends EventInput {
   availability_version: number;
   updated_at: string;
   time_status: TimeStatus;
+  images: EventImage[];
+  cover_image_url: string | null;
 }
 
 export interface EventFilters {

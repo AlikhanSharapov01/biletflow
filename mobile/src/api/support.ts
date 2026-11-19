@@ -76,3 +76,8 @@ export function attachmentDownloadLink(caseId: string, attachmentId: string): Pr
 export function uploadAttachment(caseId: string, file: UploadFile): Promise<SupportUploadedFile> {
   return uploadFile<SupportUploadedFile>(casePath(caseId, "/attachments"), file, { filename: file.name });
 }
+
+// The uploader's own upload: polled while a quarantined file waits for its scan.
+export function getUpload(caseId: string, fileId: string): Promise<SupportUploadedFile> {
+  return request<SupportUploadedFile>(casePath(caseId, `/uploads/${encodeURIComponent(fileId)}`));
+}

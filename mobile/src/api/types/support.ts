@@ -131,12 +131,16 @@ export interface SupportMessageCreate {
   attachment_ids: string[];
 }
 
+// pending: being stored; quarantined: stored, waiting for the virus scan;
+// clean: can be sent; rejected: malformed or infected; deleted: never linked in time.
+export type UploadStatus = "pending" | "quarantined" | "clean" | "rejected" | "deleted";
+
 export interface SupportUploadedFile {
   file_id: string;
   mime_type: string;
   size_bytes: number;
   sha256: string;
-  status: string;
+  status: UploadStatus;
   expires_at: string;
 }
 

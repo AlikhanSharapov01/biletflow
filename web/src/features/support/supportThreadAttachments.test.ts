@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SupportChange, SupportMessage } from "../../api/types/support";
-import { ACCEPTED_ATTACHMENT_TYPES, attachmentProblem, fileSizeLabel, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_MESSAGE } from "./attachments";
+import { ACCEPTED_ATTACHMENT_TYPES, attachmentProblem, fileSizeLabel, MAX_ATTACHMENTS_PER_MESSAGE } from "./attachments";
 import { createRetryKeys } from "./retryKey";
 import { lastSeq, mergeThreadItems } from "./thread";
 
@@ -65,26 +65,32 @@ describe("mergeThreadItems edge cases", () => {
   });
 });
 
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
 describe("attachment limits", () => {
-  it("mirrors the SUPPORT_API.md defaults", () => {
-    expect(MAX_ATTACHMENT_BYTES).toBe(5 * 1024 * 1024);
+  it("mirrors the SUPPORT_API.md fixed rules", () => {
     expect(MAX_ATTACHMENTS_PER_MESSAGE).toBe(5);
     expect([...ACCEPTED_ATTACHMENT_TYPES].sort()).toEqual(["application/pdf", "image/jpeg", "image/png"]);
   });
 
   it("accepts a file of exactly the limit and rejects one byte more", () => {
-    expect(attachmentProblem({ name: "max.jpg", type: "image/jpeg", size: MAX_ATTACHMENT_BYTES })).toBeNull();
-    expect(attachmentProblem({ name: "big.jpg", type: "image/jpeg", size: MAX_ATTACHMENT_BYTES + 1 })).toBe(
+    expect(attachmentProblem({ name: "max.jpg", type: "image/jpeg", size: MAX_ATTACHMENT_BYTES }, MAX_ATTACHMENT_BYTES)).toBeNull();
+    expect(attachmentProblem({ name: "big.jpg", type: "image/jpeg", size: MAX_ATTACHMENT_BYTES + 1 }, MAX_ATTACHMENT_BYTES)).toBe(
       "big.jpg is 5.0 MB; the limit is 5.0 MB.",
     );
   });
 
+  it("uses whatever limit the platform currently sets", () => {
+    expect(attachmentProblem({ name: "big.jpg", type: "image/jpeg", size: 2048 }, 1024)).toBe("big.jpg is 2 KB; the limit is 1 KB.");
+    expect(attachmentProblem({ name: "big.jpg", type: "image/jpeg", size: 50 * 1024 * 1024 }, null)).toBeNull();
+  });
+
   it("checks the type before the size, so an empty unsupported file names its type", () => {
-    expect(attachmentProblem({ name: "x.exe", type: "application/x-msdownload", size: 0 })).toBe(
+    expect(attachmentProblem({ name: "x.exe", type: "application/x-msdownload", size: 0 }, MAX_ATTACHMENT_BYTES)).toBe(
       "x.exe: only PNG, JPEG and PDF files can be attached.",
     );
     // A type-less file (unknown extension in the browser) is rejected too.
-    expect(attachmentProblem({ name: "notes", type: "", size: 10 })).toContain("only PNG, JPEG and PDF");
+    expect(attachmentProblem({ name: "notes", type: "", size: 10 }, MAX_ATTACHMENT_BYTES)).toContain("only PNG, JPEG and PDF");
   });
 
   it("labels sizes in B, KB and MB at the boundaries", () => {

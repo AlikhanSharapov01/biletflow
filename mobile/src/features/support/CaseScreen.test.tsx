@@ -85,14 +85,14 @@ describe("CaseScreen", () => {
       mime_type: "application/pdf",
       size_bytes: 2048,
       sha256: "x",
-      status: "pending",
+      status: "clean",
       expires_at: "2026-11-01T11:00:00Z",
     });
     jest.mocked(sendMessage).mockResolvedValue(message(2, "Receipt attached"));
     await render(<CaseScreen />);
     await fireEvent.press(await screen.findByText("Attach file"));
     expect(uploadAttachment).toHaveBeenCalledWith("case-1", { uri: "file:///cache/receipt.pdf", name: "receipt.pdf", mimeType: "application/pdf" });
-    expect(await screen.findByText("2 KB")).toBeTruthy();
+    expect(await screen.findByText("Ready · 2 KB")).toBeTruthy();
     await fireEvent.changeText(screen.getByLabelText("Reply"), "Receipt attached");
     await fireEvent.press(screen.getByText("Send"));
     expect(sendMessage).toHaveBeenCalledWith("case-1", {

@@ -43,11 +43,11 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Free registration and simulated paid checkout | Done; the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
 | Orders: totals, payment retry, cancel registration, refund request | Done |
-| Support cases: list, new case, thread, attachments, staff actions | Done |
+| Support cases: list, new case, thread, attachments ("Checking file…" while the virus scan is pending, then Ready or Blocked), staff actions | Done |
 | Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
 | Account: profile, language, sessions, sign out everywhere | Done |
 | Organizer: workspaces, team, invitations, create event, every event tab (analytics with CSV export) | Done |
-| Platform admin portal (9 sections) | Done (shown only to platform admins): includes payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales |
+| Platform admin portal (11 sections) | Done (shown only to platform admins): includes payments, failed payments and refunds with exact filters and CSV export, suspend/reinstate of an event's paid sales, read-only inspection (support cases, orders, activations, campaigns, sync conflicts) and jobs/deliveries with retry |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |

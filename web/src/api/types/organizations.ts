@@ -18,7 +18,15 @@ export interface OrganizationCreate {
   contact_phone: string | null;
 }
 
+export type OrganizationUpdate = Partial<OrganizationCreate>;
+
 export type OrgCapability = "manage_profile" | "manage_staff" | "finance";
+
+export const ORG_CAPABILITIES: Array<{ id: OrgCapability; label: string; hint: string }> = [
+  { id: "manage_profile", get label() { return t("status.manage_profile"); }, get hint() { return t("capability.manage_profile_hint"); } },
+  { id: "manage_staff", get label() { return t("status.manage_staff"); }, get hint() { return t("capability.manage_staff_hint"); } },
+  { id: "finance", get label() { return t("organizer.finance"); }, get hint() { return t("capability.finance_hint"); } },
+];
 export type EventCapability =
   | "event_edit"
   | "attendees"

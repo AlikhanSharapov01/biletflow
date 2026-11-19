@@ -4,6 +4,7 @@ import type { RefundStarted, TicketCancelled } from "./types/payments";
 import type {
   Attendee,
   EventCapability,
+  EventImage,
   EventInput,
   EventView,
   HistoryEntry,
@@ -101,13 +102,20 @@ export function refundOrder(orderId: string, reason: string): Promise<RefundStar
   return request<RefundStarted>(`/api/v1/orders/${id(orderId)}/refunds`, { method: "POST", body: { reason } });
 }
 
-export interface EventImage {
-  id: string;
-  url: string;
-  mime_type: string;
-  size_bytes: number;
+// Event gallery (POST/PUT/DELETE /events/{id}/images...). Uploads send the
+// raw image as the body; the server validates type, size and pixels.
+export function uploadEventImage(eventId: string, file: File, altText: string): Promise<EventImage> {
+  return uploadFile<EventImage>(`/api/v1/events/${id(eventId)}/images`, file, { filename: file.name, alt_text: altText });
 }
 
-export function uploadEventImage(eventId: string, file: File): Promise<EventImage> {
-  return uploadFile<EventImage>(`/api/v1/events/${id(eventId)}/images`, file, { filename: file.name });
+export function reorderEventImages(eventId: string, imageIds: string[]): Promise<EventImage[]> {
+  return request<EventImage[]>(`/api/v1/events/${id(eventId)}/images/order`, { method: "PUT", body: { image_ids: imageIds } });
+}
+
+export function setEventCover(eventId: string, imageId: string): Promise<EventImage[]> {
+  return request<EventImage[]>(`/api/v1/events/${id(eventId)}/images/${id(imageId)}/cover`, { method: "PUT" });
+}
+
+export function deleteEventImage(eventId: string, imageId: string): Promise<unknown> {
+  return request(`/api/v1/events/${id(eventId)}/images/${id(imageId)}`, { method: "DELETE" });
 }
