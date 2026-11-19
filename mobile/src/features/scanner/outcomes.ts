@@ -6,7 +6,9 @@ import type { CheckInOutcome, ReversalResult } from "@/api/types/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
 import { t } from "@/i18n";
 
-export type Tone = "admitted" | "warning" | "rejected" | "offline";
+// "pending": an offline scan that passed local checks. It never admits
+// anyone (decision 0003, A1), so it must not look or feel like "admitted".
+export type Tone = "admitted" | "pending" | "warning" | "rejected" | "offline";
 
 export type OutcomeView = {
   tone: Tone;
@@ -119,8 +121,8 @@ export function describeOutcome(outcome: CheckInOutcome, timeZone: string): Outc
         `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
       );
     }
-    lines.push("Provisional until this phone syncs.");
-    return { tone: "admitted", icon: "✓", title: t("mobile.scan.accepted_offline"), lines };
+    lines.push(t("mobile.scan.not_admitted_yet"));
+    return { tone: "pending", icon: "…", title: t("mobile.scan.looks_valid_offline"), lines };
   }
 
   if (outcome.kind === "network") {

@@ -51,7 +51,7 @@ a click-through against `docker compose up` on a simulator or phone. Whole-proje
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
-| Offline scanning (bonus) | Done (QR scans only). Whether staff may let someone in on an offline result is still open, see below |
+| Offline scanning (bonus) | Done (QR scans only). A passing offline scan reads "Looks valid – connect to confirm entry" and never lets anyone in ([decision 0003](../docs/decisions/0003-confirmed-decisions.md), A1) |
 | Google sign-in | Web only (decision 0001) |
 | Kazakh, Russian and English | Done (#52): the web's catalogs plus app-only text; Account → Language |
 
@@ -300,11 +300,10 @@ shortcuts on the Tickets tab and the bell).
    `POST /scanner/offline/sync` on *Sync now*, or by themselves once the server answers again. An
    offline result is provisional until then. Typed codes, guest search and undo need a connection.
 
-   **Open question:** a passing offline scan currently shows "Accepted offline" in the admitted
-   style. The requirements and the backend contract say physical entry still needs online
-   confirmation. Which rule applies, and what a later sync conflict means for someone already let
-   in, is listed in [decision 0002](../docs/decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics).
-   Change the screen once that is answered.
+   A passing offline scan never admits anyone ([decision 0003](../docs/decisions/0003-confirmed-decisions.md),
+   A1): it shows "Looks valid – connect to confirm entry" on a neutral slate panel with a warning
+   vibration, never the green admitted panel or the success vibration, and has no *Undo*. Entry is
+   confirmed only once the phone is back online and the scan syncs.
 
 Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
 [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
@@ -324,6 +323,5 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
   and Apple accounts; only the Android build was made and tested so far.
 - **Optional clean-up:** renaming the session kind `scanner` to something like `native` in the
   backend (decision 0001).
-- **Offline entry rule:** update the offline result screen once decision 0002 is answered.
 - **Out of scope for now (decision 0001):** push notifications, Google sign-in on mobile, offline
   browsing, app-store publication.
