@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { postMeasurement } from "@/api/analytics";
 import { confirmHold, createHold, startCheckout } from "@/api/checkout";
 import { ApiError } from "@/api/errors";
 import { previewPromo } from "@/api/promo";
@@ -21,8 +22,12 @@ jest.mock("@/api/promo");
 jest.mock("@/api/settings");
 jest.mock("@/api/orders");
 jest.mock("@/api/paidCheckout");
+jest.mock("@/api/analytics", () => ({ postMeasurement: jest.fn(async () => ({ status: "accepted", reason: null })) }));
+jest.mock("expo-crypto", () => ({ randomUUID: () => "measure-1" }));
 
-const mockProfileRef: { current: typeof sampleProfile | (Omit<typeof sampleProfile, "email_verified_at"> & { email_verified_at: null }) } = {
+const mockProfileRef: {
+  current: typeof sampleProfile | (Omit<typeof sampleProfile, "email_verified_at" | "analytics_consent"> & { email_verified_at: string | null; analytics_consent: boolean });
+} = {
   current: sampleProfile,
 };
 
@@ -152,5 +157,30 @@ describe("CheckoutPanel", () => {
     await render(<CheckoutPanel event={sampleEvent} tickets={[general]} />);
     expect(screen.getByText(/Verify your email address before reserving tickets/)).toBeTruthy();
     expect(screen.queryByText("Reserve tickets")).toBeNull();
+  });
+
+  it("reports the checkout start through the backend only after consent", async () => {
+    jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"]));
+    await render(<CheckoutPanel event={sampleEvent} tickets={[general]} />);
+    await fireEvent.press(screen.getByLabelText("More General"));
+    await fireEvent.press(screen.getByText("Reserve 1 ticket"));
+    expect(await screen.findByText("Who is coming?")).toBeTruthy();
+    expect(postMeasurement).not.toHaveBeenCalled();
+  });
+
+  it("sends checkout_start once tickets are held for a consenting person", async () => {
+    mockProfileRef.current = { ...sampleProfile, analytics_consent: true };
+    jest.mocked(createHold).mockResolvedValue(sampleHold(["al1"]));
+    await render(<CheckoutPanel event={sampleEvent} tickets={[general]} />);
+    await fireEvent.press(screen.getByLabelText("More General"));
+    await fireEvent.press(screen.getByText("Reserve 1 ticket"));
+    expect(await screen.findByText("Who is coming?")).toBeTruthy();
+    expect(postMeasurement).toHaveBeenCalledWith({
+      name: "checkout_start",
+      analytics_event_id: "measure-1",
+      event_id: "e1",
+      platform: "mobile",
+      page_path: "/events/event",
+    });
   });
 });

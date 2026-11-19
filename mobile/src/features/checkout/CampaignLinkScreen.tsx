@@ -5,6 +5,8 @@ import { describeError } from "@/api/errors";
 import { resolveCampaignLink } from "@/api/promo";
 import { ScrollScreen } from "@/components/layout";
 import { ErrorPanel, LoadingState, PageHeading, SubtleButton } from "@/components/ui";
+import { measure } from "@/features/analytics/measure";
+import { useAuth } from "@/features/auth/AuthContext";
 import { stashPromo } from "./utils/promo";
 import { t, useLocale } from "@/i18n";
 
@@ -16,6 +18,7 @@ export function CampaignLinkScreen() {
   useLocale();
   const { token = "" } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
+  const { profile } = useAuth();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
@@ -25,6 +28,7 @@ export function CampaignLinkScreen() {
       .then((link) => {
         if (!active) return;
         if (link.code) stashPromo(link.event_id, link.code);
+        measure(profile, "campaign_landing", link.event_id);
         router.replace({
           pathname: "/events/[eventId]",
           params: link.code ? { eventId: link.event_id, promo: link.code } : { eventId: link.event_id },

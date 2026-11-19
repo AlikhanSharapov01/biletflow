@@ -17,6 +17,7 @@ import { AnalyticsFilterBar } from "./analytics/AnalyticsFilterBar";
 import { BreakdownTables } from "./analytics/BreakdownTables";
 import { SalesChart } from "./analytics/SalesChart";
 import { StatTiles } from "./analytics/StatTiles";
+import { TrafficPanel } from "./analytics/TrafficPanel";
 import { t, useLocale } from "@/i18n";
 
 // Read-only event analytics (backend/ANALYTICS_API.md), with the same report
@@ -87,6 +88,7 @@ export function AnalyticsTab({ event }: { event: EventView }) {
         ) : null}
       </Panel>
       {loaded ? <BreakdownTables data={loaded.summary} /> : null}
+      <TrafficPanel eventId={event.id} />
     </>
   );
 }

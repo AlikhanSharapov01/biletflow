@@ -1,6 +1,6 @@
 import { downloadFile } from "./files";
 import { request } from "./http";
-import type { AnalyticsFilters, EventAnalytics, SalesSeries, SeriesBucket } from "./types/analytics";
+import type { AnalyticsFilters, EventAnalytics, Measurement, MeasurementResult, SalesSeries, SeriesBucket, TrafficReport } from "./types/analytics";
 import { localInputToIso } from "@/utils/format";
 
 const id = encodeURIComponent;
@@ -33,4 +33,16 @@ export function downloadAnalyticsCsv(eventId: string, filters: AnalyticsFilters,
     ...query(filters),
     bucket,
   });
+}
+
+// GA4 traffic for the event (reports permission). Defaults to the last 28 days
+// in the event's time zone; the state says whether there is anything to show.
+export function getTraffic(eventId: string): Promise<TrafficReport> {
+  return request<TrafficReport>(`/api/v1/events/${id(eventId)}/analytics/traffic`);
+}
+
+// One client measurement. 202 always, with "skipped" when GA4 is off, the
+// person has not consented or the organization is not connected.
+export function postMeasurement(measurement: Measurement): Promise<MeasurementResult> {
+  return request<MeasurementResult>("/api/v1/analytics/measurements", { method: "POST", body: measurement });
 }

@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "@/api/catalog";
 import { ScrollScreen } from "@/components/layout";
 import { ErrorPanel, LoadingState, PageHeading, Panel, PanelHeading, StatusPill, SubtleButton } from "@/components/ui";
+import { useMeasureView } from "@/features/analytics/measure";
 import { CheckoutPanel } from "@/features/checkout/CheckoutPanel";
 import { useRequest } from "@/hooks/useRequest";
 import { colors, fonts } from "@/theme";
@@ -39,6 +40,7 @@ export function EventScreen() {
     },
     [eventId],
   );
+  useMeasureView("event_view", page.data?.event.id);
 
   if (!page.data) {
     return (
