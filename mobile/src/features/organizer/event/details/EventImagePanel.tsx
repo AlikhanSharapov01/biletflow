@@ -54,7 +54,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
       return;
     }
     if (file.size !== undefined && file.size > MAX_BYTES) {
-      setMessage(t("org.image_size_error"));
+      setMessage(t("org.image_size_error", { p0: fileSizeLabel(MAX_BYTES) }));
       return;
     }
     await run(async () => {
