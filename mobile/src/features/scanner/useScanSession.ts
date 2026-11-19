@@ -58,7 +58,7 @@ export function useScanSession(
     }
     const view = describeOutcome(outcome, timeZone);
     if (outcome.kind === "admitted" && outcome.replayed) {
-      view.lines.push("Confirmed after retry.");
+      view.lines.push(t("mobile.scan.confirmed_after_retry"));
     }
     feedback(view.tone);
     if (view.needsConfirmation) {

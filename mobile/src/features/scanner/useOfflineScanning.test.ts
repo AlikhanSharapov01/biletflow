@@ -5,6 +5,7 @@ import type { OfflineState } from "@/features/scanner/offlineStore";
 import { loadOffline, saveProgress } from "@/features/scanner/offlineStore";
 import { decideOffline } from "@/features/scanner/offlineVerify";
 import { useOfflineScanning } from "@/features/scanner/useOfflineScanning";
+import { setLocale } from "@/i18n";
 
 jest.mock("@/api/offline", () => ({ downloadPackage: jest.fn(), registerDevice: jest.fn(), syncOperations: jest.fn() }));
 jest.mock("@/features/auth/AuthContext", () => ({ useAuth: () => ({ profile: { id: "u1" } }) }));
@@ -109,6 +110,28 @@ describe("useOfflineScanning", () => {
     expect(result.current.pending).toBe(0);
     expect(result.current.notice).toBe("Synced: 0 admitted, 1 sent to the organizer to review.");
     expect(onSynced).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["kk", "Синхрондалды: 1 кірді, 1 ұйымдастырушыға тексеруге жіберілді, 1 қабылданбады."],
+    ["ru", "Синхронизировано: Вошли: 1, На проверку организатору: 1, Отклонено: 1."],
+  ] as const)("reports the sync result in %s", async (locale, notice) => {
+    setLocale(locale);
+    try {
+      const op = (id: string) => ({ operation_id: id, sequence_number: 1, kind: "check_in" as const, captured_at: "x", qr_payload: "q", entry_confirmation: "c" });
+      mockedSync.mockResolvedValue({
+        results: [
+          { operation_id: "a", status: "accepted", code: null },
+          { operation_id: "b", status: "conflict", code: "already_checked_in" },
+          { operation_id: "c", status: "rejected", code: "ticket_not_valid" },
+        ],
+        refreshed: { revocations: [], admitted_ticket_ids: [] },
+      } as never);
+      const { result } = await setup(saved({ queue: ["a", "b", "c"].map((id) => ({ ticketId: id, operation: op(id) })) }));
+      expect(result.current.notice).toBe(notice);
+    } finally {
+      setLocale("en");
+    }
   });
 
   it("keeps the queue when an upload fails", async () => {

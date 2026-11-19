@@ -10,7 +10,7 @@ import mobileRu from "./locales/mobile/ru.json";
 import ru from "./locales/ru.json";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { auditStrings } = require("../../scripts/audit-strings");
+const { auditSource, auditStrings } = require("../../scripts/audit-strings");
 
 const placeholders = (value: string) => [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
@@ -40,5 +40,20 @@ describe("translation catalogs", () => {
 
   it("leaves no untranslated interface text in the app", () => {
     expect(Object.fromEntries(auditStrings())).toEqual({});
+  });
+
+  // #133: text added to a list of lines with push() reached the screen in
+  // English because push was on the audit's list of non-text calls.
+  it("catches text passed to push, but not router paths or ids", () => {
+    const found = auditSource(
+      [
+        'lines.push("Provisional until this phone syncs.");',
+        "parts.push(`${count} rejected`);",
+        'router.push("/events/e1");',
+        'router.push({ pathname: "/events/[eventId]", params: { eventId } });',
+        "ids.push(row.id);",
+      ].join("\n"),
+    );
+    expect(found).toEqual(["Provisional until this phone syncs.", "{p0} rejected"]);
   });
 });

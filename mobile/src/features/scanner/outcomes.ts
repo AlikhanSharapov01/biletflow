@@ -4,6 +4,7 @@
 
 import type { CheckInOutcome, ReversalResult } from "@/api/types/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
+import { seatLabel } from "@/utils/format";
 import { t } from "@/i18n";
 
 // "pending": an offline scan that passed local checks. It never admits
@@ -106,21 +107,13 @@ const REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
 export function describeOutcome(outcome: CheckInOutcome, timeZone: string): OutcomeView {
   if (outcome.kind === "admitted") {
     const lines = [outcome.attendee_name, outcome.ticket_type_name];
-    if (outcome.seat) {
-      lines.push(
-        `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
-      );
-    }
+    if (outcome.seat) lines.push(seatLabel(outcome.seat));
     return { tone: "admitted", icon: "✓", title: t("org.admitted"), lines };
   }
 
   if (outcome.kind === "queued") {
     const lines = [outcome.attendee_name, outcome.ticket_type_name];
-    if (outcome.seat) {
-      lines.push(
-        `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
-      );
-    }
+    if (outcome.seat) lines.push(seatLabel(outcome.seat));
     lines.push(t("mobile.scan.not_admitted_yet"));
     return { tone: "pending", icon: "…", title: t("mobile.scan.looks_valid_offline"), lines };
   }

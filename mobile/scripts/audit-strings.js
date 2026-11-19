@@ -22,7 +22,9 @@ const TECHNICAL_PROPS = new Set([
   "textContentType", "icon", "name", "id", "key", "style", "mode", "variant", "pointerEvents", "resizeMode", "href",
 ]);
 const DATA_KEYS = new Set(["pathname", "mimeType", "type", "status", "kind", "code", "tone", "value", "id"]);
-const NON_TEXT_CALLS = /^(require|mock|setItem|getItem|includes|startsWith|endsWith|replace|split|join|test|push|navigate|fetch|request|requestBlob|downloadFile|fetchText|uploadFile|apiUrl|withQuery|encodeURIComponent|get|set|has|delete|t)$/;
+// `push` is deliberately not here: `lines.push("…")` puts text on screen, and
+// router paths passed to `router.push` are already skipped as technical (#133).
+const NON_TEXT_CALLS = /^(require|mock|setItem|getItem|includes|startsWith|endsWith|replace|split|join|test|navigate|fetch|request|requestBlob|downloadFile|fetchText|uploadFile|apiUrl|withQuery|encodeURIComponent|get|set|has|delete|t)$/;
 
 function looksTechnical(value) {
   return (
@@ -59,7 +61,17 @@ function templateText(node) {
 }
 
 function auditFile(file, found) {
-  const text = fs.readFileSync(file, "utf8");
+  auditText(fs.readFileSync(file, "utf8"), file, found);
+}
+
+// The untranslated strings in one piece of source, e.g. for a test.
+function auditSource(text, file = path.join(SRC, "example.tsx")) {
+  const found = new Map();
+  auditText(text, file, found);
+  return [...found.keys()];
+}
+
+function auditText(text, file, found) {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const record = (node, raw) => {
     const value = raw.replace(/\s+/g, " ").trim();
@@ -110,7 +122,7 @@ function auditStrings() {
   return found;
 }
 
-module.exports = { auditStrings };
+module.exports = { auditStrings, auditSource };
 
 if (require.main === module) {
   const found = auditStrings();
