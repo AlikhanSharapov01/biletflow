@@ -3,7 +3,14 @@ import { downloadFile } from "./files";
 import { forgetPublicSettings } from "./settings";
 import type { PaidSalesChecklist } from "./types/paidSales";
 import type {
+  AdminDelivery,
   AdminEventRow,
+  AdminJob,
+  InspectionDetail,
+  InspectionFilters,
+  InspectionKind,
+  InspectionRows,
+  WorkFilters,
   AdminPaymentRow,
   AdminRefundRow,
   CommerceFilters,
@@ -106,4 +113,46 @@ export function downloadExport(kind: ExportKind, filters: CommerceFilters & { q?
     status: status || undefined,
     limit,
   });
+}
+
+// Operational inspection: read-only search and detail (ADMIN_API.md). Search
+// text is only accepted by support cases and campaigns.
+export function inspect<K extends InspectionKind>(kind: K, filters: InspectionFilters, limit: number, offset: number): Promise<Page<InspectionRows[K]>> {
+  const { q, status, event_id, enabled } = filters;
+  return request<Page<InspectionRows[K]>>(`${ADMIN}/${kind}`, {
+    query: {
+      q: q?.trim() || undefined,
+      status: status || undefined,
+      event_id: event_id?.trim() || undefined,
+      enabled: enabled === undefined ? undefined : String(enabled),
+      limit,
+      offset,
+    },
+  });
+}
+
+export function getInspection(kind: InspectionKind | "orders", recordId: string): Promise<InspectionDetail> {
+  return request<InspectionDetail>(`${ADMIN}/${kind}/${id(recordId)}`);
+}
+
+function workQuery(filters: WorkFilters, limit: number, offset: number) {
+  return { status: filters.status || undefined, kind: filters.kind?.trim() || undefined, event_id: filters.event_id?.trim() || undefined, limit, offset };
+}
+
+export function listJobs(filters: WorkFilters, limit: number, offset: number): Promise<Page<AdminJob>> {
+  return request<Page<AdminJob>>(`${ADMIN}/jobs`, { query: workQuery(filters, limit, offset) });
+}
+
+export function listDeliveries(filters: WorkFilters, limit: number, offset: number): Promise<Page<AdminDelivery>> {
+  return request<Page<AdminDelivery>>(`${ADMIN}/notification-deliveries`, { query: workQuery(filters, limit, offset) });
+}
+
+// Bounded retry: one exhausted row goes back to the worker (at most
+// ADMIN_RETRY_LIMIT times). A repeat with the same key and reason is a no-op.
+export function retryJob(jobId: string, reason: string, idempotencyKey: string): Promise<AdminJob> {
+  return request<AdminJob>(`${ADMIN}/jobs/${id(jobId)}/retry`, { method: "POST", body: { reason }, idempotencyKey });
+}
+
+export function retryDelivery(deliveryId: string, reason: string, idempotencyKey: string): Promise<AdminDelivery> {
+  return request<AdminDelivery>(`${ADMIN}/notification-deliveries/${id(deliveryId)}/retry`, { method: "POST", body: { reason }, idempotencyKey });
 }

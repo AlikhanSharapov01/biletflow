@@ -85,12 +85,9 @@ describe("attachment limits", () => {
     expect(attachmentProblem({ name: "big.jpg", type: "image/jpeg", size: 50 * 1024 * 1024 }, null)).toBeNull();
   });
 
-  it("checks the type before the size, so an empty unsupported file names its type", () => {
-    expect(attachmentProblem({ name: "x.exe", type: "application/x-msdownload", size: 0 }, MAX_ATTACHMENT_BYTES)).toBe(
-      "x.exe: only PNG, JPEG and PDF files can be attached.",
-    );
-    // A type-less file (unknown extension in the browser) is rejected too.
-    expect(attachmentProblem({ name: "notes", type: "", size: 10 }, MAX_ATTACHMENT_BYTES)).toContain("only PNG, JPEG and PDF");
+  it("leaves file types to the backend so its own message is shown", () => {
+    expect(attachmentProblem({ name: "x.exe", type: "application/x-msdownload", size: 10 }, MAX_ATTACHMENT_BYTES)).toBeNull();
+    expect(attachmentProblem({ name: "notes", type: "", size: 10 }, MAX_ATTACHMENT_BYTES)).toBeNull();
   });
 
   it("labels sizes in B, KB and MB at the boundaries", () => {

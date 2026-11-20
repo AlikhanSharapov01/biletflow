@@ -162,3 +162,145 @@ export interface AdminSearch {
   limit: number;
   offset: number;
 }
+
+// ---------------------------------------------------------------------------
+// Operational inspection (ADMIN_API.md "Operational inspection", #72). Rows
+// are read-only; details are passed through as the server sends them.
+
+export type InspectionKind = "support-cases" | "activations" | "campaigns" | "sync-conflicts";
+
+export interface InspectionFilters {
+  q?: string;
+  status?: string;
+  event_id?: string;
+  enabled?: boolean;
+}
+
+export interface AdminSupportCaseRow {
+  id: string;
+  kind: "attendee" | "organizer_platform";
+  category: string;
+  subject: string;
+  status: string;
+  requester_user_id: string;
+  organization_id: string | null;
+  event_id: string | null;
+  order_id: string | null;
+  ticket_id: string | null;
+  assigned_to_user_id: string | null;
+  escalated_at: string | null;
+  resolved_at: string | null;
+  last_seq: number;
+  created_at: string;
+  updated_at: string;
+  platform_access: boolean;
+}
+
+export interface AdminActivationRow {
+  id: string;
+  event_id: string;
+  event_title: string;
+  organization_id: string;
+  status: string;
+  activation_fee_minor: number;
+  currency: string;
+  paid_attempt_id: string | null;
+  activated_at: string | null;
+  suspension_reason: string | null;
+  created_at: string;
+}
+
+export interface AdminCampaignRow {
+  id: string;
+  event_id: string;
+  organization_id: string;
+  name: string;
+  discount_kind: string;
+  percentage_bps: number | null;
+  fixed_minor: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  max_redemptions: number | null;
+  is_enabled: boolean;
+  created_at: string;
+  redemptions: number;
+  active_reservations: number;
+}
+
+export interface AdminSyncConflictRow {
+  id: string;
+  status: string;
+  reason: string;
+  event_id: string;
+  organization_id: string;
+  ticket_id: string | null;
+  offline_operation_id: string;
+  operation_kind: string;
+  device_id: string;
+  existing_check_in_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by_user_id: string | null;
+}
+
+export interface InspectionRows {
+  "support-cases": AdminSupportCaseRow;
+  activations: AdminActivationRow;
+  campaigns: AdminCampaignRow;
+  "sync-conflicts": AdminSyncConflictRow;
+}
+
+// Detail payloads differ per view and are shown as read-only records.
+export type InspectionDetail = Record<string, unknown>;
+
+// ---------------------------------------------------------------------------
+// Background work and deliveries (ADMIN_API.md "Background work", #73).
+
+export type JobStatus = "pending" | "leased" | "done" | "dead";
+export type DeliveryStatus = "pending" | "sent" | "failed";
+
+// Admins may send one row back at most this many times (database CHECK).
+export const ADMIN_RETRY_LIMIT = 3;
+
+export interface AdminJob {
+  id: string;
+  kind: string;
+  status: JobStatus;
+  attempt_count: number;
+  max_attempts: number | null;
+  admin_retry_count: number;
+  last_error: string | null;
+  available_at: string | null;
+  lease_until: string | null;
+  created_at: string;
+  completed_at: string | null;
+  event_id: string | null;
+  context: Record<string, string | number | null>;
+  retryable: boolean;
+}
+
+export interface AdminDelivery {
+  id: string;
+  notification_id: string;
+  kind: string;
+  channel: "email" | "in_app";
+  status: DeliveryStatus;
+  attempt_count: number;
+  max_attempts: number | null;
+  admin_retry_count: number;
+  last_error: string | null;
+  next_attempt_at: string | null;
+  sent_at: string | null;
+  provider_message_id: string | null;
+  created_at: string;
+  recipient_user_id: string;
+  event_id: string | null;
+  target: unknown;
+  retryable: boolean;
+}
+
+export interface WorkFilters {
+  status?: string;
+  kind?: string;
+  event_id?: string;
+}

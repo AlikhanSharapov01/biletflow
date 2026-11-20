@@ -27,7 +27,7 @@ as the mobile app (shared colours, type scale and components).
 
 ## Status
 
-Checked against `main` at `56a6a3e` on 20 November 2026.
+Checked against `main` at `636f512` on 21 November 2026.
 
 **Wired to the live backend**
 
@@ -44,11 +44,21 @@ Checked against `main` at `56a6a3e` on 20 November 2026.
   organizer refunds and free-ticket cancellation.
 - **Analytics, finance and event images** follow the merged contracts (PR #111,
   `backend/ANALYTICS_API.md`, `FINANCE_API.md`, `CATALOG_API.md`). The finance tab covers simulated
-  payouts: reserving, history and the demo transitions. The gallery supports upload, cover,
-  reorder and delete, and covers are shown on Discover and the event page. No screen shows
-  "Not available yet" any more (#45).
+  payouts: reserving, history and the demo transitions. The Analytics tab downloads the CSV export
+  (`GET /events/{id}/analytics/export.csv`) with the filters and grouping applied on screen, so the
+  file matches the figures shown (#108). The gallery supports upload, cover, reorder and delete,
+  and covers are shown on Discover and the event page. No screen shows "Not available yet" any
+  more (#45).
 - **Admin portal** includes paid-sales suspension and reinstatement per event, plus read-only
   payment, failed-payment and refund monitoring with CSV export (PR #111, `backend/ADMIN_API.md`).
+  *Inspect* searches support cases, paid-sales activations, campaigns and offline conflicts, and
+  *Orders* opens the order detail; every detail is read-only. *Jobs* lists outbox jobs and
+  notification deliveries with the bounded retry (reason, `Idempotency-Key`, at most 3 per row) and
+  says why a row cannot be retried (#110).
+- **Support attachments show their scan state** (#112): "Checking file…" while a quarantined upload
+  waits for the malware scan (polled through `GET /support/cases/{id}/uploads/{file_id}`), then
+  "Ready" or "Blocked". Only ready files are sent, so a blocked file is never linked or downloadable.
+  File types are left to the backend, so a rejected type shows the server's own message.
 - **Organizer workspace** can edit the organizer contact profile, owners can set each member's
   workspace permissions (profile, staff, finance), and owners can connect the organization to GA4.
 - **Platform settings are read from the server.** Upload size limits for event images and support
@@ -59,7 +69,7 @@ Checked against `main` at `56a6a3e` on 20 November 2026.
   transfer, an `Idempotency-Key` on holds, confirmations, checkout, activation and payment
   retries, and readable publication labels on the event page. See
   [Downloads and idempotency](#downloads-and-idempotency).
-- **Kazakh, Russian and English** interface catalogs with 1,535 shared keys, profile language
+- **Kazakh, Russian and English** interface catalogs with 1,602 shared keys, profile language
   selection and localized dates, money, plurals, categories, statuses and notifications. See
   [Localization](#localization).
 - **GA4 through the backend** (#131, PR #143), off unless the backend enables it: consenting
@@ -67,28 +77,24 @@ Checked against `main` at `56a6a3e` on 20 November 2026.
   (no Google script in the browser), owners connect the organization in the workspace, and the
   Analytics tab shows a Traffic section. See
   [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
-- **438 tests in 66 files** and a **Web CI workflow** (type check, tests, production build).
+- **461 tests in 70 files** and a **Web CI workflow** (type check, tests, production build), plus
+  Playwright browser tests in the repository's `e2e/` folder (#120). See [Tests](#tests).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
   and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
   see the [checklist](#accessibility-checklist).
 
 **Still missing**
 
-| Issue | What is missing on `main` |
+| Issue | What is missing |
 |---|---|
-| #107 | Event gallery: the Details tab uploads one image and previews it, but does not list the gallery, set the cover, reorder or delete images |
-| #108 | Analytics and finance on the final contracts: both tabs still use the planned types; finance payouts and the analytics CSV export (`GET /events/{id}/analytics/export.csv`) are not in the web |
-| #109 | Admin paid-sales suspension and payment, failed-payment and refund monitoring (`backend/ADMIN_API.md`) |
-| #110 | Admin operations: support-case, activation, campaign and sync-conflict search, order and ticket detail, outbox jobs and notification deliveries with retry |
-| #112 | Support uploads do not show the attachment scanning or quarantine status |
-| #49 | HTTPS and security headers: staged in [HTTPS handoff](#https-handoff), not installed |
-| #120 | Browser end-to-end tests |
-| — | GA4 organization connection, funnel measurements and the organizer traffic report from #71 (see [GA4](#optional-ga4-traffic-collection)) |
+| #49 | HTTPS and security headers: staged in [HTTPS handoff](#https-handoff), not installed. The live proxy configuration is in `proxy/`, outside `web/` |
+| — | Browser and screen-reader accessibility acceptance (see the [checklist](#accessibility-checklist)) |
+| — | Live GA4 collection and reporting with a configured property (see [GA4](#optional-ga4-traffic-collection)) |
 
-Open PR #111 (Yershuak, branch `ershuku-web`) covers most of #107 to #109: the event gallery,
-analytics and finance (with payouts) on the final contracts, and admin paid-sales suspension
-with payment and refund monitoring and their CSV exports. It does not add the analytics CSV
-export. Until it is merged, the table above describes `main`.
+PR #111 delivered the event gallery (#107), analytics and finance with payouts on the final
+contracts (#108) and admin paid-sales suspension with payment and refund monitoring (#109). The
+analytics CSV export, admin inspection and job retry (#110) and the support scan states (#112)
+were added after it.
 
 ---
 
@@ -215,7 +221,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/organizer/events/:eventId` | Signed in | Event management tabs |
 | `/staff-invitations/accept#token=` | Signed in | Join a workspace from an invitation |
 | `/account` | Signed in | Profile, language preference, traffic-analytics consent, sessions |
-| `/admin` → `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
+| `/admin` → `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/inspect`, `/jobs`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
 
 The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitations/accept`,
 `/tickets/:id`, `/events/:id` and `/support/cases/:id` — keep those paths stable. Caddy falls back to
@@ -230,13 +236,16 @@ file by file. The areas integrated last, and what they rely on:
 
 | Screen | Endpoints | Contract |
 |---|---|---|
-| Organizer *Analytics* tab | `GET /events/{id}/analytics`, `GET /events/{id}/analytics/sales-series?bucket=day\|hour` | `backend/ANALYTICS_API.md`, `analytics_schemas.py` |
+| Organizer *Analytics* tab | `GET /events/{id}/analytics`, `GET /events/{id}/analytics/sales-series?bucket=day\|hour`, `GET /events/{id}/analytics/export.csv` | `backend/ANALYTICS_API.md`, `analytics_schemas.py` |
 | Organizer *Finance* tab | `GET /events/{id}/finance`, `GET`/`POST /events/{id}/finance/payouts`, `POST …/payouts/{payout_id}/simulate` | `backend/FINANCE_API.md`, `finance_api.py` |
 | Event gallery (Details tab), covers on Discover and the event page | `POST /events/{id}/images`, `PUT …/images/order`, `PUT …/images/{image_id}/cover`, `DELETE …/images/{image_id}`, `GET …/images/{image_id}/content` | `catalog_schemas.py`, `event_api.py` |
 | Organizer profile and member permissions | `PATCH /organizations/{id}`, `PUT /organizations/{id}/members/{member_id}/permissions` | `catalog_schemas.py`, `organization_api.py` |
 | Admin paid sales | `GET /admin/events/{id}/paid-sales`, `POST …/paid-sales/suspend`, `POST …/paid-sales/reinstate` | `backend/ADMIN_API.md` |
 | Admin payments | `GET /admin/payments`, `/admin/failed-payments`, `/admin/refunds`, `GET /admin/exports/{kind}.csv` | `backend/ADMIN_API.md`, `admin_commerce.py` |
 | Analytics *Traffic* section, workspace GA4 panel, traffic measurements | `GET /events/{id}/analytics/traffic`, `GET`/`PUT /organizations/{id}/ga4-connection`, `POST /analytics/measurements` | `backend/ANALYTICS_API.md`, `ga4_api.py` |
+| Admin inspection | `GET /admin/support-cases`, `/admin/activations`, `/admin/campaigns`, `/admin/sync-conflicts` and their `/{id}` details, `GET /admin/orders/{id}` | `backend/ADMIN_API.md`, `admin_inspection.py` |
+| Admin jobs and deliveries | `GET /admin/jobs`, `GET /admin/notification-deliveries`, `POST …/{id}/retry` | `backend/ADMIN_API.md`, `admin_jobs.py` |
+| Support attachment scan state | `GET /support/cases/{id}/uploads/{file_id}` | `backend/SUPPORT_API.md` |
 | Upload limits | `GET /settings/public` | `settings_api.py` |
 
 Rules the client follows for these screens:
@@ -246,8 +255,8 @@ Rules the client follows for these screens:
 - **No assumed limits.** Upload size comes from `upload_max_bytes`; without it the client skips its
   pre-check and the server's error is shown. Fixed backend rules (PNG/JPEG for event images, the
   payout transition order) are documented beside the code that mirrors them.
-- **Retries are safe.** Payout reservations and admin paid-sales decisions send an
-  `Idempotency-Key` that is reused when the same request is retried.
+- **Retries are safe.** Payout reservations, admin paid-sales decisions and admin job and
+  delivery retries send an `Idempotency-Key` that is reused when the same request is retried.
 - **Images need the session.** Image URLs are API paths. Unpublished events require the bearer
   token, so `components/ui/EventImage` fetches them through `api/files.ts` and shows an object URL.
 - **Demo money is labelled.** Analytics, finance and admin payment rows show simulation or sandbox
@@ -271,7 +280,7 @@ See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md) for the promo, campaign, checkout a
 npm test
 ```
 
-There are 438 tests in 66 files (all passing on 20 November 2026), next to the code they test
+There are 461 tests in 70 files (all passing on 21 November 2026), next to the code they test
 (`*.test.ts(x)`); shared fixtures are in `tests/helpers/` and the jsdom setup in `src/test/`.
 They cover the API client, file downloads, idempotency keys and error messages, formatting,
 checkout rules and components (steps, seating, payment) and the checkout flow hook, seat and
@@ -280,12 +289,15 @@ notification bell, organizer forms, charts and pagination, admin settings, the r
 countdown hooks, the app shell, the orders page, campaign workspace, promo redirect and sign-in,
 refund actions, zero-total checkout, accessible dialogs, contrast, the analytics and finance tabs
 (payout validation, idempotent retries, simulator states), the event gallery, organizer profile
-and member permissions, admin paid-sales and payment monitoring, moderation/payout notifications,
+and member permissions, admin paid-sales and payment monitoring, admin inspection and job/delivery
+retry, the analytics CSV export, support attachment scan states, moderation/payout notifications,
 the public-settings cache, GA4 measurements (consent, allowed routes, no Google script), the
 traffic section and the GA4 connection panel, all locale catalogs and interface-string auditing.
 
-There are no browser end-to-end tests yet (#120). Component and source checks do not certify
-screen-reader behaviour or a running deployment.
+Browser end-to-end tests live in the repository's `e2e/` folder (Playwright, #120): campaign link,
+free registration, paid checkout and refund. The `E2E` workflow (`.github/workflows/e2e.yml`) runs
+them when `e2e/`, `backend/` or `web/` change. Downloads and the Kazakh and Russian interface are
+not covered there yet. Component and source checks do not certify screen-reader behaviour.
 
 The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
 that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
@@ -302,20 +314,12 @@ and screen-reader acceptance remain unverified; see
 
 ## What is left to do
 
-- **Close #107 and #109, finish #108:** PR #111 delivered the gallery (cover, reorder, delete),
-  both tabs on the final contracts with finance payouts, and admin commerce, but the issues are
-  still open. Still missing from #108: the analytics CSV export
-  (`GET /events/{id}/analytics/export.csv`).
-- **Admin operations (#110):** the remaining admin searches (support cases, activations,
-  campaigns, sync conflicts), order and ticket detail, outbox jobs and notification deliveries
-  with audited retry.
-- **Upload scan status (#112):** show pending, clean and rejected scanning states on support
-  attachments.
 - **HTTPS (#49):** install and validate the staged configuration with the operations owner;
   `proxy/` and the repository-level operations docs belong to `@devops`.
-- **Browser tests:** Playwright runs in CI since #120 (`e2e/`: campaign link, free
-  registration, paid checkout, refund). Downloads and the Kazakh and Russian interface are not
-  covered yet.
+- **Browser tests:** extend `e2e/` to downloads, the admin portal and the Kazakh and Russian
+  interface.
+- **Translation review:** the Russian and Kazakh wording added for the admin inspection, job
+  retry, analytics export and attachment scan screens should be checked by a native speaker.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.
 
 ---
@@ -325,7 +329,7 @@ and screen-reader acceptance remain unverified; see
 The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 
 - **Source of truth.** [translations/core.tsv](translations/core.tsv) holds every interface
-  string: one row per stable key, with English, Russian and Kazakh wording (1,535 keys). It is
+  string: one row per stable key, with English, Russian and Kazakh wording (1,602 keys). It is
   shared with the mobile app; see the [translation handoff](translations/README.md).
 - **Generated catalogs.** `npm run translations:build` turns the TSV into
   `src/i18n/locales/{en,ru,kk}.json`. It fails on a missing language or a duplicate key. Do not
@@ -375,9 +379,9 @@ boxes are marked complete without that evidence.
 | Organizer campaigns and reports | Disable confirmation modal; QR alt text; report labels | Pending |
 | Organizer analytics and finance | Focusable chart bars and table alternative; labelled filters; labelled payout amount and demo actions; simulation pills in text | Pending |
 | Event gallery | Required image description sent as alt text; labelled move up/down buttons; delete confirmation modal | Pending |
-| Support lists, new case and thread | Form/composer/file controls labelled; state feedback preserved | Pending |
+| Support lists, new case and thread | Form/composer/file controls labelled; state feedback preserved; attachment scan state in text (checking, ready, blocked) | Pending |
 | Notifications | Labelled inbox/filter controls; translated archived content | Pending |
-| Admin users/events/orders/tickets/payments/reports/settings/exports/moderation | Labelled searches, filters, forms and actions; tablist for payment lists; readable pills | Pending |
+| Admin users/events/orders/tickets/payments/inspect/jobs/reports/settings/exports/moderation | Labelled searches, filters, forms and actions; tablists for payment lists and jobs/deliveries; labelled detail and retry buttons; readable pills | Pending |
 
 Shared colour tests require at least 4.5:1 for body/meta/placeholder/error text and all pill tones,
 and at least 3:1 for control borders and focus outlines. The focus ring uses two colours so it is
@@ -399,9 +403,9 @@ All binary transfers use `src/api/files.ts`, including PDF and calendar download
 CSV exports, campaign QR images and uploads. It handles authentication refresh,
 server-provided filenames (including UTF-8 filenames), and browser downloads.
 
-Holds, free confirmation, paid checkout, activation, payment retries, payout reservations and admin
-paid-sales decisions send an `Idempotency-Key` header. Each API invocation generates a fresh UUID, which is
-preserved through the automatic authentication retry. These functions also accept
+Holds, free confirmation, paid checkout, activation, payment retries, payout reservations, admin
+paid-sales decisions and admin job and delivery retries send an `Idempotency-Key` header. Each API
+invocation generates a fresh UUID, which is preserved through the automatic authentication retry. These functions also accept
 an explicit key: reuse the original key when retrying the same action; use a new
 key when the action or payload changes.
 

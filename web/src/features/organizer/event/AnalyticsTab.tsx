@@ -1,11 +1,12 @@
 import { t, useLocale } from "../../../i18n";
 import { useState } from "react";
-import { getAnalytics, getSalesSeries } from "../../../api/analytics";
+import { downloadAnalyticsCsv, getAnalytics, getSalesSeries } from "../../../api/analytics";
+import { describeError } from "../../../api/errors";
 import { listCampaigns } from "../../../api/campaigns";
 import { listTicketTypes } from "../../../api/catalog";
 import type { EventView } from "../../../api/types";
 import type { AnalyticsFilters, SeriesBucket } from "../../../api/types/analytics";
-import { EmptyState, ErrorPanel, Loading, Panel, PanelHeading } from "../../../components/ui";
+import { Button, EmptyState, ErrorPanel, FormMessage, Loading, Panel, PanelHeading } from "../../../components/ui";
 import { useRequest } from "../../../hooks/useRequest";
 import { dateLabel } from "../../../utils/format";
 import { AnalyticsFilterBar } from "./analytics/AnalyticsFilterBar";
@@ -32,8 +33,24 @@ export function AnalyticsTab({ event }: { event: EventView }) {
     return { summary, series };
   }, [event.id, filters, bucket]);
 
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+
   const result = report.data;
   const ready = result && !report.loading;
+
+  // Exports exactly the applied filters and grouping shown on screen.
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportError("");
+    try {
+      await downloadAnalyticsCsv(event.id, filters, bucket);
+    } catch (failure) {
+      setExportError(describeError(failure));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="stack">
@@ -52,6 +69,13 @@ export function AnalyticsTab({ event }: { event: EventView }) {
             setBucket(nextBucket);
           }}
         />
+        <div className="form-actions">
+          <Button onClick={() => void exportCsv()} disabled={exporting}>
+            {exporting ? t("org.analytics_exporting") : t("org.analytics_export")}
+          </Button>
+          <span className="field-note">{t("org.analytics_export_note")}</span>
+        </div>
+        {exportError ? <FormMessage message={exportError} /> : null}
         {report.loading ? <Loading label={t("org.loading_analytics")} /> : null}
         {report.error ? <ErrorPanel title={t("org.analytics_error")} message={report.error} onRetry={report.reload} /> : null}
         {ready ? (

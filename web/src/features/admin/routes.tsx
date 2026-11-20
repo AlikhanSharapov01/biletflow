@@ -4,6 +4,8 @@ import { AdminLayout } from "./AdminLayout";
 import { ADMIN_PATHS } from "./adminPaths";
 import { AdminEventsPage } from "./pages/AdminEventsPage";
 import { AdminExportsPage } from "./pages/AdminExportsPage";
+import { AdminInspectPage } from "./pages/AdminInspectPage";
+import { AdminJobsPage } from "./pages/AdminJobsPage";
 import { AdminModerationPage } from "./pages/AdminModerationPage";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage";
 import { AdminPaymentsPage } from "./pages/AdminPaymentsPage";
@@ -27,6 +29,8 @@ export const adminRoutes = (
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="tickets" element={<AdminTicketsPage />} />
         <Route path="payments" element={<AdminPaymentsPage />} />
+        <Route path="inspect" element={<AdminInspectPage />} />
+        <Route path="jobs" element={<AdminJobsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="moderation" element={<AdminModerationPage />} />
         <Route path="settings" element={<AdminSettingsPage />} />

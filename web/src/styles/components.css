@@ -140,3 +140,14 @@
 .not-available { display: grid; justify-items: start; gap: 8px; padding: 24px; border: 1px dashed var(--line); border-radius: 8px; background: var(--paper); }
 .not-available strong { font-size: 16px; }
 .not-available p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+/* Read-only admin inspection records (features/admin/components/RecordView). */
+.record-view { display: grid; gap: 0; margin: 0; }
+.record-view-row { display: grid; grid-template-columns: minmax(120px, 220px) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+.record-view-row:first-child { border-top: 0; }
+.record-view-row dt { color: var(--meta); font-size: var(--text-meta); font-weight: 600; }
+.record-view-row dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.record-view-row dd .record-view { padding-left: 12px; border-left: 2px solid var(--line-soft); }
+@media (max-width: 640px) {
+  .record-view-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
