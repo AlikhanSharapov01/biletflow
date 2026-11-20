@@ -17,36 +17,78 @@ as the mobile app (shared colours, type scale and components).
 6. [Backend contracts](#backend-contracts)
 7. [Tests](#tests)
 8. [What is left to do](#what-is-left-to-do)
+9. [Localization](#localization)
+10. [Accessibility checklist](#accessibility-checklist)
+11. [HTTPS handoff](#https-handoff)
+12. [Downloads and idempotency](#downloads-and-idempotency)
+13. [Optional GA4 traffic collection](#optional-ga4-traffic-collection)
 
 ---
 
 ## Status
 
-- **Every screen in the current scope exists.** Screens backed by an existing API are fully
-  wired: sign-in and account, discovery, event pages, free and simulated paid checkout, seat map,
+Checked against `main` at `56a6a3e` on 20 November 2026.
+
+**Wired to the live backend**
+
+- **Every screen in the current scope exists**, and every screen calls a merged backend route.
+  Sign-in and account, discovery, event pages, free and simulated paid checkout, seat map,
   tickets (QR, PDF, delivery, entry confirmation), orders, calendar export, event reports,
-  support, notifications, organizer workspace and event management, check-in history, paid-sales
-  activation, seating setup and the platform admin portal.
-- **Campaigns, promo checkout and refunds** now follow the merged backend contracts, including
-  server pricing, zero-total checkout, campaign reports and refund support-case links.
-- **Analytics, finance and event images** follow the merged contracts (`backend/ANALYTICS_API.md`,
-  `FINANCE_API.md`, `CATALOG_API.md`). The finance tab covers simulated payouts: reserving, history
-  and the demo transitions. The gallery supports upload, cover, reorder and delete, and covers are
-  shown on Discover and the event page. No screen shows "Not available yet" any more (#45).
-- **Admin portal** now includes paid-sales suspension and reinstatement per event, plus read-only
-  payment, failed-payment and refund monitoring with CSV export (`backend/ADMIN_API.md`).
-- **Organizer workspace** can edit the organizer contact profile, and owners can set each member's
-  workspace permissions (profile, staff, finance).
+  support, notifications, organizer workspace and event management, check-in history and CSV,
+  paid-sales activation, seating setup and the platform admin portal (user/event/order/ticket
+  search, user and event suspension, reports, moderation log, settings, CSV exports) all use the
+  final contracts.
+- **Promo codes, campaigns and refunds** follow the live backend (PR #63): server pricing and
+  quotes, zero-total checkout, campaign create/edit/disable, QR preview and download, campaign
+  reports, campaign links that survive sign-in, buyer refund requests that open a support case,
+  organizer refunds and free-ticket cancellation.
+- **Analytics, finance and event images** follow the merged contracts (PR #111,
+  `backend/ANALYTICS_API.md`, `FINANCE_API.md`, `CATALOG_API.md`). The finance tab covers simulated
+  payouts: reserving, history and the demo transitions. The gallery supports upload, cover,
+  reorder and delete, and covers are shown on Discover and the event page. No screen shows
+  "Not available yet" any more (#45).
+- **Admin portal** includes paid-sales suspension and reinstatement per event, plus read-only
+  payment, failed-payment and refund monitoring with CSV export (PR #111, `backend/ADMIN_API.md`).
+- **Organizer workspace** can edit the organizer contact profile, owners can set each member's
+  workspace permissions (profile, staff, finance), and owners can connect the organization to GA4.
 - **Platform settings are read from the server.** Upload size limits for event images and support
   attachments come from `GET /api/v1/settings/public` (`upload_max_bytes`), not from constants.
 - **Notifications** cover every kind the backend sends, including account/event/paid-sales
   moderation and simulated payout status.
-- **Kazakh, Russian and English** interface catalogs, profile language selection and localized
-  dates, money, categories, statuses and notifications are implemented. The shared mobile handoff
-  is [translations/core.tsv](translations/core.tsv).
+- **Downloads, idempotency keys and event labels** (PR #62): one file helper for every binary
+  transfer, an `Idempotency-Key` on holds, confirmations, checkout, activation and payment
+  retries, and readable publication labels on the event page. See
+  [Downloads and idempotency](#downloads-and-idempotency).
+- **Kazakh, Russian and English** interface catalogs with 1,535 shared keys, profile language
+  selection and localized dates, money, plurals, categories, statuses and notifications. See
+  [Localization](#localization).
+- **GA4 through the backend** (#131, PR #143), off unless the backend enables it: consenting
+  people's event views, campaign landings and checkout starts go to `POST /analytics/measurements`
+  (no Google script in the browser), owners connect the organization in the workspace, and the
+  Analytics tab shows a Traffic section. See
+  [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
+- **438 tests in 66 files** and a **Web CI workflow** (type check, tests, production build).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
-  and native modal action dialogs. Browser/screen-reader acceptance and live Docker verification
-  remain outstanding; see the checklists below.
+  and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
+  see the [checklist](#accessibility-checklist).
+
+**Still missing**
+
+| Issue | What is missing on `main` |
+|---|---|
+| #107 | Event gallery: the Details tab uploads one image and previews it, but does not list the gallery, set the cover, reorder or delete images |
+| #108 | Analytics and finance on the final contracts: both tabs still use the planned types; finance payouts and the analytics CSV export (`GET /events/{id}/analytics/export.csv`) are not in the web |
+| #109 | Admin paid-sales suspension and payment, failed-payment and refund monitoring (`backend/ADMIN_API.md`) |
+| #110 | Admin operations: support-case, activation, campaign and sync-conflict search, order and ticket detail, outbox jobs and notification deliveries with retry |
+| #112 | Support uploads do not show the attachment scanning or quarantine status |
+| #49 | HTTPS and security headers: staged in [HTTPS handoff](#https-handoff), not installed |
+| #120 | Browser end-to-end tests |
+| — | GA4 organization connection, funnel measurements and the organizer traffic report from #71 (see [GA4](#optional-ga4-traffic-collection)) |
+
+Open PR #111 (Yershuak, branch `ershuku-web`) covers most of #107 to #109: the event gallery,
+analytics and finance (with payouts) on the final contracts, and admin paid-sales suspension
+with payment and refund monitoring and their CSV exports. It does not add the analytics CSV
+export. Until it is merged, the table above describes `main`.
 
 ---
 
@@ -77,9 +119,11 @@ Open <http://localhost:5173>. Vite forwards `/api/*` and `/health/*` to `VITE_AP
 |---|---|
 | `npm run dev` | Development server with hot reload and the API proxy |
 | `npm run typecheck` | Strict TypeScript check |
-| `npm test` | Vitest unit and component tests |
+| `npm test` | Vitest unit and component tests (`npm run test:watch` to re-run on change) |
 | `npm run build` | Type check, then production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
+| `npm run translations:build` | Regenerate `src/i18n/locales/*.json` from `translations/core.tsv` |
+| `npm run translations:audit` | Report interface text that is not in the catalogs |
 
 In Docker, Caddy serves the built app on <http://localhost:8080>. After changing web code, rebuild
 that image from the repository root: `docker compose up --build -d proxy`. Never commit `dist/`.
@@ -94,21 +138,27 @@ src/
   app/                  App providers and the route table (routes.tsx)
   api/                  One module per backend area (auth, catalog, checkout, tickets, support, admin, …)
     client.ts           The single fetch wrapper: bearer token, one refresh retry, readable errors
+    files.ts            Downloads and uploads (PDF, calendar, CSV, QR images, event images)
     errors.ts           Backend error code → user-facing message
     types/              Request/response types, one file per area
   components/
     ui/                 Shared building blocks: Button, PageHeading, Panel, StatusPill, EventCard,
                         DateTile, EventImage (authorized image loader), Field, Tabs,
-                        Feedback (Loading/ErrorPanel/EmptyState), Toast, NotAvailableYet
+                        Feedback (Loading/ErrorPanel/EmptyState), Toast, ActionDialog, NotAvailableYet
     layout/             AppShell, TopBar, AvatarMenu, phone TabBar, navigation, RequireAuth
   features/             One folder per area, each with its pages, components, hooks and helpers
     auth/  discover/  events/  checkout/  tickets/  orders/  account/
     support/  notifications/  organizer/  admin/
+  i18n/                 t(), useLocale(), language switcher and the generated en/ru/kk catalogs
+  analytics/            Consent-aware traffic measurements sent to the backend (no Google script)
   hooks/                useRequest (load with loading/error/reload), useCountdown,
                         usePublicSettings (platform limits from /settings/public)
   utils/                Formatting (dates, money, seats) and status → pill tone
   styles/               tokens.css (colours, type, spacing), base, layout, components,
                         and one stylesheet per feature; index.css imports them in order
+translations/           core.tsv (shared web/mobile strings) and the audit's reviewed exceptions
+scripts/                build-locales.mjs and audit-strings.mjs
+tests/helpers/          Shared test fixtures
 ```
 
 `features/organizer/event/` holds one file per event tab (Details, Ticket types, Seating, Paid
@@ -123,21 +173,27 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
    in `features/<area>/components/`. Keep files small (roughly under 200 lines) and one component
    per file.
 2. **Call the API through `src/api/`.** Add a function to the area's module that wraps
-   `request()` from `api/client.ts`, and add its types to `api/types/<area>.ts`. Never call `fetch`
-   directly from a component.
+   `request()` from `api/client.ts` (or `files.ts` for downloads and uploads), and add its types
+   to `api/types/<area>.ts`. Never call `fetch` directly from a component. Follow the contract in
+   the matching `backend/*API.md`.
 3. **Load data with `useRequest`** and show `Loading`, `ErrorPanel` and `EmptyState` from
    `components/ui`.
 4. **Show errors with `describeError`.** If the backend returns a new error code, add its message
    to `api/errors.ts`.
 5. **Use the shared components** (`PageHeading`, `Panel`, `StatusPill`, `Button`, fields) instead
    of new markup. Use `utils/status.ts` to pick a pill tone for a ticket, order or event state.
-6. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours
+6. **Translate every visible string.** Add the key with English, Russian and Kazakh wording to
+   `translations/core.tsv`, run `npm run translations:build`, and render it with `t(key)` in a
+   component that calls `useLocale()`. See [Localization](#localization).
+7. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours
    or pixel font sizes. Add feature styles to that feature's stylesheet.
-7. **Register routes** in `app/routes.tsx` (or the feature's `routes.tsx`), and add primary
+8. **Register routes** in `app/routes.tsx` (or the feature's `routes.tsx`), and add primary
    sections to `components/layout/navigation.ts`.
-8. **For an endpoint the backend has not built yet**, call it anyway and check
-   `isNotImplemented(error)` from `api/errors.ts`; when it is true, render `NotAvailableYet`.
-   Never show sample data in its place.
+9. **Planned endpoints.** The backend serves every endpoint the web uses, so new screens should
+   be built on the documented contract (see [Backend contracts](#backend-contracts)). No screen
+   uses the `NotAvailableYet` fallback (`isNotImplemented(error)` in `api/errors.ts`) any more;
+   keep it only for a route the backend does not serve yet. Never show sample data in place of a
+   missing endpoint.
 
 ---
 
@@ -145,20 +201,21 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 
 | Path | Who | Page |
 |---|---|---|
-| `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google |
+| `/` | Anyone | Redirects to `/discover`; so does any unknown path |
+| `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google, language |
 | `/verify-email#token=`, `/reset-password#token=` | Anyone | Pages opened from emailed links |
 | `/discover` | Anyone | Published events with search and category filter |
-| `/events/:eventId` | Anyone | Event details, tickets, seat map, promo code, calendar, report, get help |
+| `/events/:eventId` | Anyone | Event details, publication label, tickets, seat map, promo code, calendar, report, get help |
 | `/c/:token` | Anyone | Campaign QR link: resolves the promo and opens the event |
 | `/tickets`, `/tickets/:ticketId` | Signed in | Tickets: QR, PDF, delivery, admission status, entry confirmation |
-| `/orders`, `/orders/:orderId` | Signed in | Orders: totals, payment status, retry, refunds |
-| `/support`, `/support/new`, `/support/cases/:caseId` | Signed in | Support cases and threads |
+| `/orders`, `/orders/:orderId` | Signed in | Orders: totals, promo, payment status, retry, cancellation, refund requests |
+| `/support`, `/support/new`, `/support/cases/:caseId` | Signed in | Support cases and threads with attachments |
 | `/notifications` | Signed in | Notification inbox |
 | `/organizer` | Signed in | Workspaces, organizer profile, events grouped by status, team, permissions and invitations |
 | `/organizer/events/:eventId` | Signed in | Event management tabs |
 | `/staff-invitations/accept#token=` | Signed in | Join a workspace from an invitation |
-| `/account` | Signed in | Profile, language preference, sessions |
-| `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
+| `/account` | Signed in | Profile, language preference, traffic-analytics consent, sessions |
+| `/admin` → `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
 
 The backend links emails to `/verify-email`, `/reset-password`, `/staff-invitations/accept`,
 `/tickets/:id`, `/events/:id` and `/support/cases/:id` — keep those paths stable. Caddy falls back to
@@ -179,6 +236,7 @@ file by file. The areas integrated last, and what they rely on:
 | Organizer profile and member permissions | `PATCH /organizations/{id}`, `PUT /organizations/{id}/members/{member_id}/permissions` | `catalog_schemas.py`, `organization_api.py` |
 | Admin paid sales | `GET /admin/events/{id}/paid-sales`, `POST …/paid-sales/suspend`, `POST …/paid-sales/reinstate` | `backend/ADMIN_API.md` |
 | Admin payments | `GET /admin/payments`, `/admin/failed-payments`, `/admin/refunds`, `GET /admin/exports/{kind}.csv` | `backend/ADMIN_API.md`, `admin_commerce.py` |
+| Analytics *Traffic* section, workspace GA4 panel, traffic measurements | `GET /events/{id}/analytics/traffic`, `GET`/`PUT /organizations/{id}/ga4-connection`, `POST /analytics/measurements` | `backend/ANALYTICS_API.md`, `ga4_api.py` |
 | Upload limits | `GET /settings/public` | `settings_api.py` |
 
 Rules the client follows for these screens:
@@ -203,6 +261,8 @@ Not built in the web, by design:
   mobile verification app. Offline sync is outside the MVP; the web's check-in history shows the
   sync conflicts it needs.
 
+See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md) for the promo, campaign, checkout and refund review.
+
 ---
 
 ## Tests
@@ -211,68 +271,86 @@ Not built in the web, by design:
 npm test
 ```
 
-There are 421 tests in 63 files, next to the code they test (`*.test.ts(x)`); shared fixtures
-are in `tests/helpers/`. They cover the API client and error messages, formatting, checkout rules
-and components (steps, seating, payment) and the checkout flow hook, seat and promo helpers,
-payment states, the auth context and route guards, QR codes, support threads, the notification
-bell, organizer forms, charts and pagination, admin settings, the request and countdown hooks, the
-app shell, the orders page, campaign workspace, promo redirect/sign-in, refund actions,
-zero-total checkout, accessible dialogs, contrast, all locale catalogs and interface-string auditing,
-the analytics and finance tabs (payout validation, idempotent retries, simulator states), the
-event gallery, organizer profile and member permissions, admin paid-sales and payment monitoring,
-moderation/payout notifications and the public-settings cache.
+There are 438 tests in 66 files (all passing on 20 November 2026), next to the code they test
+(`*.test.ts(x)`); shared fixtures are in `tests/helpers/` and the jsdom setup in `src/test/`.
+They cover the API client, file downloads, idempotency keys and error messages, formatting,
+checkout rules and components (steps, seating, payment) and the checkout flow hook, seat and
+promo helpers, payment states, the auth context and route guards, QR codes, support threads, the
+notification bell, organizer forms, charts and pagination, admin settings, the request and
+countdown hooks, the app shell, the orders page, campaign workspace, promo redirect and sign-in,
+refund actions, zero-total checkout, accessible dialogs, contrast, the analytics and finance tabs
+(payout validation, idempotent retries, simulator states), the event gallery, organizer profile
+and member permissions, admin paid-sales and payment monitoring, moderation/payout notifications,
+the public-settings cache, GA4 measurements (consent, allowed routes, no Google script), the
+traffic section and the GA4 connection panel, all locale catalogs and interface-string auditing.
 
-There are no full browser end-to-end tests yet. Component and source checks do not certify
+There are no browser end-to-end tests yet (#120). Component and source checks do not certify
 screen-reader behaviour or a running deployment.
 
 The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
 that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
 `npm run typecheck`, `npm test` and `npx vite build`.
 
-The fetched main branch also has Adil's `Smoke` workflow: it builds Compose and runs free
-admission, duplicate rejection, paid activation/payment, campaign discount/report and refund
-flows. It was reviewed rather than duplicated. Both scripts passed against the local Compose
-stack on 2026-11-09 over HTTP, despite direct Docker engine access being denied. The proxy was
-serving the current production build. GitHub job status and browser/screen-reader acceptance
-remain unverified; see [the live validation record](CONTRACT_REVIEW.md#live-validation-and-ci).
+The repository's `Smoke` workflow (`.github/workflows/smoke.yml`) builds the Compose stack and
+runs free admission, duplicate rejection, paid activation and payment, campaign discount and
+report, and refund flows through the API. It complements the web tests rather than duplicating
+them. Both smoke scripts passed against the local Compose stack on 2026-11-09 over HTTP. Browser
+and screen-reader acceptance remain unverified; see
+[the live validation record](CONTRACT_REVIEW.md#live-validation-and-ci).
 
 ---
 
 ## What is left to do
 
-- **Browser verification:** API smoke flows have passed; exercise the actual checkout screens,
-  downloads and all locales in a browser. Chrome/Edge automation could not attach successfully
-  in this session, so no browser acceptance is claimed.
+- **Close #107 and #109, finish #108:** PR #111 delivered the gallery (cover, reorder, delete),
+  both tabs on the final contracts with finance payouts, and admin commerce, but the issues are
+  still open. Still missing from #108: the analytics CSV export
+  (`GET /events/{id}/analytics/export.csv`).
+- **Admin operations (#110):** the remaining admin searches (support cases, activations,
+  campaigns, sync conflicts), order and ticket detail, outbox jobs and notification deliveries
+  with audited retry.
+- **Upload scan status (#112):** show pending, clean and rejected scanning states on support
+  attachments.
+- **HTTPS (#49):** install and validate the staged configuration with the operations owner;
+  `proxy/` and the repository-level operations docs belong to `@devops`.
+- **Browser tests:** Playwright runs in CI since #120 (`e2e/`: campaign link, free
+  registration, paid checkout, refund). Downloads and the Kazakh and Russian interface are not
+  covered yet.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.
-- **Live check of the newest screens:** analytics, finance/payouts, the image gallery, admin paid
-  sales and payment monitoring pass typecheck, unit/component tests and the production build, but
-  were not run against a live Compose stack (it was not running on 2026-11-17). Run the smoke
-  scripts and click through these tabs once the stack is up.
-- **Private-event access grants:** needs a backend user lookup before the web can offer a form.
-- **HTTPS (#49):** install and validate the staged configuration with the operations owner. The current
-  directory restriction prevents editing `proxy/` or the repository-level operations docs.
-- **Browser tests:** add full browser automation alongside the existing API smoke coverage.
 
-## Translation setup
+---
 
-The 1,365 shared keys and en/ru/kk wording are in [translations/core.tsv](translations/core.tsv).
-The generated catalogs are `src/i18n/locales/{en,ru,kk}.json`; see the
-[translation handoff](translations/README.md) for Adil and future changes.
+## Localization
 
-```bash
-npm run translations:build
-npm run translations:audit
-```
+The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 
-The audit currently finds no unreviewed interface literals. Reviewed exceptions identify code,
-route/header names, brands, example addresses and formatting. They are not untranslated UI copy.
-User-authored text and unknown future server content remain original data. Known notifications
-are rendered in the currently selected language even if stored in an older profile language.
+- **Source of truth.** [translations/core.tsv](translations/core.tsv) holds every interface
+  string: one row per stable key, with English, Russian and Kazakh wording (1,535 keys). It is
+  shared with the mobile app; see the [translation handoff](translations/README.md).
+- **Generated catalogs.** `npm run translations:build` turns the TSV into
+  `src/i18n/locales/{en,ru,kk}.json`. It fails on a missing language or a duplicate key. Do not
+  edit the JSON files by hand.
+- **Using a string.** Components call `t("area.key", { p0: value })` from `src/i18n` and
+  `useLocale()` so they re-render when the language changes. Placeholders such as `{p0}` must be
+  identical in all three languages. `quantityLabel()` uses `Intl.PluralRules`, including the
+  Russian one/few/many forms; dates, money and categories follow the chosen locale.
+- **Choosing the language.** `LanguageSwitcher` is in the top bar and on the sign-in page. Before
+  sign-in the choice is cached in local storage (falling back to the browser language, then
+  English); after sign-in the profile language takes precedence, and a signed-in switch is
+  applied once the profile update succeeds. Switching keeps edited fields and active holds, and
+  updates the document `lang` and title.
+- **What is not translated.** Request fields, enum and status values sent to the API, URLs, IDs
+  and user-authored text (event descriptions, names, support messages) stay as they are. Known
+  notifications are rendered from their payload in the current language, even if stored in an
+  older profile language; unknown future kinds keep the server's text.
+- **Audit.** `npm run translations:audit` reports interface literals that are not in the catalog
+  and currently finds none. Reviewed exceptions (code, route templates, header names, brands,
+  example addresses, formatting) are listed with a reason in
+  `translations/technical-strings.json`. The same check runs in the test suite, together with
+  catalog parity, placeholders, Russian plurals, persistent language selection, error and
+  notification copy, and unchanged API enum values.
 
-Profile language takes precedence after sign-in; anonymous choices are cached locally. Switching
-language preserves edited fields and active holds. Tests verify catalog parity, placeholders,
-Russian plural forms, persistent language selection, existing error messages, notification copy
-and unchanged API enum values while the interface is translated.
+---
 
 ## Accessibility checklist
 
@@ -312,9 +390,8 @@ The staged [Caddyfile](operations/Caddyfile.demo) and
 [operations guide](docs/operations/https.md) include HTTPS on `DEMO_HOST`, HSTS on HTTPS only,
 CSP, frame restrictions, referrer policy and MIME sniffing protection. They preserve local HTTP
 on port 8080 and allow same-origin APIs, system fonts, inline SVG and blob QR previews.
-They have not been installed or validated in the running proxy.
+They have not been installed or validated in the running proxy (#49).
 The observed local proxy currently sends none of the four non-HSTS security headers.
-
 
 ## Downloads and idempotency
 
