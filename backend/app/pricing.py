@@ -2,7 +2,14 @@
 
 from typing import NamedTuple
 
-# Proposed demonstration default (3%), saved on every order; not a provider tariff.
+# The processing rate is the platform setting `processing_rate_bps`; checkout reads the one in
+# force when the hold was created (platform_settings.effective_setting) and saves it on the
+# order. 300 bps (3%) is the confirmed default that setting starts from, see
+# docs/decisions/0003-confirmed-decisions.md. It is a demonstration rate, not a provider tariff.
+#
+# This constant is only the fallback for callers that pass no rate, such as unit tests of the
+# arithmetic: this module never reads the database. Keep it equal to the setting's default in
+# admin_schemas.SETTINGS.
 PROCESSING_RATE_BPS = 300
 
 

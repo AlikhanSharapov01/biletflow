@@ -24,7 +24,7 @@ Confirmed decisions:
 
 ### 1.1 Planning defaults, explicitly distinguished from confirmed decisions
 
-These make the specification concrete. They are proposed product rules, not claims that the user or SRS already specified them.
+These make the specification concrete. They are proposed product rules, not claims that the user or SRS already specified them. The concrete values the code uses for them, and the offline-entry rule, were confirmed on 19 November 2026 (see the paragraph below the table).
 
 | Topic | Proposed baseline |
 |---|---|
@@ -46,7 +46,7 @@ These make the specification concrete. They are proposed product rules, not clai
 | Offline admission | Provisional verification and queued operations; final admission waits for connectivity under the confirmed signed-in admission rule |
 | Audit retention | Retain academic event/transaction/audit history through the project lifecycle; production retention remains a separate policy decision |
 
-The implementation now uses concrete values for several of these proposals (hold length, fees, confirmation and package lifetimes, payout timing and others). Those values are still proposals. They, and the open offline-entry questions under BF-12, are listed in [decision 0002 — decisions to confirm](decisions/0002-decisions-to-confirm.md) until the project owner confirms them.
+The implementation uses concrete values for several of these rules (hold length, fees, confirmation and package lifetimes, payout timing and others). The project owner confirmed those values, and the offline-entry rules under BF-12, in [decision 0003](decisions/0003-confirmed-decisions.md); the questions as they were asked remain in [decision 0002](decisions/0002-decisions-to-confirm.md). Hold length, processing rate and activation fee are admin platform settings (#70); the confirmed values are their defaults.
 
 ### 1.2 Still excluded
 
@@ -337,7 +337,7 @@ Each numbered feature below is required for the agreed full academic scope. Prov
 
 **Flow:** online sign-in and event preparation -> snapshot download -> network lost -> locally validate ticket plus entry confirmation -> queue provisional check-in -> reconnect -> upload -> server accepts, deduplicates, or flags conflict -> refresh package and counts.
 
-**Boundary:** disconnected scanners cannot know a refund, account logout, or admission made elsewhere after their last synchronization. To preserve the confirmed signed-in admission rule and prevent global duplicate admission, the proposed baseline requires online confirmation before physical entry. Offline preparation, local verification, queuing and synchronization are included; unrestricted disconnected admission is not promised. Allowing provisional physical entry would be a separate product-policy change that accepts stale-state risk. This is not settled: the mobile app currently labels a passing offline scan "Accepted offline", and the sync rules for people already let in are open questions. Both are recorded in [decision 0002](decisions/0002-decisions-to-confirm.md#a-offline-admission-semantics); until it is answered, this paragraph remains the baseline.
+**Boundary:** disconnected scanners cannot know a refund, account logout, or admission made elsewhere after their last synchronization. To preserve the confirmed signed-in admission rule and prevent global duplicate admission, the confirmed baseline requires online confirmation before physical entry. Offline preparation, local verification, queuing and synchronization are included; unrestricted disconnected admission is not promised. Allowing provisional physical entry would be a separate product-policy change that accepts stale-state risk. The project owner confirmed this baseline and the current sync rules on 19 November 2026 in [decision 0003](decisions/0003-confirmed-decisions.md#a1-offline-results-never-let-someone-through-the-door): an offline result means "looks valid, connect to confirm before entry" and is never shown as admitted. The mobile app still labels a passing offline scan "Accepted offline"; #115 changes it.
 
 **Completion checks:** same operation uploaded twice changes counts once; two devices accepting the same ticket produce one central admission and one visible conflict; refunds since snapshot are rejected on sync; expired offline authorization fails closed.
 
@@ -810,7 +810,7 @@ External dependencies to track without blocking simulation-based work:
 1. A chosen provider's merchant sandbox access, documented callback verification, refund success semantics, and test credentials.
 2. A GA4 property and authorized credentials for live advanced reporting; integration must still have deterministic test fixtures and a clear disconnected state.
 3. Email delivery domain/provider credentials for external delivery, plus storage/deployment secrets for shared demonstrations.
-4. Final review of proposed defaults: exact demo fees, refund cutoff, attendee entry-confirmation lifetime, hold limits, offline-package lifetime, and academic retention period. These are configuration/product-review items, not dates in the delivery plan. The values the code uses today, and the open offline-entry questions, are listed in [decision 0002](decisions/0002-decisions-to-confirm.md).
+4. Final review of planning defaults: exact demo fees, refund cutoff, attendee entry-confirmation lifetime, hold limits, offline-package lifetime, and academic retention period. Done: the project owner confirmed the values the code uses, and the offline-entry rules, on 19 November 2026 in [decision 0003](decisions/0003-confirmed-decisions.md).
 
 The first implementation artifact should be the shared schema/state/API contract for identity, events, inventory, orders, tickets and refunds. Those definitions determine how both backend developers and all client developers can work together without incompatible assumptions.
 

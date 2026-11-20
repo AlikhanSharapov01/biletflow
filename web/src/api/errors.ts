@@ -85,7 +85,7 @@ const MESSAGES: Record<string, string> = {
   get payment_required() { return t("api.payment_required"); },
   get paid_sales_inactive() { return t("api.paid_inactive"); },
   get quote_expired() { return t("api.quote_expired"); },
-  // The web client sends no Idempotency-Key header yet, so this is defensive copy.
+  // Checkout and payout requests send an Idempotency-Key; a changed payload under a reused key lands here.
   get idempotency_key_reused() { return t("api.idempotency_conflict"); },
   get payment_not_found() { return t("api.payment_missing"); },
   get confirmation_conflict() { return t("api.confirmation_conflict"); },
@@ -148,6 +148,32 @@ const MESSAGES: Record<string, string> = {
   get setting_version_conflict() { return t("api.setting_conflict"); },
   get setting_out_of_range() { return t("api.setting_range"); },
   get invalid_effective_at() { return t("api.effective_at"); },
+  // Analytics (ANALYTICS_API.md)
+  get analytics_range_too_large() { return t("api.analytics_range"); },
+  get ga4_disabled() { return t("api.ga4_disabled"); },
+  get invalid_analytics_filter() { return t("api.analytics_filter"); },
+  // Event images
+  get image_empty() { return t("api.image_empty"); },
+  get image_limit_reached() { return t("api.image_limit"); },
+  get image_not_found() { return t("api.image_missing"); },
+  get image_rejected() { return t("api.image_rejected"); },
+  get image_too_large() { return t("api.image_too_large"); },
+  get image_upload_expired() { return t("api.image_upload_expired"); },
+  get invalid_image_order() { return t("api.image_order"); },
+  get invalid_content_length() { return t("api.content_length"); },
+  get storage_unavailable() { return t("api.storage_unavailable"); },
+  // Admin paid-sales decisions and commerce lists (ADMIN_API.md)
+  get paid_sales_not_active() { return t("api.paid_sales_not_active"); },
+  get paid_sales_not_suspended() { return t("api.paid_sales_not_suspended"); },
+  get invalid_date_range() { return t("api.invalid_date_range"); },
+  get invalid_filter() { return t("api.invalid_admin_filter"); },
+  // Finance and simulated payouts (FINANCE_API.md)
+  get insufficient_payable_balance() { return t("api.insufficient_balance"); },
+  get invalid_payout_transition() { return t("api.payout_transition"); },
+  get payout_environment_mismatch() { return t("api.payout_environment"); },
+  get payout_not_found() { return t("api.payout_missing"); },
+  get payout_not_yet_eligible() { return t("api.payout_not_eligible"); },
+  get payout_profile_not_verified() { return t("api.payout_profile"); },
 };
 
 export function failureMessage(code: string | undefined, status: number): string {

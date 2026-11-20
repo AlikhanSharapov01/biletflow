@@ -2,7 +2,9 @@
 // complete, valid object mirroring the backend schema; tests override only the
 // fields they care about.
 import { vi } from "vitest";
-import type { Allocation, EventView, Hold, Order, OrderItem, Profile, TicketType } from "../../src/api/types";
+import type { Allocation, EventImage, EventView, Hold, Order, OrderItem, Profile, TicketType } from "../../src/api/types";
+import type { EventAnalytics } from "../../src/api/types/analytics";
+import type { EventFinance, Payout } from "../../src/api/types/finance";
 import type { EventSeat } from "../../src/api/types/checkout";
 import type { PaymentSummary } from "../../src/api/types/payments";
 import type { AuthContextValue } from "../../src/features/auth/AuthContext";
@@ -35,6 +37,8 @@ export function makeEvent(overrides: Partial<EventView> = {}): EventView {
     admission_closes_at: "2099-11-01T21:00:00Z",
     refund_allowed: false,
     refund_cutoff_at: null,
+    images: [],
+    cover_image_url: null,
     ...overrides,
   };
 }
@@ -186,4 +190,58 @@ export function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => voi
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+export function makeImage(overrides: Partial<EventImage> = {}): EventImage {
+  return {
+    id: "img1",
+    url: "/api/v1/events/e1/images/img1/content",
+    alt_text: "Main stage",
+    sort_order: 0,
+    is_cover: true,
+    mime_type: "image/png",
+    size_bytes: 2048,
+    ...overrides,
+  };
+}
+
+export function makeAnalytics(overrides: Partial<EventAnalytics> = {}): EventAnalytics {
+  return {
+    event_id: "e1",
+    timezone: "Asia/Almaty",
+    generated_at: "2026-11-09T10:00:00Z",
+    filters: { from: null, to: null, ticket_type_id: null, campaign_id: null },
+    definitions: {},
+    inventory: { capacity: 100, sold: 25, held: 3, expired_held: 0, available: 72, blocked: 0, refund_pending: 0, sold_percentage: 25 },
+    revenue: {
+      currency: "KZT", environments: ["simulation"], simulated: true,
+      gross_minor: 1_000_000, discount_minor: 100_000, fulfilled_collected_minor: 900_000, collected_minor: 900_000,
+      charged_fees_minor: 27_000, fee_reversals_minor: 0, fees_minor: 27_000, refunds_minor: 0, pending_refunds_minor: 0, net_minor: 873_000,
+    },
+    attendance: { issued: 25, checked_in: 10, not_checked_in: 15, not_checked_in_label: "not_yet_checked_in", percentage: 40 },
+    by_ticket_type: [{ ticket_type_id: "t1", name: "Standard", capacity: 100, sold: 25, checked_in: 10, revenue_minor: 873_000 }],
+    by_campaign: [],
+    ...overrides,
+  };
+}
+
+export function makeFinance(overrides: Partial<EventFinance> = {}): EventFinance {
+  return {
+    event_id: "e1", currency: "KZT", simulated: true, simulation_only: true, environments: ["simulation"],
+    gross_minor: 1_200_000, discount_minor: 0, collected_minor: 1_200_000, fulfilled_collected_minor: 1_200_000,
+    charged_fees_minor: 36_000, fee_reversals_minor: 0, fees_minor: 36_000, refunds_minor: 0, pending_refunds_minor: 0,
+    activation_charges_minor: 500_000, activation_refunds_minor: 0, pending_activation_refunds_minor: 0,
+    net_minor: 664_000, balance_minor: 664_000, reserved_minor: 0, sent_minor: 0, estimated_payout_minor: 664_000,
+    payout_eligible_at: "2026-11-01T21:00:00Z", generated_at: "2026-11-09T10:00:00Z",
+    ...overrides,
+  };
+}
+
+export function makePayout(overrides: Partial<Payout> = {}): Payout {
+  return {
+    id: "p1", event_id: "e1", organization_id: "o1", payout_profile_id: "pp1", requested_by_user_id: "u1",
+    amount_minor: 664_000, currency: "KZT", environment: "simulation", simulated: true,
+    status: "pending", transfer_status: "pending", adjustment_minor: 0, sent_at: null, created_at: "2026-11-09T10:00:00Z",
+    ...overrides,
+  };
 }

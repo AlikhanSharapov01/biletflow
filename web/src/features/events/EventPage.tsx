@@ -1,7 +1,7 @@
 import { categoryName, t, useLocale } from "../../i18n";
 import { useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "../../api/catalog";
-import { ErrorPanel, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
+import { ErrorPanel, EventImage, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { publicationTone } from "../../utils/status";
@@ -52,6 +52,13 @@ export function EventPage() {
         subtitle={`${dateLabel(event.starts_at)} – ${dateLabel(event.ends_at)}${venue ? ` · ${venue.name} · ${venue.city}` : ""}`}
         actions={<StatusPill tone={publicationTone(event.publication_state)}>{{ draft: t("common.draft"), published: t("common.published"), unpublished: t("common.unpublished"), cancelled: t("common.cancelled") }[event.publication_state]}</StatusPill>}
       />
+      {event.images.length > 0 ? (
+        <div className="event-gallery">
+          {event.images.map((image) => (
+            <EventImage key={image.id} className={image.is_cover ? "event-hero" : "event-gallery-image"} src={image.url} alt={image.alt_text} />
+          ))}
+        </div>
+      ) : null}
       <div className="content-grid">
         <Panel>
           <PanelHeading title={t("event.about")} />

@@ -4,7 +4,8 @@ import { describeError } from "../../../api/errors";
 import { sendMessage, uploadAttachment } from "../../../api/support";
 import type { SupportMessage } from "../../../api/types/support";
 import { Button, FormMessage, TextAreaField } from "../../../components/ui";
-import { ATTACHMENT_ACCEPT, MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_BYTES, attachmentProblem, fileSizeLabel } from "../attachments";
+import { usePublicSettings } from "../../../hooks/usePublicSettings";
+import { ATTACHMENT_ACCEPT, MAX_ATTACHMENTS_PER_MESSAGE, attachmentProblem, fileSizeLabel } from "../attachments";
 import { createRetryKeys } from "../retryKey";
 import { PendingFiles, type PendingFile } from "./PendingFiles";
 
@@ -24,6 +25,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const keys = useMemo(() => createRetryKeys(), []);
+  const maxBytes = usePublicSettings()?.upload_max_bytes ?? null;
   const picker = useRef<HTMLInputElement | null>(null);
   const uploading = files.some((file) => file.status === "uploading");
   const ready = files.filter((file) => file.status === "ready");
@@ -39,7 +41,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
     if (picked.length > room) setError(t("support.max_files", { p0: MAX_ATTACHMENTS_PER_MESSAGE }));
     for (const file of picked.slice(0, Math.max(0, room))) {
       const localId = crypto.randomUUID();
-      const problem = attachmentProblem(file);
+      const problem = attachmentProblem(file, maxBytes);
       setFiles((current) => [
         ...current,
         { localId, name: file.name, size: file.size, status: problem ? "failed" : "uploading", error: problem ?? undefined },
@@ -85,7 +87,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
           {busy ? t("common.sending") : uploading ? t("support.uploading_files") : t("support.send")}
         </Button>
         <Button onClick={() => picker.current?.click()} disabled={busy}>{t("support.attach_file")}{" "}</Button>
-        <span className="field-note">{t("support.file_types_hint")}{" "}{fileSizeLabel(MAX_ATTACHMENT_BYTES)}{" "}{t("word.each")}</span>
+        {maxBytes !== null ? <span className="field-note">{t("support.file_types_hint")}{" "}{fileSizeLabel(maxBytes)}{" "}{t("word.each")}</span> : null}
         <input ref={picker} type="file" accept={ATTACHMENT_ACCEPT} multiple hidden onChange={handlePick} />
       </div>
     </form>

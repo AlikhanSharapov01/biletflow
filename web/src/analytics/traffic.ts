@@ -1,57 +1,41 @@
-// Only public route templates reach GA4. Never send IDs, search terms, tokens,
-// query strings, hashes, user details, or the browser's original referrer.
-export function trafficPath(path: string): string | null {
-  if (path === "/discover" || path === "/") return "/discover";
-  if (/^\/events\/[^/]+\/?$/.test(path)) return "/events/event";
-  return null;
+import { postMeasurement } from "../api/analytics";
+import type { Profile } from "../api/types/auth";
+import type { MeasurementName } from "../api/types/analytics";
+
+// Traffic measurements go through the backend's shared contract
+// (POST /analytics/measurements, backend/ANALYTICS_API.md), never from the
+// browser to Google. The server checks consent again, keeps only allowlisted
+// references and sends them to GA4 itself, so no Google script is loaded here.
+
+// The public route templates the backend keeps for each measurement; it
+// reduces every other path anyway.
+const PAGE_PATH: Record<MeasurementName, string> = {
+  event_view: "/events/event",
+  checkout_start: "/events/event",
+  campaign_landing: "/c/campaign",
+};
+
+// The event on a public event page (/events/:eventId); null on every other
+// route, so account, order, ticket, support, auth and admin pages are never measured.
+export function eventIdFromPath(path: string): string | null {
+  const match = /^\/events\/([^/]+)\/?$/.exec(path);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
-type AnalyticsWindow = Window & {
-  dataLayer?: unknown[];
-  [key: `ga-disable-${string}`]: boolean;
-};
-let initialized = false;
-let lastLocation = "";
-
-export function trackTraffic(path: string, consent: boolean, measurementId: string): void {
-  if (!/^G-[A-Z0-9]+$/.test(measurementId)) return;
-  const target = window as unknown as AnalyticsWindow;
-  target[`ga-disable-${measurementId}`] = !consent;
-  if (!consent) {
-    lastLocation = "";
-    return;
-  }
-  const safePath = trafficPath(path);
-  if (!safePath) return;
-  const location = `${window.location.origin}${safePath}`;
-  const command = (...args: unknown[]) => {
-    // gtag expects Arguments objects in dataLayer.
-    function push() { target.dataLayer!.push(arguments); }
-    Reflect.apply(push, undefined, args);
-  };
-  if (!initialized) {
-    target.dataLayer ??= [];
-    command("js", new Date());
-    command("config", measurementId, {
-      send_page_view: false,
-      page_location: location,
-      page_referrer: "",
-      page_title: "BiletFlow",
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-    });
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    document.head.append(script);
-    initialized = true;
-  }
-  if (location === lastLocation) return;
-  command("event", "page_view", {
-    send_to: measurementId,
-    page_location: location,
-    page_referrer: "",
-    page_title: safePath === "/discover" ? "Discover events" : "Event details",
-  });
-  lastLocation = location;
+// One measurement, only for a signed-in person who allowed traffic analytics
+// in Account. A refusal or failure never affects the page: analytics is optional.
+export function measure(profile: Profile | null | undefined, name: MeasurementName, eventId: string): void {
+  if (!profile?.analytics_consent || !eventId) return;
+  void postMeasurement({
+    name,
+    analytics_event_id: crypto.randomUUID(),
+    event_id: eventId,
+    platform: "web",
+    page_path: PAGE_PATH[name],
+  }).catch(() => undefined);
 }

@@ -6,6 +6,7 @@ import { AdminEventsPage } from "./pages/AdminEventsPage";
 import { AdminExportsPage } from "./pages/AdminExportsPage";
 import { AdminModerationPage } from "./pages/AdminModerationPage";
 import { AdminOrdersPage } from "./pages/AdminOrdersPage";
+import { AdminPaymentsPage } from "./pages/AdminPaymentsPage";
 import { AdminReportsPage } from "./pages/AdminReportsPage";
 import { AdminSettingsPage } from "./pages/AdminSettingsPage";
 import { AdminTicketsPage } from "./pages/AdminTicketsPage";
@@ -25,6 +26,7 @@ export const adminRoutes = (
         <Route path="events" element={<AdminEventsPage />} />
         <Route path="orders" element={<AdminOrdersPage />} />
         <Route path="tickets" element={<AdminTicketsPage />} />
+        <Route path="payments" element={<AdminPaymentsPage />} />
         <Route path="reports" element={<AdminReportsPage />} />
         <Route path="moderation" element={<AdminModerationPage />} />
         <Route path="settings" element={<AdminSettingsPage />} />

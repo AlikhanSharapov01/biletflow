@@ -61,6 +61,7 @@ export function DiscoverPage() {
                 <EventCard
                   key={event.id}
                   art={{ index, letter: categoryLabel.slice(0, 1) }}
+                  cover={event.cover_image_url ? { src: event.cover_image_url, alt: event.images[0]?.alt_text ?? event.title } : null}
                   eyebrow={categoryLabel}
                   title={event.title}
                   to={path}

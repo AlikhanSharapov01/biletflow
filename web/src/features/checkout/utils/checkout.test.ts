@@ -31,6 +31,8 @@ const event: EventView = {
   admission_closes_at: "2026-11-01T21:00:00Z",
   refund_allowed: false,
   refund_cutoff_at: null,
+  images: [],
+  cover_image_url: null,
 };
 
 function type(overrides: Partial<TicketType>): TicketType {

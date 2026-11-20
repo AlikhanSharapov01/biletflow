@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
-import { downloadAnalyticsCsv, getAnalytics, getSalesSeries } from "@/api/analytics";
+import { downloadAnalyticsCsv, getAnalytics, getSalesSeries, getTraffic } from "@/api/analytics";
 import { ApiError } from "@/api/errors";
 import { listTicketTypes } from "@/api/catalog";
 import type { EventAnalytics, SalesSeries } from "@/api/types/analytics";
@@ -63,6 +63,18 @@ describe("AnalyticsTab", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(listTicketTypes).mockResolvedValue([]);
+    jest.mocked(getTraffic).mockResolvedValue({
+      event_id: "event-1",
+      source: "ga4",
+      state: "disabled",
+      error: null,
+      timezone: "Asia/Almaty",
+      range: { from: "2026-10-22", to: "2026-11-19" },
+      fetched_at: null,
+      expires_at: null,
+      metrics: null,
+      definitions: {},
+    });
   });
 
   it("shows the server's figures, including sales no campaign applies to", async () => {

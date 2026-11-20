@@ -37,7 +37,11 @@ export interface CampaignReport {
   discount_minor: number;
   collected_minor: number;
   refunds_minor: number;
+  // Refunds owed but not yet completed (requested, pending or failed).
+  pending_refunds_minor: number;
   fees_minor: number;
   net_minor: number;
+  // Metric name -> the server's own definition text (same definitions as the event analytics).
+  definitions: Record<string, string>;
   generated_at: string;
 }

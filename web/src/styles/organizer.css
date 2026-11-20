@@ -84,9 +84,26 @@
 .upload-area strong { color: var(--green); font-size: var(--text-body-sm); }
 .upload-area span { color: var(--meta); font-size: var(--text-meta); }
 .upload-area.disabled { border-color: var(--line); cursor: not-allowed; opacity: .6; }
-.event-image-preview { width: 100%; max-height: 260px; border-radius: var(--radius-panel); object-fit: cover; }
 
 @media (max-width: 520px) {
   .filter-wide { grid-column: auto; }
   .seat { width: 26px; height: 26px; font-size: 11px; }
+}
+
+/* Event gallery (details tab) and the finance/payout panels. */
+.image-gallery { display: grid; gap: 10px; margin: 0 0 14px; padding: 0; list-style: none; }
+.image-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-panel); }
+.image-thumb { width: 96px; height: 64px; border-radius: var(--radius-input); object-fit: cover; background: var(--line-soft); }
+.image-copy { display: grid; min-width: 0; gap: 4px; }
+.image-copy strong { overflow-wrap: anywhere; font-size: var(--text-body-sm); }
+.image-copy span { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--meta); font-size: var(--text-meta); }
+.image-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.finance-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--gap); }
+.finance-group-title { margin-bottom: 6px; color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.payout-form { margin-bottom: 14px; }
+
+@media (max-width: 520px) {
+  .image-row { grid-template-columns: 72px minmax(0, 1fr); }
+  .image-thumb { width: 72px; height: 48px; }
+  .image-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }

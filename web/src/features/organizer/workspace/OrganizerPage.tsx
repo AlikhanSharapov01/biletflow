@@ -8,6 +8,8 @@ import { useAuth } from "../../auth/AuthContext";
 import { CreateEventPanel } from "./CreateEventPanel";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 import { EventsPanel } from "./EventsPanel";
+import { Ga4ConnectionPanel } from "./Ga4ConnectionPanel";
+import { OrganizationProfilePanel } from "./OrganizationProfilePanel";
 import { TeamPanel } from "./TeamPanel";
 
 function OrganizerNote({ eyebrow, title, children }: { eyebrow: string; title: string; children: string }) {
@@ -85,7 +87,10 @@ export function OrganizerPage() {
             </div>
             <div className="stack">
               <OrganizerNote eyebrow={t("org.first_step")} title={t("org.details_intro")}>{t("org.create_event_intro")}</OrganizerNote>
+              <OrganizationProfilePanel organization={organization} onSaved={() => base.reload()} />
               <TeamPanel organization={organization} isOwner={isOwner} />
+              {/* The GA4 switch is the owner's alone; the server refuses anyone else. */}
+              {isOwner ? <Ga4ConnectionPanel organization={organization} /> : null}
             </div>
           </div>
         </>

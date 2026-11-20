@@ -4,9 +4,12 @@
 
 import type { CheckInOutcome, ReversalResult } from "@/api/types/scanner";
 import { formatEventMoment } from "@/utils/eventTime";
+import { seatLabel } from "@/utils/format";
 import { t } from "@/i18n";
 
-export type Tone = "admitted" | "warning" | "rejected" | "offline";
+// "pending": an offline scan that passed local checks. It never admits
+// anyone (decision 0003, A1), so it must not look or feel like "admitted".
+export type Tone = "admitted" | "pending" | "warning" | "rejected" | "offline";
 
 export type OutcomeView = {
   tone: Tone;
@@ -104,23 +107,15 @@ const REJECTIONS: Record<string, Omit<OutcomeView, "tone" | "icon">> = {
 export function describeOutcome(outcome: CheckInOutcome, timeZone: string): OutcomeView {
   if (outcome.kind === "admitted") {
     const lines = [outcome.attendee_name, outcome.ticket_type_name];
-    if (outcome.seat) {
-      lines.push(
-        `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
-      );
-    }
+    if (outcome.seat) lines.push(seatLabel(outcome.seat));
     return { tone: "admitted", icon: "✓", title: t("org.admitted"), lines };
   }
 
   if (outcome.kind === "queued") {
     const lines = [outcome.attendee_name, outcome.ticket_type_name];
-    if (outcome.seat) {
-      lines.push(
-        `Section ${outcome.seat.section_label} · Row ${outcome.seat.row_label} · Seat ${outcome.seat.seat_label}`
-      );
-    }
-    lines.push("Provisional until this phone syncs.");
-    return { tone: "admitted", icon: "✓", title: t("mobile.scan.accepted_offline"), lines };
+    if (outcome.seat) lines.push(seatLabel(outcome.seat));
+    lines.push(t("mobile.scan.not_admitted_yet"));
+    return { tone: "pending", icon: "…", title: t("mobile.scan.looks_valid_offline"), lines };
   }
 
   if (outcome.kind === "network") {

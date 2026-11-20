@@ -55,18 +55,18 @@ upload were checked against the API but not clicked through on screen.
 | Free registration and simulated paid checkout | Done. Checkout and the order screen share one payment panel (#55); the "held for N minutes" line reads the platform hold time from `GET /settings/public` |
 | Tickets: QR, PDF (share sheet), delivery, admission status, entry confirmation | Done |
 | Orders: totals, payment retry, cancel registration, refund request | Done |
-| Support cases: list, new case, thread, attachments, staff actions | Done, except the attachment check status ("Checking file…", "Ready", "Blocked"), which is #116 |
+| Support cases: list, new case, thread, attachments ("Checking file…" while the virus scan is pending, then Ready or Blocked), staff actions | Done (#116) |
 | Notifications: inbox and unread badge in the top bar; moderation notices open the organizer's event or the account | Done |
-| Account: profile, language, sessions, sign out everywhere | Done |
-| Organizer: workspaces, team, invitations, create event, all 11 event tabs (campaigns, analytics with CSV export, finance and payouts, gallery, offline sync conflicts) | Done |
-| Platform admin portal (9 sections) | Done, shown only to platform admins: payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales (#113). Admin search with read-only details and the jobs and deliveries list are not in the app yet (#116) |
+| Account: profile, language, traffic-analytics consent, sessions, sign out everywhere | Done |
+| Organizer: workspaces, team, invitations, create event, all 11 event tabs (campaigns, analytics with CSV export and GA4 traffic, finance and payouts, gallery, offline sync conflicts) | Done |
+| Platform admin portal (11 sections) | Done, shown only to platform admins: payments, failed payments and refunds with exact filters and CSV export, and suspend/reinstate of an event's paid sales (#113); read-only inspection of support cases, orders, activations, campaigns and sync conflicts, and jobs and deliveries with retry (#116) |
 | Scanner: scan, admit, undo, counts | Done |
 | Scanner: entry confirmation (second QR or 8-digit code) | Done |
 | Scanner: manual guest search | Done |
-| Offline scanning (bonus) | Works for QR scans, but the result screen is wrong: a passing offline scan shows "Accepted offline" in the green admitted style, which [decision 0003](../docs/decisions/0003-confirmed-decisions.md) rules out. #115 changes it, see [How scanning works](#how-scanning-works) |
+| Offline scanning (bonus) | Done for QR scans. A passing offline scan reads "Looks valid – connect to confirm entry" and never lets anyone in ([decision 0003](../docs/decisions/0003-confirmed-decisions.md), #115), see [How scanning works](#how-scanning-works) |
 | Installable builds: EAS profiles, icon, splash | Done for Android (local release build tested on an emulator). No iOS build has been made: it needs the team's Expo and Apple accounts |
 | Google sign-in | Web only (decision 0001) |
-| Kazakh, Russian and English | Done (#52): the web's catalogs plus app-only text; Account → Language. A few scanner lines built in code are still English (see [What is left to do](#what-is-left-to-do)) |
+| Kazakh, Russian and English | Done (#52, #133): the web's catalogs plus app-only text; Account → Language |
 
 Nothing here has been checked on a real phone yet (#53).
 
@@ -222,7 +222,7 @@ npm test
 ```
 
 Jest with the `jest-expo` preset and React Native Testing Library. Tests sit next to the code
-(`*.test.ts(x)`): **59 files, 238 tests**, all passing on 19 November 2026. They cover:
+(`*.test.ts(x)`): **66 files, 277 tests**, all passing on 20 November 2026. They cover:
 
 - **Helpers ported from the web, with the web's tests:** checkout, seats, payment, promo, the
   hold time, ticket status, order summary, support threads, notification targets, organizer
@@ -241,8 +241,8 @@ Jest with the `jest-expo` preset and React Native Testing Library. Tests sit nex
 - **Shared UI and API:** list rows, the QR code drawing, date helpers and idempotency keys.
 - **Translations:** checkout, finance and the scanner's error results rendered in Kazakh and
   Russian with no English left; the web's catalogs kept identical; and `scripts/audit-strings.js`,
-  which fails when new interface text is not translated. The offline "Accepted offline" result is
-  not in the Kazakh/Russian check, and the audit does not see text added with `lines.push(...)`.
+  which fails when new interface text is not translated. The offline result and the seat line are
+  in the Kazakh/Russian check, and the audit also catches text added with `lines.push(...)` (#133).
 
 `src/i18n/catalogs.test.ts` compares the app's catalogs with `web/src/i18n/locales/`, so run the
 tests from a full checkout of the repository, not from a copy of `mobile/` alone.
@@ -378,13 +378,10 @@ shortcuts on the Tickets tab and the bell).
    **What an offline result means:** [decision 0003](../docs/decisions/0003-confirmed-decisions.md)
    (19 November 2026) keeps the baseline. An offline scan that passes means "looks valid, connect
    to confirm before entry". It never lets anyone through the door by itself and must not look
-   like an admission.
-
-   **The app does not follow this yet.** A passing offline scan shows **"Accepted offline"** with
-   the green tick, the admitted style and the success vibration, plus the line "Provisional until
-   this phone syncs." Staff could read that as admission. #115 changes this screen to a neutral
-   "looks valid, connect to confirm entry" result, with kk/ru/en text and a test. Until then, do
-   not let anyone in on an offline result.
+   like an admission. The app shows it as "Looks valid – connect to confirm entry" on a neutral
+   slate panel with a warning vibration, never the green admitted panel or the success vibration,
+   and offers no *Undo* (#115). Entry is confirmed only once the phone is back online and the scan
+   syncs.
 
 Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is in
 [`backend/ADMISSION_API.md`](../backend/ADMISSION_API.md).
@@ -393,12 +390,6 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Offline result screen (#115):** replace "Accepted offline" in the admitted style with a
-  neutral "looks valid, connect to confirm entry" result, as decision 0003 requires, with
-  kk/ru/en text and a test for the screen.
-- **Admin operations and upload status (#116):** admin search with read-only details, and the
-  jobs and deliveries list with a retry button; support attachments showing "Checking file…",
-  "Ready" or "Blocked", polling while pending. The backend for both is merged (PR #104).
 - **Real iPhone and Android checks (#53):** the camera (ticket QR, entry confirmation QR,
   campaign QR rejected as "Not a ticket"), the share sheet (PDF, calendar, CSV), document picker,
   clipboard, deep links and sign-in after the app was in the background have been tested with
@@ -411,9 +402,6 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
   gallery upload were checked against the API (#51) but not yet on a simulator or emulator.
 - **Translation review (#52):** the app-only Kazakh and Russian text
   (`src/i18n/locales/mobile/`) was written by the developer, not a native speaker; have it read.
-  A few scanner strings built in code are still English in every language: the seat line
-  ("Section · Row · Seat"), "Provisional until this phone syncs.", "Confirmed after retry." and
-  the conflict/rejected counts in the sync summary.
 - **Optional clean-up:** renaming the session kind `scanner` to something like `native` in the
   backend (decision 0001).
 - **Out of scope for now (decision 0001):** push notifications, Google sign-in on mobile, offline

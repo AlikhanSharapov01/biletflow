@@ -1,6 +1,8 @@
 // Mirrors backend/app/admin_schemas.py and the search columns in
 // admin_service.py (backend/ADMIN_API.md).
-import type { Page } from "./admission";
+import type { Page, SyncConflict } from "./admission";
+import type { CampaignReport } from "./campaigns";
+import type { Order } from "./checkout";
 
 export type { Page };
 
@@ -161,4 +163,158 @@ export interface AdminSearch {
   status?: string;
   limit: number;
   offset: number;
+}
+
+// ---- Operational inspection and background work (ADMIN_API.md, #72/#73).
+// Read-only views; only jobs and deliveries have an action (retry).
+
+export type InspectKind = "support-cases" | "activations" | "campaigns" | "sync-conflicts";
+export type WorkKind = "jobs" | "notification-deliveries";
+
+// The filters the app offers; each view ignores what it does not take.
+export interface OpsFilters {
+  q?: string;
+  status?: string;
+  event_id?: string;
+}
+
+export interface AdminSupportCaseRow {
+  id: string;
+  kind: "attendee" | "organizer_platform";
+  category: string;
+  subject: string;
+  status: string;
+  requester_user_id: string;
+  organization_id: string | null;
+  event_id: string | null;
+  order_id: string | null;
+  ticket_id: string | null;
+  assigned_to_user_id: string | null;
+  escalated_at: string | null;
+  resolved_at: string | null;
+  last_seq: number;
+  created_at: string;
+  updated_at: string;
+  platform_access: boolean;
+}
+
+export interface AdminCaseChange {
+  seq: number;
+  change_kind: string;
+  before_value: string | null;
+  after_value: string | null;
+  reason: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+}
+
+export interface AdminSupportCaseDetail {
+  case: AdminSupportCaseRow;
+  viewer_roles: string[];
+  message_count: number;
+  history: AdminCaseChange[];
+  order: { id: string; status: string } | null;
+  ticket: { id: string; status: string } | null;
+}
+
+export interface AdminOrderDetail {
+  order: Order;
+  support_cases: Array<{ id: string; kind: string; category: string; status: string; escalated_at: string | null; created_at: string }>;
+  deliveries: Array<{ id: string; ticket_id: string | null; status: string; attempt_count: number; last_error: string | null; created_at: string; completed_at: string | null }>;
+  audit: Array<{ id: string; action: string; entity_type: string; entity_id: string; actor_user_id: string | null; service_actor: string | null; created_at: string }>;
+}
+
+export interface AdminActivationRow {
+  id: string;
+  event_id: string;
+  event_title: string;
+  organization_id: string;
+  status: string;
+  activation_fee_minor: number;
+  currency: string;
+  paid_attempt_id: string | null;
+  activated_at: string | null;
+  suspension_reason: string | null;
+  created_at: string;
+}
+
+export interface AdminCampaignRow {
+  id: string;
+  event_id: string;
+  organization_id: string;
+  name: string;
+  discount_kind: "percentage" | "fixed";
+  percentage_bps: number | null;
+  fixed_minor: number | null;
+  starts_at: string;
+  ends_at: string;
+  max_redemptions: number | null;
+  is_enabled: boolean;
+  created_at: string;
+  redemptions: number;
+  active_reservations: number;
+}
+
+export interface AdminCampaignDetail {
+  campaign: AdminCampaignRow;
+  code: string | null;
+  report: CampaignReport;
+  redemptions: Array<{ order_id: string; discount_minor: number; created_at: string }>;
+  reservations: Record<string, number>;
+}
+
+export interface AdminSyncConflictRow {
+  id: string;
+  status: "open" | "resolved";
+  reason: string;
+  event_id: string;
+  organization_id: string;
+  ticket_id: string | null;
+  offline_operation_id: string;
+  operation_kind: string;
+  device_id: string;
+  existing_check_in_id: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by_user_id: string | null;
+}
+
+export type AdminSyncConflictDetail = SyncConflict & { organization_id: string };
+
+export interface AdminJob {
+  id: string;
+  kind: string;
+  status: "pending" | "leased" | "done" | "dead";
+  attempt_count: number;
+  max_attempts: number | null;
+  admin_retry_count: number;
+  last_error: string | null;
+  available_at: string;
+  lease_until: string | null;
+  created_at: string;
+  completed_at: string | null;
+  event_id: string | null;
+  context: Record<string, string | number>;
+  retryable: boolean;
+}
+
+export interface AdminDelivery {
+  id: string;
+  notification_id: string;
+  kind: string;
+  channel: "in_app" | "email";
+  status: "pending" | "sent" | "failed";
+  attempt_count: number;
+  max_attempts: number | null;
+  admin_retry_count: number;
+  last_error: string | null;
+  next_attempt_at: string | null;
+  sent_at: string | null;
+  provider_message_id: string | null;
+  created_at: string;
+  recipient_user_id: string;
+  event_id: string | null;
+  // `id` is null for account notices (they point at no record).
+  target: { type: string; id: string | null } | null;
+  retryable: boolean;
 }

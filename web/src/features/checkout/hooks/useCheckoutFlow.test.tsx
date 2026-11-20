@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { postMeasurement } from "../../../api/analytics";
 import { confirmHold, createHold, releaseHold, startCheckout } from "../../../api/checkout";
 import { ApiError } from "../../../api/errors";
 import type { Profile, TicketType } from "../../../api/types";
@@ -9,6 +10,7 @@ import type { PromoPreview } from "../../../api/types/promo";
 import { makeAllocation, makeEvent, makeHold, makeOrder, makePayment, makeProfile, makeTicketType } from "../../../../tests/helpers/fixtures";
 import { useCheckoutFlow } from "./useCheckoutFlow";
 
+vi.mock("../../../api/analytics", () => ({ postMeasurement: vi.fn(async () => ({ status: "accepted", reason: null })) }));
 vi.mock("../../../api/checkout", () => ({
   createHold: vi.fn(),
   releaseHold: vi.fn(),
@@ -74,6 +76,19 @@ describe("useCheckoutFlow reserve", () => {
     });
     expect(result.current.flow.paid).toBe(false);
     expect(result.current.flow.busy).toBe(false);
+  });
+
+  it("reports the checkout start through the backend only for a consenting buyer", async () => {
+    createHoldMock.mockResolvedValue(makeHold());
+    const quiet = renderFlow();
+    await act(() => quiet.result.current.flow.reserve([{ ticket_type_id: "free", quantity: 1 }]));
+    expect(postMeasurement).not.toHaveBeenCalled();
+
+    const consenting = renderFlow({ profile: makeProfile({ analytics_consent: true }) });
+    await act(() => consenting.result.current.flow.reserve([{ ticket_type_id: "free", quantity: 1 }]));
+    expect(postMeasurement).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(postMeasurement).mock.calls[0]![0]).toMatchObject({ name: "checkout_start", event_id: "e1", platform: "web", page_path: "/events/event" });
+    vi.mocked(postMeasurement).mockClear();
   });
 
   it("sends an accepted promo code with the hold", async () => {
