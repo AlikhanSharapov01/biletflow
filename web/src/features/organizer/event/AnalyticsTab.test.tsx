@@ -7,7 +7,7 @@ import { ApiError } from "../../../api/errors";
 import { makeAnalytics, makeEvent, makeTicketType } from "../../../../tests/helpers/fixtures";
 import { AnalyticsTab } from "./AnalyticsTab";
 
-vi.mock("../../../api/analytics", () => ({ getAnalytics: vi.fn(), getSalesSeries: vi.fn() }));
+vi.mock("../../../api/analytics", () => ({ getAnalytics: vi.fn(), getSalesSeries: vi.fn(), getTraffic: vi.fn() }));
 vi.mock("../../../api/campaigns", () => ({ listCampaigns: vi.fn() }));
 vi.mock("../../../api/catalog", () => ({ listTicketTypes: vi.fn() }));
 
@@ -23,6 +23,10 @@ beforeEach(() => {
   vi.mocked(api.getSalesSeries).mockResolvedValue(series);
   vi.mocked(listTicketTypes).mockResolvedValue([makeTicketType()]);
   vi.mocked(listCampaigns).mockResolvedValue([]);
+  vi.mocked(api.getTraffic).mockResolvedValue({
+    event_id: "e1", source: "ga4", state: "disabled", error: null, timezone: "Asia/Almaty",
+    range: { from: "2026-10-23", to: "2026-11-20" }, fetched_at: null, expires_at: null, metrics: null, definitions: {},
+  });
 });
 afterEach(() => vi.clearAllMocks());
 

@@ -1,6 +1,7 @@
 import { t } from "../../../i18n";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { measure } from "../../../analytics/traffic";
 import { confirmHold, createHold, releaseHold, startCheckout } from "../../../api/checkout";
 import { describeError, errorCodeOf } from "../../../api/errors";
 import type { EventView, Hold, HoldLine, Order, Profile, TicketType } from "../../../api/types";
@@ -44,6 +45,8 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
     try {
       const created = await createHold(event.id, lines, promo?.code);
       setHold(created);
+      // Checkout starts once tickets are held (GA4 begin_checkout).
+      measure(profile, "checkout_start", event.id);
       setRecipients(initialRecipients(created.allocations, { name: profile.display_name, email: profile.email }));
     } catch (failure) {
       setMessage(describeError(failure));

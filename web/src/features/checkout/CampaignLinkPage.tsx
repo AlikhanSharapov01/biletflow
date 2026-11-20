@@ -4,6 +4,8 @@ import { Navigate, useParams } from "react-router";
 import { describeError } from "../../api/errors";
 import { resolveCampaignLink } from "../../api/promo";
 import { ButtonLink, ErrorPanel, Loading, PageHeading } from "../../components/ui";
+import { measure } from "../../analytics/traffic";
+import { useAuth } from "../auth/AuthContext";
 import { stashPromo } from "./utils/promo";
 
 type State = { kind: "loading" } | { kind: "redirect"; to: string } | { kind: "error"; message: string };
@@ -13,6 +15,7 @@ type State = { kind: "loading" } | { kind: "redirect"; to: string } | { kind: "e
 export function CampaignLinkPage() {
   useLocale();
   const { token = "" } = useParams();
+  const { profile } = useAuth();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export function CampaignLinkPage() {
         if (!active) return;
         const path = `/events/${encodeURIComponent(link.event_id)}`;
         if (link.code) stashPromo(link.event_id, link.code);
+        measure(profile, "campaign_landing", link.event_id);
         setState({ kind: "redirect", to: link.code ? `${path}?promo=${encodeURIComponent(link.code)}` : path });
       })
       .catch((failure: unknown) => {

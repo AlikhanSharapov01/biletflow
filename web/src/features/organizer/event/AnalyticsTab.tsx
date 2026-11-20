@@ -13,6 +13,7 @@ import { BreakdownTables } from "./analytics/BreakdownTables";
 import { EnvironmentPill } from "./analytics/EnvironmentPill";
 import { SalesChart } from "./analytics/SalesChart";
 import { StatTiles } from "./analytics/StatTiles";
+import { TrafficPanel } from "./analytics/TrafficPanel";
 
 // Read-only event analytics (backend/ANALYTICS_API.md). Every figure comes
 // from the server; the page never recomputes totals.
@@ -65,6 +66,7 @@ export function AnalyticsTab({ event }: { event: EventView }) {
         ) : null}
       </Panel>
       {ready ? <BreakdownTables data={result.summary} /> : null}
+      <TrafficPanel eventId={event.id} />
     </div>
   );
 }
