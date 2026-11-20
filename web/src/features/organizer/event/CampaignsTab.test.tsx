@@ -39,7 +39,8 @@ describe("campaign workspace", () => {
     vi.mocked(api.getCampaignReport).mockResolvedValue({
       campaign_id: "c1", redemptions: 1, orders: 1, tickets: 2, tickets_refunded: 1, tickets_kept: 1,
       gross_minor: 200_000, discount_minor: 20_000, collected_minor: 180_000,
-      refunds_minor: 90_000, fees_minor: 5_400, net_minor: 84_600, generated_at: "2026-11-09T10:00:00Z",
+      refunds_minor: 90_000, pending_refunds_minor: 0, fees_minor: 5_400, net_minor: 84_600,
+      definitions: {}, generated_at: "2026-11-09T10:00:00Z",
     });
     mount();
     await screen.findByText("Spring");

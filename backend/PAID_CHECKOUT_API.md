@@ -32,8 +32,9 @@ POST /orders/{order_id}/payment-attempts            retry after a failed attempt
 
 - Integer KZT minor units. Each item saves its face value; the client never sends a price
   (extra fields are rejected with `422`).
-- The processing fee (proposed demo default 3%, `processing_rate_bps = 300`) is rounded half-up
-  once per order and split across items so item fees add up exactly to the order fee. The fee is
+- The processing fee uses the platform setting `processing_rate_bps` in force when the hold was
+  created (confirmed default 3% = 300, [decision 0003](../docs/decisions/0003-confirmed-decisions.md)).
+  It is rounded half-up once per order and split across items so item fees add up exactly to the order fee. The fee is
   part of the payable amount (organizer cost); the buyer pays `payable_minor`.
 - The quote is saved with the order. A later ticket price change never re-prices it; when the
   hold lapses the buyer needs a new hold and quote.

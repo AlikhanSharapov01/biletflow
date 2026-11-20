@@ -37,8 +37,9 @@ alone, or a fee alone, never activates sales.
   never activates another, and duplicating an event never copies it.
 - Payout and identity records belong to the organization and are reused by its events; terms are
   accepted per event and per version.
-- The fee (KZT 5,000 = `500000` minor units) is a proposed demonstration default, saved on the
-  activation row so later changes never rewrite history.
+- The fee is the platform setting `activation_fee_minor` in force when the activation starts. Its
+  confirmed default is KZT 5,000 (`500000` minor units, [decision 0003](../docs/decisions/0003-confirmed-decisions.md)).
+  It is saved on the activation row, so later changes never rewrite history.
 - While a payment attempt is open, starting activation again returns it instead of charging twice.
 
 ## Payment flow
