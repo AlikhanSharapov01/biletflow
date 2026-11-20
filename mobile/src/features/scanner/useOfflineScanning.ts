@@ -45,8 +45,8 @@ function summarize(results: SyncResult["results"]): string {
   const count = (status: string) => results.filter((row) => row.status === status).length;
   const accepted = count("accepted") + count("duplicate");
   const parts = [t("mobile.scan.admitted_count", { p0: accepted })];
-  if (count("conflict")) parts.push(`${count("conflict")} sent to the organizer to review`);
-  if (count("rejected")) parts.push(`${count("rejected")} rejected`);
+  if (count("conflict")) parts.push(t("mobile.scan.sent_for_review", { p0: count("conflict") }));
+  if (count("rejected")) parts.push(t("mobile.scan.rejected_count", { p0: count("rejected") }));
   return t("mobile.scan.synced", { p0: parts.join(", ") });
 }
 
