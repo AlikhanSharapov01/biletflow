@@ -15,6 +15,8 @@ by issue. The tracker is #125, which replaces the MVP checklist #58 and the audi
   `.github/workflows/`, merged PRs, open PR #111, open issues #107–#125 and the GitHub Actions
   runs on `main`.
 - Anything not checked against code, tests or a CI run is marked **not verified**.
+- **Acceptance walkthrough** (AC-01 to AC-28, 20 November 2026): [acceptance.md](acceptance.md).
+  **Client types against the final contracts:** [client-contract-check.md](client-contract-check.md).
 
 ## What the columns mean
 
