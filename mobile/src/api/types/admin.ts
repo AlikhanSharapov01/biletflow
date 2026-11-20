@@ -314,6 +314,7 @@ export interface AdminDelivery {
   created_at: string;
   recipient_user_id: string;
   event_id: string | null;
-  target: { type: string; id: string } | null;
+  // `id` is null for account notices (they point at no record).
+  target: { type: string; id: string | null } | null;
   retryable: boolean;
 }
