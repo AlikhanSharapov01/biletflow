@@ -1498,3 +1498,39 @@ api.paid_sales_not_suspended	Paid sales are not suspended.	Платные про
 api.invalid_date_range	The end must be after the start.	Конец должен быть позже начала.	Аяқталу басталудан кейін болуы керек.
 api.invalid_admin_filter	That filter value is not accepted for this list.	Это значение фильтра не подходит для списка.	Бұл сүзгі мәні тізімге сай емес.
 admin.event_id_filter	Event ID	ID мероприятия	Іс-шара ID
+api.ga4_disabled	Google Analytics is turned off on this platform, so it can’t be connected.	Google Analytics на этой платформе выключен, поэтому его нельзя подключить.	Бұл платформада Google Analytics өшірулі, сондықтан оны қосу мүмкін емес.
+org.ga4_title	Google Analytics	Google Analytics	Google Analytics
+org.ga4_hint	Optional traffic measurement for this organization’s events. Sales and attendance never depend on it.	Необязательный учёт трафика для мероприятий этой организации. Продажи и посещаемость от него не зависят.	Осы ұйымның іс-шаралары үшін қосымша трафик есебі. Сатылым мен қатысу оған ешқашан тәуелді емес.
+org.ga4_loading	Loading the Google Analytics connection…	Загрузка подключения Google Analytics…	Google Analytics қосылымы жүктелуде…
+org.ga4_load_error	We couldn’t load the Google Analytics connection.	Не удалось загрузить подключение Google Analytics.	Google Analytics қосылымын жүктеу мүмкін болмады.
+org.ga4_connected	Connected	Подключено	Қосылған
+org.ga4_not_connected	Not connected	Не подключено	Қосылмаған
+org.ga4_platform_off	Google Analytics is turned off on this platform, so there is nothing to connect.	Google Analytics на этой платформе выключен, поэтому подключать нечего.	Бұл платформада Google Analytics өшірулі, сондықтан қосатын ештеңе жоқ.
+org.ga4_connect_hint	Connecting sends traffic from people who allowed it, and purchases confirmed from now on. Earlier orders are not sent.	После подключения отправляется трафик людей, которые это разрешили, и покупки, подтверждённые с этого момента. Прежние заказы не отправляются.	Қосылғаннан кейін рұқсат берген адамдардың трафигі және осы сәттен бастап расталған сатып алулар жіберіледі. Бұрынғы тапсырыстар жіберілмейді.
+org.ga4_connected_since	Connected since {p0}. Only purchases confirmed after that are sent.	Подключено с {p0}. Отправляются только покупки, подтверждённые после этого.	{p0} бастап қосылған. Тек одан кейін расталған сатып алулар жіберіледі.
+org.ga4_connect	Connect Google Analytics	Подключить Google Analytics	Google Analytics-ті қосу
+org.ga4_disconnect	Disconnect	Отключить	Ажырату
+org.ga4_connected_toast	Google Analytics connected.	Google Analytics подключён.	Google Analytics қосылды.
+org.ga4_disconnected_toast	Google Analytics disconnected.	Google Analytics отключён.	Google Analytics ажыратылды.
+org.traffic_title	Traffic (Google Analytics)	Трафик (Google Analytics)	Трафик (Google Analytics)
+org.traffic_intro	Visits from people who allowed traffic analytics. These are not sales: sales are in the report above.	Посещения людей, разрешивших аналитику трафика. Это не продажи: продажи — в отчёте выше.	Трафик талдауына рұқсат берген адамдардың кірулері. Бұл сатылым емес: сатылым жоғарыдағы есепте.
+org.traffic_loading	Loading traffic…	Загрузка трафика…	Трафик жүктелуде…
+org.traffic_load_error	We couldn’t load traffic.	Не удалось загрузить трафик.	Трафикті жүктеу мүмкін болмады.
+org.traffic_fresh	Up to date	Актуально	Өзекті
+org.traffic_stale	Last saved	Последние сохранённые	Соңғы сақталғаны
+org.traffic_off	Off	Выключено	Өшірулі
+org.traffic_no_data	No data	Нет данных	Дерек жоқ
+org.traffic_disabled	Traffic analytics is turned off on this platform, so there is nothing to show.	Аналитика трафика на этой платформе выключена, поэтому показывать нечего.	Бұл платформада трафик талдауы өшірулі, сондықтан көрсететін ештеңе жоқ.
+org.traffic_not_connected	This organization isn’t connected to Google Analytics. The owner can connect it in the organizer workspace.	Эта организация не подключена к Google Analytics. Владелец может подключить её в кабинете организатора.	Бұл ұйым Google Analytics-ке қосылмаған. Иесі оны ұйымдастырушы кабинетінде қоса алады.
+org.traffic_unavailable	Google Analytics can’t be reached right now. Try again later.	Google Analytics сейчас недоступен. Попробуйте позже.	Google Analytics-ке қазір қосылу мүмкін емес. Кейінірек қайталаңыз.
+org.traffic_error	Google Analytics refused the request, so there are no numbers to show.	Google Analytics отклонил запрос, поэтому показать цифры нельзя.	Google Analytics сұрауды қабылдамады, сондықтан көрсететін сандар жоқ.
+org.traffic_stale_hint	Refreshing failed; these are the last saved numbers.	Обновить не удалось; это последние сохранённые цифры.	Жаңарту сәтсіз аяқталды; бұл соңғы сақталған сандар.
+org.traffic_range	From {p0} until {p1} · fetched {p2}	С {p0} до {p1} · получено {p2}	{p0} бастап {p1} дейін · алынды: {p2}
+org.traffic_step	Step	Шаг	Қадам
+org.traffic_events	Events	События	Оқиғалар
+org.traffic_people	People	Люди	Адамдар
+org.traffic_campaign_landing	Opened a campaign link	Открыли ссылку кампании	Науқан сілтемесін ашты
+org.traffic_event_view	Viewed the event page	Смотрели страницу мероприятия	Іс-шара бетін қарады
+org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
+org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
+org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар

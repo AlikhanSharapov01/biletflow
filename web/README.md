@@ -334,24 +334,30 @@ Unpublished and Cancelled.
 ## Optional GA4 traffic collection
 
 GA4 (Google Analytics 4) measures website traffic; it does not replace the
-organizer sales and attendance reports calculated from BiletFlow records.
+organizer sales and attendance reports calculated from BiletFlow records. It is
+off by default (`GA4_ENABLED=false` on the backend) and is configured only on the
+server; see [ANALYTICS_API.md](../backend/ANALYTICS_API.md#ga4-traffic-and-funnel-integration-71).
 
-Set `VITE_GA4_MEASUREMENT_ID=G-...` in the web build environment and rebuild.
-Users opt in or revoke consent through the optional traffic analytics checkbox
-in Account. Without a valid measurement ID or saved consent, no Google script
-is loaded. Anonymous visitors are not tracked.
+The browser never loads a Google script and never talks to Google. For a
+signed-in person who allowed traffic analytics in Account, the web posts
+measurements to `POST /api/v1/analytics/measurements` (the contract the mobile
+app uses too), and the server forwards them to GA4 when the event's
+organization is connected:
 
-Only Discover and event-detail route templates are sent. Event IDs, query
-strings, hashes, search terms and original referrers are excluded. Account,
-order, ticket, support, authentication and admin routes are not tracked.
+| Measurement | When |
+|---|---|
+| `event_view` | A public event page (`/events/:eventId`) opens, once per visit |
+| `campaign_landing` | A campaign link (`/c/:token`) resolves |
+| `checkout_start` | Tickets are held |
 
-In the GA4 web stream, **disable Enhanced Measurement entirely** so automatic
-history, form, outbound-click and other events cannot bypass the sanitized
-manual page views. Do not install a second GA/GTM tag. See Google's
-[manual pageview documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?technology=websites).
+Only the event ID, a random measurement ID, `platform: "web"` and the route
+template (`/events/event`, `/c/campaign`) are sent. Anonymous visitors, people
+without consent, and account, order, ticket, support, authentication and admin
+routes are never measured. A refused or failed measurement never affects the page.
 
-Verify collection in GA4 Realtime with a consenting test account, then revoke
-consent and verify collection stops. Live collection has not been verified with
-a configured property. Traffic is viewed in GA4; an organizer traffic dashboard
-still requires backend reporting integration (#71). Never put service-account
-credentials or API secrets in Vite environment variables.
+Organization owners connect or disconnect their events in the organizer
+workspace (Google Analytics panel); while GA4 is off for the platform the panel
+says so and offers no switch. Each event's Analytics tab has a Traffic section
+that shows the funnel counts, or says plainly that GA4 is off, not connected or
+unreachable (never zeros). Live collection and reporting have not been verified
+with a configured property.

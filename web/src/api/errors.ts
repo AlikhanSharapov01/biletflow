@@ -150,6 +150,7 @@ const MESSAGES: Record<string, string> = {
   get invalid_effective_at() { return t("api.effective_at"); },
   // Analytics (ANALYTICS_API.md)
   get analytics_range_too_large() { return t("api.analytics_range"); },
+  get ga4_disabled() { return t("api.ga4_disabled"); },
   get invalid_analytics_filter() { return t("api.analytics_filter"); },
   // Event images
   get image_empty() { return t("api.image_empty"); },

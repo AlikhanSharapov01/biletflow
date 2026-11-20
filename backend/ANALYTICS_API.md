@@ -106,7 +106,7 @@ signed-in visitors, never sales, revenue or attribution. Orders, refunds and cam
 are always written to PostgreSQL first; checkout and refund code never calls GA4.
 
 Settings, from the environment only: `GA4_ENABLED`, `GA4_MEASUREMENT_ID` (`G-...`, the platform
-web stream, normally the same as the web build's `VITE_GA4_MEASUREMENT_ID`), `GA4_API_SECRET`
+web stream; neither client loads a Google tag, both post measurements here), `GA4_API_SECRET`
 (Measurement Protocol secret of that stream), `GA4_PROPERTY_ID` (numeric), `GA4_CREDENTIALS_JSON`
 (a service-account key with read access to the property) and `GA4_CACHE_SECONDS` (default 900).
 No credential is stored in the database or returned by any endpoint. In the GA4 property, register

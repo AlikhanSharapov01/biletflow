@@ -108,3 +108,49 @@ export interface SalesSeries extends AnalyticsMetadata {
   bucket: SeriesBucket;
   points: SalesPoint[];
 }
+
+// ---- GA4 (ANALYTICS_API.md "GA4 traffic and funnel integration", #71/#131).
+// Optional and off by default. Measurements are traffic signals of consenting
+// signed-in people only; they are never sales, which stay in the reports above.
+
+export type MeasurementName = "campaign_landing" | "event_view" | "checkout_start";
+
+export interface Measurement {
+  name: MeasurementName;
+  analytics_event_id: string;
+  event_id: string;
+  campaign_id?: string;
+  platform: "web";
+  page_path?: string;
+}
+
+export interface MeasurementResult {
+  status: "accepted" | "duplicate" | "skipped";
+  reason: "disabled" | "consent_required" | "not_connected" | "backlog_full" | null;
+}
+
+export type TrafficState = "disabled" | "not_connected" | "fresh" | "stale" | "unavailable" | "error";
+
+export interface TrafficReport {
+  event_id: string;
+  source: "ga4";
+  state: TrafficState;
+  error: "ga4_unavailable" | "ga4_error" | null;
+  timezone: string;
+  range: { from: string; to: string };
+  fetched_at: string | null;
+  expires_at: string | null;
+  // Every measurement name -> GA4 counts; null (never zeros) unless fresh or stale.
+  metrics: Record<string, { event_count: number; users: number }> | null;
+  definitions: Record<string, string>;
+}
+
+// The organization's switch to the platform's GA4 property (owner only).
+export interface Ga4Connection {
+  organization_id: string;
+  property_id: string | null;
+  is_enabled: boolean;
+  enabled_at: string | null;
+  // "disabled": GA4 is off for the whole platform, so nothing can be connected.
+  integration: "enabled" | "disabled";
+}
