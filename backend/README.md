@@ -449,6 +449,7 @@ Workflows in `../.github/workflows/`:
 | `backend-auth.yml` (*Backend API*) | Ruff lint and format, full pytest suite with coverage against a PostgreSQL 17 service; every push and pull request |
 | `smoke.yml` (*Smoke*) | Whole Docker stack, then the two smoke scripts below; when backend, web, proxy, Compose or smoke files change |
 | `backup.yml` (*Backup*) | Backup and restore drill of the database and object storage ([backup and restore](../docs/operations/backup.md)) |
+| `validation.yml` (*Validation*) | Full pytest suite with the crash and load harnesses enabled, then two direct load-harness runs (5 and 20 analytics clients) with their reports in the job summary and as an artifact; started by hand, or on pull requests that touch `tests/crash`, `tests/load` or the workflow |
 
 *Smoke* and *Backup* last succeeded on `main` at `b1b73d0` (PR #102 merged); their runs on
 `cb5a9bd` (PR #104 merged) were cancelled and have not been repeated, since later merges did not
@@ -469,6 +470,9 @@ RUN_LOAD_TESTS=1 uv run pytest -q tests/load -s
 LOAD_DATABASE_URL=postgresql+psycopg://user@127.0.0.1:5432/biletflow_load_test \
   uv run python -m tests.load.load_harness --runs 3 --output-dir /tmp/biletflow-load
 ```
+
+The *Validation* workflow runs both harnesses in CI on one revision (Actions, *Validation*, Run
+workflow, or a pull request that touches `tests/crash`, `tests/load` or the workflow file).
 
 See [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026) for the crash
 harness. The last load results (#80, before #102 and #104) are in the
