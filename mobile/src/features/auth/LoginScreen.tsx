@@ -26,7 +26,7 @@ export function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <StatusBar style="light" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scroll}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.scroll}>
         <AuthStory topInset={insets.top} />
 
         <View style={[styles.panel, { paddingBottom: insets.bottom + 40 }]}>
