@@ -6,8 +6,9 @@ Run from ``backend/`` against a disposable PostgreSQL database whose name ends i
         uv run python -m tests.load.load_harness --runs 3 --output-dir /tmp/biletflow-load
 
 The harness migrates the database, then starts the real API (``uvicorn app.main:create_app
---factory``, one process, as in ``backend/Dockerfile``) and the real worker (``python -m
-app.worker``) as separate processes, plus a local SMTP sink so the worker can deliver mail.
+--factory`` as in ``backend/Dockerfile``; one process, or ``--api-workers`` worker processes as
+Docker Compose runs it, #118) and the real worker (``python -m app.worker``) as separate
+processes, plus a local SMTP sink so the worker can deliver mail.
 Every record is created through the public ``/api/v1`` API; the database is only read to pick
 up e-mail verification and staff invitation tokens (which normally arrive by e-mail) and to
 check invariants after each run.
@@ -36,6 +37,7 @@ import platform
 import random
 import secrets
 import shutil
+import signal
 import socket
 import statistics
 import subprocess
@@ -217,6 +219,7 @@ def free_port():
 class Stack:
     database_url: str
     output: Path
+    api_workers: int = 1
     jwt_secret: str = field(default_factory=lambda: secrets.token_urlsafe(48))
     challenge_secret: str = field(default_factory=lambda: secrets.token_urlsafe(48))
     port: int = field(default_factory=free_port)
@@ -228,7 +231,9 @@ class Stack:
         return f"http://127.0.0.1:{self.port}"
 
     def env(self, smtp_port, storage):
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTHON", "VIRTUAL"))}
+        # WEB_CONCURRENCY would silently change uvicorn's worker count; --api-workers sets it.
+        skip = ("PYTHON", "VIRTUAL", "WEB_CONCURRENCY")
+        env = {k: v for k, v in os.environ.items() if not k.startswith(skip)}
         env.update(
             PYTHONPATH=str(BACKEND),
             PYTHONUNBUFFERED="1",
@@ -281,11 +286,18 @@ class Stack:
             ],
             "worker": [sys.executable, "-m", "app.worker"],
         }
+        if self.api_workers > 1:
+            commands["api"] += ["--workers", str(self.api_workers)]
         for name, command in commands.items():
             log = open(self.output / f"{name}.log", "wb")  # noqa: SIM115 - closed in stop()
             self.logs.append(log)
+            # A uvicorn parent with workers gets its own process group, so stop() can kill the
+            # worker children with it; terminate() is enough otherwise, as uvicorn stops them.
+            group = name == "api" and self.api_workers > 1
             self.processes.append(
-                subprocess.Popen(command, cwd=workdir, env=env, stdout=log, stderr=log)
+                subprocess.Popen(
+                    command, cwd=workdir, env=env, stdout=log, stderr=log, start_new_session=group
+                )
             )
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
@@ -307,7 +319,10 @@ class Stack:
             try:
                 process.wait(10)
             except subprocess.TimeoutExpired:
-                process.kill()
+                if "--workers" in process.args:  # the parent leads its group: kill the children too
+                    os.killpg(process.pid, signal.SIGKILL)
+                else:
+                    process.kill()
         for log in self.logs:
             log.close()
 
@@ -1147,7 +1162,7 @@ def environment(stack):
         "fastapi": fastapi.__version__,
         "sqlalchemy": sqlalchemy.__version__,
         "httpx": httpx.__version__,
-        "api_processes": 1,
+        "api_processes": stack.api_workers,
         "api_db_pool": "SQLAlchemy default QueuePool (5 + 10 overflow)",
         "worker_processes": 1,
         "client": "same machine, one asyncio process, httpx.AsyncClient over loopback",
@@ -1182,6 +1197,12 @@ def parse_args(argv=None):
     p.add_argument(
         "--history-tickets", type=int, default=400, help="sold paid tickets for analytics"
     )
+    p.add_argument(
+        "--api-workers",
+        type=int,
+        default=1,
+        help="uvicorn worker processes for the API, more than 1 is POSIX only (#118)",
+    )
     p.add_argument("--setup-concurrency", type=int, default=16)
     p.add_argument("--seed", type=int, default=80)
     p.add_argument(
@@ -1197,6 +1218,12 @@ def parse_args(argv=None):
         p.error("refusing to load a database whose name does not end in _test")
     if args.attendees < 1 or args.buyers < 1 or args.scanners < 1:
         p.error("buyers, scanners and attendees must be positive")
+    if args.api_workers < 1:
+        p.error("--api-workers must be at least 1")
+    if args.api_workers > 1 and sys.platform == "win32":
+        p.error(
+            "--api-workers above 1 is POSIX only: on Windows its worker processes would outlive stop()"
+        )
     return args
 
 
@@ -1249,7 +1276,7 @@ async def main_async(args, stack):
 def run(args):
     output = Path(args.output_dir) / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     output.mkdir(parents=True, exist_ok=True)
-    stack = Stack(args.database_url, output)
+    stack = Stack(args.database_url, output, args.api_workers)
     print(f"output: {output}", flush=True)
     stack.migrate()
     sink = SmtpSink()

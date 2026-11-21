@@ -41,6 +41,14 @@ services:
       # Trust Caddy's X-Forwarded-For so per-address rate limits see the real client.
       # Port 8000 is published on localhost only, so nobody outside can forge this header.
       FORWARDED_ALLOW_IPS: "*"
+      # API worker processes (#118): uvicorn reads WEB_CONCURRENCY as its --workers default.
+      # Several API processes, each with its own connection pool, so check-in is not limited to
+      # one process and pool while organizer analytics is running; the Validation workflow
+      # measures whether admission p95 recovers. Set API_WORKERS in .env (default 2).
+      # Each process has its own pool of up to 15 database connections (5 + 10 overflow), as does
+      # the worker service, against PostgreSQL's default max_connections of 100: 2 API workers
+      # need at most 45, and up to 5 stay below the limit.
+      WEB_CONCURRENCY: ${API_WORKERS:-2}
       # Object storage (#77): see the storage services below.
       STORAGE_BACKEND: s3
       S3_ENDPOINT_URL: http://storage:8333
