@@ -131,12 +131,16 @@ export interface SupportMessageCreate {
   attachment_ids: string[];
 }
 
+// `stored_file.status` (SUPPORT_API.md): quarantined files wait for a malware
+// scan; only clean files can be linked to a message or downloaded.
+export type SupportUploadStatus = "pending" | "quarantined" | "clean" | "rejected" | "deleted";
+
 export interface SupportUploadedFile {
   file_id: string;
   mime_type: string;
   size_bytes: number;
   sha256: string;
-  status: string;
+  status: SupportUploadStatus;
   expires_at: string;
 }
 

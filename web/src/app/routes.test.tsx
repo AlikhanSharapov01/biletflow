@@ -140,6 +140,8 @@ describe("platform admin portal", () => {
       "Orders",
       "Tickets",
       "Payments",
+      "Inspect",
+      "Jobs",
       "Reports",
       "Moderation log",
       "Settings",

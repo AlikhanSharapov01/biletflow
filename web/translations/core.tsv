@@ -542,6 +542,10 @@ support.attach_file	Attach file	Прикрепить файл	Файл тірк�
 support.files_to_send	Files to send	Файлы для отправки	Жіберілетін файлдар
 support.uploading	Uploading…	Загрузка…	Жүктелуде…
 support.uploading_files	Uploading files…	Загрузка файлов…	Файлдар жүктелуде…
+support.checking_files	Checking files…	Проверка файлов…	Файлдар тексерілуде…
+support.scan_checking	Checking file…	Проверка файла…	Файл тексерілуде…
+support.scan_ready	Ready	Готово	Дайын
+support.scan_blocked	Blocked: this file didn’t pass the safety check and won’t be sent.	Заблокирован: файл не прошёл проверку безопасности и не будет отправлен.	Бұғатталды: файл қауіпсіздік тексеруінен өтпеді және жіберілмейді.
 support.preparing	Preparing…	Подготовка…	Дайындалуда…
 support.file_types_hint	PNG, JPEG or PDF, up to	PNG, JPEG или PDF, до	PNG, JPEG не PDF, шегі:
 support.download_file	Download {p0}	Скачать {p0}	{p0} жүктеп алу
@@ -797,6 +801,9 @@ org.analytics_intro	Sales, revenue and attendance for this event.	Продажи
 org.analytics_filters	Analytics filters	Фильтры аналитики	Аналитика сүзгілері
 org.loading_analytics	Loading analytics…	Загрузка аналитики…	Аналитика жүктелуде…
 org.analytics_error	We couldn’t load analytics.	Не удалось загрузить аналитику.	Аналитиканы жүктеу мүмкін болмады.
+org.analytics_export	Download CSV	Скачать CSV	CSV жүктеу
+org.analytics_exporting	Preparing CSV…	Готовим CSV…	CSV дайындалуда…
+org.analytics_export_note	The file uses the filters and grouping applied above.	Файл учитывает применённые выше фильтры и группировку.	Файл жоғарыда қолданылған сүзгілер мен топтауды пайдаланады.
 org.from	From	С	Бастап
 org.to	To	По	Дейін
 org.clear_filters	Clear filters	Сбросить фильтры	Сүзгілерді тазалау
@@ -1145,6 +1152,7 @@ api.unsupported_media	Only PNG, JPEG and PDF files can be attached.	Можно �
 api.file_too_large	That file is larger than 5 MB.	Файл больше 5 МБ.	Файл көлемі 5 МБ артық.
 api.file_empty	That file is empty.	Файл пуст.	Файл бос.
 api.file_rejected	That file’s contents don’t match its type.	Содержимое файла не соответствует его типу.	Файл мазмұны түріне сәйкес емес.
+api.file_infected	That file was blocked by the malware scan.	Файл заблокирован антивирусной проверкой.	Файлды вирусқа қарсы тексеру бұғаттады.
 api.attachment_unavailable	An attached file expired or was already used. Remove it and attach it again.	Срок вложения истёк или файл уже использован. Удалите его и прикрепите заново.	Тіркеменің мерзімі аяқталған не файл қолданылған. Оны алып тастап, қайта тіркеңіз.
 api.attachment_missing	That file is no longer available.	Файл больше недоступен.	Файл енді қолжетімсіз.
 api.download_expired	This download link expired. Try again.	Срок ссылки скачивания истёк. Повторите попытку.	Жүктеу сілтемесінің мерзімі аяқталды. Қайталап көріңіз.
@@ -1189,6 +1197,14 @@ api.already_resolved	This conflict was already resolved.	Конфликт уже
 api.no_admission_reverse	There is no admission to reverse for this conflict.	Для этого конфликта нет входа, который можно отменить.	Бұл қайшылықта болдырмайтын кіру жоқ.
 api.already_reversed	That admission was already reversed.	Вход уже отменён.	Кіру болдырылмаған.
 api.admin_required	This area is for platform administrators.	Раздел предназначен для администраторов платформы.	Бөлім платформа әкімшілеріне арналған.
+api.retry_not_supported	This kind of work can’t be retried by an admin.	Этот тип задачи нельзя повторить вручную.	Бұл жұмыс түрін әкімші қайталай алмайды.
+api.retry_already_completed	This work already completed, so there’s nothing to retry.	Задача уже выполнена, повторять нечего.	Бұл жұмыс орындалып қойған, қайталайтын ештеңе жоқ.
+api.retry_not_exhausted	The worker is still trying this one. Retry only after it gives up.	Обработчик ещё пытается. Повторите, когда он остановится.	Өңдеуші әлі әрекеттенуде. Ол тоқтағаннан кейін қайталаңыз.
+api.retry_limit_reached	Retry limit reached: an admin can retry each item at most 3 times.	Достигнут лимит: администратор может повторить каждую задачу не более 3 раз.	Шекке жетті: әкімші әр тапсырманы ең көбі 3 рет қайталай алады.
+api.retry_target_obsolete	It’s too late to retry: what this would send is no longer current.	Повторять поздно: отправляемые данные уже неактуальны.	Қайталауға кеш: жіберілетін мәлімет енді өзекті емес.
+api.job_missing	That job doesn’t exist.	Такой задачи нет.	Мұндай тапсырма жоқ.
+api.delivery_missing	That delivery doesn’t exist.	Такой доставки нет.	Мұндай жеткізу жоқ.
+api.sync_conflict_missing	That offline conflict doesn’t exist.	Такого офлайн-конфликта нет.	Мұндай офлайн қайшылық жоқ.
 api.admin_suspend	Platform admins cannot be suspended.	Администраторов платформы нельзя приостановить.	Платформа әкімшілерін тоқтатуға болмайды.
 api.user_already_suspended	That account is already suspended.	Аккаунт уже приостановлен.	Тіркелгі тоқтатылған.
 api.user_not_suspended	That account is not suspended.	Аккаунт не приостановлен.	Тіркелгі тоқтатылмаған.
@@ -1498,6 +1514,57 @@ api.paid_sales_not_suspended	Paid sales are not suspended.	Платные про
 api.invalid_date_range	The end must be after the start.	Конец должен быть позже начала.	Аяқталу басталудан кейін болуы керек.
 api.invalid_admin_filter	That filter value is not accepted for this list.	Это значение фильтра не подходит для списка.	Бұл сүзгі мәні тізімге сай емес.
 admin.event_id_filter	Event ID	ID мероприятия	Іс-шара ID
+admin.inspect_nav	Inspect	Проверка	Тексеру
+admin.inspect	Inspect records	Проверка записей	Жазбаларды тексеру
+admin.inspect_hint	Read-only search across support cases, paid-sales activations, campaigns and offline conflicts.	Поиск только для чтения по обращениям, активациям платных продаж, кампаниям и офлайн-конфликтам.	Өтініштер, ақылы сатуды іске қосу, науқандар және офлайн қайшылықтар бойынша тек оқуға арналған іздеу.
+admin.inspect_kind	Records	Записи	Жазбалар
+admin.inspect_event_id	Event ID	ID мероприятия	Іс-шара ID
+admin.inspect_text_placeholder	Subject, name or exact ID	Тема, название или точный ID	Тақырып, атауы немесе нақты ID
+admin.inspect_event_placeholder	Exact event ID (optional)	Точный ID мероприятия (необязательно)	Іс-шараның нақты ID (міндетті емес)
+admin.inspect_details	Details	Подробности	Толығырақ
+admin.inspect_view	View	Открыть	Ашу
+admin.inspect_read_only	Read-only. Inspecting a record never changes it or grants access to it.	Только просмотр. Проверка не меняет запись и не даёт к ней доступ.	Тек оқу. Тексеру жазбаны өзгертпейді және оған қолжетімділік бермейді.
+admin.inspect_loading	Loading details…	Загрузка подробностей…	Мәліметтер жүктелуде…
+admin.inspect_error	We couldn’t load this record.	Не удалось загрузить запись.	Жазбаны жүктеу мүмкін болмады.
+admin.inspect_support_cases	Support cases	Обращения в поддержку	Қолдау өтініштері
+admin.inspect_support_cases_noun	support cases	обращения	өтініштер
+admin.inspect_activations	Paid-sales activations	Активации платных продаж	Ақылы сатуды іске қосу
+admin.inspect_activations_noun	activations	активации	іске қосулар
+admin.inspect_campaigns	Campaigns	Кампании	Науқандар
+admin.inspect_campaigns_noun	campaigns	кампании	науқандар
+admin.inspect_conflicts	Offline conflicts	Офлайн-конфликты	Офлайн қайшылықтар
+admin.inspect_conflicts_noun	offline conflicts	офлайн-конфликты	офлайн қайшылықтар
+admin.inspect_subject	Subject	Тема	Тақырып
+admin.inspect_escalated	Escalated	Передано выше	Жоғары жіберілді
+admin.inspect_last_activity	Last activity	Последняя активность	Соңғы әрекет
+admin.inspect_enabled	Enabled	Включена	Қосулы
+admin.inspect_disabled	Disabled	Выключена	Өшірулі
+admin.inspect_name	Name	Название	Атауы
+admin.inspect_discount	Discount	Скидка	Жеңілдік
+admin.inspect_redemptions	Redeemed · reserved	Использовано · зарезервировано	Пайдаланылды · брондалды
+admin.inspect_operation	Operation	Операция	Операция
+admin.inspect_ticket	Ticket	Билет	Билет
+admin.inspect_device	Device	Устройство	Құрылғы
+admin.order_detail	Order details	Детали заказа	Тапсырыс мәліметтері
+admin.jobs_nav	Jobs	Задачи	Тапсырмалар
+admin.jobs	Background jobs and deliveries	Фоновые задачи и доставки	Фондық тапсырмалар мен жеткізулер
+admin.jobs_hint	Work the worker gave up on can be sent back up to three times, with a reason.	Задачи, от которых отказался обработчик, можно отправить повторно до трёх раз, указав причину.	Өңдеуші бас тартқан жұмысты себебін көрсетіп, үш ретке дейін қайта жіберуге болады.
+admin.jobs_tab	Jobs	Задачи	Тапсырмалар
+admin.deliveries_tab	Notification deliveries	Доставка уведомлений	Хабарлама жеткізу
+admin.jobs_noun	jobs	задачи	тапсырмалар
+admin.deliveries_noun	deliveries	доставки	жеткізулер
+admin.job_kind	Kind	Тип	Түрі
+admin.job_kind_placeholder	e.g. ticket_delivery_email	например, ticket_delivery_email	мысалы, ticket_delivery_email
+admin.job_attempts	Attempts	Попытки	Әрекеттер
+admin.job_admin_retries	Admin retries	Повторы админом	Әкімші қайталауы
+admin.job_last_error	Last error	Последняя ошибка	Соңғы қате
+admin.retry	Retry	Повторить	Қайталау
+admin.retry_reason	Why retry this now?	Почему повторить сейчас?	Неге қазір қайталау керек?
+admin.retry_sent	Sent back to the worker.	Отправлено обработчику повторно.	Өңдеушіге қайта жіберілді.
+admin.retry_done	Already completed.	Уже выполнено.	Орындалып қойған.
+admin.retry_worker_owns	The worker is still trying.	Обработчик ещё пытается.	Өңдеуші әлі әрекеттенуде.
+admin.retry_limit	Retry limit reached ({p0} of {p0}).	Достигнут лимит повторов ({p0} из {p0}).	Қайталау шегіне жетті ({p0}/{p0}).
+admin.retry_unsupported	This kind can’t be retried by an admin.	Этот тип нельзя повторить вручную.	Бұл түрді әкімші қайталай алмайды.
 api.ga4_disabled	Google Analytics is turned off on this platform, so it can’t be connected.	Google Analytics на этой платформе выключен, поэтому его нельзя подключить.	Бұл платформада Google Analytics өшірулі, сондықтан оны қосу мүмкін емес.
 org.ga4_title	Google Analytics	Google Analytics	Google Analytics
 org.ga4_hint	Optional traffic measurement for this organization’s events. Sales and attendance never depend on it.	Необязательный учёт трафика для мероприятий этой организации. Продажи и посещаемость от него не зависят.	Осы ұйымның іс-шаралары үшін қосымша трафик есебі. Сатылым мен қатысу оған ешқашан тәуелді емес.

@@ -7,7 +7,7 @@ import { ApiError } from "../../../api/errors";
 import { makeAnalytics, makeEvent, makeTicketType } from "../../../../tests/helpers/fixtures";
 import { AnalyticsTab } from "./AnalyticsTab";
 
-vi.mock("../../../api/analytics", () => ({ getAnalytics: vi.fn(), getSalesSeries: vi.fn(), getTraffic: vi.fn() }));
+vi.mock("../../../api/analytics", () => ({ getAnalytics: vi.fn(), getSalesSeries: vi.fn(), getTraffic: vi.fn(), downloadAnalyticsCsv: vi.fn() }));
 vi.mock("../../../api/campaigns", () => ({ listCampaigns: vi.fn() }));
 vi.mock("../../../api/catalog", () => ({ listTicketTypes: vi.fn() }));
 
@@ -67,6 +67,26 @@ describe("analytics tab", () => {
     fireEvent.change(screen.getByLabelText("Group by"), { target: { value: "hour" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() => expect(api.getSalesSeries).toHaveBeenLastCalledWith("e1", { ticket_type_id: "t1" }, "hour"));
+  });
+
+  it("downloads the CSV with the same applied filters and grouping as the report", async () => {
+    vi.mocked(api.downloadAnalyticsCsv).mockResolvedValue();
+    render(<AnalyticsTab event={makeEvent()} />);
+    await screen.findByText("Tickets sold");
+    fireEvent.change(screen.getByLabelText("Ticket type"), { target: { value: "t1" } });
+    fireEvent.change(screen.getByLabelText("Group by"), { target: { value: "hour" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(api.getSalesSeries).toHaveBeenLastCalledWith("e1", { ticket_type_id: "t1" }, "hour"));
+    fireEvent.click(await screen.findByRole("button", { name: "Download CSV" }));
+    await waitFor(() => expect(api.downloadAnalyticsCsv).toHaveBeenCalledWith("e1", { ticket_type_id: "t1" }, "hour"));
+    expect(api.getAnalytics).toHaveBeenLastCalledWith("e1", { ticket_type_id: "t1" });
+  });
+
+  it("shows the server's message when the export fails", async () => {
+    vi.mocked(api.downloadAnalyticsCsv).mockRejectedValue(new ApiError("You don't have permission to do that.", 403, "permission_denied"));
+    render(<AnalyticsTab event={makeEvent()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Download CSV" }));
+    expect(await screen.findByText("You don't have permission to do that.")).toBeTruthy();
   });
 
   it("shows the server's message for a range that is too large", async () => {

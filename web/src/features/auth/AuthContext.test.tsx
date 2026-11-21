@@ -94,13 +94,14 @@ describe("AuthProvider session restore", () => {
     expect(session.token).toBe("");
   });
 
-  it("finishes a Google sign-in from the token fragment and cleans the URL", async () => {
-    window.history.replaceState(null, "", "/discover#access_token=google-token");
-    api.getProfile.mockResolvedValue(makeProfile());
+  it("never signs in with a token from the URL fragment, and cleans the URL", async () => {
+    window.history.replaceState(null, "", "/discover#access_token=attacker-token");
+    refreshMock.mockResolvedValue(null);
     renderProvider();
-    await waitFor(() => expect(auth().status).toBe("authenticated"));
-    expect(session.token).toBe("google-token");
-    expect(refreshMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(auth().status).toBe("anonymous"));
+    expect(session.token).toBe("");
+    expect(api.getProfile).not.toHaveBeenCalled();
+    expect(refreshMock).toHaveBeenCalled();
     expect(window.location.hash).toBe("");
   });
 

@@ -33,6 +33,9 @@ a.support-chip:hover { border-color: var(--hover-line); }
 .support-pending-file { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: var(--radius-button); font-size: var(--text-meta); }
 .support-pending-file.failed { border-color: var(--danger-line); }
 .support-pending-file.failed small { color: var(--danger); white-space: normal; }
+.support-pending-file.blocked { border-color: var(--danger-line); }
+.support-pending-file.blocked small { color: var(--danger); white-space: normal; }
+.support-pending-file.ready small { color: var(--green); }
 
 .support-composer { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
 

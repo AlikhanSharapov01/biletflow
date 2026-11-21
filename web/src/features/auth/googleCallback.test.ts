@@ -41,10 +41,9 @@ describe("consumeGoogleCallback", () => {
     expect(consumeGoogleCallback(fakeLocation("http://localhost:5173/?code=abc"), fakeHistory())).toEqual({ kind: "incomplete" });
   });
 
-  it("reads an access token from the fragment", () => {
-    expect(consumeGoogleCallback(fakeLocation("http://localhost:5173/#access_token=tok"), fakeHistory())).toEqual({
-      kind: "token",
-      token: "tok",
-    });
+  it("ignores an access token in the fragment (login CSRF) but removes it", () => {
+    const history = fakeHistory();
+    expect(consumeGoogleCallback(fakeLocation("http://localhost:5173/discover#access_token=tok"), history)).toEqual({ kind: "none" });
+    expect(history.replaceState).toHaveBeenCalledWith(null, "", "/discover");
   });
 });
