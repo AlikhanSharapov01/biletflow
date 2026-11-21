@@ -87,7 +87,8 @@ describe("labels", () => {
 describe("attachments", () => {
   it("accepts PNG, JPEG and PDF within the size limit", () => {
     expect(attachmentProblem({ name: "a.png", type: "image/png", size: 10 }, MAX_ATTACHMENT_BYTES)).toBeNull();
-    expect(attachmentProblem({ name: "a.gif", type: "image/gif", size: 10 }, MAX_ATTACHMENT_BYTES)).toContain("PNG, JPEG and PDF");
+    // Types are left to the backend so its own 415 message is shown.
+    expect(attachmentProblem({ name: "a.gif", type: "image/gif", size: 10 }, MAX_ATTACHMENT_BYTES)).toBeNull();
     expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: 0 }, MAX_ATTACHMENT_BYTES)).toContain("empty");
     expect(attachmentProblem({ name: "a.pdf", type: "application/pdf", size: MAX_ATTACHMENT_BYTES + 1 }, MAX_ATTACHMENT_BYTES)).toContain("5.0 MB");
     expect(fileSizeLabel(2048)).toBe("2 KB");

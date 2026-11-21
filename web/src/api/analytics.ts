@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { downloadFile } from "./files";
 import type { AnalyticsFilters, EventAnalytics, Ga4Connection, Measurement, MeasurementResult, SalesSeries, SeriesBucket, TrafficReport } from "./types/analytics";
 import { localInputToIso } from "../utils/format";
 
@@ -24,6 +25,12 @@ export function getSalesSeries(eventId: string, filters: AnalyticsFilters, bucke
   return request<SalesSeries>(`/api/v1/events/${id(eventId)}/analytics/sales-series`, {
     query: { ...query(filters), bucket },
   });
+}
+
+// CSV export (#81): the same filters and bucket as the JSON reports, computed
+// in one snapshot, so every number equals GET /events/{id}/analytics.
+export function downloadAnalyticsCsv(eventId: string, filters: AnalyticsFilters, bucket: SeriesBucket): Promise<void> {
+  return downloadFile(`/api/v1/events/${id(eventId)}/analytics/export.csv`, `analytics-${eventId}.csv`, { ...query(filters), bucket });
 }
 
 // GA4 traffic for the event (reports permission). Defaults to the last 28 days

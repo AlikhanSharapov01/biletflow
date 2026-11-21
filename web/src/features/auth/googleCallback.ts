@@ -1,11 +1,15 @@
 // Google redirects back to the web root with `code` and `state` (or `error`).
-// The backend may also redirect here with `#access_token=` or `?google_error=`.
-// This reads those once, removes them from the address bar, and reports what
-// it found so AuthProvider can finish the sign-in.
+// The backend may also redirect here with `?google_error=`. This reads those
+// once, removes them from the address bar, and reports what it found so
+// AuthProvider can finish the sign-in.
+//
+// A token in the URL (`#access_token=`) is never used: anyone can put one in a
+// link, and signing in with it would silently switch the visitor into the
+// link author's account (login CSRF). The backend's Google callback answers
+// with JSON and never sends one, so it is only removed from the address bar.
 
 export type GoogleCallback =
   | { kind: "none" }
-  | { kind: "token"; token: string }
   | { kind: "backend_error"; code: string }
   | { kind: "provider_error"; error: string; state: string | null }
   | { kind: "code"; code: string; state: string }
@@ -16,13 +20,13 @@ const PROVIDER_PARAMS = ["code", "state", "error", "scope", "authuser", "prompt"
 export function consumeGoogleCallback(location: Location = window.location, history: History = window.history): GoogleCallback {
   const url = new URL(location.href);
   const fragment = new URLSearchParams(url.hash.slice(1));
-  const token = fragment.get("access_token");
+  const urlToken = fragment.has("access_token");
   const backendError = url.searchParams.get("google_error");
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const providerError = url.searchParams.get("error");
 
-  const touched = Boolean(token || backendError || code || state || providerError);
+  const touched = Boolean(urlToken || backendError || code || state || providerError);
   if (!touched) return { kind: "none" };
 
   url.hash = "";
@@ -36,6 +40,5 @@ export function consumeGoogleCallback(location: Location = window.location, hist
     return { kind: "incomplete" };
   }
   if (backendError) return { kind: "backend_error", code: backendError };
-  if (token) return { kind: "token", token };
   return { kind: "none" };
 }

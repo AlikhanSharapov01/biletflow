@@ -82,9 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (active) await completeSignIn(tokens.access_token);
             return;
           }
-          case "token":
-            if (active) await completeSignIn(callback.token);
-            return;
           case "none": {
             const token = await refreshAccessToken();
             if (!active) return;
