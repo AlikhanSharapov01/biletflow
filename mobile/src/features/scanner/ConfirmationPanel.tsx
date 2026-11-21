@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { panelStyles } from "@/features/scanner/panelStyles";
 import { colors } from "@/theme";
@@ -8,6 +8,11 @@ import { t, useLocale } from "@/i18n";
 // The ticket is valid but the event requires the guest's entry confirmation
 // (backend ADMISSION_REQUIRE_ENTRY_CONFIRMATION). The camera stays live to read
 // the confirmation QR; the 8-digit code can be typed instead.
+//
+// The iPhone number pad has no Return key, so the keyboard closes by itself
+// once all 8 digits are in, and a Done bar above it closes it any time.
+const DONE_BAR = "entry-code-done";
+
 export function ConfirmationPanel({
   error,
   onSubmitCode,
@@ -28,14 +33,28 @@ export function ConfirmationPanel({
       <TextInput
         style={styles.input}
         value={code}
-        onChangeText={(value) => setCode(value.replace(/[^\d]/g, "").slice(0, 8))}
+        onChangeText={(value) => {
+          const digits = value.replace(/[^\d]/g, "").slice(0, 8);
+          setCode(digits);
+          if (digits.length === 8) Keyboard.dismiss();
+        }}
         placeholder={t("mobile.scan.eight_digit_code")}
         placeholderTextColor="rgba(255,255,255,0.6)"
         keyboardType="number-pad"
         maxLength={8}
         accessibilityLabel={t("tickets.entry_code")}
         onSubmitEditing={() => onSubmitCode(code)}
+        inputAccessoryViewID={Platform.OS === "ios" ? DONE_BAR : undefined}
       />
+      {Platform.OS === "ios" ? (
+        <InputAccessoryView nativeID={DONE_BAR}>
+          <View style={styles.doneBar}>
+            <Pressable accessibilityRole="button" onPress={() => Keyboard.dismiss()} hitSlop={8}>
+              <Text style={styles.doneText}>{t("org.done")}</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
       {error ? (
         <Text style={styles.error} accessibilityLiveRegion="polite">
           {error}
@@ -76,4 +95,14 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
   },
   error: { color: colors.paper, fontSize: 14, fontWeight: "600" },
+  doneBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.paper,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  doneText: { color: colors.green, fontSize: 17, fontWeight: "700" },
 });

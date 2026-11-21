@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Screen } from "@/components/layout";
@@ -15,6 +15,7 @@ import { ScannerCamera } from "@/features/scanner/ScannerCamera";
 import { UndoPanel } from "@/features/scanner/UndoPanel";
 import { useOfflineScanning } from "@/features/scanner/useOfflineScanning";
 import { useScannerEvent } from "@/features/scanner/useScannerEvent";
+import { useKeyboardOverlap } from "@/features/scanner/useKeyboardOverlap";
 import { useScanSession } from "@/features/scanner/useScanSession";
 import { colors, fonts } from "@/theme";
 import { t, useLocale } from "@/i18n";
@@ -33,6 +34,7 @@ export function ScanScreen() {
   const loadError = savedEvent || !offline.loaded ? null : liveError;
   const session = useScanSession(eventId, event, refreshCounts, offline);
   const { phase } = session;
+  const keyboardOverlap = useKeyboardOverlap();
 
   function goBack() {
     if (router.canGoBack()) {
@@ -64,10 +66,7 @@ export function ScanScreen() {
       <ScanHeader event={event} counts={counts} onBack={goBack} />
       <OfflineBar offline={offline} event={event} />
 
-      <KeyboardAvoidingView
-        style={styles.cameraArea}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.cameraArea}>
         <CameraPermissionGate>
           <ScannerCamera
             onScanned={session.handleScanned}
@@ -75,47 +74,51 @@ export function ScanScreen() {
             onFindGuest={session.openSearch}
           />
 
-          {phase.name === "confirm" ? (
-            <ConfirmationPanel
-              error={phase.error}
-              onSubmitCode={session.submitEntryCode}
-              onCancel={session.scanNext}
-            />
-          ) : null}
+          {/* The panels sit at the bottom of this layer, which rises above the
+              keyboard on iOS so typed codes, reasons and searches stay visible. */}
+          <View style={[StyleSheet.absoluteFill, { bottom: keyboardOverlap }]} pointerEvents="box-none" testID="scan-panels">
+            {phase.name === "confirm" ? (
+              <ConfirmationPanel
+                error={phase.error}
+                onSubmitCode={session.submitEntryCode}
+                onCancel={session.scanNext}
+              />
+            ) : null}
 
-          {phase.name === "search" ? (
-            <AttendeeSearchPanel
-              eventId={eventId}
-              onCheckIn={session.checkInAttendee}
-              onClose={session.scanNext}
-            />
-          ) : null}
+            {phase.name === "search" ? (
+              <AttendeeSearchPanel
+                eventId={eventId}
+                onCheckIn={session.checkInAttendee}
+                onClose={session.scanNext}
+              />
+            ) : null}
 
-          {phase.name === "checking" ? <CheckingPanel /> : null}
+            {phase.name === "checking" ? <CheckingPanel /> : null}
 
-          {phase.name === "result" ? (
-            <ResultPanel
-              result={phase}
-              onRetry={session.retry}
-              onUndo={() => session.startUndo(phase)}
-              onScanNext={session.scanNext}
-            />
-          ) : null}
+            {phase.name === "result" ? (
+              <ResultPanel
+                result={phase}
+                onRetry={session.retry}
+                onUndo={() => session.startUndo(phase)}
+                onScanNext={session.scanNext}
+              />
+            ) : null}
 
-          {phase.name === "undo" ? (
-            <UndoPanel
-              attendeeName={phase.admission.attendeeName}
-              reason={session.reason}
-              onReasonChange={session.setReason}
-              undoing={session.undoing}
-              error={session.undoError}
-              canUndo={session.canUndo}
-              onCancel={() => session.cancelUndo(phase.result)}
-              onConfirm={() => session.confirmUndo(phase.admission)}
-            />
-          ) : null}
+            {phase.name === "undo" ? (
+              <UndoPanel
+                attendeeName={phase.admission.attendeeName}
+                reason={session.reason}
+                onReasonChange={session.setReason}
+                undoing={session.undoing}
+                error={session.undoError}
+                canUndo={session.canUndo}
+                onCancel={() => session.cancelUndo(phase.result)}
+                onConfirm={() => session.confirmUndo(phase.admission)}
+              />
+            ) : null}
+          </View>
         </CameraPermissionGate>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
