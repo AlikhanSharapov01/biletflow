@@ -10,7 +10,7 @@ vi.mock("./hooks/useCheckoutFlow", () => ({ useCheckoutFlow: vi.fn() }));
 
 function flow(overrides: Partial<ReturnType<typeof useCheckoutFlow>>) {
   vi.mocked(useCheckoutFlow).mockReturnValue({
-    hold: null, order: null, recipients: {}, setRecipients: vi.fn(), busy: false, message: "", secondsLeft: 540, paid: false,
+    hold: null, order: null, recipients: {}, setRecipients: vi.fn(), busy: false, expired: false, message: "", secondsLeft: 540, paid: false,
     reserve: vi.fn(), release: vi.fn(), confirm: vi.fn(), finished: vi.fn(), reset: vi.fn(), ...overrides,
   } as ReturnType<typeof useCheckoutFlow>);
 }
@@ -18,11 +18,13 @@ const paidType = makeTicketType({ id: "p1", name: "Premium", kind: "paid", price
 const freeType = makeTicketType({ id: "f1", name: "Free pass" });
 
 function mount(event = makeEvent(), tickets = [freeType]) {
-  render(
+  const tree = () => (
     <AuthContext.Provider value={makeAuthValue({ status: "authenticated", profile: makeProfile() })}>
       <MemoryRouter><CheckoutPanel event={event} tickets={tickets} /></MemoryRouter>
-    </AuthContext.Provider>,
+    </AuthContext.Provider>
   );
+  const view = render(tree());
+  return { container: view.container, rerender: () => view.rerender(tree()) };
 }
 const list = () => screen.getByRole("list", { name: "Checkout steps" });
 const items = () => within(list()).getAllByRole("listitem");
@@ -85,21 +87,13 @@ describe("CheckoutPanel steps", () => {
 
   it("keeps one status region across expiry so the notice is spoken", () => {
     flow({ hold: makeHold(), secondsLeft: 1 });
-    const view = render(
-      <AuthContext.Provider value={makeAuthValue({ status: "authenticated", profile: makeProfile() })}>
-        <MemoryRouter><CheckoutPanel event={makeEvent()} tickets={[freeType]} /></MemoryRouter>
-      </AuthContext.Provider>,
-    );
+    const view = mount();
     const status = view.container.querySelector(".checkout-progress [role=status]")!;
     expect(status.textContent).toBe("Less than 1 minute left on your reservation");
     flow({ hold: null, secondsLeft: 0, expired: true });
-    view.rerender(
-      <AuthContext.Provider value={makeAuthValue({ status: "authenticated", profile: makeProfile() })}>
-        <MemoryRouter><CheckoutPanel event={makeEvent()} tickets={[freeType]} /></MemoryRouter>
-      </AuthContext.Provider>,
-    );
+    view.rerender();
     expect(screen.queryByRole("timer")).toBeNull();
     expect(status.isConnected).toBe(true);
-    expect(status.textContent).toBe("Your reservation has expired");
+    expect(status.textContent).toBe("Your reservation expired. Choose your tickets again.");
   });
 });

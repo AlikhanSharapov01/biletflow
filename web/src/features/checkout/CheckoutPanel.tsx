@@ -72,7 +72,7 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     <div className="checkout-progress">
       <CheckoutSteps step={step} assigned={event.seating_mode === "assigned"} paid={flow.hold ? flow.paid : paidBeforeHold} />
       {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
-      <span className="visually-hidden" role="status">{flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0, true) : ""}</span>
+      <span className="visually-hidden" role="status">{flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0) : ""}</span>
     </div>
   );
 

@@ -46,8 +46,7 @@ describe("HoldCountdown", () => {
     expect(holdAnnouncement(299)).toBe("Less than 5 minutes left on your reservation");
     expect(holdAnnouncement(60)).toBe("Less than 5 minutes left on your reservation");
     expect(holdAnnouncement(59)).toBe("Less than 1 minute left on your reservation");
-    expect(holdAnnouncement(0)).toBe("Your reservation has expired");
-    expect(holdAnnouncement(500, true)).toBe("Your reservation has expired");
+    expect(holdAnnouncement(0)).toBe("Your reservation expired. Choose your tickets again.");
   });
 });
 

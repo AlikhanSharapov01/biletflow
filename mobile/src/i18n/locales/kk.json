@@ -1635,6 +1635,5 @@
   "checkout.step_recipients": "Алушылар",
   "checkout.step_completed": "қадам аяқталды",
   "checkout.hold_five_minutes": "Бронь аяқталуына 5 минуттан аз уақыт қалды",
-  "checkout.hold_one_minute": "Бронь аяқталуына 1 минуттан аз уақыт қалды",
-  "checkout.hold_expired_notice": "Бронь мерзімі аяқталды"
+  "checkout.hold_one_minute": "Бронь аяқталуына 1 минуттан аз уақыт қалды"
 }

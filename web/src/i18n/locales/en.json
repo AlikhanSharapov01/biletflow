@@ -1635,6 +1635,5 @@
   "checkout.step_recipients": "Recipients",
   "checkout.step_completed": "step completed",
   "checkout.hold_five_minutes": "Less than 5 minutes left on your reservation",
-  "checkout.hold_one_minute": "Less than 1 minute left on your reservation",
-  "checkout.hold_expired_notice": "Your reservation has expired"
+  "checkout.hold_one_minute": "Less than 1 minute left on your reservation"
 }
