@@ -82,6 +82,8 @@ export const radii = {
 // Tracking tightens as size grows; leading is tighter on large text.
 export const typography = {
   title: { fontSize: 34, fontWeight: "700", letterSpacing: -0.75, lineHeight: 38 },
+  // The page title on phones under 360 wide, where long kk/ru words do not fit at 34.
+  titleCompact: { fontSize: 26, fontWeight: "700", letterSpacing: -0.57, lineHeight: 30 },
   cardTitle: { fontSize: 20, fontWeight: "600", letterSpacing: -0.24, lineHeight: 25 },
   panelTitle: { fontSize: 17, fontWeight: "600", letterSpacing: -0.14, lineHeight: 22 },
   body: { fontSize: 15, lineHeight: 22 },
