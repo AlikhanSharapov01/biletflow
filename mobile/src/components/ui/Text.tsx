@@ -10,18 +10,21 @@ export function Eyebrow({ style, ...props }: TextProps) {
 }
 
 // System display text for headings (web --font-display); the brand mark alone stays serif.
+// A caller that sets only the size gets a proportional line height (1.2x), so large headings never clip.
 export function DisplayText({ style, ...props }: TextProps) {
   useLocale();
-  return <Text {...props} style={[styles.display, style]} />;
+  const { fontSize, lineHeight } = StyleSheet.flatten(style) ?? {};
+  const derived = fontSize !== undefined && lineHeight === undefined ? { lineHeight: Math.round(fontSize * 1.2) } : null;
+  return <Text {...props} style={[styles.display, style, derived]} />;
 }
 
 const styles = StyleSheet.create({
   eyebrow: {
     color: colors.muted,
     fontFamily: fonts.sans,
-    fontSize: 11,
+    fontSize: typography.micro.fontSize,
     fontWeight: "700",
-    letterSpacing: 1.3,
+    letterSpacing: typography.micro.fontSize * 0.06,
     textTransform: "uppercase",
   },
   display: {

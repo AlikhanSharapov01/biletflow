@@ -49,6 +49,7 @@ const colorTokens: Record<keyof typeof colors, string> = {
 const radiusTokens: Record<keyof typeof radii, string> = {
   input: "--radius-input",
   button: "--radius-button",
+  menu: "--radius-menu",
   panel: "--radius-panel",
   pill: "--radius-pill",
 };

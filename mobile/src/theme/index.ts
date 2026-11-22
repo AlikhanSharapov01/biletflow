@@ -74,6 +74,7 @@ export const fonts = {
 export const radii = {
   input: 10,
   button: 12,
+  menu: 14,
   panel: 16,
   pill: 999,
 } as const;
