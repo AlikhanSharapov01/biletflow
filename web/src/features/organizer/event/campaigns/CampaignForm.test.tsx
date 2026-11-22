@@ -55,4 +55,13 @@ describe("CampaignForm", () => {
     expect((screen.getByLabelText("Percent") as HTMLInputElement).matches(":disabled")).toBe(true);
     view.unmount();
   });
+  it("keeps Cancel focusable but ignores it while saving", () => {
+    const onCancel = vi.fn();
+    render(<CampaignForm types={[]} submitLabel="Save" busy message="" onSubmit={vi.fn()} onInvalid={vi.fn()} onCancel={onCancel} />);
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
+    expect(cancel.matches(":disabled")).toBe(false);
+    fireEvent.click(cancel);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });
