@@ -299,7 +299,7 @@ discover.more_filters_count	More filters ({count})	Ещё фильтры ({count
 discover.clear_filters	Clear filters	Сбросить фильтры	Сүзгілерді тазалау
 discover.empty_filtered	No events matched your filters.	По вашим фильтрам ничего не найдено.	Сүзгілеріңізге сай іс-шара табылмады.
 discover.load_more	Load more	Показать ещё	Тағы көрсету
-discover.load_more_error	We couldn’t load more events.	Не удалось загрузить ещё мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
+discover.load_more_error	We couldn’t load more events.	Не удалось загрузить следующие мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
 discover.shown_count	Events shown: {count}	Показано мероприятий: {count}	Көрсетілген іс-шаралар: {count}
 event.loading	Loading event details…	Загрузка мероприятия…	Іс-шара мәліметтері жүктелуде…
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.

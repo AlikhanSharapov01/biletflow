@@ -44,7 +44,7 @@ export function parseDiscoverQuery(params: URLSearchParams): DiscoverQuery {
   return {
     q: limited(params.get("q"), MAX_TEXT_LENGTH),
     category: UUID.test(category) ? category.toLowerCase() : "",
-    city: limited(params.get("city"), MAX_CITY_LENGTH),
+    city: limited(params.get("city"), MAX_CITY_LENGTH).trim(),
     when: (WHEN_VALUES as readonly string[]).includes(when) ? (when as DiscoverWhen) : "",
     free: params.get("free") === "1",
     minPrice: normalisePrice(params.get("min_price") ?? ""),

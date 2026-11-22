@@ -18,6 +18,11 @@ const CAT = "0b9c1d52-4f0e-4a64-8d3a-6f1f7a5c2e11";
 const q = (patch: Partial<DiscoverQuery>): DiscoverQuery => ({ ...empty, ...patch });
 
 describe("parse and serialise", () => {
+  it("treats a blank city as no filter and trims the rest", () => {
+    expect(parseDiscoverQuery(new URLSearchParams("city=%20")).city).toBe("");
+    expect(parseDiscoverQuery(new URLSearchParams("city=%20Almaty%20")).city).toBe("Almaty");
+  });
+
   it("round-trips a full query with stable key order", () => {
     const full = q({ q: "jazz", category: CAT, city: "Almaty", when: "weekend", free: false, minPrice: "500", maxPrice: "9000" });
     const params = discoverSearchParams(full);

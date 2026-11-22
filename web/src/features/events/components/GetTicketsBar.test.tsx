@@ -53,6 +53,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = scrollIntoView;
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   Element.prototype.scrollIntoView = originalScrollIntoView;
   window.matchMedia = originalMatchMedia;
@@ -139,7 +140,6 @@ describe("GetTicketsBar", () => {
     view.rerender(page(makeEvent(), [makeTicketType()], true));
     expect(disconnected).toBeGreaterThan(before);
     expect(options?.rootMargin).toBe("-72px 0px -164px 0px");
-    vi.restoreAllMocks();
   });
 
   it("writes the measured height to --sticky-bar-height and removes it on unmount", () => {
@@ -148,7 +148,6 @@ describe("GetTicketsBar", () => {
     expect(document.documentElement.style.getPropertyValue("--sticky-bar-height")).toBe("93px");
     view.unmount();
     expect(document.documentElement.style.getPropertyValue("--sticky-bar-height")).toBe("");
-    vi.restoreAllMocks();
   });
 
   it("starts hidden without a transition until the observer has reported", () => {

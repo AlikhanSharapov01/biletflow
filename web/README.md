@@ -69,7 +69,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   transfer, an `Idempotency-Key` on holds, confirmations, checkout, activation and payment
   retries, and readable publication labels on the event page. See
   [Downloads and idempotency](#downloads-and-idempotency).
-- **Kazakh, Russian and English** interface catalogs with 1,602 shared keys, profile language
+- **Kazakh, Russian and English** interface catalogs with 1,652 shared keys, profile language
   selection and localized dates, money, plurals, categories, statuses and notifications. See
   [Localization](#localization).
 - **GA4 through the backend** (#131, PR #143), off unless the backend enables it: consenting
@@ -77,7 +77,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   (no Google script in the browser), owners connect the organization in the workspace, and the
   Analytics tab shows a Traffic section. See
   [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
-- **465 tests in 71 files** and a **Web CI workflow** (type check, tests, production build), plus
+- **814 tests in 94 files** and a **Web CI workflow** (type check, tests, production build), plus
   Playwright browser tests in the repository's `e2e/` folder (#120). See [Tests](#tests).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
   and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
@@ -282,7 +282,7 @@ See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md) for the promo, campaign, checkout a
 npm test
 ```
 
-There are 461 tests in 70 files (all passing on 21 November 2026), next to the code they test
+There are 814 tests in 94 files (all passing on 22 November 2026), next to the code they test
 (`*.test.ts(x)`); shared fixtures are in `tests/helpers/` and the jsdom setup in `src/test/`.
 They cover the API client, file downloads, idempotency keys and error messages, formatting,
 checkout rules and components (steps, seating, payment) and the checkout flow hook, seat and
@@ -303,15 +303,15 @@ them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there y
 Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover (plain,
 filtered, empty and with Load more), the event page and the organizer event page (also at `?tab=check-ins`, `?tab=staff` and
 `?tab=finance`, where the selected tab must be fully in view in its row) in Chromium at
-320, 360, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px in English, Russian and Kazakh, as a visitor, a signed-in member (five sections) and a platform admin (six). The API is answered by fixtures in the browser, so they need no backend:
+320, 344, 360, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px (plus an 844×390 landscape phone for the sticky Get tickets bar) in English, Russian and Kazakh, as a visitor, a signed-in member (five sections) and a platform admin (six). The API is answered by fixtures in the browser, so they need no backend:
 `cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium and
-`LAYOUT_PORT` to move the dev server off port 5180). Each case asserts:
+`LAYOUT_PORT` to move the dev server off port 5180). CI's Chromium 131 (Playwright 1.49.1) is the layout gate; a different local Chromium can render a pixel differently. Each case asserts:
 
 - no horizontal page scroll;
 - no top bar or tab bar element, or its text, outside the viewport (or the top bar's padded content box)
   or spilling out of its box, no overlapping tab labels, and no top tab overlapping the top bar actions;
 - the bottom tab bar shown up to 1024 px and the top tabs from 1025 px;
-- each tab bar label fitting its link in at most two lines (three only at 320 px with six sections),
+- each tab bar label fitting its link in at most two lines (three only below 360 px with six sections),
   breaking only at hyphenation points with no fragment under three letters, every link the same
   height and at least 44x44 px;
 - no page content, or text in it, outside the viewport;
@@ -360,7 +360,7 @@ and screen-reader acceptance remain unverified; see
 The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 
 - **Source of truth.** [translations/core.tsv](translations/core.tsv) holds every interface
-  string: one row per stable key, with English, Russian and Kazakh wording (1,602 keys). It is
+  string: one row per stable key, with English, Russian and Kazakh wording (1,652 keys). It is
   shared with the mobile app; see the [translation handoff](translations/README.md).
 - **Generated catalogs.** `npm run translations:build` turns the TSV into
   `src/i18n/locales/{en,ru,kk}.json`. It fails on a missing language or a duplicate key. Do not

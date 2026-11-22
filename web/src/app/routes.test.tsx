@@ -23,6 +23,8 @@ vi.mock("../api/orders", () => ({
   getOrder: vi.fn(),
 }));
 
+vi.mock("../api/organizations", () => ({ listOrganizations: vi.fn(() => new Promise(() => undefined)) }));
+
 const getAdminMeMock = vi.mocked(getAdminMe);
 const searchUsersMock = vi.mocked(searchUsers);
 const listOrdersMock = vi.mocked(listOrders);
@@ -112,7 +114,7 @@ describe("organizer pages load on demand", () => {
     getAdminMeMock.mockReturnValue(new Promise(() => undefined));
     renderAt("/organizer", signedIn());
     // The workspace's own loading label, not the generic one from the lazy fallback.
-    expect(await screen.findByText("Loading organizer workspace…", undefined, { timeout: 10_000 })).toBeTruthy();
+    expect(await screen.findByText("Loading organizer workspace…")).toBeTruthy();
     expect(screen.getAllByRole("navigation", { name: "Main navigation" }).length).toBeGreaterThan(0);
   });
 });

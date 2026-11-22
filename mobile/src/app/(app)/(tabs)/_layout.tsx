@@ -5,7 +5,8 @@ import { TabGlyph } from "@/components/layout";
 import { colors, fonts } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
-// Bottom navigation, matching the web's phone tab bar (lettered glyph buttons).
+// Bottom navigation, matching the web's phone tab bar in structure. The web draws SVG icons; mobile
+// still shows lettered glyph buttons for now.
 // Orders, Support, Notifications and Admin are reached from Account, as the
 // web reaches Account from the avatar menu.
 export default function TabsLayout() {

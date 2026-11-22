@@ -299,7 +299,7 @@
   "discover.clear_filters": "Сбросить фильтры",
   "discover.empty_filtered": "По вашим фильтрам ничего не найдено.",
   "discover.load_more": "Показать ещё",
-  "discover.load_more_error": "Не удалось загрузить ещё мероприятия.",
+  "discover.load_more_error": "Не удалось загрузить следующие мероприятия.",
   "discover.shown_count": "Показано мероприятий: {count}",
   "event.loading": "Загрузка мероприятия…",
   "event.load_error": "Не удалось загрузить это мероприятие.",
