@@ -160,6 +160,14 @@ const TEXT_PAIRS: Pair[] = [
   ["on-green", "green-story", ".toast"],
 ];
 
+// Apple-style neutrals and materials: every text role is checked on the solid chrome fallback and on
+// the translucent chrome laid over the page.
+const ROLE_TEXT = ["ink", "muted", "faint", "subtitle", "meta", "body-soft", "intro", "nav-ink", "button-ink", "hint", "tab-ink", "price-ink", "timeline-ink", "note-ink", "placeholder"];
+for (const text of ROLE_TEXT) {
+  TEXT_PAIRS.push([text, "material-solid", "solid chrome fallback"]);
+  TEXT_PAIRS.push([text, ["material-chrome", "canvas"], "translucent chrome over the page"]);
+}
+
 // Sign-in story panel: the ticket card is --glass laid over the panel and over the ::after art, so
 // text inside it is tested on each of those blended backgrounds; copy outside the card sits on
 // the flat panel or art.
@@ -190,6 +198,8 @@ describe("WCAG AA colour tokens", () => {
     ["focus", "canvas", "focus ring on the page"],
     ["focus", "paper", "focus ring in a panel"],
     ["focus", "tab-track", "focus ring on a tab"],
+    ["input-line", "canvas", "field outline on the page"],
+    ["focus", "material-solid", "focus ring on solid chrome"],
   ] as const)("boundary: %s on %s (%s)", (token, surface, _where) => {
     expect(contrast(token, surface)).toBeGreaterThanOrEqual(3);
   });
@@ -200,6 +210,36 @@ describe("WCAG AA colour tokens", () => {
     ["note", "busy button in a note panel"],
   ] as const)("boundary: focus ring at .75 alpha on %s (%s)", (surface, _where) => {
     expect(contrast("focus", surface, 0.75)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("declares the type, shape, depth, motion and material tokens", () => {
+    const required = [
+      "font-display", "track-title", "track-card", "track-panel", "track-body", "track-micro", "track-eyebrow",
+      "leading-title", "leading-card", "leading-body", "fill", "fill-strong", "separator",
+      "radius-menu", "radius-segment", "radius-thumb", "shadow-lift",
+      "dur-press", "dur-fast", "dur-base", "dur-spring", "ease-out", "ease-in-out", "ease-spring",
+      "material-chrome", "material-thick", "material-solid", "material-blur", "material-edge",
+    ];
+    for (const token of required) expect(declarations.has(`--${token}`), token).toBe(true);
+    expect(declarations.get("--radius-pill")).toBe("999px");
+    expect(declarations.get("--text-panel-title")).toBe("1.0625rem");
+  });
+
+  it("uses the system font stacks", () => {
+    expect(declarations.get("--font-sans")).toMatch(/^system-ui, -apple-system/);
+    expect(declarations.get("--font-display")).toMatch(/^-apple-system, BlinkMacSystemFont, "SF Pro Display"/);
+  });
+
+  it("--ease-spring starts at 0, ends at 1 and never overshoots", () => {
+    const points = (declarations.get("--ease-spring") ?? "").match(/^linear\(([^)]*)\)$/)?.[1]?.split(",").map((part) => Number(part.trim()));
+    expect(points, "--ease-spring must be linear(...)").toBeDefined();
+    expect(points!.length).toBeGreaterThanOrEqual(10);
+    expect(points![0]).toBe(0);
+    expect(points![points!.length - 1]).toBe(1);
+    for (let i = 1; i < points!.length; i += 1) {
+      expect(points![i]).toBeGreaterThanOrEqual(points![i - 1]!);
+      expect(points![i]).toBeLessThanOrEqual(1);
+    }
   });
 
   it("parses 8-digit hex and comma-separated rgba()", () => {

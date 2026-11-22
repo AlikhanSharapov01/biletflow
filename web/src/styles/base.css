@@ -8,8 +8,9 @@ html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: var(--tap-highlight);
 }
-body { min-width: 320px; min-height: 100vh; min-height: 100dvh; margin: 0; background: var(--canvas); font-size: var(--text-body); line-height: 1.5; }
+body { min-width: 320px; min-height: 100vh; min-height: 100dvh; margin: 0; background: var(--canvas); font-size: var(--text-body); line-height: var(--leading-body); letter-spacing: var(--track-body); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-optical-sizing: auto; }
 h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); }
 button, input, select, textarea { font: inherit; }
 input, select, textarea { font-size: var(--text-field); }
 a, button, summary, label, [role="tab"] { touch-action: manipulation; }
@@ -35,7 +36,7 @@ button[aria-disabled="true"]:focus-visible, a[aria-disabled="true"]:focus-visibl
 code { font-size: 13px; }
 
 .serif { font-family: var(--font-serif); font-weight: 400; }
-.eyebrow { color: var(--muted); font-size: var(--text-micro); font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; }
+.eyebrow { color: var(--muted); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-transform: uppercase; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @keyframes rise-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }

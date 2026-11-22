@@ -5,26 +5,36 @@
    Colour literals are allowed in this file only; contrast.test.ts fails
    when another stylesheet contains one. */
 :root {
-  --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
 
   /* Surfaces and ink */
-  --ink: #172724;
-  --muted: #58655d;
-  --faint: #626e66;
-  --line: #e4e7df;
-  --line-soft: #eef0ea;
-  --paper: #fffefa;
-  --canvas: #f6f5f0;
-  --sidebar: #fbfaf6;
+  --ink: #1d1d1f;
+  --muted: #68686d;
+  --faint: #68686d;
+  --line: #d2d2d7;
+  --line-soft: #e8e8ed;
+  --paper: #ffffff;
+  --canvas: #f5f5f7;
+  --sidebar: #fbfbfd;
   --note: #eef3e6;
-  --hover-surface: #f0f1eb;
-  --hover-line: #aabaae;
-  --raised-surface: #fff;
+  --hover-surface: #ececf0;
+  --hover-line: #a1a1a6;
+  --raised-surface: #ffffff;
   --disabled-surface: #f3f3ee;
   --print-surface: #fff;
-  --scrim: rgb(23 39 36 / 55%);
-  --topbar-glass: rgb(251 250 246 / 94%);
+  --scrim: rgb(0 0 0 / 32%);
+  --topbar-glass: rgb(251 251 253 / 94%);
+  --fill: rgb(118 118 128 / 12%);
+  --fill-strong: rgb(118 118 128 / 20%);
+  --separator: rgb(60 60 67 / 18%);
+  /* Materials: chrome that content scrolls under; solid is the fallback. */
+  --material-chrome: rgb(250 250 252 / 72%);
+  --material-thick: rgb(255 255 255 / 86%);
+  --material-solid: #fbfbfd;
+  --material-blur: blur(20px) saturate(180%);
+  --material-edge: rgb(255 255 255 / 50%);
 
   /* Brand */
   --green: #236b55;
@@ -48,19 +58,19 @@
   --google-blue: #4285f4;
 
   /* Text roles */
-  --subtitle: #58655d;
-  --meta: #58655d;
-  --body-soft: #58655d;
-  --intro: #58655d;
-  --button-ink: #4a5951;
-  --nav-ink: #58655d;
-  --hint: #686f6a;
+  --subtitle: #68686d;
+  --meta: #68686d;
+  --body-soft: #68686d;
+  --intro: #68686d;
+  --button-ink: #636366;
+  --nav-ink: #68686d;
+  --hint: #68686d;
   --field-note: var(--hint);
   --table-head: var(--hint);
-  --tab-ink: #646c67;
-  --price-ink: #52645a;
-  --timeline-ink: #5c6961;
-  --note-ink: #606d5e;
+  --tab-ink: #68686d;
+  --price-ink: #636366;
+  --timeline-ink: #68686d;
+  --note-ink: #636366;
   --on-green: #fff;
   /* Dark count on the coral badge; white on --coral is 2.9:1 and --coral is shared with mobile */
   --badge-ink: var(--ink);
@@ -69,9 +79,9 @@
   /* Controls */
   --tap-highlight: rgb(35 107 85 / 14%);
   --tap-highlight-on-green: rgb(255 255 255 / 22%);
-  --input-line: #818d84;
-  --placeholder: #626e66;
-  --tab-track: #ebece6;
+  --input-line: #86868b;
+  --placeholder: #6e6e73;
+  --tab-track: #e8e8ed;
   --spinner-track: #dfe6dc;
   --card-hover-line: #cfd8cc;
   --active-nav: #e8f0e6;
@@ -99,7 +109,7 @@
   --tone-blocked-bg: #f9e9e4;
   --tone-blocked: #984432;
   --tone-neutral-bg: #edf0ef;
-  --tone-neutral: #58655d;
+  --tone-neutral: #68686d;
 
   /* Event artwork gradients */
   --art-0: #d8e6d6, #94b69b;
@@ -109,16 +119,27 @@
   --art-ink: rgb(255 255 255 / 85%);
   --art-ring: rgb(255 255 255 / 65%);
 
-  /* Type scale (mobile theme) */
-  --text-title: clamp(30px, 1.6vw + 18px, 38px);
-  --text-card-title: 20px;
-  --text-panel-title: 16px;
-  --text-body: 15px;
+  /* Type scale: rem, equal to the old pixel values at a 16px root except title and panel title */
+  --text-title: clamp(1.75rem, 1.4vw + 1.2rem, 2.125rem);
+  --text-card-title: 1.25rem;
+  --text-panel-title: 1.0625rem;
+  --text-body: 0.9375rem;
   --text-field: var(--text-body);
-  --text-body-sm: 14px;
-  --text-meta: 13px;
-  --text-label: 13px;
-  --text-micro: 11px;
+  --text-body-sm: 0.875rem;
+  --text-meta: 0.8125rem;
+  --text-label: 0.8125rem;
+  --text-micro: 0.6875rem;
+
+  /* Tracking tightens as size grows; leading is tighter on large text */
+  --track-title: -0.022em;
+  --track-card: -0.012em;
+  --track-panel: -0.008em;
+  --track-body: 0;
+  --track-micro: 0.01em;
+  --track-eyebrow: 0.06em;
+  --leading-title: 1.1;
+  --leading-card: 1.25;
+  --leading-body: 1.47;
 
   /* Spacing and shape */
   --gutter: 16px;
@@ -129,14 +150,31 @@
   --content-max: 1120px;
   --control-height: 46px;
   --control-height-sm: 40px;
-  --radius-input: 7px;
-  --radius-button: 6px;
-  --radius-panel: 8px;
-  --radius-pill: 20px;
+  --radius-input: 10px;
+  --radius-button: 12px;
+  --radius-panel: 16px;
+  --radius-menu: 14px;
+  --radius-pill: 999px;
+  --radius-segment: 9px;
+  --radius-thumb: 7px;
 
-  --shadow: 0 22px 60px rgb(31 51 43 / 8%);
-  --shadow-raised: 0 1px 4px rgb(23 39 36 / 9%);
-  --shadow-menu: 0 14px 36px rgb(31 51 43 / 14%);
+  /* Depth: the biggest surfaces read thickest */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 4%), 0 2px 8px rgb(0 0 0 / 4%);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 5%), 0 12px 28px rgb(0 0 0 / 8%);
+  --shadow-menu: 0 0 0 0.5px rgb(0 0 0 / 6%), 0 8px 24px rgb(0 0 0 / 12%);
+  --shadow: 0 0 0 0.5px rgb(0 0 0 / 5%), 0 24px 60px rgb(0 0 0 / 14%);
+
+  /* Motion */
+  --dur-press: 100ms;
+  --dur-fast: 160ms;
+  --dur-base: 240ms;
+  --dur-spring: 420ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Critically damped step response x(t) = 1 - (1 + w*t) * e^(-w*t) with w = 2*pi / 0.35s,
+     sampled at 20 evenly spaced points over --dur-spring (0.42s) and rounded to 3 decimals.
+     It rises without overshoot and the last point is exactly 1. */
+  --ease-spring: linear(0, 0.061, 0.189, 0.334, 0.471, 0.59, 0.687, 0.765, 0.825, 0.871, 0.906, 0.932, 0.951, 0.965, 0.975, 0.982, 0.987, 0.991, 0.994, 1);
 }
 
 @media (min-width: 761px) {

@@ -5,14 +5,14 @@
 import { Platform } from "react-native";
 
 export const colors = {
-  ink: "#172724",
-  muted: "#58655d",
-  faint: "#626e66",
-  line: "#e4e7df",
-  lineSoft: "#eef0ea",
-  paper: "#fffefa",
-  canvas: "#f6f5f0",
-  sidebar: "#fbfaf6",
+  ink: "#1d1d1f",
+  muted: "#68686d",
+  faint: "#68686d",
+  line: "#d2d2d7",
+  lineSoft: "#e8e8ed",
+  paper: "#ffffff",
+  canvas: "#f5f5f7",
+  sidebar: "#fbfbfd",
   green: "#236b55",
   greenDark: "#174a3b",
   greenStory: "#173c32",
@@ -27,10 +27,10 @@ export const colors = {
   dateTileInk: "#726044",
   avatar: "#e6d7b9",
   avatarInk: "#604b2e",
-  tabTrack: "#ebece6",
+  tabTrack: "#e8e8ed",
   activeNav: "#e8f0e6",
-  inputLine: "#818d84",
-  placeholder: "#626e66",
+  inputLine: "#86868b",
+  placeholder: "#6e6e73",
 } as const;
 
 // .status pills: background + text colour per tone.
@@ -38,7 +38,7 @@ export const statusTones = {
   positive: { background: "#eef5e9", color: "#4a7151" },
   pending: { background: "#fff3dd", color: "#805313" },
   blocked: { background: "#f9e9e4", color: "#984432" },
-  neutral: { background: "#edf0ef", color: "#58655d" },
+  neutral: { background: "#edf0ef", color: "#68686d" },
 } as const;
 
 export type StatusTone = keyof typeof statusTones;
