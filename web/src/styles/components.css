@@ -145,9 +145,14 @@
 .card-list > .event-card:first-child .event-card-body { padding-top: 0; }
 .card-list > .event-card:last-child .event-card-body { padding-bottom: 0; }
 .card-list > .event-card .event-card-extra { padding: 0 0 14px; }
+/* Row titles are list headlines (17px), smaller than a card title, so long words fit a narrow row. */
+.row-grid > .event-card h3, .card-list > .event-card h3 { font-size: var(--text-panel-title); letter-spacing: var(--track-panel); }
+/* The skeleton title line matches that headline's 21px line box. */
+.row-grid .skeleton-title { height: 13px; }
 /* Tickets and orders on the page: one raised paper container holding the rows. */
+/* Capped so a row's trailing actions stay near its title on a wide screen. */
 .event-grid.row-grid {
-  grid-template-columns: minmax(0, 1fr); gap: 0; border-radius: var(--radius-panel); background: var(--paper);
+  max-width: 780px; grid-template-columns: minmax(0, 1fr); gap: 0; border-radius: var(--radius-panel); background: var(--paper);
   box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-raised); outline: 1px solid transparent; outline-offset: -1px;
 }
 .row-grid > .event-card { position: relative; overflow: visible; border-radius: 0; background: transparent; box-shadow: none; outline: 0; transition: background-color var(--dur-fast) var(--ease-out); }
@@ -159,7 +164,8 @@
 @media (hover: hover) {
   .row-grid > .event-card-linked:hover { background: var(--hover-surface); box-shadow: none; }
 }
-.row-grid > .event-card-linked:active { background: var(--hover-surface); transform: none; }
+/* The highlight lights at once on pointer-down and fades out over the row's transition on release. */
+.row-grid > .event-card-linked:active { background: var(--hover-surface); transform: none; transition-duration: 0s; }
 @supports selector(:has(*)) {
   .row-grid > .event-card-linked:has(h3 a:focus-visible) { outline-offset: -3px; box-shadow: none; }
 }

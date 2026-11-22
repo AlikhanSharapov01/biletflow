@@ -285,6 +285,10 @@ describe("WCAG AA colour tokens", () => {
     }
   });
 
+  it("the neutral pill stays visible on a highlighted row", () => {
+    expect(colourOf("tone-neutral-bg")).not.toEqual(colourOf("hover-surface"));
+  });
+
   it.each(["disabled-surface", "spinner-track", "tone-neutral-bg"])("--%s is a cool neutral grey (equal red and green, blue at least as high)", (token) => {
     const { r, g, b } = colourOf(token);
     expect(r, token).toBe(g);

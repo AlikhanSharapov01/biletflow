@@ -210,6 +210,20 @@ describe("grouped lists", () => {
     const hover = all.filter(hoverOnly).filter((block) => selectorsOf(block).includes(".row-grid > .event-card-linked:hover"));
     expect(hover.map((block) => value(block.body, "box-shadow"))).toContain("none");
     expect(hover.map((block) => value(block.body, "background"))).toContain("var(--hover-surface)");
+    // The highlight lights at once on pointer-down and fades out on release.
+    expect(pressed.map((block) => value(block.body, "transition-duration"))).toContain("0s");
+    expect(declared(".row-grid > .event-card", "transition")).toMatch(/background-color var\(--dur-fast\)/);
+  });
+
+  it("row titles are list headlines, smaller than a card title", () => {
+    for (const selector of [".row-grid > .event-card h3", ".card-list > .event-card h3"]) {
+      expect(declared(selector, "font-size"), selector).toBe("var(--text-panel-title)");
+      expect(declared(selector, "letter-spacing"), selector).toBe("var(--track-panel)");
+    }
+  });
+
+  it("the tickets and orders group is capped so row actions stay near their titles", () => {
+    expect(declared(".event-grid.row-grid", "max-width")).toBe("780px");
   });
 });
 
@@ -235,10 +249,10 @@ describe("edges for more contrast and forced colours", () => {
 });
 
 describe("status pills", () => {
-  it("are pills in semibold micro type with micro tracking", () => {
-    expect(declared(".status", "border-radius")).toBe("var(--radius-pill)");
-    expect(declared(".status", "font-weight")).toBe("600");
-    expect(declared(".status", "letter-spacing")).toBe("var(--track-micro)");
+  it.each([".status", ".support-role"])("%s is a pill in semibold micro type with micro tracking", (selector) => {
+    expect(declared(selector, "border-radius"), selector).toBe("var(--radius-pill)");
+    expect(declared(selector, "font-weight"), selector).toBe("600");
+    expect(declared(selector, "letter-spacing"), selector).toBe("var(--track-micro)");
   });
 });
 
@@ -255,6 +269,26 @@ describe("type", () => {
       .filter((block) => !selectorsOf(block).every(allowed))
       .map((block) => `${block.file}: ${block.selector}`);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("large title", () => {
+  it("drops to 1.5rem at 320px so long kk words fit, and keeps the 34px maximum", () => {
+    const tokens = readFileSync("src/styles/tokens.css", "utf8");
+    expect(tokens).toMatch(/--text-title:\s*clamp\(1\.75rem,[^;]*2\.125rem\);/);
+    const narrow = tokens.match(/@media \(width < 390px\)\s*\{\s*:root\s*\{\s*--text-title:\s*clamp\(([^;]*)\);/)?.[1];
+    expect(narrow, "a narrow-phone --text-title").toBeDefined();
+    const [floor, preferred, ceiling] = narrow!.split(/,\s*/);
+    expect(floor).toBe("1.5rem");
+    expect(ceiling).toBe("1.75rem");
+    // The preferred size is 24px at 320 and meets the default 28px floor at 390, so nothing jumps.
+    const at = (width: number) => {
+      const vw = Number(preferred!.match(/([\d.]+)vw/)![1]);
+      const rem = Number(preferred!.match(/([\d.]+)rem/)![1]);
+      return (vw * width) / 100 + rem * 16;
+    };
+    expect(at(320)).toBeCloseTo(24, 0);
+    expect(at(390)).toBeCloseTo(28, 0);
   });
 });
 

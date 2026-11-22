@@ -109,7 +109,7 @@
   --tone-pending: #805313;
   --tone-blocked-bg: #f9e9e4;
   --tone-blocked: #984432;
-  --tone-neutral-bg: #ececf0;
+  --tone-neutral-bg: #e8e8ed;
   --tone-neutral: #68686d;
 
   /* Event artwork gradients */
@@ -182,6 +182,12 @@
      sampled at 20 evenly spaced points over --dur-spring (0.42s) and rounded to 3 decimals.
      It rises without overshoot and the last point is exactly 1. */
   --ease-spring: linear(0, 0.061, 0.189, 0.334, 0.471, 0.59, 0.687, 0.765, 0.825, 0.871, 0.906, 0.932, 0.951, 0.965, 0.975, 0.982, 0.987, 0.991, 0.994, 1);
+}
+
+/* Narrow phones: the Large Title eases down to 24px at 320 so long Kazakh and Russian words fit on one
+   line; at 390 it meets the 28px floor above, so the size never jumps. */
+@media (width < 390px) {
+  :root { --text-title: clamp(1.5rem, 5.714vw + 0.357rem, 1.75rem); }
 }
 
 @media (min-width: 761px) {
