@@ -73,6 +73,8 @@ export function DiscoverScreen() {
         ListEmptyComponent={empty}
         contentContainerStyle={styles.list}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
         refreshControl={
           <RefreshControl refreshing={page.loading && page.data !== null} onRefresh={page.reload} tintColor={colors.green} />
         }
