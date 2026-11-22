@@ -43,12 +43,7 @@ export function TicketsPage() {
                     `${dateLabel(ticket.event_starts_at)} · ${ticket.venue_name}`,
                     `${ticket.ticket_type_name} · ${seatLabel(ticket.seat_snapshot)}`,
                   ]}
-                  footer={
-                    <>
-                      <StatusPill tone={ticketTone(ticket.status)}>{statusLabel(ticket.status)}</StatusPill>
-                      <Link className="text-button" to={path}>{t("tickets.show_qr")}{" "}</Link>
-                    </>
-                  }
+                  footer={<StatusPill tone={ticketTone(ticket.status)}>{statusLabel(ticket.status)}</StatusPill>}
                 />
               );
             })}

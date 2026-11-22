@@ -261,6 +261,11 @@ discover.loading	Loading events…	Загрузка мероприятий…	І
 discover.load_error	We couldn’t load events.	Не удалось загрузить мероприятия.	Іс-шараларды жүктеу мүмкін болмады.
 discover.empty	No events match those filters yet. Try another search or check back soon.	По этим фильтрам мероприятий пока нет. Измените поиск или вернитесь позже.	Бұл сүзгілерге сай іс-шаралар әзірге жоқ. Іздеуді өзгертіңіз не кейінірек қараңыз.
 discover.venue_missing	Venue details unavailable	Данные о площадке недоступны	Өткізу орны туралы деректер жоқ
+discover.offer_ended	Ended	Завершено	Аяқталды
+discover.offer_from	from {price}	от {price}	{price} бастап
+discover.offer_none	Tickets not on sale yet	Билеты пока не в продаже	Билеттер әзірге сатылымда жоқ
+discover.offer_sales_ended	Sales ended	Продажи завершены	Сатылым аяқталды
+discover.offer_sold_out	Sold out	Распродано	Билеттер сатылып бітті
 discover.tickets_available	Tickets available	Билеты доступны	Билеттер бар
 discover.view_event	View event →	Открыть мероприятие →	Іс-шараны ашу →
 discover.price_range_error	Minimum price can’t be higher than maximum price.	Минимальная цена не может быть выше максимальной.	Ең төменгі баға ең жоғарғы бағадан аспауы тиіс.
@@ -430,7 +435,6 @@ tickets.load_error	We couldn’t load your tickets.	Не удалось загр
 tickets.empty	No tickets yet.	Билетов пока нет.	Әзірге билет жоқ.
 tickets.claim_hint	to register, or sign in with the email a ticket was sent to.	чтобы зарегистрироваться, или войдите с адресом почты, на который отправлен билет.	тіркелу үшін немесе билет жіберілген пошта арқылы кіріңіз.
 tickets.ready_for_door	Ready for the door	Готовы ко входу	Кіруге дайын
-tickets.show_qr	Show QR →	Показать QR →	QR көрсету →
 tickets.all	All tickets	Все билеты	Барлық билеттер
 tickets.loading_one	Loading ticket…	Загрузка билета…	Билет жүктелуде…
 tickets.load_one_error	We couldn’t load this ticket.	Не удалось загрузить этот билет.	Бұл билетті жүктеу мүмкін болмады.

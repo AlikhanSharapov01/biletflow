@@ -84,7 +84,9 @@ describe("OrdersPage", () => {
     expect(paid.getByText(/^2 tickets · ₸10,000\.00 · placed /)).toBeTruthy();
     expect(paid.getByText("Payment failed")).toBeTruthy();
     expect(paid.getByText("pending").className).toBe("status pending");
-    expect(paid.getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/orders/paid%2F2");
+    // The title is each card's only link.
+    expect(within(cards[0]!).getAllByRole("link")).toHaveLength(1);
+    expect(paid.getAllByRole("link")).toHaveLength(1);
   });
 
   it("shows the error and retries", async () => {

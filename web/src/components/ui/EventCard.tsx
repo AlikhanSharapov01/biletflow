@@ -5,7 +5,8 @@ import { EventImage } from "./EventImage";
 
 interface EventCardProps {
   title: string;
-  // Makes the title a link.
+  // Makes the title a link. Without `children` that link covers the whole card and is
+  // its only link, so `footer` must then hold no links or buttons.
   to?: string;
   eyebrow?: string;
   // One line per entry.
@@ -25,8 +26,10 @@ interface EventCardProps {
 // date-tile row variant, used by every event-like list.
 export function EventCard({ title, to, eyebrow, meta, art, cover, date, footer, children }: EventCardProps) {
   const lines = Array.isArray(meta) ? meta : meta ? [meta] : [];
+  const wholeCardLink = Boolean(to) && !children;
+  const classes = ["event-card", art ? "" : "event-card-row", wholeCardLink ? "event-card-linked" : ""].filter(Boolean).join(" ");
   return (
-    <article className={`event-card ${art ? "" : "event-card-row"}`}>
+    <article className={classes}>
       {art ? (
         <div className={`event-card-art art-${art.index % 4}`}>
           <span aria-hidden="true">{art.letter}</span>

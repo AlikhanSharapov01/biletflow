@@ -76,8 +76,16 @@
 .event-card h3 a:hover { text-decoration: underline; }
 .event-card-meta { color: var(--meta); font-size: var(--text-meta); line-height: 18px; }
 .event-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; }
+.event-card-linked { position: relative; }
+.event-card-linked h3 a::after { content: ""; position: absolute; inset: 0; }
+.event-card-linked:hover { border-color: var(--hover-line); }
+.event-card-linked:hover h3 a { text-decoration: underline; }
+.event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper); }
+.event-card-linked h3 a:focus-visible { outline: none; box-shadow: none; }
 .event-card-extra { padding: 0 14px 14px; }
 .row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.event-offer { min-width: 0; color: var(--ink); font-size: var(--text-body-sm); font-weight: 700; overflow-wrap: anywhere; }
+.event-offer:is([data-kind="ended"], [data-kind="sales_ended"], [data-kind="sold_out"], [data-kind="none"]) { color: var(--muted); font-weight: 600; }
 .price { color: #52645a; font-size: var(--text-body-sm); font-weight: 700; }
 
 /* List rows */

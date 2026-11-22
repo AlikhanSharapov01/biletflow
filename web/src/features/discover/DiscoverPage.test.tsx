@@ -358,6 +358,29 @@ describe("errors", () => {
 const searchBox = () => screen.getByRole("textbox", { name: "Search events" });
 const status = () => document.querySelector("[role=status]:not(.loading-state)")!.textContent;
 
+describe("event cards", () => {
+  it("has one link per card, named by the event title, and an offer label in the footer", async () => {
+    listEventsMock.mockResolvedValue([
+      makeEvent({ id: "a", title: "Paid night", price_from_minor: 500_000 }),
+      makeEvent({ id: "b", title: "Free night", price_from_minor: 0 }),
+      makeEvent({ id: "c", title: "Full night", sold_out: true }),
+    ]);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    for (const card of cards()) {
+      const links = within(card as HTMLElement).getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]!.textContent).toBe(card.querySelector("h3")!.textContent);
+    }
+    const foot = (index: number) => cards()[index]!.querySelector(".event-card-foot")!;
+    expect(foot(0).textContent).toMatch(/^from ₸5,000/);
+    expect(foot(1).textContent).toBe("Free");
+    expect(foot(2).textContent).toBe("Sold out");
+    expect(foot(2).querySelector(".event-offer[data-kind=sold_out]")).not.toBeNull();
+    expect(screen.queryByText("Tickets available")).toBeNull();
+  });
+});
+
 describe("keyboard focus", () => {
   it("stays on the Search button after submitting with it", async () => {
     renderPage();

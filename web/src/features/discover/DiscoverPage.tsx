@@ -1,6 +1,6 @@
 import { categoryName, t, useLocale } from "../../i18n";
 import { useEffect, useMemo, useRef } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { listCategories, listVenues } from "../../api/catalog";
 import type { Category, Venue } from "../../api/types";
 import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading } from "../../components/ui";
@@ -9,6 +9,7 @@ import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { DiscoverFilters } from "./components/DiscoverFilters";
 import { discoverSearchParams, hasActiveFilters, parseDiscoverQuery, priceRangeError, type DiscoverQuery } from "./discoverQuery";
+import { eventOffer } from "./eventOffer";
 import { useDiscoverEvents, type DiscoverEvents } from "./useDiscoverEvents";
 
 interface Lookups {
@@ -145,6 +146,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
           const venue = maps.venues.get(event.venue_id);
           const categoryLabel = categoryName(maps.categories.get(event.category_id));
           const path = `/events/${encodeURIComponent(event.id)}`;
+          const offer = eventOffer(event);
           return (
             <EventCard
               key={event.id}
@@ -154,12 +156,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
               title={event.title}
               to={path}
               meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
-              footer={
-                <>
-                  <span className="price">{event.time_status === "completed" ? t("common.completed") : t("discover.tickets_available")}</span>
-                  <Link className="text-button" to={path}>{t("discover.view_event")}{" "}</Link>
-                </>
-              }
+              footer={<span className="event-offer" data-kind={offer.kind}>{offer.label}</span>}
             />
           );
         })}
