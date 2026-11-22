@@ -110,10 +110,10 @@ export const spacing = {
   gap: 12,
 } as const;
 
-// Colours with no web token: translucent overlays, the scanner's outcome panels
-// (drawn on the dark scan screen) and fixed black/white (QR code, camera backdrop).
+// Translucent overlays. scrim, storyRing, artRing and artInk equal the web tokens of
+// the same name (webParity.test.ts); the rest have no web token.
 export const overlays = {
-  scrim: "rgba(23,39,36,0.35)",
+  scrim: "rgba(0,0,0,0.32)",
   storyRing: "rgba(226,244,191,0.17)",
   artRing: "rgba(255,255,255,0.65)",
   artInk: "rgba(255,255,255,0.85)",
@@ -128,6 +128,8 @@ export const overlays = {
   shade60: "rgba(0,0,0,0.6)",
 } as const;
 
+// Colours with no web token: the scanner's outcome panels (drawn on the dark scan
+// screen) and fixed black/white (QR code, camera backdrop).
 export const scanner = {
   warning: "#a57324",
   pending: "#3e5568",
