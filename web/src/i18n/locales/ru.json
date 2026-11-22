@@ -358,6 +358,9 @@
   "checkout.sales_open": "Продажи откроются {p0}",
   "checkout.event_ended": "Это мероприятие завершилось.",
   "checkout.verify_email_hint": "Подтвердите почту перед бронированием билетов. Ссылка подтверждения находится в письме.",
+  "checkout.verify_email_sent": "Мы отправили новую ссылку на {email}.",
+  "checkout.verify_email_confirmed": "Я подтвердил(а) почту",
+  "checkout.verify_email_still_unverified": "Почта пока не подтверждена.",
   "checkout.details_unavailable": "Информация о билетах пока недоступна.",
   "checkout.sign_in_hint": "чтобы забронировать билеты на это мероприятие.",
   "checkout.quantity_for": "Количество для",
@@ -1625,5 +1628,12 @@
   "org.traffic_event_view": "Смотрели страницу мероприятия",
   "org.traffic_checkout_start": "Начали оформление",
   "org.traffic_purchase": "Покупки, переданные в GA4",
-  "org.traffic_refund": "Возвраты, переданные в GA4"
+  "org.traffic_refund": "Возвраты, переданные в GA4",
+  "checkout.steps_label": "Шаги оформления",
+  "checkout.step_tickets": "Билеты",
+  "checkout.step_seats": "Места",
+  "checkout.step_recipients": "Получатели",
+  "checkout.step_completed": "шаг пройден",
+  "checkout.hold_five_minutes": "До конца брони осталось меньше 5 минут",
+  "checkout.hold_one_minute": "До конца брони осталось меньше минуты"
 }

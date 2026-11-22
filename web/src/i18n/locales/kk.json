@@ -358,6 +358,9 @@
   "checkout.sales_open": "Сатылым {p0} ашылады",
   "checkout.event_ended": "Бұл іс-шара аяқталды.",
   "checkout.verify_email_hint": "Билет брондамас бұрын поштаңызды растаңыз. Растау сілтемесін поштадан қараңыз.",
+  "checkout.verify_email_sent": "{email} мекенжайына жаңа сілтеме жібердік.",
+  "checkout.verify_email_confirmed": "Поштаны растадым",
+  "checkout.verify_email_still_unverified": "Пошта әлі расталған жоқ.",
   "checkout.details_unavailable": "Билеттер туралы мәліметтер әзірге жоқ.",
   "checkout.sign_in_hint": "осы іс-шараның билеттерін брондау үшін.",
   "checkout.quantity_for": "Мына билет саны:",
@@ -1625,5 +1628,12 @@
   "org.traffic_event_view": "Іс-шара бетін қарады",
   "org.traffic_checkout_start": "Тапсырысты бастады",
   "org.traffic_purchase": "GA4-ке жіберілген сатып алулар",
-  "org.traffic_refund": "GA4-ке жіберілген қайтарулар"
+  "org.traffic_refund": "GA4-ке жіберілген қайтарулар",
+  "checkout.steps_label": "Рәсімдеу қадамдары",
+  "checkout.step_tickets": "Билеттер",
+  "checkout.step_seats": "Орындар",
+  "checkout.step_recipients": "Алушылар",
+  "checkout.step_completed": "қадам аяқталды",
+  "checkout.hold_five_minutes": "Бронь аяқталуына 5 минуттан аз уақыт қалды",
+  "checkout.hold_one_minute": "Бронь аяқталуына 1 минуттан аз уақыт қалды"
 }

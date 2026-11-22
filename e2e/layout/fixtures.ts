@@ -3,7 +3,7 @@
 // layouts: very long titles and venue names in every language, events with and
 // without a cover image, zero and very large counts, and more events than fit on one
 // row of the grid.
-import type { Category, EventView, Profile, TicketType, Venue } from "../../web/src/api/types";
+import type { Category, EventView, Hold, Profile, TicketType, Venue } from "../../web/src/api/types";
 import type { PublicSettings } from "../../web/src/api/types/settings";
 import type { Organization } from "../../web/src/api/types/organizations";
 
@@ -200,3 +200,20 @@ export const publicSettings: PublicSettings = {
 // A large unread count makes the notification badge as wide as it can get.
 export const UNREAD_NOTIFICATIONS = 12_345;
 export const ACCESS_TOKEN = "layout-check-token";
+
+// The very expensive paid type from ticketTypes() held for ten minutes (the clock is
+// pinned, so the countdown reads 10:00). Paid, so the step list is at its longest.
+export function hold(eventId: string): Hold {
+  const payable = 99_999_999_900;
+  return {
+    id: uuid(400),
+    event_id: eventId,
+    buyer_user_id: USER_ID,
+    status: "active",
+    expires_at: new Date(NOW.getTime() + 10 * 60 * 1000).toISOString(),
+    created_at: NOW.toISOString(),
+    allocations: [{ id: uuid(401), ticket_type_id: uuid(201), event_seat_id: null, state: "held" }],
+    pricing: { gross: payable, discount: 0, subtotal: payable, processing_fee: 0, payable, lines: [] },
+    promo: null,
+  };
+}

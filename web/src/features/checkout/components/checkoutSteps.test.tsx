@@ -8,7 +8,7 @@ import type { PromoPreview } from "../../../api/types/promo";
 import { deferred, makeAllocation, makeEvent, makeHold, makeOrder, makeTicketType } from "../../../../tests/helpers/fixtures";
 import type { Quantities, RecipientValues } from "../utils/checkout";
 import { readStashedPromo } from "../utils/promo";
-import { HoldCountdown } from "./HoldCountdown";
+import { HoldCountdown, holdAnnouncement } from "./HoldCountdown";
 import { PriceSummary } from "./PriceSummary";
 import { PromoCodeField } from "./PromoCodeField";
 import { RecipientForm } from "./RecipientForm";
@@ -32,6 +32,21 @@ describe("HoldCountdown", () => {
     expect(screen.getByRole("timer").className).toContain("urgent");
     rerender(<HoldCountdown secondsLeft={-3} />);
     expect(screen.getByRole("timer").textContent).toBe("Held for 0:00");
+  });
+
+  it("keeps the timer silent", () => {
+    render(<HoldCountdown secondsLeft={540} />);
+    expect(screen.getByRole("timer").getAttribute("aria-live")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("words the announcement per threshold, aligned with the urgent style", () => {
+    expect(holdAnnouncement(540)).toBe("");
+    expect(holdAnnouncement(300)).toBe("");
+    expect(holdAnnouncement(299)).toBe("Less than 5 minutes left on your reservation");
+    expect(holdAnnouncement(60)).toBe("Less than 5 minutes left on your reservation");
+    expect(holdAnnouncement(59)).toBe("Less than 1 minute left on your reservation");
+    expect(holdAnnouncement(0)).toBe("Your reservation expired. Choose your tickets again.");
   });
 });
 
@@ -239,7 +254,6 @@ describe("RecipientForm", () => {
         typeName={(id) => names[id] ?? id}
         recipients={recipients}
         setRecipients={setRecipients}
-        secondsLeft={300}
         busy={props.busy ?? false}
         message={props.message ?? ""}
         paid={props.paid ?? false}
@@ -256,7 +270,6 @@ describe("RecipientForm", () => {
     expect(groups.map((group) => group.querySelector("legend")?.textContent)).toEqual(["Ticket 1 · General", "Ticket 2 · VIP"]);
     expect((within(groups[0]!).getByLabelText("Name") as HTMLInputElement).value).toBe("Aida");
     expect((within(groups[1]!).getByLabelText("Email") as HTMLInputElement).value).toBe("");
-    expect(screen.getByRole("timer").textContent).toBe("Held for 5:00");
   });
 
   it("updates only the edited recipient", () => {

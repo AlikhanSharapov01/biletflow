@@ -358,6 +358,9 @@ checkout.sales_closed	Sales closed	Продажи закрыты	Сатылым 
 checkout.sales_open	Sales open {p0}	Продажи откроются {p0}	Сатылым {p0} ашылады
 checkout.event_ended	This event has ended.	Это мероприятие завершилось.	Бұл іс-шара аяқталды.
 checkout.verify_email_hint	Verify your email address before reserving tickets. Check your inbox for the verification link.	Подтвердите почту перед бронированием билетов. Ссылка подтверждения находится в письме.	Билет брондамас бұрын поштаңызды растаңыз. Растау сілтемесін поштадан қараңыз.
+checkout.verify_email_sent	We sent a new link to {email}.	Мы отправили новую ссылку на {email}.	{email} мекенжайына жаңа сілтеме жібердік.
+checkout.verify_email_confirmed	I’ve confirmed my email	Я подтвердил(а) почту	Поштаны растадым
+checkout.verify_email_still_unverified	Your email isn’t confirmed yet.	Почта пока не подтверждена.	Пошта әлі расталған жоқ.
 checkout.details_unavailable	Ticket details are not available yet.	Информация о билетах пока недоступна.	Билеттер туралы мәліметтер әзірге жоқ.
 checkout.sign_in_hint	to reserve tickets for this event.	чтобы забронировать билеты на это мероприятие.	осы іс-шараның билеттерін брондау үшін.
 checkout.quantity_for	Quantity for	Количество для	Мына билет саны:
@@ -1626,3 +1629,10 @@ org.traffic_event_view	Viewed the event page	Смотрели страницу �
 org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
 org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
 org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар
+checkout.steps_label	Checkout steps	Шаги оформления	Рәсімдеу қадамдары
+checkout.step_tickets	Tickets	Билеты	Билеттер
+checkout.step_seats	Seats	Места	Орындар
+checkout.step_recipients	Recipients	Получатели	Алушылар
+checkout.step_completed	step completed	шаг пройден	қадам аяқталды
+checkout.hold_five_minutes	Less than 5 minutes left on your reservation	До конца брони осталось меньше 5 минут	Бронь аяқталуына 5 минуттан аз уақыт қалды
+checkout.hold_one_minute	Less than 1 minute left on your reservation	До конца брони осталось меньше минуты	Бронь аяқталуына 1 минуттан аз уақыт қалды

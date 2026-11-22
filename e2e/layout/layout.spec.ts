@@ -20,6 +20,10 @@ interface PageCase {
   path: (locale: Locale) => string;
   /** Present once the page has finished loading its data. */
   ready: string;
+  /** Drives the page into the state to measure (runs once `ready` is visible). */
+  prepare?: (page: Page) => Promise<void>;
+  /** Viewports to run at; all of them when omitted. */
+  viewports?: ViewportName[];
 }
 
 // One line per page. Add a page here and it runs at every width in every language.
@@ -31,6 +35,19 @@ const PAGES: PageCase[] = [
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
+  {
+    name: "checkout-hold",
+    role: "admin",
+    path: (locale) => `/events/${FOCUS_EVENT[locale]}`,
+    ready: ".ticket-option",
+    // Reserve the paid ticket: the step list (three steps) and the countdown appear.
+    prepare: async (page) => {
+      await page.locator(".ticket-option", { has: page.locator(".qty-field") }).last().locator("select").selectOption("1");
+      await page.locator(".form-actions .primary-button").click();
+      await expect(page.locator(".checkout-progress .countdown")).toBeVisible();
+    },
+    viewports: ["narrow", "phone"],
+  },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
 ];
 
@@ -49,7 +66,9 @@ const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of 
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
 const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
-const ADMIN_PAGES = ["discover-admin", "event-admin", "organizer-event-admin"];
+const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin"];
+// checkout-hold runs only on the narrow and phone widths.
+const WIDE_ADMIN_PAGES = ADMIN_PAGES.filter((name) => name !== "checkout-hold");
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
@@ -59,11 +78,11 @@ const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Local
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
 ];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in
@@ -101,6 +120,7 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     await expect(page.locator(".loading-state")).toHaveCount(0);
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await pageCase.prepare?.(page);
     await page.evaluate(() => document.fonts.ready);
   } catch (failure) {
     if (mocked.unmocked.length === 0 && pageErrors.length === 0) throw failure;
@@ -215,7 +235,7 @@ function measureLayout(): string[] {
   const scroll = document.documentElement.scrollWidth;
   if (scroll > width) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${width}`);
 
-  for (const bar of document.querySelectorAll(".topbar, .tab-bar")) {
+  for (const bar of document.querySelectorAll(".topbar, .tab-bar, .checkout-progress")) {
     for (const element of [bar, ...bar.querySelectorAll("*")]) {
       const box = rendered(element);
       if (!box) continue;
@@ -250,6 +270,25 @@ function measureLayout(): string[] {
     }
   }
 
+  // The checkout step list and countdown must not run into each other, and a
+  // one-word step label must not break inside the word.
+  for (const row of document.querySelectorAll(".checkout-progress")) {
+    const list = row.querySelector(".checkout-steps");
+    const timer = row.querySelector(".countdown");
+    const listBox = list && rendered(list);
+    const timerBox = timer && rendered(timer);
+    if (listBox && timerBox && overlaps(listBox, timerBox)) problems.push("checkout steps overlap the countdown");
+    const steps = [...row.querySelectorAll(".checkout-step")].map((step) => ({ step, box: rendered(step) }));
+    steps.forEach(({ step, box }, index) => {
+      for (const other of steps.slice(index + 1)) {
+        if (box && other.box && overlaps(box, other.box)) problems.push(`${describe(step)} and ${describe(other.step)} overlap`);
+      }
+      const label = step.querySelector(".checkout-step-label");
+      const lines = label ? new Set(textBoxes(label).map((line) => Math.round(line.top))).size : 0;
+      if (label && !/\s/.test(label.textContent!.trim()) && lines > 1) problems.push(`${describe(label)} breaks inside the word`);
+    });
+  }
+
   // Labels of sibling tabs must not run into each other.
   for (const selector of [".tab-bar-link", ".top-tab"]) {
     const links = [...document.querySelectorAll(selector)].filter((link) => rendered(link));
@@ -273,12 +312,26 @@ function measureLayout(): string[] {
   return problems;
 }
 
+// iOS Safari zooms the page when a field under 16px gets focus. Runs in the browser.
+function smallFields(): string[] {
+  return [...document.querySelectorAll("input, select, textarea")]
+    .filter((field) => {
+      const box = field.getBoundingClientRect();
+      const style = getComputedStyle(field);
+      return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && style.display !== "none"
+        && !(field instanceof HTMLInputElement && ["checkbox", "radio", "hidden"].includes(field.type));
+    })
+    .map((field) => ({ field, size: parseFloat(getComputedStyle(field).fontSize) }))
+    .filter(({ size }) => size < 16)
+    .map(({ field, size }) => `${field.tagName.toLowerCase()}${field.className ? `.${String(field.className).split(" ")[0]}` : ""} ${size}px`);
+}
+
 for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportName, (typeof VIEWPORTS)[ViewportName]]>) {
   for (const locale of LOCALES) {
     test.describe(`${viewportName} ${locale}`, () => {
       test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
 
-      for (const pageCase of PAGES) {
+      for (const pageCase of PAGES.filter((item) => !item.viewports || item.viewports.includes(viewportName))) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
         GENERATED.add(key);
         test(key, async ({ page }, testInfo) => {
@@ -297,8 +350,11 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             await testInfo.attach(name, { path: file, contentType: "image/png" });
           }
 
+          const fields = viewportName === "phone" ? await page.evaluate(smallFields) : [];
           expect(mocked.unmocked, "API calls without a fixture").toEqual([]);
           expect(pageErrors, "uncaught page errors").toEqual([]);
+
+          expect(fields, "fields under 16px zoom the page on iOS").toEqual([]);
 
           const known = KNOWN_FAILURES.get(key);
           if (!known) {
