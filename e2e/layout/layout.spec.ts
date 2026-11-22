@@ -36,6 +36,8 @@ interface PageCase {
   ready: string;
   /** Drives the page into the state to measure (runs once `ready` is visible). */
   prepare?: (page: Page) => Promise<void>;
+  /** The sticky "Get tickets" bar is checked: present up to 960px, absent above. */
+  stickyBar?: boolean;
   /** Viewports to run at; all of them when omitted. */
   viewports?: ViewportName[];
 }
@@ -49,7 +51,9 @@ const PAGES: PageCase[] = [
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-member", role: "member", path: () => "/discover", ready: REAL_CARD },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: REAL_CARD },
-  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
+  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
+  { name: "event-visitor", role: "visitor", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
+  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
   {
     name: "checkout-hold",
     role: "admin",
@@ -382,6 +386,31 @@ function measureLayout(): string[] {
   return problems;
 }
 
+// The sticky "Get tickets" bar sits on the tab bar (or the bottom edge without one) and the
+// page's last content can scroll clear of it. Runs in the browser, scrolled to the end.
+function stickyBarProblems(): string[] {
+  const problems: string[] = [];
+  const bar = document.querySelector(".get-tickets-bar");
+  if (!bar) return ["no Get tickets bar"];
+  const shown = getComputedStyle(bar).display !== "none";
+  if (window.innerWidth > 960) return shown ? ["Get tickets bar shows above 960px"] : [];
+  if (!shown) return ["Get tickets bar is not shown up to 960px"];
+  const box = bar.getBoundingClientRect();
+  const tabBar = document.querySelector(".tab-bar");
+  const floor = tabBar ? tabBar.getBoundingClientRect().top : window.innerHeight;
+  if (Math.abs(box.bottom - floor) > 1) problems.push(`bar bottom ${Math.round(box.bottom)} is not on the ${tabBar ? "tab bar" : "bottom edge"} at ${Math.round(floor)}`);
+  if (box.left < 0 || box.right > window.innerWidth) problems.push(`bar spans ${Math.round(box.left)}..${Math.round(box.right)}`);
+  const button = bar.querySelector("button")!.getBoundingClientRect();
+  if (button.height < 44 || button.right > box.right || button.left < box.left) problems.push("bar button is under 44px tall or leaves the bar");
+  const offer = bar.querySelector(".get-tickets-offer")!;
+  if (offer.getBoundingClientRect().right > button.left + 1) problems.push("offer text runs into the button");
+  if (offer.scrollHeight > offer.clientHeight + 1) problems.push("offer text is cut off");
+  const last = [...document.querySelector(".page")!.children].filter((child) => !child.classList.contains("get-tickets-bar") && !child.classList.contains("get-tickets-spacer")).at(-1)!;
+  const lastBottom = last.getBoundingClientRect().bottom;
+  if (lastBottom > box.top + 1) problems.push(`the page's last content ends at ${Math.round(lastBottom)}, under the bar at ${Math.round(box.top)}`);
+  return problems;
+}
+
 // iOS Safari zooms the page when a field under 16px gets focus. Runs in the browser.
 function smallFields(): string[] {
   return [...document.querySelectorAll("input, select, textarea")]
@@ -419,6 +448,14 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             const file = testInfo.outputPath(`${name}.png`);
             await page.screenshot({ path: file, fullPage });
             await testInfo.attach(name, { path: file, contentType: "image/png" });
+          }
+
+          if (pageCase.stickyBar) {
+            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+            // Where the tickets section is on screen the bar slides away; measure it in its shown
+            // position, as it appears whenever the section scrolls out of view.
+            await page.addStyleTag({ content: ".get-tickets-bar { transition: none !important; transform: none !important; visibility: visible !important; opacity: 1 !important; }" });
+            expect(await page.evaluate(stickyBarProblems), "sticky Get tickets bar").toEqual([]);
           }
 
           const fields = viewportName === "phone" ? await page.evaluate(smallFields) : [];
