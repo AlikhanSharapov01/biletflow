@@ -210,7 +210,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/` | Anyone | Redirects to `/discover`; so does any unknown path |
 | `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google, language |
 | `/verify-email#token=`, `/reset-password#token=` | Anyone | Pages opened from emailed links |
-| `/discover` | Anyone | Published events with search and category filter |
+| `/discover` | Anyone | Published events with search, category, city, date, price and free filters in the URL, Load more paging |
 | `/events/:eventId` | Anyone | Event details, publication label, tickets, seat map, promo code, calendar, report, get help |
 | `/c/:token` | Anyone | Campaign QR link: resolves the promo and opens the event |
 | `/tickets`, `/tickets/:ticketId` | Signed in | Tickets: QR, PDF, delivery, admission status, entry confirmation |
@@ -296,12 +296,33 @@ traffic section and the GA4 connection panel, all locale catalogs and interface-
 
 Browser end-to-end tests live in the repository's `e2e/` folder (Playwright, #120): campaign link,
 free registration, paid checkout and refund. The `E2E` workflow (`.github/workflows/e2e.yml`) runs
-them when `e2e/`, `backend/` or `web/` change. Downloads and the Kazakh and Russian interface are
-not covered there yet. Component and source checks do not certify screen-reader behaviour.
+them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there yet.
+
+Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover (plain,
+filtered, empty and with Load more), the event page and the organizer event page in Chromium at
+320, 390, 768, 1024 and 1440 px in English, Russian and Kazakh, as a visitor and as a platform
+admin. The API is answered by fixtures in the browser, so they need no backend:
+`cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium and
+`LAYOUT_PORT` to move the dev server off port 5180). Each case asserts:
+
+- no horizontal page scroll;
+- no top bar or tab bar element, or its text, outside the viewport or spilling out of its box,
+  no overlapping tab labels, and no top tab overlapping the top bar actions;
+- no page content, or text in it, outside the viewport;
+- every Discover filter control inside the viewport, none overlapping another, and no select
+  cutting off its chosen option.
+
+It also attaches a full-page and a viewport screenshot (no image baselines). Defects that are
+still open are listed in `KNOWN_FAILURES` in `layout.spec.ts`, each naming the task that fixes
+it; a case with a known problem still fails on any other problem, and fails when a listed
+problem stops occurring. Text widths depend on the font, so the cases pin DejaVu Sans and Serif
+and fail with "install DejaVu fonts" when they are missing (`fonts-dejavu-core` on Debian and
+Ubuntu). Component and source checks do not certify screen-reader behaviour.
 
 The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
-that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
-`npm run typecheck`, `npm test` and `npx vite build`.
+that change `web/**`, `e2e/layout/**`, `e2e/layout.config.ts` or the workflow file. On Node 22 (latest
+patch) the `check` job runs `npm ci`, `npm run typecheck`, `npm test` and `npx vite build`; the
+`layout` job runs the layout checks.
 
 The repository's `Smoke` workflow (`.github/workflows/smoke.yml`) builds the Compose stack and
 runs free admission, duplicate rejection, paid activation and payment, campaign discount and
@@ -316,8 +337,8 @@ and screen-reader acceptance remain unverified; see
 
 - **HTTPS (#49):** install and validate the staged configuration with the operations owner;
   `proxy/` and the repository-level operations docs belong to `@devops`.
-- **Browser tests:** extend `e2e/` to downloads, the admin portal and the Kazakh and Russian
-  interface.
+- **Browser tests:** extend `e2e/` to downloads and the admin portal; add more pages to the
+  layout checks.
 - **Translation review:** the Russian and Kazakh wording added for the admin inspection, job
   retry, analytics export and attachment scan screens should be checked by a native speaker.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.

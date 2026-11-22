@@ -261,8 +261,32 @@ discover.loading	Loading events…	Загрузка мероприятий…	І
 discover.load_error	We couldn’t load events.	Не удалось загрузить мероприятия.	Іс-шараларды жүктеу мүмкін болмады.
 discover.empty	No events match those filters yet. Try another search or check back soon.	По этим фильтрам мероприятий пока нет. Измените поиск или вернитесь позже.	Бұл сүзгілерге сай іс-шаралар әзірге жоқ. Іздеуді өзгертіңіз не кейінірек қараңыз.
 discover.venue_missing	Venue details unavailable	Данные о площадке недоступны	Өткізу орны туралы деректер жоқ
+discover.offer_ended	Ended	Завершено	Аяқталды
+discover.offer_from	from {price}	от {price}	{price} бастап
+discover.offer_none	Tickets not on sale yet	Билеты пока не в продаже	Билеттер әзірге сатылымда жоқ
+discover.offer_sales_ended	Sales ended	Продажи завершены	Сатылым аяқталды
+discover.offer_sold_out	Sold out	Распродано	Билеттер сатылып бітті
 discover.tickets_available	Tickets available	Билеты доступны	Билеттер бар
 discover.view_event	View event →	Открыть мероприятие →	Іс-шараны ашу →
+discover.price_range_error	Minimum price can’t be higher than maximum price.	Минимальная цена не может быть выше максимальной.	Ең төменгі баға ең жоғарғы бағадан аспауы тиіс.
+discover.price_invalid	Enter a whole amount in tenge.	Укажите целую сумму в тенге.	Теңгемен бүтін сома енгізіңіз.
+discover.city	City	Город	Қала
+discover.all_cities	All cities	Все города	Барлық қалалар
+discover.when	When	Когда	Қашан
+discover.when_any	Any date	Любая дата	Кез келген күн
+discover.when_today	Today	Сегодня	Бүгін
+discover.when_weekend	This weekend	В эти выходные	Осы демалыс күндері
+discover.when_month	This month	В этом месяце	Осы айда
+discover.free_only	Free only	Только бесплатные	Тек тегін
+discover.price_from	Price from, ₸	Цена от, ₸	Ең төменгі баға, ₸
+discover.price_to	Price to, ₸	Цена до, ₸	Ең жоғарғы баға, ₸
+discover.more_filters	More filters	Ещё фильтры	Қосымша сүзгілер
+discover.more_filters_count	More filters ({count})	Ещё фильтры ({count})	Қосымша сүзгілер ({count})
+discover.clear_filters	Clear filters	Сбросить фильтры	Сүзгілерді тазалау
+discover.empty_filtered	No events matched your filters.	По вашим фильтрам ничего не найдено.	Сүзгілеріңізге сай іс-шара табылмады.
+discover.load_more	Load more	Показать ещё	Тағы көрсету
+discover.load_more_error	We couldn’t load more events.	Не удалось загрузить ещё мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
+discover.shown_count	Events shown: {count}	Показано мероприятий: {count}	Көрсетілген іс-шаралар: {count}
 event.loading	Loading event details…	Загрузка мероприятия…	Іс-шара мәліметтері жүктелуде…
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.
 event.back	Back to events	К мероприятиям	Іс-шараларға оралу
@@ -391,6 +415,7 @@ orders.load_error	We couldn’t load your orders.	Не удалось загру
 orders.empty	No orders yet.	Заказов пока нет.	Әзірге тапсырыс жоқ.
 orders.register_hint	and reserve a ticket.	и забронируйте билет.	және билет брондаңыз.
 orders.find_event	Find an event	Найти мероприятие	Іс-шара табу
+orders.view	View order →	Открыть заказ →	Тапсырысты ашу →
 orders.all	All orders	Все заказы	Барлық тапсырыстар
 orders.loading_one	Loading order…	Загрузка заказа…	Тапсырыс жүктелуде…
 orders.load_one_error	We couldn’t load this order.	Не удалось загрузить этот заказ.	Бұл тапсырысты жүктеу мүмкін болмады.
@@ -411,11 +436,11 @@ tickets.load_error	We couldn’t load your tickets.	Не удалось загр
 tickets.empty	No tickets yet.	Билетов пока нет.	Әзірге билет жоқ.
 tickets.claim_hint	to register, or sign in with the email a ticket was sent to.	чтобы зарегистрироваться, или войдите с адресом почты, на который отправлен билет.	тіркелу үшін немесе билет жіберілген пошта арқылы кіріңіз.
 tickets.ready_for_door	Ready for the door	Готовы ко входу	Кіруге дайын
-tickets.show_qr	Show QR →	Показать QR →	QR көрсету →
 tickets.all	All tickets	Все билеты	Барлық билеттер
 tickets.loading_one	Loading ticket…	Загрузка билета…	Билет жүктелуде…
 tickets.load_one_error	We couldn’t load this ticket.	Не удалось загрузить этот билет.	Бұл билетті жүктеу мүмкін болмады.
 tickets.admission_ticket	Admission ticket	Входной билет	Кіру билеті
+tickets.show_qr	Show QR →	Показать QR →	QR көрсету →
 tickets.view	View ticket	Открыть билет	Билетті ашу
 tickets.print	Print ticket	Распечатать билет	Билетті басып шығару
 tickets.download_pdf	Download PDF	Скачать PDF	PDF жүктеп алу

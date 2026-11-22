@@ -1,7 +1,7 @@
 import { quantityLabel, t, useLocale } from "../../i18n";
 import { Link } from "react-router";
 import { listOrders } from "../../api/orders";
-import { ButtonLink, EmptyState, ErrorPanel, EventCard, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
+import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel, priceLabel, statusLabel } from "../../utils/format";
 import { orderStatusTone, paymentLabel } from "../checkout/utils/payment";
@@ -31,6 +31,7 @@ export function OrdersPage() {
                   date={orderStart(order)}
                   title={orderTitle(order)}
                   to={path}
+                  coverLink
                   meta={[
                     t("orders.summary_meta", { items: quantityLabel("ticket", order.items.length), amount: priceLabel(order.payable_minor), date: dateLabel(order.created_at) }),
                     ...(order.payment ? [paymentLabel(order)] : []),
@@ -38,7 +39,7 @@ export function OrdersPage() {
                   footer={
                     <>
                       <StatusPill tone={orderStatusTone(order.status)}>{statusLabel(order.status)}</StatusPill>
-                      <ButtonLink size="sm" to={path}>{t("support.open")}{" "}</ButtonLink>
+                      <span className="event-cue" aria-hidden="true">{t("orders.view")}</span>
                     </>
                   }
                 />

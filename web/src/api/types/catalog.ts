@@ -69,12 +69,21 @@ export interface EventView extends EventInput {
   time_status: TimeStatus;
   images: EventImage[];
   cover_image_url: string | null;
+  price_from_minor: number | null;
+  sold_out: boolean;
 }
 
 export interface EventFilters {
   q?: string;
   category_id?: string;
+  city?: string;
+  date_from?: string;
+  date_to?: string;
+  min_price?: number;
+  max_price?: number;
+  free?: boolean;
   limit?: number;
+  offset?: number;
 }
 
 export interface TicketTypeInput {

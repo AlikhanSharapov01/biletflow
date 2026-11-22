@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Link } from "react-router";
 import { DateTile } from "./DateTile";
 import { EventImage } from "./EventImage";
@@ -7,6 +7,9 @@ interface EventCardProps {
   title: string;
   // Makes the title a link.
   to?: string;
+  // The title link also covers the whole card and is its only link, so `footer` must hold
+  // no links or buttons. Needs `to`; the footer text is read as the link's description.
+  coverLink?: boolean;
   eyebrow?: string;
   // One line per entry.
   meta?: ReactNode | ReactNode[];
@@ -23,10 +26,13 @@ interface EventCardProps {
 
 // Mobile's EventCard (artwork, category, serif title, meta, footer) and its
 // date-tile row variant, used by every event-like list.
-export function EventCard({ title, to, eyebrow, meta, art, cover, date, footer, children }: EventCardProps) {
+export function EventCard({ title, to, coverLink, eyebrow, meta, art, cover, date, footer, children }: EventCardProps) {
   const lines = Array.isArray(meta) ? meta : meta ? [meta] : [];
+  const footerId = useId();
+  const wholeCardLink = Boolean(to) && Boolean(coverLink) && !children;
+  const classes = ["event-card", art ? "" : "event-card-row", wholeCardLink ? "event-card-linked" : ""].filter(Boolean).join(" ");
   return (
-    <article className={`event-card ${art ? "" : "event-card-row"}`}>
+    <article className={classes}>
       {art ? (
         <div className={`event-card-art art-${art.index % 4}`}>
           <span aria-hidden="true">{art.letter}</span>
@@ -37,13 +43,13 @@ export function EventCard({ title, to, eyebrow, meta, art, cover, date, footer, 
         {date !== undefined ? <DateTile at={date} /> : null}
         <div className="event-card-copy">
           {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h3>{to ? <Link to={to}>{title}</Link> : title}</h3>
+          <h3>{to ? <Link to={to} aria-describedby={wholeCardLink && footer ? footerId : undefined}>{title}</Link> : title}</h3>
           {lines.map((line, index) => (
             <p className="event-card-meta" key={index}>
               {line}
             </p>
           ))}
-          {footer ? <div className="event-card-foot">{footer}</div> : null}
+          {footer ? <div className="event-card-foot" id={wholeCardLink ? footerId : undefined}>{footer}</div> : null}
         </div>
       </div>
       {children ? <div className="event-card-extra">{children}</div> : null}

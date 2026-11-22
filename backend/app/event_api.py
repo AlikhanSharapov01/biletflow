@@ -34,6 +34,7 @@ from .catalog_service import (
     event_caps,
     event_guard,
     event_record,
+    event_records,
     organization_guard,
     record,
     set_capabilities,
@@ -349,12 +350,10 @@ def router(factory, settings, principal, storage):
                     )
                 )
                 query = query.where(Event.id.in_(allowed))
-            return [
-                event_record(e, db)
-                for e in db.scalars(
-                    query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset)
-                )
-            ]
+            page = list(
+                db.scalars(query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset))
+            )
+            return event_records(db, page)
 
     @routes.get("/events", response_model=list[s.EventView])
     def discover(
@@ -413,12 +412,10 @@ def router(factory, settings, principal, storage):
                 if free is not None:
                     price = price.where(TicketType.kind == ("free" if free else "paid"))
                 query = query.where(exists(price))
-            return [
-                event_record(e, db)
-                for e in db.scalars(
-                    query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset)
-                )
-            ]
+            page = list(
+                db.scalars(query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset))
+            )
+            return event_records(db, page)
 
     @routes.get("/events/{event_id}", response_model=s.EventView)
     def detail(event_id: UUID, request: Request):

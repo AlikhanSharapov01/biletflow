@@ -34,6 +34,22 @@ Invitation flow: invite by email → worker delivers a link → recipient regist
 
 The implementation uses a seven-day invitation lifetime as a default, not a new user-confirmed requirement. Tokens are purpose-bound, stored as digests, and reconstructed only for delivery. Replaced, revoked, expired, already accepted or wrong-account tokens cannot join the workspace. Acceptance and delivery recheck the inviter's current authority. Invitation creation and acceptance use the existing shared rate limiter. Concurrent acceptance produces one membership and one successful acceptance.
 
+## Event price and availability
+
+Every `EventView` response (Discover, event detail, organizer lists, edits and publish actions) includes `price_from_minor` (integer or `null`) and `sold_out` (boolean).
+
+- Only visible ticket types count: `is_hidden = false` and `quantity_limit > 0`.
+- Allocations in `sold` and `refund_quarantine` count, and so do `held` ones until their hold expires, as at checkout. Expiring holds or releasing allocations can therefore turn `sold_out` back to `false`.
+- A type "has tickets left" when `quantity_limit` minus its counted allocations is above zero. For `assigned` seating it is the smaller of that and the number of unblocked seats of that type that have no counted allocation.
+- `sold_out` is true when the event has at least one visible type and either the event's `capacity` is used up or no visible type has tickets left.
+- `price_from_minor`, when not sold out, is the lowest `price_minor` among visible types that have tickets left and whose `sales_close_at` is in the future (a sale that has not opened yet still counts as an upcoming price). If every type with tickets left has closed sales, it is the lowest price among those types. When sold out it is the lowest price among all visible types. `0` means the cheapest available type is free (paid types may also exist). `null` means no visible types.
+- `null` together with `sold_out = false` means the event offers no public tickets.
+- Not considered: paid-sales activation, per-order limits and the sales window start.
+
+List endpoints compute both fields for the whole page with two grouped queries (ticket types, allocations), plus one (free seats) when the page has assigned-seating events, not per event.
+
+A draft with assigned seating and no seats mapped yet reports `sold_out = true` (no seat can be sold); it cannot reach Discover, because publishing requires mapped seats.
+
 ## Event images (9 November 2026)
 
 Event responses include ordered `images` and nullable `cover_image_url`. Each image has
@@ -113,8 +129,8 @@ event or image, 409 gallery full/event not editable/upload expired during cleanu
 | `GET /venues/{venue_id}/layouts/{layout_id}` | Public | Coordinates, section/row/seat labels, accessibility and price categories |
 | `POST /organizations/{org_id}/events` | `manage_profile` or owner | Create draft with new calendar UID; return 201 |
 | `GET /organizations/{org_id}/events` | Active member or owner | Owner sees all; staff see their assigned events |
-| `GET /events` | Public | Published public events in active workspaces with normal moderation |
-| `GET /events/{event_id}` | Permitted viewer | Detail and derived upcoming/active/completed status |
+| `GET /events` | Public | Published public events in active workspaces with normal moderation; each carries `price_from_minor` and `sold_out` (see Event price and availability) |
+| `GET /events/{event_id}` | Permitted viewer | Detail, derived upcoming/active/completed status, `price_from_minor` and `sold_out` (see Event price and availability) |
 | `PUT /events/{event_id}` | `event_edit` or owner | Replace editable configuration, validate capacity/history, increment versions |
 | `POST /events/{event_id}/publish` | `event_edit` or owner | Publish a complete usable configuration |
 | `POST /events/{event_id}/unpublish` | `event_edit` or owner | Hide published event without deleting history |

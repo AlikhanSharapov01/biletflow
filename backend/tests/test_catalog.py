@@ -411,21 +411,26 @@ def test_duplicate_has_fresh_ids_and_no_staff_or_inventory(client, setup, factor
         )
 
 
-def add_allocation(factory, f, state="held", seat_id=None):
+def add_allocation(factory, f, state="held", seat_id=None, type_id=None, expired=False):
+    created = now() - timedelta(hours=1) if expired else now()
     with factory.begin() as db:
         hold = Hold(
             event_id=UUID(f["event"]["id"]),
             buyer_user_id=UUID(f["org"]["owner_user_id"]),
-            expires_at=now() + timedelta(minutes=10),
+            created_at=created,
+            expires_at=created + timedelta(minutes=10),
         )
         db.add(hold)
         db.flush()
+        released = state == "released"
         allocation = Allocation(
             event_id=hold.event_id,
             hold_id=hold.id,
-            ticket_type_id=UUID(f["ticket"]["id"]),
+            ticket_type_id=UUID(type_id or f["ticket"]["id"]),
             event_seat_id=UUID(seat_id) if seat_id else None,
             state=state,
+            released_at=now() if released else None,
+            release_reason="expired" if released else None,
         )
         db.add(allocation)
         db.flush()

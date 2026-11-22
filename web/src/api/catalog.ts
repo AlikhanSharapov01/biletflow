@@ -16,7 +16,18 @@ export function listVenues(): Promise<Venue[]> {
 
 export function listEvents(filters: EventFilters = {}): Promise<EventView[]> {
   return request<EventView[]>("/api/v1/events", {
-    query: { q: filters.q, category_id: filters.category_id, limit: filters.limit ?? 50 },
+    query: {
+      q: filters.q,
+      category_id: filters.category_id,
+      city: filters.city,
+      date_from: filters.date_from,
+      date_to: filters.date_to,
+      min_price: filters.min_price,
+      max_price: filters.max_price,
+      free: filters.free ? "true" : undefined,
+      limit: filters.limit ?? 50,
+      offset: filters.offset,
+    },
   });
 }
 

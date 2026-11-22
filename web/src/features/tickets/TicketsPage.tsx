@@ -39,6 +39,7 @@ export function TicketsPage() {
                   date={ticket.event_starts_at}
                   title={ticket.event_title}
                   to={path}
+                  coverLink
                   meta={[
                     `${dateLabel(ticket.event_starts_at)} · ${ticket.venue_name}`,
                     `${ticket.ticket_type_name} · ${seatLabel(ticket.seat_snapshot)}`,
@@ -46,7 +47,7 @@ export function TicketsPage() {
                   footer={
                     <>
                       <StatusPill tone={ticketTone(ticket.status)}>{statusLabel(ticket.status)}</StatusPill>
-                      <Link className="text-button" to={path}>{t("tickets.show_qr")}{" "}</Link>
+                      <span className="event-cue" aria-hidden="true">{t("tickets.show_qr")}</span>
                     </>
                   }
                 />

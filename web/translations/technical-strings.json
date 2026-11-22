@@ -1,4 +1,6 @@
 {
+  "m5 8 5 5 5-5": "CSS, SVG geometry, or Intl option; reviewed as code, not interface copy.",
+  "(max-width: 760px)": "CSS, SVG geometry, or Intl option; reviewed as code, not interface copy.",
   "/events/:eventId": "Route template; changing it would break navigation.",
   "/orders/:orderId": "Route template; changing it would break navigation.",
   "/organizer/events/:eventId": "Route template; changing it would break navigation.",
