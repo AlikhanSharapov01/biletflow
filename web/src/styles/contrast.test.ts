@@ -131,6 +131,27 @@ const TEXT_PAIRS: Pair[] = [
   ["tone-pending", "tone-pending-bg", "pending status pill"],
   ["tone-blocked", "tone-blocked-bg", "blocked status pill"],
   ["tone-neutral", "tone-neutral-bg", "neutral status pill"],
+  ["ink", "paper", "headings and body text in panels"],
+  ["ink", "canvas", "page text"],
+  ["ink", "note", "text in note panels and unread notifications"],
+  ["ink", "hover-surface", ".top-tab:hover, .avatar-menu-item:hover"],
+  ["ink", "tab-track", ".tab.active sits on paper; text beside the track"],
+  ["ink", "coral", ".notification-badge count"],
+  ["badge-ink", "coral", ".notification-badge count (white on coral is 2.9:1)"],
+  ["green", "paper", "links and accents in panels"],
+  ["green", "canvas", "links and accents on the page"],
+  ["green", "active-nav", ".seat:hover and active nav accents"],
+  ["green", "row-icon", ".row-icon glyph"],
+  ["green", "note", "accents in note panels"],
+  ["green", "hover-surface", "links in hovered rows"],
+  ["green-dark", "lime", ".auth-story .brand-mark"],
+  ["green-dark", "note", ".support-chip"],
+  ["date-tile-ink", "date-tile", ".date-tile"],
+  ["avatar-ink", "avatar", ".avatar"],
+  ["paper", "muted", "organizer.css badge on a muted fill"],
+  ["paper", "green-story", ".auth-story .brand"],
+  ["meta", "tone-positive-bg", ".support-message-meta in an own message"],
+  ["print-ink", "print-surface", "printed ticket border and status"],
   ["paper", "green", ".primary-button"],
   ["on-green", "green", ".primary-button, .skip-link, .brand-mark"],
   ["on-green", "green-dark", ".primary-button:hover"],
@@ -171,6 +192,15 @@ describe("WCAG AA colour tokens", () => {
     expect(contrast(token, surface)).toBeGreaterThanOrEqual(3);
   });
 
+  it("parses 8-digit hex and comma-separated rgba()", () => {
+    expect(parseColour("#11223380", "x")).toEqual({ r: 0x11, g: 0x22, b: 0x33, a: 0x80 / 255 });
+    expect(parseColour("rgba(1, 2, 3, .5)", "x")).toEqual({ r: 1, g: 2, b: 3, a: 0.5 });
+  });
+
+  it("rejects 4-digit #rgba with a clear message instead of misreading it", () => {
+    expect(() => parseColour("#1238", "x")).toThrow("not a colour this test can read");
+  });
+
   it("reads rgb() tokens, alpha and var() aliases", () => {
     expect(colourOf("glass")).toEqual({ r: 255, g: 255, b: 255, a: 0.09 });
     expect(colourOf("field-note")).toEqual(colourOf("hint"));
@@ -196,7 +226,7 @@ const blank = (text: string) => text.replace(/[^\n]/g, " ");
 
 /** Blank comments, strings and plain url() references, keeping every newline so line numbers hold. */
 function stripNoise(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|url\(\s*(?!["']?data:)[^)]*\)/gi, (match, offset: number) => {
+  return source.replace(/\/\*[\s\S]*?\*\/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|url\((?!\s*["']?data:)[^)]*\)/gi, (match, offset: number) => {
     // A quoted data: URL can carry an SVG with colours: keep it so the scan sees %23rrggbb.
     const quoted = match.startsWith('"') || match.startsWith("'");
     if (quoted && /^["']data:/i.test(match) && /url\(\s*$/i.test(source.slice(Math.max(0, offset - 12), offset))) return match;
@@ -304,6 +334,30 @@ describe("colour literals live in tokens.css only", () => {
   it("scans colours inside data: URLs without splitting on their semicolons", () => {
     expect(literals(".a { background: url(\"data:image/svg+xml;utf8,%3Csvg fill='%23ff0000'/%3E\"); }")).toEqual(["1:%23ff0000"]);
     expect(literals(".a { background: url(data:image/png;base64,iVBORw0KGgo=) center; color: var(--ink); }")).toEqual([]);
+  });
+
+  it("tests every token used as text colour (color, fill) in the stylesheets", () => {
+    const covered = new Set([...TEXT_PAIRS.map(([text]) => text), ...EXEMPT_TOKENS]);
+    const missing: string[] = [];
+    for (const file of readdirSync("src/styles").filter((entry) => entry.endsWith(".css") && entry !== "tokens.css")) {
+      const source = readFileSync(`src/styles/${file}`, "utf8");
+      const lineAt = (index: number) => source.slice(0, index).split("\n").length;
+      for (const { property, value, valueStart } of declarationsOf(stripNoise(source))) {
+        if (property !== "color" && property !== "fill") continue;
+        for (const reference of value.matchAll(/var\(\s*--([\w-]+)/g)) {
+          if (!covered.has(reference[1]!)) missing.push(`src/styles/${file}:${lineAt(valueStart + reference.index!)}  ${property}: var(--${reference[1]})  -> add its real surface to TEXT_PAIRS, or to EXEMPT_TOKENS with a reason`);
+        }
+      }
+    }
+    expect(missing, `Text tokens without a contrast pair:\n${missing.join("\n")}`).toEqual([]);
+  });
+
+  it("catches colours in a data: URL written with a space after url(", () => {
+    expect(literals(".a { background: url( \"data:image/svg+xml,%3Csvg fill='%23ff0000'/%3E\"); }")).toEqual(["1:%23ff0000"]);
+  });
+
+  it("reads a final declaration without a semicolon", () => {
+    expect(literals(".a { color: red }")).toEqual(["1:red"]);
   });
 
   it("has no colour literal in any other stylesheet", () => {
