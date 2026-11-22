@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { AccessibilityInfo, Animated } from "react-native";
+import { AccessibilityInfo, Animated, StyleSheet } from "react-native";
 
 import { PrimaryButton, SubtleButton, TextButton } from "@/components/ui/Buttons";
 import { motion } from "@/theme";
@@ -36,8 +36,22 @@ describe("press feedback", () => {
     await render(<PrimaryButton label="Go" onPress={jest.fn()} />);
     await act(async () => {});
     await fireEvent(screen.getByRole("button"), "pressIn");
-    const style = JSON.stringify(screen.getByRole("button").props.style);
-    expect(style).not.toContain("scale");
+    const style = StyleSheet.flatten(screen.getByRole("button").props.style);
+    expect(style.transform).toBeUndefined();
+    expect(style.opacity).toBeDefined();
+    expect(spring).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ toValue: motion.pressScale }));
+  });
+
+  it("follows the reduce-motion setting as it changes and unsubscribes on unmount", async () => {
+    const remove = jest.fn();
+    const add = jest.spyOn(AccessibilityInfo, "addEventListener").mockReturnValue({ remove } as never);
+    const view = await render(<PrimaryButton label="Go" onPress={jest.fn()} />);
+    await act(async () => {});
+    expect(add).toHaveBeenCalledWith("reduceMotionChanged", expect.any(Function));
+    await act(async () => add.mock.calls[0]![1](true));
+    expect(screen.getByRole("button")).toBeTruthy();
+    await view.unmount();
+    expect(remove).toHaveBeenCalled();
   });
 
   it("ignores presses while busy", async () => {

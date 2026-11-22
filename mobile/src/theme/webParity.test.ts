@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { colors, eventArt, radii, statusTones } from "@/theme";
+import { colors, eventArt, fonts, radii, statusTones } from "@/theme";
 
 // The web stylesheet is the source of truth for colours; every mobile colour with a
 // web token of the same role must carry the same value.
@@ -38,6 +38,11 @@ const colorTokens: Record<keyof typeof colors, string> = {
   placeholder: "--placeholder",
   buttonInk: "--button-ink",
   onGreen: "--on-green",
+  errorTitle: "--error-title",
+  errorText: "--error-text",
+  storyEyebrow: "--story-eyebrow",
+  storyFoot: "--story-foot",
+  storySoft: "--story-soft",
   hoverLine: "--hover-line",
 };
 
@@ -61,6 +66,14 @@ describe("theme parity with web tokens", () => {
 
   it("pins the radii the restyle depends on", () => {
     expect(radii).toMatchObject({ input: 10, panel: 16, pill: 999 });
+  });
+
+  it("uses the web --font-sans stack on web", () => {
+    jest.isolateModules(() => {
+      jest.doMock("react-native", () => ({ Platform: { select: (o: Record<string, unknown>) => o.default } }));
+      const theme = jest.requireActual("@/theme") as { fonts: typeof fonts };
+      expect(theme.fonts.sans).toBe(css.match(/--font-sans:\s*([^;]+);/)![1]!.trim());
+    });
   });
 
   it.each(Object.entries(statusTones))("statusTones.%s equals the --tone tokens", (tone, value) => {

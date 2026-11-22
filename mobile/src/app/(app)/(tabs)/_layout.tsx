@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import { StyleSheet } from "react-native";
 
 import { NavIcon } from "@/components/layout/NavIcon";
-import { colors, fonts } from "@/theme";
+import { colors, fonts, typography } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 // Bottom navigation, matching the web's phone tab bar: the same line icons, drawn in the tab colour.
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typography.micro,
     fontWeight: "600",
   },
 });

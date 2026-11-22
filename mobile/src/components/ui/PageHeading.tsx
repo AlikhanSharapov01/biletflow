@@ -5,7 +5,7 @@ import { Eyebrow } from "@/components/ui/Text";
 import { colors, fonts, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 
-// Eyebrow, serif title and a short line of copy (web .page-heading).
+// Eyebrow, system-font title and a short line of copy (web .page-heading).
 export function PageHeading({
   eyebrow,
   title,

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { panelStyles } from "@/features/scanner/panelStyles";
 import type { ResultPhase } from "@/features/scanner/scanTypes";
-import { colors } from "@/theme";
+import { colors, scanner } from "@/theme";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
 
@@ -66,16 +66,16 @@ const toneStyles = StyleSheet.create({
   // Neutral slate: clearly not the green "admitted" panel, and not the grey
   // "no connection" one either.
   pending: {
-    backgroundColor: "#3e5568",
+    backgroundColor: scanner.pending,
   },
   warning: {
-    backgroundColor: "#a57324",
+    backgroundColor: scanner.warning,
   },
   rejected: {
-    backgroundColor: "#a44735",
+    backgroundColor: colors.error,
   },
   offline: {
-    backgroundColor: "#4f5c55",
+    backgroundColor: scanner.neutral,
   },
 });
 
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   panelIcon: {
-    color: "#fff",
+    color: colors.onGreen,
     fontSize: 28,
     fontWeight: "700",
     width: 32,

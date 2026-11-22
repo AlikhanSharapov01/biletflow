@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   countsLabel: {
-    color: "#8a948d",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 13,
   },
@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   countsTotal: {
-    color: "#939d95",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 15,
   },

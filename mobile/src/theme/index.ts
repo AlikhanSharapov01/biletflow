@@ -33,6 +33,11 @@ export const colors = {
   placeholder: "#6e6e73",
   buttonInk: "#636366",
   onGreen: "#fff",
+  errorTitle: "#745247",
+  errorText: "#79594f",
+  storyEyebrow: "#bbd5b3",
+  storyFoot: "#bed0c5",
+  storySoft: "#e4e9de",
   hoverLine: "#a1a1a6",
 } as const;
 
@@ -55,17 +60,14 @@ export const eventArt = [
   ["#efdbd2", "#bb796c"],
 ] as const;
 
-// The web --font-sans stack without its multi-word family names (the string audit reads those as copy).
-const webSans = ["system-ui", "-apple-system", "blinkmacsystemfont", "roboto", "arial", "sans-serif"];
-
 export const fonts = {
   // Georgia ships with iOS; Android maps "serif" to its system serif.
   serif: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" }),
-  // The platform system font: SF on iOS, Roboto on Android (undefined selects it).
+  // The platform system font: SF on iOS, Roboto on Android (undefined selects it); the web --font-sans stack on web.
   sans: Platform.select({
     ios: undefined,
     android: undefined,
-    default: webSans.join(","),
+    default: "system-ui, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
   }),
 };
 
@@ -105,4 +107,36 @@ export const spacing = {
   gutter: 16,
   panel: 16,
   gap: 12,
+} as const;
+
+// Colours with no web token: translucent overlays, the scanner's outcome panels
+// (drawn on the dark scan screen) and fixed black/white (QR code, camera backdrop).
+export const overlays = {
+  scrim: "rgba(23,39,36,0.35)",
+  storyRing: "rgba(226,244,191,0.17)",
+  artRing: "rgba(255,255,255,0.65)",
+  artInk: "rgba(255,255,255,0.85)",
+  onDark9: "rgba(255,255,255,0.9)",
+  onDark8: "rgba(255,255,255,0.8)",
+  onDark6: "rgba(255,255,255,0.6)",
+  onDark5: "rgba(255,255,255,0.5)",
+  onDark4: "rgba(255,255,255,0.4)",
+  onDark25: "rgba(255,255,255,0.25)",
+  onDark15: "rgba(255,255,255,0.15)",
+  shade25: "rgba(0,0,0,0.25)",
+  shade60: "rgba(0,0,0,0.6)",
+} as const;
+
+export const scanner = {
+  warning: "#a57324",
+  pending: "#3e5568",
+  neutral: "#4f5c55",
+  errorOnDark: "#fca5a5",
+} as const;
+
+export const fixed = {
+  white: "#fff",
+  black: "#000",
+  qrInk: "#111111",
+  shadowInk: "#1f332b",
 } as const;

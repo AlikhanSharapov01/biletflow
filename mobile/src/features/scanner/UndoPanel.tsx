@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { panelStyles } from "@/features/scanner/panelStyles";
-import { colors } from "@/theme";
+import { colors, overlays, scanner } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 // Asks for a reason before reversing the admission just made.
@@ -34,7 +34,7 @@ export function UndoPanel({
       <TextInput
         style={styles.reasonInput}
         placeholder={t("mobile.scan.undo_reason_placeholder")}
-        placeholderTextColor="rgba(255,255,255,0.6)"
+        placeholderTextColor={overlays.onDark6}
         value={reason}
         onChangeText={onReasonChange}
         editable={!undoing}
@@ -56,7 +56,7 @@ export function UndoPanel({
           disabled={!canUndo}
         >
           {undoing ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onGreen} />
           ) : (
             <Text style={panelStyles.panelButtonText}>{t("mobile.scan.undo_admission")}</Text>
           )}
@@ -72,16 +72,16 @@ const styles = StyleSheet.create({
   },
   reasonInput: {
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: overlays.onDark4,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: "#fff",
+    color: colors.onGreen,
     marginTop: 6,
   },
   panelError: {
-    color: "#FCA5A5",
+    color: scanner.errorOnDark,
     fontSize: 14,
   },
 });

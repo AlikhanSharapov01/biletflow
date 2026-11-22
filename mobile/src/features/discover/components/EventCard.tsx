@@ -6,7 +6,7 @@ import type { EventImage } from "@/api/types";
 import { Eyebrow } from "@/components/ui";
 import { AnimatedPressable, usePressFeedback } from "@/components/ui/pressFeedback";
 import { useEventImage } from "@/hooks/useEventImage";
-import { cardShadow, colors, eventArt, fonts, radii, typography } from "@/theme";
+import { cardShadow, colors, eventArt, fonts, radii, typography, overlays } from "@/theme";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
 
@@ -94,11 +94,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.65)",
+    borderColor: overlays.artRing,
     borderRadius: 38,
   },
   artLetter: {
-    color: "rgba(255,255,255,0.85)",
+    color: overlays.artInk,
     fontFamily: fonts.serif,
     fontSize: 37,
   },

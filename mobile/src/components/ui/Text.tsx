@@ -1,6 +1,6 @@
 import { StyleSheet, Text, type TextProps } from "react-native";
 
-import { colors, fonts } from "@/theme";
+import { colors, fonts, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 
 // Small uppercase label above headings (web .eyebrow).
@@ -9,10 +9,10 @@ export function Eyebrow({ style, ...props }: TextProps) {
   return <Text {...props} style={[styles.eyebrow, style]} />;
 }
 
-// Serif display text (web .serif headings).
-export function SerifText({ style, ...props }: TextProps) {
+// System display text for headings (web --font-display); the brand mark alone stays serif.
+export function DisplayText({ style, ...props }: TextProps) {
   useLocale();
-  return <Text {...props} style={[styles.serif, style]} />;
+  return <Text {...props} style={[styles.display, style]} />;
 }
 
 const styles = StyleSheet.create({
@@ -24,9 +24,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.3,
     textTransform: "uppercase",
   },
-  serif: {
+  display: {
     color: colors.ink,
-    fontFamily: fonts.serif,
-    fontWeight: "400",
+    fontFamily: fonts.sans,
+    ...typography.cardTitle,
   },
 });

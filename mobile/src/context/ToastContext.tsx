@@ -11,7 +11,7 @@ import {
 import { Animated, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, fonts } from "@/theme";
+import { colors, fonts, fixed } from "@/theme";
 import { useLocale } from "@/i18n";
 
 // Brief confirmation messages after an action (web .toast and notify()).
@@ -90,14 +90,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 7,
     backgroundColor: colors.greenStory,
-    shadowColor: "#1f332b",
+    shadowColor: fixed.shadowInk,
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
   },
   text: {
-    color: "#fff",
+    color: colors.onGreen,
     fontFamily: fonts.sans,
     fontSize: 14,
   },

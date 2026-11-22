@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, Vie
 
 import { PrimaryButton, SubtleButton } from "@/components/ui/Buttons";
 import { TextField } from "@/components/ui/TextField";
-import { colors, fonts, radii } from "@/theme";
+import { colors, fonts, radii, overlays } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 // Asks for a short reason before an audited action (web window.prompt):
@@ -66,7 +66,7 @@ export function ReasonDialog({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(23,39,36,0.35)" },
+  backdrop: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: overlays.scrim },
   sheet: { gap: 12, padding: 18, borderRadius: radii.panel, backgroundColor: colors.paper },
   title: { color: colors.ink, fontFamily: fonts.sans, fontSize: 17, fontWeight: "700" },
   message: { color: colors.muted, fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 },

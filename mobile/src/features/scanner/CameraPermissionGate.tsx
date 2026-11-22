@@ -2,7 +2,7 @@ import { PermissionStatus, useCameraPermissions } from "expo-camera";
 import { useEffect, type ReactNode } from "react";
 import { AppState, Linking, Platform, StyleSheet, Text, View } from "react-native";
 
-import { LoadingState, PrimaryButton, SerifText } from "@/components/ui";
+import { LoadingState, PrimaryButton, DisplayText } from "@/components/ui";
 import { colors, fonts } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
@@ -46,7 +46,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   if (!blocked) {
     return (
       <View style={styles.container}>
-        <SerifText style={styles.heading}>{t("mobile.scan.camera_needed")}</SerifText>
+        <DisplayText style={styles.heading}>{t("mobile.scan.camera_needed")}</DisplayText>
         <Text style={styles.body}>
           {t("mobile.scan.camera_why")}
         </Text>
@@ -59,7 +59,7 @@ export function CameraPermissionGate({ children }: { children: ReactNode }) {
   // only way forward is the system settings.
   return (
     <View style={styles.container}>
-      <SerifText style={styles.heading}>{t("mobile.scan.camera_off")}</SerifText>
+      <DisplayText style={styles.heading}>{t("mobile.scan.camera_off")}</DisplayText>
       {Platform.OS === "web" ? (
         <Text style={styles.body}>
           {t("mobile.scan.camera_off_web")}

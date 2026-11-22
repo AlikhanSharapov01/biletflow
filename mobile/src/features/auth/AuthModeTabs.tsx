@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   tabText: {
-    color: "#78817c",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 14,
     fontWeight: "600",

@@ -18,6 +18,7 @@ import { orderStatusTone, paymentLabel, paymentTone } from "../checkout/utils/pa
 import { RefundList } from "./components/RefundList";
 import { orderStart, orderTitle } from "./orderSummary";
 import { t, useLocale } from "@/i18n";
+import { commitHaptic } from "@/utils/haptics";
 
 export function OrderScreen() {
   useLocale();
@@ -73,7 +74,10 @@ export function OrderScreen() {
       </Panel>
       {awaitingPayment ? (
         <Panel>
-          <PaymentStep order={data} onConfirmed={order.reload} onClosed={order.reload} />
+          <PaymentStep order={data} onConfirmed={() => {
+              commitHaptic();
+              order.reload();
+            }} onClosed={order.reload} />
         </Panel>
       ) : null}
       {refunds.length > 0 ? (

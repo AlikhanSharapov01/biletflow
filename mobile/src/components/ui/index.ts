@@ -14,5 +14,5 @@ export { SegmentedTabs, type TabItem } from "@/components/ui/SegmentedTabs";
 export { SelectField, type SelectOption } from "@/components/ui/SelectField";
 export { EmptyState, ErrorPanel, LoadingState } from "@/components/ui/States";
 export { StatusPill } from "@/components/ui/StatusPill";
-export { Eyebrow, SerifText } from "@/components/ui/Text";
+export { Eyebrow, DisplayText } from "@/components/ui/Text";
 export { TextField, fieldStyles } from "@/components/ui/TextField";

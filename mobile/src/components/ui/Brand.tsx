@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lime,
   },
   markText: {
-    color: "#fff",
+    color: colors.onGreen,
     fontFamily: fonts.serif,
     fontSize: 19,
     lineHeight: 22,

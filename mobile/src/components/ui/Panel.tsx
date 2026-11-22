@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-na
 import { cardShadow, colors, fonts, radii, spacing, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 
-// Bordered paper card (web .panel); "note" is the pale green aside variant
+// Borderless paper card with a soft shadow (web .panel); "note" is the pale green aside variant
 // (web .organizer-note).
 export function Panel({
   children,

@@ -18,8 +18,10 @@ export function usePressFeedback() {
     AccessibilityInfo.isReduceMotionEnabled()
       .then((on) => live && setReduced(on))
       .catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced);
     return () => {
       live = false;
+      subscription.remove();
     };
   }, []);
 
