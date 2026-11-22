@@ -104,7 +104,9 @@ describe("CheckoutPanel steps", () => {
     expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("");
   });
 
-  it("focuses the new step in the indicator and announces it when the hold starts and payment follows", () => {
+  // The focused item's name already says the step, so the status region stays quiet
+  // and the step is spoken once.
+  it("focuses the new step in the indicator without repeating it in the status region", () => {
     flow({});
     const view = mount(makeEvent(), [paidType]);
     flow({ hold: makeHold(), paid: true });
@@ -112,11 +114,21 @@ describe("CheckoutPanel steps", () => {
     expect(document.activeElement).toBe(screen.getByRole("listitem", { name: "Step 2 of 3: Recipients" }));
     expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
     expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
-    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 3: Recipients");
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("");
     flow({ hold: makeHold(), order: makeOrder({ status: "pending", confirmed_at: null, payment: makePayment({ status: "pending" }) }), paid: true });
     view.rerender();
     expect(document.activeElement).toBe(screen.getByRole("listitem", { name: "Step 3 of 3: Payment" }));
-    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 3 of 3: Payment");
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("");
+  });
+
+  it("announces the step in the status region when focus could not move", () => {
+    flow({});
+    const view = mount(makeEvent(), [paidType]);
+    const focus = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(() => undefined);
+    flow({ hold: makeHold(), paid: true });
+    view.rerender();
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 3: Recipients");
+    focus.mockRestore();
   });
 
   it("counts two steps for a free basket", () => {
@@ -124,6 +136,6 @@ describe("CheckoutPanel steps", () => {
     const view = mount();
     flow({ hold: makeHold(), paid: false });
     view.rerender();
-    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 2: Recipients");
+    expect(document.activeElement).toBe(screen.getByRole("listitem", { name: "Step 2 of 2: Recipients" }));
   });
 });

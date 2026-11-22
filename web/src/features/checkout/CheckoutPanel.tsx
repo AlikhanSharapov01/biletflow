@@ -35,16 +35,17 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
   const flow = useCheckoutFlow(event, tickets, profile, promo);
 
   // Each step replaces the last, so its indicator item takes focus (the previous step's
-  // controls are gone) and the status region says where the buyer is now.
+  // controls are gone); its name says where the buyer is now. Only when focus could not
+  // move does the status region say it, so the step is spoken once.
   const currentStep: CheckoutStep = flow.order && flow.hold ? "payment" : flow.hold ? "recipients" : "select";
   const currentItem = useRef<HTMLLIElement>(null);
   const shownStep = useRef(currentStep);
-  const [stepChanged, setStepChanged] = useState(false);
+  const [announceStep, setAnnounceStep] = useState(false);
   useEffect(() => {
     if (shownStep.current === currentStep) return;
     shownStep.current = currentStep;
-    setStepChanged(true);
     currentItem.current?.focus();
+    setAnnounceStep(!currentItem.current || document.activeElement !== currentItem.current);
   }, [currentStep]);
 
   const eventPath = `/events/${encodeURIComponent(event.id)}`;
@@ -89,7 +90,7 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     const label = steps[index]?.label ?? "";
     const hold = flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0) : "";
     // A running-low or expiry warning outranks the step announcement.
-    const status = hold || (stepChanged ? t("checkout.step.announce", { current: index + 1, total: steps.length, label }) : "");
+    const status = hold || (announceStep ? t("checkout.step.announce", { current: index + 1, total: steps.length, label }) : "");
     return (
       <div className="checkout-progress">
         <CheckoutSteps step={step} assigned={assigned} paid={paid} currentRef={currentItem} />
