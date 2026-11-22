@@ -296,12 +296,21 @@ traffic section and the GA4 connection panel, all locale catalogs and interface-
 
 Browser end-to-end tests live in the repository's `e2e/` folder (Playwright, #120): campaign link,
 free registration, paid checkout and refund. The `E2E` workflow (`.github/workflows/e2e.yml`) runs
-them when `e2e/`, `backend/` or `web/` change. Downloads and the Kazakh and Russian interface are
-not covered there yet. Component and source checks do not certify screen-reader behaviour.
+them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there yet.
+
+Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover, the event page
+and the organizer event page in Chromium at 390, 768 and 1440 px in English, Russian and Kazakh,
+as a visitor and as a platform admin. The API is answered by fixtures in the browser, so they need
+no backend: `cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium).
+Each case asserts no horizontal page scroll, no top bar or tab bar element outside the viewport
+and no top tab overlapping the top bar actions, and attaches a full-page screenshot (no image
+baselines). Cases that fail because of a known open defect are marked `test.fail()`. Component and
+source checks do not certify screen-reader behaviour.
 
 The "Web" GitHub Actions workflow (`.github/workflows/web.yml`) runs on pushes and pull requests
-that change `web/**` or the workflow file. On Node 22 (latest patch) it runs `npm ci`,
-`npm run typecheck`, `npm test` and `npx vite build`.
+that change `web/**`, `e2e/layout/**`, `e2e/layout.config.ts` or the workflow file. On Node 22 (latest
+patch) the `check` job runs `npm ci`, `npm run typecheck`, `npm test` and `npx vite build`; the
+`layout` job runs the layout checks.
 
 The repository's `Smoke` workflow (`.github/workflows/smoke.yml`) builds the Compose stack and
 runs free admission, duplicate rejection, paid activation and payment, campaign discount and
@@ -316,8 +325,8 @@ and screen-reader acceptance remain unverified; see
 
 - **HTTPS (#49):** install and validate the staged configuration with the operations owner;
   `proxy/` and the repository-level operations docs belong to `@devops`.
-- **Browser tests:** extend `e2e/` to downloads, the admin portal and the Kazakh and Russian
-  interface.
+- **Browser tests:** extend `e2e/` to downloads and the admin portal; add more pages to the
+  layout checks.
 - **Translation review:** the Russian and Kazakh wording added for the admin inspection, job
   retry, analytics export and attachment scan screens should be checked by a native speaker.
 - **Accessibility:** complete the browser and screen-reader column of the checklist below.
