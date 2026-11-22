@@ -41,6 +41,11 @@ export function OrderScreen() {
   const venueName = data.items[0]?.ticket?.venue_name;
   const refunds = data.refunds ?? [];
   const awaitingPayment = data.status === "pending" && Boolean(data.payment);
+  // A completed purchase is a meaningful commit: confirm it with a haptic, then show the paid order.
+  const paymentConfirmed = () => {
+    commitHaptic();
+    order.reload();
+  };
 
   return (
     <ScrollScreen backLabel={t("common.orders")} onRefresh={order.reload} refreshing={order.loading}>
@@ -74,10 +79,7 @@ export function OrderScreen() {
       </Panel>
       {awaitingPayment ? (
         <Panel>
-          <PaymentStep order={data} onConfirmed={() => {
-              commitHaptic();
-              order.reload();
-            }} onClosed={order.reload} />
+          <PaymentStep order={data} onConfirmed={paymentConfirmed} onClosed={order.reload} />
         </Panel>
       ) : null}
       {refunds.length > 0 ? (
