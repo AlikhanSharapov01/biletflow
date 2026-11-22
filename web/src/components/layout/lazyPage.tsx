@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, type ComponentType, type ReactNode } from "react";
+import { useLocation } from "react-router";
 import { ErrorPanel, Loading } from "../ui";
 import { t, useLocale } from "../../i18n";
 
@@ -17,11 +18,22 @@ interface BoundaryState {
   error: Error | null;
 }
 
-class LazyBoundary extends Component<{ children: ReactNode }, BoundaryState> {
+interface BoundaryProps {
+  children: ReactNode;
+  // A new key (the pathname) clears a caught error: the same route element serves
+  // /events/A and /events/B, so navigating on must not keep showing A's failure.
+  resetKey: string;
+}
+
+class LazyBoundary extends Component<BoundaryProps, BoundaryState> {
   state: BoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): BoundaryState {
     return { error };
+  }
+
+  componentDidUpdate(previous: BoundaryProps) {
+    if (this.state.error && previous.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
 
   render() {
@@ -52,8 +64,9 @@ export function lazyPage<Module>(
 ): ComponentType {
   const Page = lazy(() => load().then((module) => ({ default: pick(module) })));
   return function LazyPage() {
+    const { pathname } = useLocation();
     return (
-      <LazyBoundary>
+      <LazyBoundary resetKey={pathname}>
         <Suspense fallback={<Loading />}>
           <Page />
         </Suspense>

@@ -1,6 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as renderBare, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { MemoryRouter, Route, Routes, useNavigate, useParams } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { lazyPage } from "./lazyPage";
+
+const render = (ui: ReactElement) => renderBare(<MemoryRouter>{ui}</MemoryRouter>);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -57,5 +61,33 @@ describe("lazyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("Recovered page")).toBeTruthy();
     expect(logged).toHaveBeenCalled();
+  });
+
+  it("renders the page again after navigating to another path served by the same route", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const Page = lazyPage(
+      () =>
+        Promise.resolve({
+          Event: () => {
+            if (useParams().id === "A") throw new Error("boom");
+            return <p>Event B</p>;
+          },
+        }),
+      (m) => m.Event,
+    );
+    function Jump() {
+      const navigate = useNavigate();
+      return <button onClick={() => navigate("/events/B")}>Go to B</button>;
+    }
+    renderBare(
+      <MemoryRouter initialEntries={["/events/A"]}>
+        <Jump />
+        <Routes><Route path="/events/:id" element={<Page />} /></Routes>
+      </MemoryRouter>,
+    );
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong");
+    fireEvent.click(screen.getByRole("button", { name: "Go to B" }));
+    expect(await screen.findByText("Event B")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
