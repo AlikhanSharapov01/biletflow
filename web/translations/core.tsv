@@ -305,6 +305,7 @@ event.loading	Loading event details…	Загрузка мероприятия�
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.
 event.back	Back to events	К мероприятиям	Іс-шараларға оралу
 event.about	About this event	Об этом мероприятии	Іс-шара туралы
+event.get_tickets	Get tickets	Получить билеты	Билет алу
 event.more_details	More details will be shared by the organizer.	Организатор сообщит подробности позже.	Ұйымдастырушы қосымша мәліметтерді кейін хабарлайды.
 event.capacity	Capacity	Вместимость	Сыйымдылық
 event.doors	Doors	Открытие входа	Кірудің ашылуы

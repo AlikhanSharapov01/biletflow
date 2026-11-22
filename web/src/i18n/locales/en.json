@@ -305,6 +305,7 @@
   "event.load_error": "We couldn’t load this event.",
   "event.back": "Back to events",
   "event.about": "About this event",
+  "event.get_tickets": "Get tickets",
   "event.more_details": "More details will be shared by the organizer.",
   "event.capacity": "Capacity",
   "event.doors": "Doors",

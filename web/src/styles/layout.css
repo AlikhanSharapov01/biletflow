@@ -50,6 +50,9 @@
 .page-subtitle { max-width: 640px; margin-top: 8px; color: var(--subtitle); font-size: var(--text-body-sm); line-height: 20px; }
 .heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
+/* A focused control or anchor target stays clear of the sticky top bar at every width. */
+html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
+
 /* Grids */
 .content-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); align-items: start; gap: var(--gap); }
 .content-grid.account-grid { grid-template-columns: minmax(280px, .75fr) minmax(0, 1.35fr); }
@@ -72,9 +75,10 @@
 
 /* Phone and tablet navigation: the bottom tab bar replaces the top tabs. */
 @media (width < 1025px) {
-  html:has(.with-tab-bar) { scroll-padding-top: 72px; scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
+  html:has(.with-tab-bar) { scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
-  :root { --tab-bar-height: 70px; }
+  /* Where the tab bar's top edge sits: its content height, the larger of 6px and the bottom inset, and its 1px border. */
+  :root { --tab-bar-height: 70px; --tab-bar-offset: calc(var(--tab-bar-height) - 6px + max(6px, env(safe-area-inset-bottom, 0px)) + 1px); }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
   .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
   .tab-bar-link { display: flex; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; transition: transform .12s ease-out; }

@@ -10,6 +10,7 @@ import { CheckoutPanel } from "../checkout/CheckoutPanel";
 import { SupportLink } from "../support/components/SupportLink";
 import { CalendarLinks } from "./components/CalendarLinks";
 import { EventFacts } from "./components/EventFacts";
+import { GetTicketsBar, TICKETS_HEADING_ID, TICKETS_SECTION_ID } from "./components/GetTicketsBar";
 import { ReportEventForm } from "./components/ReportEventForm";
 
 export function EventPage() {
@@ -63,10 +64,12 @@ export function EventPage() {
         <Panel>
           <PanelHeading title={t("event.about")} />
           <p className="event-description">{event.description || t("event.more_details")}</p>
-          <div className="checkout-heading">
-            <PanelHeading title={t("common.tickets")} />
-          </div>
-          <CheckoutPanel key={event.id} event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
+          <section className="checkout-section" id={TICKETS_SECTION_ID}>
+            <div className="checkout-heading">
+              <PanelHeading title={t("common.tickets")} headingId={TICKETS_HEADING_ID} focusable />
+            </div>
+            <CheckoutPanel key={event.id} event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
+          </section>
         </Panel>
         <Panel as="aside">
           <PanelHeading title={t("common.details")} />
@@ -76,6 +79,7 @@ export function EventPage() {
           {status === "authenticated" ? <SupportLink eventId={event.id} /> : null}
         </Panel>
       </div>
+      <GetTicketsBar event={event} tickets={tickets} />
     </>
   );
 }
