@@ -19,7 +19,7 @@
   .get-tickets-bar {
     position: fixed; right: 0; bottom: 0; left: 0; z-index: 19; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
     padding: 10px max(var(--gutter), env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(var(--gutter), env(safe-area-inset-left, 0px));
-    border-top: 1px solid var(--line); background: var(--topbar-glass); backdrop-filter: blur(8px);
+    background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator);
   }
   /* The tab bar (z-index 20) is the floor: the bar rests on it and slides back behind it. */
   .with-tab-bar .get-tickets-bar { bottom: var(--tab-bar-offset); padding-bottom: 10px; }
@@ -36,6 +36,16 @@
   /* The toast rides above the bar while it is shown. */
   html:has(.get-tickets-bar:not([data-hidden])) .toast { bottom: calc(var(--sticky-bar-height, calc(var(--control-height) + 21px)) + 12px); }
   html:has(.with-tab-bar .get-tickets-bar:not([data-hidden])) .toast { bottom: calc(var(--tab-bar-offset) + var(--sticky-bar-height, calc(var(--control-height) + 21px)) + 12px); }
+}
+/* The bar's material falls back to solid like the rest of the chrome (see layout.css). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .get-tickets-bar { background: var(--material-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .get-tickets-bar { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .get-tickets-bar { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-top: 1px solid var(--input-line); }
 }
 .signin-prompt { padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius-button); color: var(--body-soft); font-size: var(--text-body-sm); }
 .signin-prompt a { font-weight: 700; }

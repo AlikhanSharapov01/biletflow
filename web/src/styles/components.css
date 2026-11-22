@@ -159,10 +159,14 @@
 .empty-wide { grid-column: 1 / -1; padding: 32px 16px; border: 1px dashed var(--line); border-radius: var(--radius-panel); }
 
 /* Tabs */
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 9px; background: var(--tab-track); }
-.tab { min-height: var(--control-height-sm); flex: none; padding: 0 16px; border: 0; border-radius: var(--radius-button); background: transparent; color: var(--tab-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 600; transition: transform .12s ease-out; }
+/* A segmented control: a grey track, and the selected segment is a raised paper thumb. */
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: var(--radius-segment); background: var(--tab-track); }
+.tab {
+  min-height: var(--control-height-sm); flex: none; padding: 0 16px; border: 0; border-radius: var(--radius-thumb); background: transparent; color: var(--tab-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 500;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
 .tab:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
-.tab.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 700; }
+.tab.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 600; }
 .tabs-fill { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
 .tab:focus-visible { outline-offset: -3px; }
 .tabs-secondary { padding: 0 4px; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
@@ -177,7 +181,16 @@
 .data-table th { border-top: 0; color: var(--table-head); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
 
 /* Toast */
-.toast { position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 18px; border-radius: var(--radius-input); background: var(--green-story); box-shadow: var(--shadow); color: var(--on-green); font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
+/* A pill of thick material that rises 8px into place and sinks back the same way. The second radius is
+   half the height of one line (padding plus half a line box): a one-line toast is a pill and a longer
+   message keeps the same round corners instead of turning into a capsule. Without lh, the pill. */
+.toast {
+  position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 20px;
+  border-radius: var(--radius-pill); border-radius: calc(14px + 0.5lh);
+  background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu);
+  color: var(--ink); font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
 .toast.visible { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 760px) {
@@ -209,6 +222,17 @@
 .record-view-row dd .record-view { padding-left: 12px; border-left: 2px solid var(--line-soft); }
 @media (max-width: 640px) {
   .record-view-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* The toast's material falls back to solid like the rest of the chrome (see layout.css). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .toast { background: var(--material-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .toast { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .toast { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid var(--input-line); }
 }
 
 @media (prefers-reduced-motion: reduce) {

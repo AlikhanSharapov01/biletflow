@@ -99,8 +99,6 @@ const TEXT_PAIRS: Pair[] = [
   ["button-ink", "paper", ".form-details summary"],
   ["button-ink", "canvas", ".seat-section h4"],
   ["nav-ink", "tab-track", ".admin-nav-link"],
-  ["nav-ink", ["topbar-glass", "canvas"], ".top-tab on the sticky top bar over the page"],
-  ["nav-ink", ["topbar-glass", "paper"], ".top-tab on the sticky top bar over a panel"],
   ["nav-ink", "sidebar", "phone .tab-bar-link"],
   ["green-dark", "active-nav", ".top-tab[aria-current] and active tab-bar link"],
   ["hint", "paper", ".field-label small"],
@@ -157,7 +155,6 @@ const TEXT_PAIRS: Pair[] = [
   ["paper", "green", ".primary-button"],
   ["on-green", "green", ".primary-button, .skip-link, .brand-mark"],
   ["on-green", "green-dark", ".primary-button:hover"],
-  ["on-green", "green-story", ".toast"],
 ];
 
 // Apple-style neutrals and materials: every text role is checked on the solid chrome fallback and on
@@ -166,6 +163,15 @@ const ROLE_TEXT = ["ink", "muted", "faint", "subtitle", "meta", "body-soft", "in
 for (const text of ROLE_TEXT) {
   TEXT_PAIRS.push([text, "material-solid", "solid chrome fallback"]);
   TEXT_PAIRS.push([text, ["material-chrome", "canvas"], "translucent chrome over the page"]);
+}
+// Text on the chrome materials over the page and over a panel scrolled beneath: the tab bar's selected
+// tint and labels, and the avatar menu and toast on the thick material. Their solid fallback is above.
+TEXT_PAIRS.push(["green", "material-solid", ".tab-bar-link[aria-current] on solid chrome"]);
+for (const surface of ["canvas", "paper"]) {
+  TEXT_PAIRS.push(["green", ["material-chrome", surface], ".tab-bar-link[aria-current] tint"]);
+  TEXT_PAIRS.push(["nav-ink", ["material-chrome", surface], ".tab-bar-link and .top-tab on the chrome"]);
+  TEXT_PAIRS.push(["ink", ["material-chrome", surface], ".brand and .get-tickets-offer on the chrome"]);
+  for (const text of ["ink", "meta"]) TEXT_PAIRS.push([text, ["material-thick", surface], ".avatar-menu-panel and .toast"]);
 }
 
 // Sign-in story panel: the ticket card is --glass laid over the panel and over the ::after art, so

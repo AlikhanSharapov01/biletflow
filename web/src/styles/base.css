@@ -23,8 +23,35 @@ a { color: var(--green); }
   box-shadow: 0 0 0 2px var(--paper);
 }
 
-.action-dialog { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad); border: 1px solid var(--green); border-radius: var(--radius-panel); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
-.action-dialog::backdrop { background: var(--scrim); }
+/* The dialog scales up out of the scrim and back down into it on the same path. @starting-style plays the
+   entry; display and overlay stay discrete until the exit has finished. Where either is unsupported
+   the dialog still opens and closes, only without the motion. */
+.action-dialog {
+  width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad);
+  border: 0; border-radius: var(--radius-menu); background: var(--paper); color: var(--ink); box-shadow: var(--shadow);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), overlay var(--dur-base) var(--ease-out) allow-discrete, display var(--dur-base) var(--ease-out) allow-discrete;
+}
+.action-dialog:not([open]) { opacity: 0; transform: scale(.96); }
+@starting-style {
+  .action-dialog[open] { opacity: 0; transform: scale(.96); }
+}
+.action-dialog::backdrop { background: var(--scrim); transition: opacity var(--dur-base) var(--ease-out), overlay var(--dur-base) var(--ease-out) allow-discrete, display var(--dur-base) var(--ease-out) allow-discrete; }
+.action-dialog:not([open])::backdrop { opacity: 0; }
+@starting-style {
+  .action-dialog[open]::backdrop { opacity: 0; }
+}
+/* Phones: a bottom sheet that slides up from the edge and back down to it, without overshoot. */
+@media (max-width: 760px) {
+  .action-dialog {
+    width: 100%; max-width: 100%; margin: auto 0 0; padding-bottom: max(var(--panel-pad), env(safe-area-inset-bottom));
+    border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+    transition-duration: var(--dur-spring); transition-timing-function: var(--ease-spring);
+  }
+  .action-dialog:not([open]) { opacity: 1; transform: translateY(100%); }
+  @starting-style {
+    .action-dialog[open] { opacity: 1; transform: translateY(100%); }
+  }
+}
 .action-dialog h2 { font-size: var(--text-panel-title); }
 .language-switcher { display: inline-block; max-width: 9rem; }
 .topbar .language-switcher select { max-width: 100%; }
@@ -46,5 +73,12 @@ code { font-size: 13px; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   /* No press or lift movement; the colour change stays as the cue. */
   .primary-button:hover, .primary-button:active, .subtle-button:active, .text-button:active, .tab:active,
-  .top-tab:active, .icon-button:active, .tab-bar-link:active { transform: none !important; }
+  .top-tab:active, .icon-button:active, .tab-bar-link:active .tab-bar-icon { transform: none !important; }
+  /* Dialogs, the sheet, the menu and the toast only cross-fade: no scale, slide or rise. */
+  .action-dialog, .avatar-menu-panel, .toast { transform: none !important; }
+  .action-dialog, .action-dialog::backdrop, .avatar-menu-panel, .toast { transition-duration: var(--dur-fast) !important; transition-timing-function: ease !important; }
+  .action-dialog:not([open]) { opacity: 0; }
+  @starting-style {
+    .action-dialog[open] { opacity: 0; }
+  }
 }
