@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { t, useLocale } from "../../../i18n";
 
 export type CheckoutStep = "select" | "recipients" | "payment";
@@ -8,6 +9,8 @@ interface CheckoutStepsProps {
   assigned: boolean;
   // Free baskets skip the payment step.
   paid: boolean;
+  // The current step takes focus when the step changes; it is named "Step N of M: label".
+  currentRef?: Ref<HTMLLIElement>;
 }
 
 // The steps shown for this basket; the indicator and the step announcement share them.
@@ -21,7 +24,7 @@ export function checkoutStepList(step: CheckoutStep, assigned: boolean, paid: bo
 }
 
 // Where the buyer is inside the hold: tickets or seats, recipients, payment.
-export function CheckoutSteps({ step, assigned, paid }: CheckoutStepsProps) {
+export function CheckoutSteps({ step, assigned, paid, currentRef }: CheckoutStepsProps) {
   useLocale();
   const steps = checkoutStepList(step, assigned, paid);
   const currentIndex = steps.findIndex((item) => item.id === step);
@@ -29,8 +32,17 @@ export function CheckoutSteps({ step, assigned, paid }: CheckoutStepsProps) {
     <ol className="checkout-steps" role="list" aria-label={t("checkout.steps_label")}>
       {steps.map((item, index) => {
         const done = index < currentIndex;
+        const current = index === currentIndex;
         return (
-          <li key={item.id} className="checkout-step" data-done={done || undefined} aria-current={index === currentIndex ? "step" : undefined}>
+          <li
+            key={item.id}
+            className="checkout-step"
+            data-done={done || undefined}
+            aria-current={current ? "step" : undefined}
+            ref={current ? currentRef : undefined}
+            tabIndex={current && currentRef ? -1 : undefined}
+            aria-label={current && currentRef ? t("checkout.step.announce", { current: index + 1, total: steps.length, label: item.label }) : undefined}
+          >
             <span className="checkout-step-mark" aria-hidden="true">
               {done ? (
                 <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m3.5 8.5 3 3 6-7" /></svg>

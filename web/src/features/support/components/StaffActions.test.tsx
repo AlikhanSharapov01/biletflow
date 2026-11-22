@@ -31,7 +31,7 @@ describe("StaffActions", () => {
     await waitFor(() => expect(update.getAttribute("aria-busy")).toBeNull());
     expect(document.activeElement).toBe(update);
     expect(update.getAttribute("aria-disabled")).toBe("true");
-    expect((update as HTMLButtonElement).disabled).toBe(false);
+    expect(update.matches(":disabled")).toBe(false);
     fireEvent.click(update);
     fireEvent.submit(update.closest("form")!);
     expect(changeStatus).toHaveBeenCalledTimes(1);

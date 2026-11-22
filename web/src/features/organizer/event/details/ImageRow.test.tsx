@@ -19,7 +19,7 @@ describe("ImageRow", () => {
     view.rerender(<ul><ImageRow {...view.props} first onUp={onUp} /></ul>);
     expect(document.activeElement).toBe(up);
     expect(up.getAttribute("aria-disabled")).toBe("true");
-    expect((up as HTMLButtonElement).disabled).toBe(false);
+    expect(up.matches(":disabled")).toBe(false);
     fireEvent.click(up);
     expect(onUp).toHaveBeenCalledTimes(1);
   });

@@ -34,17 +34,17 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
   const [promo, setPromo] = useState<PromoPreview | null>(null);
   const flow = useCheckoutFlow(event, tickets, profile, promo);
 
-  // Each step replaces the last, so its heading takes focus (the previous step's
+  // Each step replaces the last, so its indicator item takes focus (the previous step's
   // controls are gone) and the status region says where the buyer is now.
   const currentStep: CheckoutStep = flow.order && flow.hold ? "payment" : flow.hold ? "recipients" : "select";
-  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const currentItem = useRef<HTMLLIElement>(null);
   const shownStep = useRef(currentStep);
   const [stepChanged, setStepChanged] = useState(false);
   useEffect(() => {
     if (shownStep.current === currentStep) return;
     shownStep.current = currentStep;
     setStepChanged(true);
-    stepHeading.current?.focus();
+    currentItem.current?.focus();
   }, [currentStep]);
 
   const eventPath = `/events/${encodeURIComponent(event.id)}`;
@@ -92,9 +92,8 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     const status = hold || (stepChanged ? t("checkout.step.announce", { current: index + 1, total: steps.length, label }) : "");
     return (
       <div className="checkout-progress">
-        <CheckoutSteps step={step} assigned={assigned} paid={paid} />
+        <CheckoutSteps step={step} assigned={assigned} paid={paid} currentRef={currentItem} />
         {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
-        <h3 className="visually-hidden" tabIndex={-1} ref={stepHeading}>{label}</h3>
         <span className="visually-hidden" role="status">{status}</span>
       </div>
     );

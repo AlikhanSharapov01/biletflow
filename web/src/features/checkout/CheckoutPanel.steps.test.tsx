@@ -104,18 +104,18 @@ describe("CheckoutPanel steps", () => {
     expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("");
   });
 
-  it("focuses the new step's heading and announces it when the hold starts and payment follows", () => {
+  it("focuses the new step in the indicator and announces it when the hold starts and payment follows", () => {
     flow({});
     const view = mount(makeEvent(), [paidType]);
     flow({ hold: makeHold(), paid: true });
     view.rerender();
-    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Recipients" }));
+    expect(document.activeElement).toBe(screen.getByRole("listitem", { name: "Step 2 of 3: Recipients" }));
     expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement?.getAttribute("aria-current")).toBe("step");
     expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 3: Recipients");
     flow({ hold: makeHold(), order: makeOrder({ status: "pending", confirmed_at: null, payment: makePayment({ status: "pending" }) }), paid: true });
     view.rerender();
-    expect(document.activeElement).toBe(view.container.querySelector(".checkout-progress h3"));
-    expect(document.activeElement?.textContent).toBe("Payment");
+    expect(document.activeElement).toBe(screen.getByRole("listitem", { name: "Step 3 of 3: Payment" }));
     expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 3 of 3: Payment");
   });
 

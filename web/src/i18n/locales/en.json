@@ -811,6 +811,7 @@
   "org.blank_no_limit": "Blank = no limit",
   "org.eligible_types": "Eligible ticket types (none selected = all)",
   "campaign.form.discount": "Discount",
+  "campaign.form.discount_type": "Discount type",
   "campaign.form.schedule": "Schedule",
   "campaign.form.limits": "Limits and code",
   "org.validation_campaign_name": "Give the campaign a name.",

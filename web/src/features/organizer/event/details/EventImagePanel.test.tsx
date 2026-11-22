@@ -108,4 +108,18 @@ describe("event image gallery", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Make cover" }));
     await waitFor(() => expect(api.setEventCover).toHaveBeenCalledWith("e1", "img2"));
   });
+
+  it("refocuses the moved image's arrow once the new order is rendered", async () => {
+    vi.mocked(api.reorderEventImages).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
+    mount();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    fireEvent.click(await screen.findByRole("button", { name: "Move “Crowd” earlier" }));
+    await waitFor(() => expect(api.reorderEventImages).toHaveBeenCalled());
+    await waitFor(() => expect(focus).toHaveBeenCalled());
+    const target = focus.mock.contexts.at(-1) as HTMLElement;
+    expect(target.getAttribute("aria-label")).toBe("Move “Crowd” earlier");
+    expect(target.getAttribute("aria-disabled")).toBe("true");
+    expect(target.closest("li")!.previousElementSibling).toBeNull();
+    focus.mockRestore();
+  });
 });

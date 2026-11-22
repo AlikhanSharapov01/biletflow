@@ -41,14 +41,14 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
   };
 
   return (
-    <form className="form-stack" onSubmit={(event) => void submit(event)} aria-disabled={disabled} aria-busy={busy || undefined}>
+    <form className="form-stack" onSubmit={(event) => void submit(event)} aria-disabled={disabled}>
       <fieldset className="plain-fieldset" disabled={disabled}>
         <div className="form-stack">
           <TextField label={t("org.campaign_name")} value={values.name} onChange={(e) => update("name", e.target.value)} required maxLength={200} placeholder={t("org.campaign_example")} readOnly={busy} />
           <fieldset className="plain-fieldset form-group">
             <legend>{t("campaign.form.discount")}</legend>
             <div className="form-grid">
-              <SelectField label={t("common.discount")} aria-disabled={busy || undefined} value={values.discount_kind} onChange={(e) => update("discount_kind", e.target.value as CampaignFormValues["discount_kind"])}>
+              <SelectField label={t("campaign.form.discount_type")} aria-disabled={busy || undefined} value={values.discount_kind} onChange={(e) => update("discount_kind", e.target.value as CampaignFormValues["discount_kind"])}>
                 <option value="percent">{t("org.percent_off")}</option>
                 <option value="fixed">{t("org.fixed_off")}</option>
               </SelectField>

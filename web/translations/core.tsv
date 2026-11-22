@@ -811,7 +811,8 @@ org.redemption_limit	Redemption limit	Лимит применений	Қолда
 org.blank_no_limit	Blank = no limit	Пусто = без ограничений	Бос = шектеусіз
 org.eligible_types	Eligible ticket types (none selected = all)	Подходящие типы билетов (не выбрано = все)	Жарамды билет түрлері (таңдалмаса = барлығы)
 campaign.form.discount	Discount	Скидка	Жеңілдік
-campaign.form.schedule	Schedule	Сроки	Мерзімі
+campaign.form.discount_type	Discount type	Тип скидки	Жеңілдік түрі
+campaign.form.schedule	Schedule	Сроки	Мерзім
 campaign.form.limits	Limits and code	Лимиты и код	Шектеулер мен код
 org.validation_campaign_name	Give the campaign a name.	Укажите название кампании.	Науқан атауын көрсетіңіз.
 org.validation_percent	A percent discount must be a whole number from 1 to 100.	Процент скидки должен быть целым числом от 1 до 100.	Жеңілдік пайызы 1 мен 100 арасындағы бүтін сан болуы тиіс.

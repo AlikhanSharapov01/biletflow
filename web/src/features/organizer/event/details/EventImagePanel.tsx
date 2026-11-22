@@ -1,5 +1,5 @@
 import { t, useLocale } from "../../../../i18n";
-import { useState, type ChangeEvent } from "react";
+import { useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
 import { deleteEventImage, reorderEventImages, setEventCover, uploadEventImage } from "../../../../api/eventAdmin";
 import { describeError } from "../../../../api/errors";
 import type { EventImage as EventImageRecord, EventView } from "../../../../api/types";
@@ -25,6 +25,17 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const [altText, setAltText] = useState(event.title);
   const [busy, setBusy] = useState<Busy>(null);
   const [message, setMessage] = useState("");
+  const gallery = useRef<HTMLOListElement>(null);
+  // The arrow to focus once the new order is rendered: reordering moves the row's DOM
+  // node, and a browser blurs a focused element whose node is re-inserted.
+  const refocus = useRef<{ id: string; action: ImageAction } | null>(null);
+  useLayoutEffect(() => {
+    const target = refocus.current;
+    if (!target) return;
+    refocus.current = null;
+    const rows = Array.from(gallery.current?.querySelectorAll<HTMLElement>("[data-image-id]") ?? []);
+    rows.find((row) => row.dataset.imageId === target.id)?.querySelector<HTMLElement>(`[data-action="${target.action}"]`)?.focus();
+  }, [images]);
 
   const run = async (key: NonNullable<Busy>, action: () => Promise<void>, done: string) => {
     setBusy(key);
@@ -58,7 +69,12 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const move = (image: EventImageRecord, step: -1 | 1) => {
     const order = movedOrder(images.map((item) => item.id), image.id, step);
     if (!order) return;
-    void run({ id: image.id, action: step < 0 ? "up" : "down" }, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
+    const action = step < 0 ? "up" : "down";
+    void run({ id: image.id, action }, async () => {
+      const reordered = await reorderEventImages(event.id, order);
+      refocus.current = { id: image.id, action };
+      setImages(reordered);
+    }, t("org.images_reordered"));
   };
 
   const makeCover = (image: EventImageRecord) =>
@@ -80,7 +96,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
       {images.length === 0 ? (
         <EmptyState>{t("org.no_images")}</EmptyState>
       ) : (
-        <ol className="image-gallery">
+        <ol className="image-gallery" ref={gallery}>
           {images.map((image, index) => (
             <ImageRow
               key={image.id}

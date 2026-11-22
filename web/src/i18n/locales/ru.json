@@ -811,6 +811,7 @@
   "org.blank_no_limit": "Пусто = без ограничений",
   "org.eligible_types": "Подходящие типы билетов (не выбрано = все)",
   "campaign.form.discount": "Скидка",
+  "campaign.form.discount_type": "Тип скидки",
   "campaign.form.schedule": "Сроки",
   "campaign.form.limits": "Лимиты и код",
   "org.validation_campaign_name": "Укажите название кампании.",

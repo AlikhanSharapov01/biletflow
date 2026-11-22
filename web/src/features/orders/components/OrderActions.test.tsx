@@ -32,7 +32,7 @@ describe("refund requests and cancellations", () => {
     expect(requestRefund).toHaveBeenCalledWith("ord1", { reason: "Wrong date" });
     const submit = screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement;
     expect(submit.getAttribute("aria-disabled")).toBe("true");
-    expect(submit.disabled).toBe(false);
+    expect(submit.matches(":disabled")).toBe(false);
     expect(document.activeElement).toBe(submit);
     fireEvent.click(submit);
     expect(requestRefund).toHaveBeenCalledTimes(1);

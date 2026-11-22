@@ -24,7 +24,7 @@ describe("DeliveryPanel", () => {
     await waitFor(() => expect(resend.getAttribute("aria-busy")).toBeNull());
     expect(document.activeElement).toBe(resend);
     expect(resend.getAttribute("aria-disabled")).toBe("true");
-    expect((resend as HTMLButtonElement).disabled).toBe(false);
+    expect(resend.matches(":disabled")).toBe(false);
     expect(resend.getAttribute("aria-describedby")).toBe(screen.getByText("You can re-send again shortly.").id);
     fireEvent.click(resend);
     expect(resendDelivery).toHaveBeenCalledTimes(1);
