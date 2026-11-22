@@ -96,4 +96,34 @@ describe("CheckoutPanel steps", () => {
     expect(status.isConnected).toBe(true);
     expect(status.textContent).toBe("Your reservation expired. Choose your tickets again.");
   });
+
+  it("does not move focus on the first render", () => {
+    flow({});
+    const view = mount();
+    expect(document.activeElement).toBe(document.body);
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("");
+  });
+
+  it("focuses the new step's heading and announces it when the hold starts and payment follows", () => {
+    flow({});
+    const view = mount(makeEvent(), [paidType]);
+    flow({ hold: makeHold(), paid: true });
+    view.rerender();
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Recipients" }));
+    expect(document.activeElement?.getAttribute("tabindex")).toBe("-1");
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 3: Recipients");
+    flow({ hold: makeHold(), order: makeOrder({ status: "pending", confirmed_at: null, payment: makePayment({ status: "pending" }) }), paid: true });
+    view.rerender();
+    expect(document.activeElement).toBe(view.container.querySelector(".checkout-progress h3"));
+    expect(document.activeElement?.textContent).toBe("Payment");
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 3 of 3: Payment");
+  });
+
+  it("counts two steps for a free basket", () => {
+    flow({});
+    const view = mount();
+    flow({ hold: makeHold(), paid: false });
+    view.rerender();
+    expect(view.container.querySelector(".checkout-progress [role=status]")!.textContent).toBe("Step 2 of 2: Recipients");
+  });
 });

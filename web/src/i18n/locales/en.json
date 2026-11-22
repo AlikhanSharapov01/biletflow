@@ -810,6 +810,9 @@
   "org.redemption_limit": "Redemption limit",
   "org.blank_no_limit": "Blank = no limit",
   "org.eligible_types": "Eligible ticket types (none selected = all)",
+  "campaign.form.discount": "Discount",
+  "campaign.form.schedule": "Schedule",
+  "campaign.form.limits": "Limits and code",
   "org.validation_campaign_name": "Give the campaign a name.",
   "org.validation_percent": "A percent discount must be a whole number from 1 to 100.",
   "org.validation_fixed_discount": "A fixed discount must be more than ₸0.",
@@ -1649,6 +1652,7 @@
   "checkout.step_seats": "Seats",
   "checkout.step_recipients": "Recipients",
   "checkout.step_completed": "step completed",
+  "checkout.step.announce": "Step {current} of {total}: {label}",
   "checkout.hold_five_minutes": "Less than 5 minutes left on your reservation",
   "checkout.hold_one_minute": "Less than 1 minute left on your reservation"
 }

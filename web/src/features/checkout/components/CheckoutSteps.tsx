@@ -10,15 +10,20 @@ interface CheckoutStepsProps {
   paid: boolean;
 }
 
-// Where the buyer is inside the hold: tickets or seats, recipients, payment.
-export function CheckoutSteps({ step, assigned, paid }: CheckoutStepsProps) {
-  useLocale();
+// The steps shown for this basket; the indicator and the step announcement share them.
+export function checkoutStepList(step: CheckoutStep, assigned: boolean, paid: boolean): Array<{ id: CheckoutStep; label: string }> {
   const withPayment = paid || step === "payment";
-  const steps: Array<{ id: CheckoutStep; label: string }> = [
+  return [
     { id: "select", label: assigned ? t("checkout.step_seats") : t("checkout.step_tickets") },
     { id: "recipients", label: t("checkout.step_recipients") },
     ...(withPayment ? [{ id: "payment" as const, label: t("checkout.payment") }] : []),
   ];
+}
+
+// Where the buyer is inside the hold: tickets or seats, recipients, payment.
+export function CheckoutSteps({ step, assigned, paid }: CheckoutStepsProps) {
+  useLocale();
+  const steps = checkoutStepList(step, assigned, paid);
   const currentIndex = steps.findIndex((item) => item.id === step);
   return (
     <ol className="checkout-steps" role="list" aria-label={t("checkout.steps_label")}>

@@ -1,11 +1,11 @@
 import { t, useLocale } from "../../i18n";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { EventView, TicketType } from "../../api/types";
 import type { PromoPreview } from "../../api/types/promo";
 import { EmptyState } from "../../components/ui/Feedback";
 import { useAuth } from "../auth/AuthContext";
-import { CheckoutSteps, type CheckoutStep } from "./components/CheckoutSteps";
+import { CheckoutSteps, checkoutStepList, type CheckoutStep } from "./components/CheckoutSteps";
 import { HoldCountdown, holdAnnouncement } from "./components/HoldCountdown";
 import { PaymentStep } from "./components/PaymentStep";
 import { PromoCodeField } from "./components/PromoCodeField";
@@ -33,6 +33,19 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
   const [promoCode] = useState(() => initialPromo(event.id, promoFromUrl));
   const [promo, setPromo] = useState<PromoPreview | null>(null);
   const flow = useCheckoutFlow(event, tickets, profile, promo);
+
+  // Each step replaces the last, so its heading takes focus (the previous step's
+  // controls are gone) and the status region says where the buyer is now.
+  const currentStep: CheckoutStep = flow.order && flow.hold ? "payment" : flow.hold ? "recipients" : "select";
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const shownStep = useRef(currentStep);
+  const [stepChanged, setStepChanged] = useState(false);
+  useEffect(() => {
+    if (shownStep.current === currentStep) return;
+    shownStep.current = currentStep;
+    setStepChanged(true);
+    stepHeading.current?.focus();
+  }, [currentStep]);
 
   const eventPath = `/events/${encodeURIComponent(event.id)}`;
 
@@ -68,13 +81,24 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
 
   // The indicator sits above every step; once tickets are held the countdown
   // shares its row.
-  const progress = (step: CheckoutStep) => (
-    <div className="checkout-progress">
-      <CheckoutSteps step={step} assigned={event.seating_mode === "assigned"} paid={flow.hold ? flow.paid : paidBeforeHold} />
-      {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
-      <span className="visually-hidden" role="status">{flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0) : ""}</span>
-    </div>
-  );
+  const progress = (step: CheckoutStep) => {
+    const assigned = event.seating_mode === "assigned";
+    const paid = flow.hold ? flow.paid : paidBeforeHold;
+    const steps = checkoutStepList(step, assigned, paid);
+    const index = steps.findIndex((item) => item.id === step);
+    const label = steps[index]?.label ?? "";
+    const hold = flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0) : "";
+    // A running-low or expiry warning outranks the step announcement.
+    const status = hold || (stepChanged ? t("checkout.step.announce", { current: index + 1, total: steps.length, label }) : "");
+    return (
+      <div className="checkout-progress">
+        <CheckoutSteps step={step} assigned={assigned} paid={paid} />
+        {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
+        <h3 className="visually-hidden" tabIndex={-1} ref={stepHeading}>{label}</h3>
+        <span className="visually-hidden" role="status">{status}</span>
+      </div>
+    );
+  };
 
   if (flow.order && flow.hold) {
     return (

@@ -810,6 +810,9 @@ org.amount_kzt	Amount (KZT)	Сумма (KZT)	Сома (KZT)
 org.redemption_limit	Redemption limit	Лимит применений	Қолдану шегі
 org.blank_no_limit	Blank = no limit	Пусто = без ограничений	Бос = шектеусіз
 org.eligible_types	Eligible ticket types (none selected = all)	Подходящие типы билетов (не выбрано = все)	Жарамды билет түрлері (таңдалмаса = барлығы)
+campaign.form.discount	Discount	Скидка	Жеңілдік
+campaign.form.schedule	Schedule	Сроки	Мерзімі
+campaign.form.limits	Limits and code	Лимиты и код	Шектеулер мен код
 org.validation_campaign_name	Give the campaign a name.	Укажите название кампании.	Науқан атауын көрсетіңіз.
 org.validation_percent	A percent discount must be a whole number from 1 to 100.	Процент скидки должен быть целым числом от 1 до 100.	Жеңілдік пайызы 1 мен 100 арасындағы бүтін сан болуы тиіс.
 org.validation_fixed_discount	A fixed discount must be more than ₸0.	Фиксированная скидка должна быть больше ₸0.	Тұрақты жеңілдік ₸0 сомасынан жоғары болуы тиіс.
@@ -1649,5 +1652,6 @@ checkout.step_tickets	Tickets	Билеты	Билеттер
 checkout.step_seats	Seats	Места	Орындар
 checkout.step_recipients	Recipients	Получатели	Алушылар
 checkout.step_completed	step completed	шаг пройден	қадам аяқталды
+checkout.step.announce	Step {current} of {total}: {label}	Шаг {current} из {total}: {label}	{total} қадамның {current}-қадамы: {label}
 checkout.hold_five_minutes	Less than 5 minutes left on your reservation	До конца брони осталось меньше 5 минут	Бронь аяқталуына 5 минуттан аз уақыт қалды
 checkout.hold_one_minute	Less than 1 minute left on your reservation	До конца брони осталось меньше минуты	Бронь аяқталуына 1 минуттан аз уақыт қалды
