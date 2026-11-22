@@ -24,7 +24,7 @@ export function TabBar() {
           aria-current={isSectionActive(item, pathname) ? "page" : undefined}
         >
           <NavIcon id={item.icon} />
-          <span className="tab-bar-label">{item.label}</span>
+          <span className="tab-bar-label">{item.tabLabel}</span>
         </Link>
       ))}
     </nav>

@@ -4,7 +4,7 @@ export type NavIconId = "discover" | "tickets" | "orders" | "organizer" | "suppo
 
 // Line icons for the phone tab bar: 24x24, drawn with the current text colour so
 // the active and inactive states follow the link.
-const PATHS: Record<NavIconId, ReactElement> = {
+const SHAPES: Record<NavIconId, ReactElement> = {
   // Compass.
   discover: (
     <>
@@ -16,7 +16,7 @@ const PATHS: Record<NavIconId, ReactElement> = {
   tickets: (
     <>
       <path d="M3 9.5V7a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.5a2.5 2.5 0 0 0 0 5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a2.5 2.5 0 0 0 0-5Z" />
-      <path d="M14 6.5v11" strokeDasharray="2 2" />
+      <path d="M14 6.5v11" strokeDasharray="2 2" strokeLinecap="butt" />
     </>
   ),
   // Receipt with a zigzag edge and lines.
@@ -58,13 +58,13 @@ export function NavIcon({ id }: { id: NavIconId }) {
       height="24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      {PATHS[id]}
+      {SHAPES[id]}
     </svg>
   );
 }

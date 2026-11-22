@@ -41,6 +41,7 @@ const PAGES: PageCase[] = [
   { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card" },
   { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
+  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card" },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
   {
@@ -77,7 +78,7 @@ for (const row of KNOWN_ROWS) {
 }
 const GENERATED = new Set<string>();
 
-const NAV_LINKS = { visitor: 1, admin: 6 } as const;
+const NAV_LINKS = { visitor: 1, member: 5, admin: 6 } as const;
 
 // Text widths depend on the font, and the app's font stack falls back to whatever the
 // machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
@@ -305,15 +306,59 @@ function measureLayout(): string[] {
     if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
   }
 
-  // A tab bar label must fit its own box, wrapped to at most two lines.
-  for (const label of document.querySelectorAll(".tab-bar-link .tab-bar-label")) {
-    if (!rendered(label)) continue;
+  // Tab bar labels: inside their link, at most two lines (three only at 320 with six
+  // sections), broken only at soft hyphens or spaces, no line shorter than three letters,
+  // and every link and the bar at their designed size whatever the language.
+  const SOFT_HYPHEN = "\u00ad";
+  const tabBar = document.querySelector(".tab-bar");
+  const tabBarShown = tabBar && rendered(tabBar);
+  (window as unknown as { tabLabelLines: string[] }).tabLabelLines = [];
+  const links = [...document.querySelectorAll(".tab-bar-link")].filter((link) => rendered(link));
+  for (const link of links) {
+    if (link.scrollWidth > link.clientWidth) problems.push(`${describe(link)} label overflows its link: ${link.scrollWidth} > ${link.clientWidth}`);
+    const minHeight = parseFloat(getComputedStyle(link).minHeight);
+    const height = link.getBoundingClientRect().height;
+    if (Math.abs(height - minHeight) > TOLERANCE) problems.push(`${describe(link)} is ${Math.round(height)}px tall, expected ${minHeight}px`);
+    const label = link.querySelector(".tab-bar-label");
+    const node = label?.firstChild;
+    if (!label || !node || node.nodeType !== Node.TEXT_NODE) continue;
     if (label.scrollWidth > label.clientWidth) problems.push(`${describe(label)} label is wider than its box: ${label.scrollWidth} > ${label.clientWidth}`);
-    const lines = Math.round(label.getBoundingClientRect().height / parseFloat(getComputedStyle(label).lineHeight));
-    if (lines > 2) problems.push(`${describe(label)} label wraps to ${lines} lines`);
+    const text = node.textContent ?? "";
+    if (!text) continue;
+    const lines: string[] = [];
+    let lastTop: number | null = null;
+    let previous = -1;
+    for (let index = 0; index < text.length; index++) {
+      if (text.charAt(index) === SOFT_HYPHEN || /\s/.test(text.charAt(index))) continue;
+      const range = document.createRange();
+      // The line a character sits on is where the text up to and including it ends.
+      range.setStart(node, 0);
+      range.setEnd(node, index + 1);
+      const rects = range.getClientRects();
+      const top = rects[rects.length - 1]!.top;
+      // Glyphs of one line differ by a pixel or two; the next line is a line height lower.
+      if (lastTop === null || top - lastTop > 5) {
+        if (lastTop !== null && previous >= 0 && !/[\s\u00ad-]/.test(text.slice(previous + 1, index) + (text[previous] === "-" ? "-" : ""))) {
+          problems.push(`${describe(label)} breaks inside a word without a hyphenation point`);
+        }
+        lines.push("");
+        lastTop = top;
+      }
+      lines[lines.length - 1] += text.charAt(index);
+      previous = index;
+    }
+    (window as unknown as { tabLabelLines: string[] }).tabLabelLines.push(`${lines.join("/")}`);
+    if (lines.length > 3 || (lines.length === 3 && !(width < 340 && links.length === 6))) problems.push(`${describe(label)} label wraps to ${lines.length} lines`);
+    if (lines.length > 1) {
+      for (const line of lines) if (line.length < 3) problems.push(`${describe(label)} has a ${line.length}-letter line "${line}"`);
+    }
   }
-  const heights = new Set([...document.querySelectorAll(".tab-bar-link")].filter((link) => rendered(link)).map((link) => Math.round(link.getBoundingClientRect().height)));
-  if (heights.size > 1) problems.push(`tab bar links differ in height: ${[...heights].join(", ")}`);
+  if (tabBarShown) {
+    const style = getComputedStyle(tabBar);
+    const expected = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tab-bar-height")) + parseFloat(style.borderTopWidth);
+    const actual = tabBar.getBoundingClientRect().height;
+    if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
+  }
   for (const link of document.querySelectorAll(".tab-bar-link")) {
     const box = rendered(link);
     if (box && (box.right - box.left < 44 || box.bottom - box.top < 44)) problems.push(`${describe(link)} is smaller than 44x44`);
@@ -382,6 +427,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
 
           await openPage(page, pageCase, locale, mocked, pageErrors);
           const problems = await page.evaluate(measureLayout);
+          if (process.env.LAYOUT_TRACE) console.log(`TRACE ${key} ${(await page.evaluate(() => (window as unknown as { tabLabelLines?: string[] }).tabLabelLines ?? [])).join(" | ")}`);
 
           // Saved under test-results/ (and uploaded by CI). The full-page shot shows all
           // content; the viewport shot shows the fixed tab bar where it really sits.

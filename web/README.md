@@ -301,8 +301,7 @@ them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there y
 Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover (plain,
 filtered, empty and with Load more), the event page and the organizer event page (also at `?tab=check-ins`, `?tab=staff` and
 `?tab=finance`, where the selected tab must be fully in view in its row) in Chromium at
-320, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px in English, Russian and Kazakh, as a visitor and as a platform
-admin. The API is answered by fixtures in the browser, so they need no backend:
+320, 360, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px in English, Russian and Kazakh, as a visitor, a signed-in member (five sections) and a platform admin (six). The API is answered by fixtures in the browser, so they need no backend:
 `cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium and
 `LAYOUT_PORT` to move the dev server off port 5180). Each case asserts:
 
@@ -310,6 +309,9 @@ admin. The API is answered by fixtures in the browser, so they need no backend:
 - no top bar or tab bar element, or its text, outside the viewport (or the top bar's padded content box)
   or spilling out of its box, no overlapping tab labels, and no top tab overlapping the top bar actions;
 - the bottom tab bar shown up to 1024 px and the top tabs from 1025 px;
+- each tab bar label fitting its link in at most two lines (three only at 320 px with six sections),
+  breaking only at hyphenation points with no fragment under three letters, every link the same
+  height and at least 44x44 px;
 - no page content, or text in it, outside the viewport;
 - at 390 px, every visible input, select and textarea at least 16px, so iOS does not zoom on focus;
 - every Discover filter control inside the viewport, none overlapping another, and no select

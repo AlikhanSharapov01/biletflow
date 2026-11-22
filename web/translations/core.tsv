@@ -73,6 +73,12 @@ nav.account	Account	Аккаунт	Тіркелгі
 nav.support	Support	Поддержка	Қолдау
 nav.notifications	Notifications	Уведомления	Хабарландырулар
 nav.admin	Admin	Администратор	Әкімші
+nav.tab.discover	Discover	Афиша	Афиша
+nav.tab.tickets	Tickets	Би­ле­ты	Би­лет­тер
+nav.tab.orders	Orders	За­ка­зы	Тап­сы­рыс­тар
+nav.tab.organizer	Or­ga­ni­zer	Ор­га­ни­за­тор	Ұйым­дас­ты­ру­шы
+nav.tab.support	Sup­port	Под­держка	Қол­дау
+nav.tab.admin	Admin	Ад­ми­ни­стра­тор	Әкім­ші
 nav.main	Main navigation	Основная навигация	Негізгі навигация
 nav.skip	Skip to content	Перейти к содержимому	Мазмұнға өту
 nav.browse	Browse events	Смотреть мероприятия	Іс-шараларды қарау

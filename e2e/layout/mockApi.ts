@@ -22,7 +22,7 @@ import {
   type Locale,
 } from "./fixtures";
 
-export type Role = "visitor" | "admin";
+export type Role = "visitor" | "member" | "admin";
 
 // A handler returns the JSON body, or undefined when the id is not a fixture.
 type Handler = (url: URL, ids: string[]) => unknown;
@@ -75,7 +75,7 @@ function rules(role: Role, locale: Locale): Rule[] {
     {
       method: "POST",
       pattern: new RegExp(`^${API}/auth/refresh$`),
-      reply: role === "admin" ? () => ({ access_token: ACCESS_TOKEN, token_type: "bearer", expires_in: 900, refresh_token: null }) : { status: 401, body: { detail: { code: "invalid_token" } } },
+      reply: role !== "visitor" ? () => ({ access_token: ACCESS_TOKEN, token_type: "bearer", expires_in: 900, refresh_token: null }) : { status: 401, body: { detail: { code: "invalid_token" } } },
     },
     get("/categories", () => categories),
     get("/venues", () => venues),
@@ -101,11 +101,13 @@ function rules(role: Role, locale: Locale): Rule[] {
     get(`/events/${ID}/images/${ID}`, (_url, [eventId, kind]) => (eventById(eventId) && kind! in COVER_SIZES ? { cover: kind } : undefined)),
     get("/settings/public", () => publicSettings),
   ];
-  if (role === "admin") {
+  if (role !== "visitor") {
     table.push(
       { method: "POST", pattern: new RegExp(`^${API}/events/${ID}/holds$`), reply: (_url, [eventId]) => eventById(eventId) && hold(eventId!) },
       get("/me", () => profile(locale)),
-      get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe),
+      role === "admin"
+        ? get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe)
+        : { method: "GET", pattern: new RegExp(`^${API}/admin/me$`), reply: { status: 403, body: { detail: { code: "admin_required" } } } },
       get("/notifications/unread-count", () => ({ unread: UNREAD_NOTIFICATIONS })),
       get("/notifications", () => []),
       get("/organizations", () => [organization]),
