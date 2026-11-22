@@ -46,7 +46,7 @@ const PAGES: PageCase[] = [
       await page.locator(".form-actions .primary-button").click();
       await expect(page.locator(".checkout-progress .countdown")).toBeVisible();
     },
-    viewports: ["phone"],
+    viewports: ["narrow", "phone"],
   },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
 ];
@@ -233,7 +233,7 @@ function measureLayout(): string[] {
   const scroll = document.documentElement.scrollWidth;
   if (scroll > width) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${width}`);
 
-  for (const bar of document.querySelectorAll(".topbar, .tab-bar")) {
+  for (const bar of document.querySelectorAll(".topbar, .tab-bar, .checkout-progress")) {
     for (const element of [bar, ...bar.querySelectorAll("*")]) {
       const box = rendered(element);
       if (!box) continue;
@@ -268,22 +268,22 @@ function measureLayout(): string[] {
     }
   }
 
-  // The checkout step list and countdown stay inside the viewport and off each other.
+  // The checkout step list and countdown must not run into each other, and a
+  // one-word step label must not break inside the word.
   for (const row of document.querySelectorAll(".checkout-progress")) {
-    for (const element of [row, ...row.querySelectorAll("*")]) {
-      const box = rendered(element);
-      if (box && (box.right > width + TOLERANCE || box.left < -TOLERANCE)) {
-        problems.push(`${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
-      }
-    }
     const list = row.querySelector(".checkout-steps");
     const timer = row.querySelector(".countdown");
     const listBox = list && rendered(list);
     const timerBox = timer && rendered(timer);
     if (listBox && timerBox && overlaps(listBox, timerBox)) problems.push("checkout steps overlap the countdown");
-    const marks = [...row.querySelectorAll(".checkout-step")].map((step) => rendered(step));
-    marks.forEach((box, index) => {
-      for (const other of marks.slice(index + 1)) if (box && other && overlaps(box, other)) problems.push("checkout steps overlap each other");
+    const steps = [...row.querySelectorAll(".checkout-step")].map((step) => ({ step, box: rendered(step) }));
+    steps.forEach(({ step, box }, index) => {
+      for (const other of steps.slice(index + 1)) {
+        if (box && other.box && overlaps(box, other.box)) problems.push(`${describe(step)} and ${describe(other.step)} overlap`);
+      }
+      const label = step.querySelector(".checkout-step-label");
+      const lines = label ? new Set(textBoxes(label).map((line) => Math.round(line.top))).size : 0;
+      if (label && !/\s/.test(label.textContent!.trim()) && lines > 1) problems.push(`${describe(label)} breaks inside the word`);
     });
   }
 

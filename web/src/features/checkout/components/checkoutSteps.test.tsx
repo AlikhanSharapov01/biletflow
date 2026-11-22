@@ -33,6 +33,23 @@ describe("HoldCountdown", () => {
     rerender(<HoldCountdown secondsLeft={-3} />);
     expect(screen.getByRole("timer").textContent).toBe("Held for 0:00");
   });
+
+  it("keeps the timer silent and speaks only at the thresholds", () => {
+    const { rerender } = render(<HoldCountdown secondsLeft={540} />);
+    expect(screen.getByRole("timer").getAttribute("aria-live")).toBeNull();
+    const status = () => screen.getByRole("status").textContent;
+    expect(status()).toBe("");
+    rerender(<HoldCountdown secondsLeft={301} />);
+    expect(status()).toBe("");
+    rerender(<HoldCountdown secondsLeft={300} />);
+    expect(status()).toBe("5 minutes left on your reservation");
+    rerender(<HoldCountdown secondsLeft={61} />);
+    expect(status()).toBe("5 minutes left on your reservation");
+    rerender(<HoldCountdown secondsLeft={60} />);
+    expect(status()).toBe("1 minute left on your reservation");
+    rerender(<HoldCountdown secondsLeft={0} />);
+    expect(status()).toBe("Your reservation has expired");
+  });
 });
 
 describe("PriceSummary", () => {

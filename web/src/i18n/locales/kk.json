@@ -1633,6 +1633,8 @@
   "checkout.step_tickets": "Билеттер",
   "checkout.step_seats": "Орындар",
   "checkout.step_recipients": "Алушылар",
-  "checkout.step_payment": "Төлем",
-  "checkout.step_completed": "аяқталды"
+  "checkout.step_completed": "қадам аяқталды",
+  "checkout.hold_five_minutes": "Бронь аяқталуына 5 минут қалды",
+  "checkout.hold_one_minute": "Бронь аяқталуына 1 минут қалды",
+  "checkout.hold_expired_notice": "Бронь мерзімі аяқталды"
 }

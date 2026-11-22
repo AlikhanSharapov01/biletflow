@@ -17,11 +17,13 @@ interface PaymentStepProps {
   // Shown when the quote lapsed or the order was cancelled.
   onClosed?: () => void;
   onCancel?: () => void;
+  // False when a hold countdown for the same deadline is already on screen.
+  showQuoteTimer?: boolean;
 }
 
 // Simulated payment for a pending paid order: the buyer plays the payment
 // provider (success or failure), then the order is reloaded until it settles.
-export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }: PaymentStepProps) {
+export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, showQuoteTimer = true }: PaymentStepProps) {
   useLocale();
   const [order, setOrder] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -81,7 +83,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
         <span>{t("checkout.demo_provider")}</span>
       </div>
       <PriceSummary order={order} />
-      {stage === "awaiting" && order.quote_expires_at ? (
+      {showQuoteTimer && stage === "awaiting" && order.quote_expires_at ? (
         <small className="form-intro" role="timer">{t("checkout.price_held_for")}{" "}{formatCountdown(quoteSeconds)}
         </small>
       ) : null}

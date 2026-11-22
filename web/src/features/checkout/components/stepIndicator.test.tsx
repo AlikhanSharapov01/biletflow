@@ -2,10 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CheckoutSteps } from "./CheckoutSteps";
 
+const list = () => screen.getByRole("list", { name: "Checkout steps" });
 function steps() {
-  return within(screen.getByRole("list", { name: "Checkout steps" })).getAllByRole("listitem");
+  return within(list()).getAllByRole("listitem");
 }
-const labels = () => steps().map((item) => item.textContent?.replace("completed", "").replace(/^\d+/, "").trim());
+const labels = () => steps().map((item) => item.textContent?.replace("step completed", "").replace(/^\d+/, "").trim());
 const current = () => steps().filter((item) => item.getAttribute("aria-current") === "step").map((item) => item.textContent);
 
 describe("CheckoutSteps", () => {
@@ -29,14 +30,29 @@ describe("CheckoutSteps", () => {
   it("marks earlier steps completed for assistive technology and keeps one current step", () => {
     render(<CheckoutSteps step="payment" assigned paid />);
     const [first, second, third] = steps();
-    expect(within(first!).getByText("completed")).toBeTruthy();
-    expect(within(second!).getByText("completed")).toBeTruthy();
-    expect(within(third!).queryByText("completed")).toBeNull();
+    expect(within(first!).getByText("step completed")).toBeTruthy();
+    expect(within(second!).getByText("step completed")).toBeTruthy();
+    expect(within(third!).queryByText("step completed")).toBeNull();
     expect(current()).toEqual(["3Payment"]);
   });
 
   it("has no completed step on the first step", () => {
     render(<CheckoutSteps step="select" assigned={false} paid={false} />);
-    expect(screen.queryByText("completed")).toBeNull();
+    expect(screen.queryByText("step completed")).toBeNull();
+  });
+
+  it("always shows the payment step when it is the current one", () => {
+    render(<CheckoutSteps step="payment" assigned={false} paid={false} />);
+    expect(labels()).toEqual(["Tickets", "Recipients", "Payment"]);
+    expect(current()).toEqual(["3Payment"]);
+  });
+
+  it("replaces the number of a finished step with a check mark", () => {
+    render(<CheckoutSteps step="recipients" assigned={false} paid />);
+    const [first, second] = steps();
+    expect(first!.querySelector("svg")).not.toBeNull();
+    expect(first!.textContent).not.toMatch(/1/);
+    expect(second!.querySelector("svg")).toBeNull();
+    expect(second!.textContent).toMatch(/^2/);
   });
 });

@@ -13,14 +13,15 @@ interface CheckoutStepsProps {
 // Where the buyer is inside the hold: tickets or seats, recipients, payment.
 export function CheckoutSteps({ step, assigned, paid }: CheckoutStepsProps) {
   useLocale();
+  const withPayment = paid || step === "payment";
   const steps: Array<{ id: CheckoutStep; label: string }> = [
     { id: "select", label: assigned ? t("checkout.step_seats") : t("checkout.step_tickets") },
     { id: "recipients", label: t("checkout.step_recipients") },
-    ...(paid ? [{ id: "payment" as const, label: t("checkout.step_payment") }] : []),
+    ...(withPayment ? [{ id: "payment" as const, label: t("checkout.payment") }] : []),
   ];
   const currentIndex = steps.findIndex((item) => item.id === step);
   return (
-    <ol className="checkout-steps" aria-label={t("checkout.steps_label")}>
+    <ol className="checkout-steps" role="list" aria-label={t("checkout.steps_label")}>
       {steps.map((item, index) => {
         const done = index < currentIndex;
         return (
