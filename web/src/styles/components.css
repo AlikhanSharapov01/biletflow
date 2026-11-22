@@ -22,7 +22,7 @@
 .field-label small { color: #929b94; font-size: 12px; font-weight: 400; }
 .field input:not([type="checkbox"]), .field select, .field textarea {
   width: 100%; min-height: var(--control-height); padding: 0 13px;
-  border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); color: var(--ink); font-size: var(--text-field);
+  border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); color: var(--ink);
 }
 .field textarea { min-height: 92px; padding: 11px 13px; line-height: 1.5; resize: vertical; }
 .field input::placeholder, .field textarea::placeholder { color: var(--placeholder); }
@@ -134,12 +134,12 @@
 .data-table th { border-top: 0; color: #859088; font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
 
 /* Toast */
-.toast { position: fixed; right: 22px; bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 18px; border-radius: var(--radius-input); background: var(--green-story); box-shadow: var(--shadow); color: #fff; font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
+.toast { position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 18px; border-radius: var(--radius-input); background: var(--green-story); box-shadow: var(--shadow); color: #fff; font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
 .toast.visible { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 760px) {
   .tabs:not(.tabs-fill) { flex-wrap: nowrap; overflow-x: auto; }
-  .toast { right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); left: 16px; max-width: none; }
+  .toast { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(84px + env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: none; }
 }
 @media (max-width: 520px) {
   .form-grid { grid-template-columns: minmax(0, 1fr); }

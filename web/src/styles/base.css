@@ -6,12 +6,14 @@ html {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: var(--tap-highlight);
 }
 body { min-width: 320px; min-height: 100vh; min-height: 100dvh; margin: 0; background: var(--canvas); font-size: var(--text-body); line-height: 1.5; }
 h1, h2, h3, p { margin: 0; }
 button, input, select, textarea { font: inherit; }
 input, select, textarea { font-size: var(--text-field); }
-a, button, summary, label, [role="tab"] { -webkit-tap-highlight-color: var(--tap-highlight); touch-action: manipulation; }
+a, button, summary, label, [role="tab"] { touch-action: manipulation; }
+.primary-button, .seat-selected, .skip-link { -webkit-tap-highlight-color: var(--tap-highlight-on-green); }
 button { color: inherit; }
 a { color: var(--green); }
 :focus-visible {
@@ -23,7 +25,8 @@ a { color: var(--green); }
 .action-dialog { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad); border: 1px solid var(--green); border-radius: var(--radius-panel); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
 .action-dialog::backdrop { background: rgb(23 39 36 / 55%); }
 .action-dialog h2 { font-size: var(--text-panel-title); }
-.language-switcher { max-width: 9rem; }
+.language-switcher { display: inline-block; max-width: 9rem; }
+.topbar .language-switcher select { max-width: 100%; }
 button:disabled, button[aria-disabled="true"] { cursor: wait; opacity: .65; }
 code { font-size: 13px; }
 

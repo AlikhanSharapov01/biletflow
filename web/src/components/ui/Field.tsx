@@ -22,7 +22,7 @@ function fieldClass(extra?: string): string {
 
 type TextFieldProps = FieldLook & Omit<InputHTMLAttributes<HTMLInputElement>, "className">;
 
-// Labelled input (mobile ui/TextField): 13px label, 46px / 15px input.
+// Labelled input (mobile ui/TextField): 13px label, 46px input, 15px on desktop and 16px on phones (see --text-field).
 export function TextField({ label, hint, className, ...input }: TextFieldProps) {
   return (
     <label className={fieldClass(className)}>

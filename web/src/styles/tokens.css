@@ -1,5 +1,6 @@
 /* Design tokens. Values match mobile/src/theme/index.ts so both clients read
-   as one product; components use these names instead of hex literals. */
+   as one product; components use these names instead of hex literals.
+   --text-field and the --tap-highlight tokens exist on the web only. */
 :root {
   --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -34,6 +35,8 @@
   --nav-ink: #58655d;
 
   /* Controls */
+  --tap-highlight: rgb(35 107 85 / 14%);
+  --tap-highlight-on-green: rgb(255 255 255 / 22%);
   --input-line: #818d84;
   --placeholder: #626e66;
   --tab-track: #ebece6;
@@ -78,7 +81,6 @@
   --text-meta: 13px;
   --text-label: 13px;
   --text-micro: 11px;
-  --tap-highlight: rgb(35 107 85 / 14%);
 
   /* Spacing and shape */
   --gutter: 16px;

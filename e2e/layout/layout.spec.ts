@@ -61,8 +61,6 @@ const SIGN_IN_EDGE: Expected = [/^a\.primary-button .* spans \d+\.\.\d+ of \d+$/
 const AVATAR_EDGE: Expected = [/^(details\.avatar-menu|summary|span\.avatar) .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
 const TOP_TAB_EDGE: Expected = [/^a\.top-tab .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
 const TOP_TAB_OVERLAP: Expected = [/^a\.top-tab .* overlaps the top bar actions$/, TOP_BAR];
-// The language select is 16px on phones (iOS zoom), which widens the actions further.
-const BADGE_EDGE: Expected = [/^span\.notification-badge .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
 const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its box$/, TAB_BAR];
 const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
@@ -341,9 +339,6 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
 
           await openPage(page, pageCase, locale, mocked, pageErrors);
           const problems = await page.evaluate(measureLayout);
-          if (size.width === VIEWPORTS.phone.width) {
-            expect(await page.evaluate(smallFields), "fields under 16px zoom the page on iOS").toEqual([]);
-          }
 
           // Saved under test-results/ (and uploaded by CI). The full-page shot shows all
           // content; the viewport shot shows the fixed tab bar where it really sits.
@@ -353,8 +348,11 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             await testInfo.attach(name, { path: file, contentType: "image/png" });
           }
 
+          const fields = viewportName === "phone" ? await page.evaluate(smallFields) : [];
           expect(mocked.unmocked, "API calls without a fixture").toEqual([]);
           expect(pageErrors, "uncaught page errors").toEqual([]);
+
+          expect(fields, "fields under 16px zoom the page on iOS").toEqual([]);
 
           const known = KNOWN_FAILURES.get(key);
           if (!known) {

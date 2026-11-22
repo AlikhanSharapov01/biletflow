@@ -309,6 +309,7 @@ admin. The API is answered by fixtures in the browser, so they need no backend:
 - no top bar or tab bar element, or its text, outside the viewport or spilling out of its box,
   no overlapping tab labels, and no top tab overlapping the top bar actions;
 - no page content, or text in it, outside the viewport;
+- at 390 px, every visible input, select and textarea at least 16px, so iOS does not zoom on focus;
 - every Discover filter control inside the viewport, none overlapping another, and no select
   cutting off its chosen option.
 

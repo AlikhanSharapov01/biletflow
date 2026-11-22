@@ -10,7 +10,7 @@ a.support-chip:hover { border-color: var(--hover-line); }
 .support-case-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: var(--gap); }
 .support-case-side { display: grid; gap: var(--gap); }
 
-.support-thread { display: grid; gap: 10px; max-height: 60vh; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.support-thread { display: grid; gap: 10px; max-height: 60vh; max-height: 60dvh; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .support-message { display: flex; }
 .support-message.own { justify-content: flex-end; }
 .support-bubble { display: grid; max-width: min(560px, 85%); gap: 6px; padding: 10px 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-panel); background: var(--canvas); }
