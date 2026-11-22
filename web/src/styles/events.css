@@ -1,6 +1,6 @@
 /* Discover, the public event page and free checkout. */
-.search-box { display: flex; min-height: var(--control-height); align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: #fff; }
-.search-box span { color: #829087; font-size: 16px; }
+.search-box { display: flex; min-height: var(--control-height); align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--field-surface); }
+.search-box span { color: var(--faint); font-size: 16px; }
 .search-box input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); }
 .search-box input::placeholder { color: var(--placeholder); }
 .search-box:focus-within { outline: 3px solid var(--focus); outline-offset: 3px; }

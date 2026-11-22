@@ -6,7 +6,7 @@
 .org-heading span { color: var(--intro); font-size: var(--text-body-sm); }
 .organizer-note { gap: 10px; }
 .organizer-note h2 { font-family: var(--font-serif); font-size: 24px; font-weight: 400; line-height: 1.15; }
-.organizer-note p:last-child { color: #687766; font-size: var(--text-body-sm); line-height: 1.65; }
+.organizer-note p:last-child { color: var(--note-ink); font-size: var(--text-body-sm); line-height: 1.65; }
 .invite-form { padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .inline-form { margin-top: 14px; padding-top: 16px; border-top: 1px dashed var(--line); }
 
@@ -22,7 +22,7 @@
 .timeline li:first-child { padding-top: 0; border-top: 0; }
 .timeline time { color: var(--meta); font-size: var(--text-meta); }
 .timeline strong { display: block; font-size: 15px; }
-.timeline span { display: block; margin-top: 3px; color: #5c6961; font-size: var(--text-body-sm); line-height: 1.5; }
+.timeline span { display: block; margin-top: 3px; color: var(--timeline-ink); font-size: var(--text-body-sm); line-height: 1.5; }
 .timeline small { display: block; margin-top: 3px; color: var(--faint); font-size: 12px; }
 
 @media (max-width: 760px) {

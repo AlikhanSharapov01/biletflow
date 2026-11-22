@@ -1,12 +1,12 @@
 /* App shell: top bar, centred content column, phone tab bar. */
 .app-shell { min-height: 100vh; min-height: 100dvh; }
-.skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+.skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 700; text-decoration: none; }
 .skip-link:focus { top: 12px; }
 
-.topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid var(--line); background: rgb(251 250 246 / 94%); backdrop-filter: blur(8px); }
+.topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid var(--line); background: var(--topbar-glass); backdrop-filter: blur(8px); }
 .topbar-inner { display: flex; height: 64px; max-width: calc(var(--content-max) + 2 * var(--gutter)); align-items: center; gap: 24px; margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px)); }
 .brand { display: inline-flex; flex: none; align-items: center; gap: 10px; color: var(--ink); font-size: 18px; font-weight: 700; letter-spacing: -.5px; text-decoration: none; }
-.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px 10px 10px 3px; background: var(--green); color: #fff; font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
+.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px 10px 10px 3px; background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
 
 .top-tabs { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; }
 .top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }

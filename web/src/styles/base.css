@@ -23,7 +23,7 @@ a { color: var(--green); }
 }
 
 .action-dialog { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad); border: 1px solid var(--green); border-radius: var(--radius-panel); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
-.action-dialog::backdrop { background: rgb(23 39 36 / 55%); }
+.action-dialog::backdrop { background: var(--scrim); }
 .action-dialog h2 { font-size: var(--text-panel-title); }
 .language-switcher { display: inline-block; max-width: 9rem; }
 .topbar .language-switcher select { max-width: 100%; }

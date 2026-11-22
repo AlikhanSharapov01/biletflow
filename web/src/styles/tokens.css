@@ -1,6 +1,9 @@
 /* Design tokens. Values match mobile/src/theme/index.ts so both clients read
    as one product; components use these names instead of hex literals.
-   --text-field and the --tap-highlight tokens exist on the web only. */
+   Tokens added here are web-only unless mobile's theme has the same value
+   (--text-field, the --tap-highlight tokens and the role tokens below).
+   Colour literals are allowed in this file only; contrast.test.ts fails
+   when another stylesheet contains one. */
 :root {
   --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -17,6 +20,13 @@
   --note: #eef3e6;
   --hover-surface: #f0f1eb;
   --hover-line: #aabaae;
+  --field-surface: #fff;
+  --disabled-surface: #f3f3ee;
+  --print-surface: #fff;
+  --spinner-track: #dfe6dc;
+  --card-hover-line: #cfd8cc;
+  --scrim: rgb(23 39 36 / 55%);
+  --topbar-glass: rgb(251 250 246 / 94%);
 
   /* Brand */
   --green: #236b55;
@@ -33,6 +43,15 @@
   --intro: #58655d;
   --button-ink: #4a5951;
   --nav-ink: #58655d;
+  --hint: #656b66;
+  --field-note: #646c66;
+  --table-head: #646c66;
+  --tab-ink: #646b67;
+  --price-ink: #52645a;
+  --timeline-ink: #5c6961;
+  --note-ink: #606d5e;
+  --on-green: #fff;
+  --print-ink: #000;
 
   /* Controls */
   --tap-highlight: rgb(35 107 85 / 14%);
@@ -54,6 +73,8 @@
   --error-text: #79594f;
   --danger: #a85443;
   --danger-line: #f0d8d2;
+  --danger-line-hover: #d5a69c;
+  --danger-surface: #fff8f5;
 
   /* Status pill tones (background / text) */
   --tone-positive-bg: #eef5e9;
@@ -65,11 +86,28 @@
   --tone-neutral-bg: #edf0ef;
   --tone-neutral: #58655d;
 
+  /* Auth story panel (on --green-story) */
+  --story-ink: #f7f4e9;
+  --story-soft: #d1ddd2;
+  --story-eyebrow: #bbd5b3;
+  --story-foot: #bed0c5;
+  --story-ring: rgb(226 244 191 / 17%);
+  --story-halo: rgb(226 244 191 / 4%);
+  --story-art-from: #35745a;
+  --story-art-to: #214e3e;
+  --glass-line: rgb(255 255 255 / 24%);
+  --glass: rgb(255 255 255 / 9%);
+
+  /* Third-party brand */
+  --google-blue: #4285f4;
+
   /* Event artwork gradients */
   --art-0: #d8e6d6, #94b69b;
   --art-1: #eee0bf, #c38b66;
   --art-2: #d4dbea, #7b8faf;
   --art-3: #efdbd2, #bb796c;
+  --art-ink: rgb(255 255 255 / 85%);
+  --art-ring: rgb(255 255 255 / 65%);
 
   /* Type scale (mobile theme) */
   --text-title: clamp(30px, 1.6vw + 18px, 38px);
