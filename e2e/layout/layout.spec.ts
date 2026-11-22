@@ -7,8 +7,12 @@ const VIEWPORTS = {
   phone: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
   laptop: { width: 1024, height: 768 },
-  laptopPlus: { width: 1025, height: 768 },
+  // 375 is a common phone; 1025 is the first width with the top tabs instead of the bottom
+  // tab bar, 1100 and 1280 sit inside and at the end of the tight 1025-1279 range.
+  small: { width: 375, height: 667 },
+  aboveTabBar: { width: 1025, height: 768 },
   wide: { width: 1100, height: 800 },
+  desktopMin: { width: 1280, height: 800 },
   desktop: { width: 1440, height: 900 },
 } as const;
 type ViewportName = keyof typeof VIEWPORTS;
@@ -65,6 +69,9 @@ const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Local
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "small", locale: "en", expected: [TAB_LABEL_SPILL] },
+  { pages: ADMIN_PAGES, viewport: "small", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "small", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
 ];
@@ -85,7 +92,8 @@ const NAV_LINKS = { visitor: 1, admin: 6 } as const;
 // machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
 // everywhere so a case gives the same answer on every machine. CI installs them
 // (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
-const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; }`;
+// The language select is pinned to 16px, the size form fields get on phones and tablets.
+const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } .topbar select { font-size: 16px; }`;
 
 async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi, pageErrors: string[]) {
   // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
@@ -271,6 +279,39 @@ function measureLayout(): string[] {
       const lines = label ? new Set(textBoxes(label).map((line) => Math.round(line.top))).size : 0;
       if (label && !/\s/.test(label.textContent!.trim()) && lines > 1) problems.push(`${describe(label)} breaks inside the word`);
     });
+  }
+
+  // Top bar children stay inside the bar's padded content box, so the right gutter
+  // matches the left one.
+  const inner = document.querySelector(".topbar-inner");
+  if (inner) {
+    const style = getComputedStyle(inner);
+    const box = inner.getBoundingClientRect();
+    const left = box.left + parseFloat(style.paddingLeft);
+    const right = box.right - parseFloat(style.paddingRight);
+    for (const child of inner.querySelectorAll(".brand, .topbar-actions > *")) {
+      const rect = rendered(child);
+      if (rect && (rect.right > right + TOLERANCE || rect.left < left - TOLERANCE)) {
+        problems.push(`${describe(child)} leaves the top bar content box ${Math.round(left)}..${Math.round(right)}: ${Math.round(rect.left)}..${Math.round(rect.right)}`);
+      }
+    }
+  }
+  // A top tab must end inside the tab strip.
+  const strip = document.querySelector(".top-tabs");
+  const stripBox = strip && rendered(strip);
+  if (stripBox) {
+    for (const tab of document.querySelectorAll(".top-tab")) {
+      const box = tab.getBoundingClientRect();
+      if (box.right > stripBox.right + TOLERANCE) problems.push(`${describe(tab)} runs past the end of the tab strip`);
+    }
+  }
+  // Navigation switches at 1024/1025: bottom tab bar up to 1024, top tabs above.
+  const bar = document.querySelector(".tab-bar");
+  if (bar && document.querySelectorAll(".top-tab").length > 0) {
+    const barShown = getComputedStyle(bar).display !== "none";
+    const tabsShown = getComputedStyle(document.querySelector(".top-tabs")!).display !== "none";
+    if (width <= 1024 && (!barShown || tabsShown)) problems.push(`navigation at ${width}px: bottom tab bar expected, not top tabs`);
+    if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
   }
 
   // Labels of sibling tabs must not run into each other.

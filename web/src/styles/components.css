@@ -139,7 +139,11 @@
 
 @media (max-width: 760px) {
   .tabs:not(.tabs-fill) { flex-wrap: nowrap; overflow-x: auto; }
-  .toast { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(84px + env(safe-area-inset-bottom)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: none; }
+  .toast { right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: none; }
+}
+/* Above the bottom tab bar, which spans up to 1024px. */
+@media (width < 1025px) {
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 520px) {
   .form-grid { grid-template-columns: minmax(0, 1fr); }

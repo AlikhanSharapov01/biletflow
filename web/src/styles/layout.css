@@ -58,14 +58,16 @@
 }
 
 /* Top tabs are tight in ru/kk between the tab-bar cutoff and a roomy desktop. */
-@media (min-width: 1025px) and (max-width: 1279px) {
+@media (width >= 1025px) and (width < 1280px) {
   .topbar-inner { gap: 16px; }
-  .top-tabs { gap: 2px; }
-  .top-tab { padding: 0 8px; }
+  .top-tabs { gap: 4px; }
+  .top-tab { padding: 0 6px; }
+  .topbar-actions { gap: 8px; }
 }
 
 /* Phone and tablet navigation: the bottom tab bar replaces the top tabs. */
-@media (max-width: 1024px) {
+@media (width < 1025px) {
+  html:has(.with-tab-bar) { scroll-padding-top: 72px; scroll-padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
   .with-tab-bar { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
   .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
@@ -80,10 +82,13 @@
   .event-grid, .event-grid.row-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Narrow phones (320px): brand, language, bell and avatar share one row. */
-@media (max-width: 360px) {
-  .topbar-inner { gap: 8px; }
-  .topbar-actions { gap: 6px; }
-  .brand { gap: 6px; font-size: 15px; }
-  .brand-mark { width: 28px; height: 28px; font-size: 17px; }
+/* Narrow phones (320-389px): brand, language, bell and avatar (or sign-in) share one row
+   inside the 16px gutters, also with the language select at 16px. */
+@media (max-width: 389px) {
+  .topbar-inner { gap: 6px; }
+  .topbar-actions { gap: 4px; }
+  .topbar .brand { gap: 5px; font-size: 14px; }
+  .topbar .brand-mark { width: 26px; height: 26px; font-size: 16px; }
+  .topbar .icon-button { width: 36px; height: 36px; }
+  .topbar .primary-button.compact-action { padding: 0 10px; }
 }
