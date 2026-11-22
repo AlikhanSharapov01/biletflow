@@ -30,7 +30,7 @@ describe("WorkspaceEventCard", () => {
   it("keeps its own controls clickable next to the title link", () => {
     const onDuplicate = vi.fn();
     const onTogglePublish = vi.fn();
-    inRouter(<WorkspaceEventCard event={makeEvent({ title: "Gala" })} venue={undefined} busy={false} onTogglePublish={onTogglePublish} onDuplicate={onDuplicate} />);
+    inRouter(<WorkspaceEventCard event={makeEvent({ title: "Gala" })} venue={undefined} pending={null} onTogglePublish={onTogglePublish} onDuplicate={onDuplicate} />);
     const card = screen.getByRole("article");
     expect(card.classList.contains("event-card-linked")).toBe(false);
     const view = within(card);
@@ -40,5 +40,20 @@ describe("WorkspaceEventCard", () => {
     fireEvent.click(view.getByRole("button", { name: "Duplicate" }));
     expect(onTogglePublish).toHaveBeenCalledTimes(1);
     expect(onDuplicate).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks only the running action busy and ignores the other one", () => {
+    const onDuplicate = vi.fn();
+    const onTogglePublish = vi.fn();
+    inRouter(<WorkspaceEventCard event={makeEvent({ title: "Gala" })} venue={undefined} pending="publish" onTogglePublish={onTogglePublish} onDuplicate={onDuplicate} />);
+    const publish = screen.getByRole("button", { name: "Unpublish" });
+    const duplicate = screen.getByRole("button", { name: "Duplicate" });
+    expect(publish.getAttribute("aria-busy")).toBe("true");
+    expect(duplicate.hasAttribute("aria-busy")).toBe(false);
+    expect(duplicate.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(publish);
+    fireEvent.click(duplicate);
+    expect(onTogglePublish).not.toHaveBeenCalled();
+    expect(onDuplicate).not.toHaveBeenCalled();
   });
 });

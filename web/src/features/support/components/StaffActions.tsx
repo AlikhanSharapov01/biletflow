@@ -21,7 +21,8 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
   const [status, setStatus] = useState<SupportStatus>(supportCase.status);
   const [reason, setReason] = useState("");
   const [escalation, setEscalation] = useState("");
-  const [busy, setBusy] = useState(false);
+  // The action in flight; the other buttons wait (aria-disabled) so focus stays put.
+  const [pending, setPending] = useState<"status" | "assign" | "escalate" | null>(null);
   const [error, setError] = useState("");
   const assignedToMe = supportCase.assigned_to?.id === viewerId;
 
@@ -33,8 +34,8 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
     );
   }
 
-  const run = async (action: () => Promise<SupportChange>, done: string) => {
-    setBusy(true);
+  const run = async (kind: "status" | "assign" | "escalate", action: () => Promise<SupportChange>, done: string) => {
+    setPending(kind);
     setError("");
     try {
       onUpdated(await action());
@@ -45,13 +46,13 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
       setError(describeError(failure));
       return false;
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const handleStatus = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void run(() => changeStatus(supportCase.id, status, reason.trim()), t("support.status_updated"));
+    void run("status", () => changeStatus(supportCase.id, status, reason.trim()), t("support.status_updated"));
   };
 
   const handleEscalate = async (event: FormEvent<HTMLFormElement>) => {
@@ -60,7 +61,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
       setError(t("support.escalate_reason"));
       return;
     }
-    if (await run(() => escalateCase(supportCase.id, escalation.trim()), t("support.escalated_success"))) setEscalation("");
+    if (await run("escalate", () => escalateCase(supportCase.id, escalation.trim()), t("support.escalated_success"))) setEscalation("");
   };
 
   return (
@@ -76,11 +77,11 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
         </SelectField>
         <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
         <div className="form-actions">
-          <Button type="submit" busy={busy} disabled={status === supportCase.status}>{t("support.update_status")}{" "}</Button>
+          <Button type="submit" busy={pending === "status"} aria-disabled={pending !== null && pending !== "status"} disabled={status === supportCase.status}>{t("support.update_status")}{" "}</Button>
           {assignedToMe ? (
-            <Button busy={busy} onClick={() => void run(() => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
+            <Button busy={pending === "assign"} aria-disabled={pending !== null && pending !== "assign"} onClick={() => void run("assign", () => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
           ) : (
-            <Button busy={busy} onClick={() => void run(() => assignCase(supportCase.id, viewerId), t("support.assigned_to_you"))}>{t("support.assign_to_me")}{" "}</Button>
+            <Button busy={pending === "assign"} aria-disabled={pending !== null && pending !== "assign"} onClick={() => void run("assign", () => assignCase(supportCase.id, viewerId), t("support.assigned_to_you"))}>{t("support.assign_to_me")}{" "}</Button>
           )}
         </div>
       </form>
@@ -94,7 +95,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
             onChange={(event) => setEscalation(event.target.value)}
           />
           <div className="form-actions">
-            <Button variant="danger" type="submit" busy={busy}>{t("support.escalate")}{" "}</Button>
+            <Button variant="danger" type="submit" busy={pending === "escalate"} aria-disabled={pending !== null && pending !== "escalate"}>{t("support.escalate")}{" "}</Button>
           </div>
         </form>
       ) : null}

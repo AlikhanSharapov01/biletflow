@@ -7,12 +7,13 @@ import { publicationTone } from "../../../utils/status";
 interface WorkspaceEventCardProps {
   event: EventView;
   venue: Venue | undefined;
-  busy: boolean;
+  // The action running for this event, if any; the other one waits.
+  pending: "publish" | "duplicate" | null;
   onTogglePublish: () => void;
   onDuplicate: () => void;
 }
 
-export function WorkspaceEventCard({ event, venue, busy, onTogglePublish, onDuplicate }: WorkspaceEventCardProps) {
+export function WorkspaceEventCard({ event, venue, pending, onTogglePublish, onDuplicate }: WorkspaceEventCardProps) {
   useLocale();
   const published = event.publication_state === "published";
   const path = `/organizer/events/${encodeURIComponent(event.id)}`;
@@ -31,11 +32,11 @@ export function WorkspaceEventCard({ event, venue, busy, onTogglePublish, onDupl
           <div className="row-actions">
             <ButtonLink size="sm" to={path}>{t("org.manage")}{" "}</ButtonLink>
             {event.publication_state !== "cancelled" && event.time_status !== "completed" ? (
-              <Button size="sm" busy={busy} onClick={onTogglePublish}>
+              <Button size="sm" busy={pending === "publish"} aria-disabled={pending === "duplicate"} onClick={onTogglePublish}>
                 {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button size="sm" busy={busy} onClick={onDuplicate}>{t("organizer.duplicate")}</Button>
+            <Button size="sm" busy={pending === "duplicate"} aria-disabled={pending === "publish"} onClick={onDuplicate}>{t("organizer.duplicate")}</Button>
           </div>
         </>
       }

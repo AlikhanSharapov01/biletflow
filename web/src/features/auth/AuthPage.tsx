@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import * as authApi from "../../api/auth";
 import { describeError, errorCodeOf } from "../../api/errors";
-import { Button } from "../../components/ui/Button";
+import { Button, busyProps } from "../../components/ui/Button";
 import { Tabs } from "../../components/ui/Tabs";
 import { useAuth } from "./AuthContext";
 import { AuthStory } from "./components/AuthStory";
@@ -138,7 +138,7 @@ export function AuthPage() {
             onResend={() => void handleResend()}
           />
           {!registering ? (
-            <button className="google-button" type="button" aria-busy={busy || undefined} aria-disabled={busy || undefined} onClick={() => { if (!busy) void handleGoogle(); }}>
+            <button className="google-button" type="button" {...busyProps(busy, () => void handleGoogle())}>
               <span className="google-mark" aria-hidden="true">
                 G
               </span>{t("auth.google")}</button>

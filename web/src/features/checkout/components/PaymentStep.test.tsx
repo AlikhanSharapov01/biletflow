@@ -94,16 +94,25 @@ describe("PaymentStep", () => {
     render(<PaymentStep order={pendingOrder("created")} onConfirmed={onConfirmed} />);
     await act(async () => fireEvent.click(button("Simulate successful payment")));
     expect(screen.getByText("Your price quote expired. Choose your tickets again.")).toBeTruthy();
-    expect(button("Simulate successful payment").disabled).toBe(false);
+    expect(button("Simulate successful payment").hasAttribute("aria-busy")).toBe(false);
     expect(onConfirmed).not.toHaveBeenCalled();
   });
 
-  it("disables both outcomes while a simulation is in flight", async () => {
+  it("ignores every other action while a simulation is in flight", async () => {
     simulateMock.mockReturnValue(new Promise(() => undefined));
-    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} />);
+    const onCancel = vi.fn();
+    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} onCancel={onCancel} />);
     await act(async () => fireEvent.click(button("Simulate successful payment")));
+    expect(simulateMock).toHaveBeenCalledTimes(1);
     expect(button("Sending…").getAttribute("aria-busy")).toBe("true");
-    expect(button("Simulate failed payment").getAttribute("aria-busy")).toBe("true");
+    const failed = button("Simulate failed payment");
+    expect(failed.hasAttribute("aria-busy")).toBe(false);
+    expect(failed.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(button("Sending…"));
+    fireEvent.click(failed);
+    fireEvent.click(button("Cancel and choose again"));
+    expect(simulateMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("offers to choose again for an expired order", () => {

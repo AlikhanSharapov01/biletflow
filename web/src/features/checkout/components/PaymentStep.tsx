@@ -103,7 +103,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, s
             <Button variant="primary" busy={busy} onClick={() => void simulate("succeeded")}>
               {busy ? t("common.sending") : t("checkout.simulate_success")}
             </Button>
-            <Button busy={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
+            <Button aria-disabled={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
           </>
         ) : null}
         {stage === "failed" ? (
@@ -116,7 +116,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, s
         ) : null}
         {stage === "closed" && onClosed ? <Button onClick={onClosed}>{t("checkout.choose_tickets_again")}</Button> : null}
         {onCancel && (stage === "awaiting" || stage === "failed") ? (
-          <Button variant="text" busy={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
+          <Button variant="text" aria-disabled={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
         ) : null}
       </div>
     </div>

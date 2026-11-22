@@ -10,22 +10,24 @@ import { canStartActivation, paymentOpen } from "../../utils/paidSales";
 interface ActivationFeeStepProps {
   checklist: PaidSalesChecklist;
   busy: boolean;
+  // Another checklist step is running; this one waits.
+  waiting?: boolean;
   onStart: () => void;
   onChanged: () => void;
 }
 
 // Last checklist step. While a simulated payment is open, development builds
 // of the API let the organizer act as the payment provider.
-export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: ActivationFeeStepProps) {
+export function ActivationFeeStep({ checklist, busy, waiting = false, onStart, onChanged }: ActivationFeeStepProps) {
   useLocale();
   const { notify } = useToast();
-  const [simulating, setSimulating] = useState(false);
+  const [simulating, setSimulating] = useState<SimulatedOutcome | null>(null);
   const active = checklist.status === "active";
   const payment = checklist.payment;
 
   const simulate = async (outcome: SimulatedOutcome) => {
     if (!payment) return;
-    setSimulating(true);
+    setSimulating(outcome);
     try {
       await simulatePayment(payment.id, outcome);
       notify(outcome === "succeeded" ? t("org.payment_succeeded") : t("org.payment_failed"));
@@ -33,7 +35,7 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
     } catch (failure) {
       notify(t("org.demo_environment_only", { p0: describeError(failure) }));
     } finally {
-      setSimulating(false);
+      setSimulating(null);
     }
   };
 
@@ -48,7 +50,7 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
         ) : paymentOpen(checklist) ? (
           <StatusPill tone="pending">{t("checkout.payment_pending")}</StatusPill>
         ) : (
-          <Button variant="primary" size="sm" busy={busy} disabled={!canStartActivation(checklist)} onClick={onStart}>
+          <Button variant="primary" size="sm" busy={busy} aria-disabled={waiting} disabled={!canStartActivation(checklist)} onClick={onStart}>
             {checklist.status === "failed" ? t("org.retry_payment") : t("org.pay_demo_fee")}
           </Button>
         )
@@ -57,8 +59,8 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
       {paymentOpen(checklist) ? (
         <div className="simulator-actions">
           <span className="form-intro">{t("org.demo_payment_provider")}</span>
-          <Button size="sm" busy={simulating} onClick={() => void simulate("succeeded")}>{t("org.simulate_success")}</Button>
-          <Button size="sm" variant="danger" busy={simulating} onClick={() => void simulate("failed")}>{t("org.simulate_failure")}</Button>
+          <Button size="sm" busy={simulating === "succeeded"} aria-disabled={simulating === "failed"} onClick={() => void simulate("succeeded")}>{t("org.simulate_success")}</Button>
+          <Button size="sm" variant="danger" busy={simulating === "failed"} aria-disabled={simulating === "succeeded"} onClick={() => void simulate("failed")}>{t("org.simulate_failure")}</Button>
           <Button size="sm" variant="text" onClick={onChanged}>{t("org.refresh_status")}</Button>
         </div>
       ) : null}

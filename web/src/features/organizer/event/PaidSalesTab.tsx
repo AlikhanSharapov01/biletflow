@@ -69,7 +69,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.payout_demo_hint")}
             actions={
               data.payout_profile_verified ? done(true) : (
-                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}>{t("org.create_demo_profile")}</Button>
+                <Button size="sm" busy={busy === "payout"} aria-disabled={busy !== "" && busy !== "payout"} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}>{t("org.create_demo_profile")}</Button>
               )
             }
           />
@@ -79,7 +79,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.identity_demo_hint")}
             actions={
               data.identity_verified ? done(true) : (
-                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}>{t("org.verify_demo")}</Button>
+                <Button size="sm" busy={busy === "identity"} aria-disabled={busy !== "" && busy !== "identity"} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}>{t("org.verify_demo")}</Button>
               )
             }
           />
@@ -89,7 +89,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.terms_hint")}
             actions={
               data.terms.accepted ? done(true) : (
-                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}>{t("org.accept_terms")}</Button>
+                <Button size="sm" busy={busy === "terms"} aria-disabled={busy !== "" && busy !== "terms"} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}>{t("org.accept_terms")}</Button>
               )
             }
           >
@@ -100,7 +100,8 @@ export function PaidSalesTab({ event }: { event: EventView }) {
           </ListRow>
           <ActivationFeeStep
             checklist={data}
-            busy={Boolean(busy)}
+            busy={busy === "fee"}
+            waiting={busy !== "" && busy !== "fee"}
             onStart={() => void run("fee", () => startActivation(event.id), t("org.activation_started"))}
             onChanged={checklist.reload}
           />

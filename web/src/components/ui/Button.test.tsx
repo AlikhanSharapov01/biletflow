@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { Button, ButtonLink } from "./Button";
+import { Button, ButtonLink, busyProps } from "./Button";
 
 describe("Button", () => {
   it("is a plain enabled button by default", () => {
@@ -19,9 +19,10 @@ describe("Button", () => {
     expect(button.getAttribute("aria-busy")).toBe("true");
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(button.hasAttribute("disabled")).toBe(false);
+    expect(button.textContent).toBe("Saving");
   });
 
-  it("busy keeps keyboard focus and ignores activation", () => {
+  it("busy ignores activation while the button holds focus", () => {
     const onClick = vi.fn();
     render(<Button busy onClick={onClick}>Saving</Button>);
     const button = screen.getByRole("button", { name: "Saving" });
@@ -36,6 +37,28 @@ describe("Button", () => {
     render(<form onSubmit={onSubmit}><Button type="submit" busy>Send</Button></form>);
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("aria-disabled ignores click and Enter, keeps focus, and is not busy", () => {
+    const onClick = vi.fn();
+    const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+    render(<form onSubmit={onSubmit}><Button type="submit" aria-disabled onClick={onClick}>Other</Button></form>);
+    const button = screen.getByRole("button", { name: "Other" });
+    button.focus();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+    expect(button.hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("aria-disabled=false does not lock the button", () => {
+    const onClick = vi.fn();
+    render(<Button aria-disabled={false} onClick={onClick}>Go</Button>);
+    fireEvent.click(screen.getByRole("button", { name: "Go" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 
   it("calls onClick when not busy", () => {
@@ -73,6 +96,29 @@ describe("ButtonLink", () => {
   });
 });
 
+describe("busyProps", () => {
+  it("marks a raw button busy and swallows its click", () => {
+    const onClick = vi.fn();
+    render(<button type="button" {...busyProps(true, onClick)}>Go</button>);
+    const button = screen.getByRole("button", { name: "Go" });
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("passes clicks through and adds no attributes when idle", () => {
+    const onClick = vi.fn();
+    render(<button type="button" {...busyProps(false, onClick)}>Go</button>);
+    const button = screen.getByRole("button", { name: "Go" });
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+    expect(button.hasAttribute("aria-disabled")).toBe(false);
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("button states in CSS", () => {
   const base = readFileSync("src/styles/base.css", "utf8");
   const components = readFileSync("src/styles/components.css", "utf8");
@@ -82,12 +128,29 @@ describe("button states in CSS", () => {
     expect(base).toMatch(/button:disabled,\s*[^{]*\[aria-disabled="true"\][^{]*\{[^}]*cursor: not-allowed/);
     expect(base).toMatch(/\[aria-busy="true"\][^{]*\{[^}]*cursor: wait/);
     expect(base).not.toMatch(/button:disabled[^{]*\{[^}]*cursor: wait/);
+    // The busy rule must come later so it wins over the disabled one.
+    expect(base.indexOf('button[aria-busy="true"]')).toBeGreaterThan(base.indexOf("button:disabled,"));
   });
 
-  it("hover lift is limited to hover-capable pointers and skips disabled controls", () => {
-    expect(components).toMatch(/@media \(hover: hover\)/);
-    expect(components).not.toMatch(/^\.primary-button:hover:not\(:disabled\) \{[^}]*translateY/m);
-    expect(components).toMatch(/primary-button:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)/);
+  it("the busy dimming keeps the focus ring above 3:1", () => {
+    expect(base).toMatch(/button\[aria-disabled="true"\]:focus-visible[^{]*\{[^}]*opacity: \.75/);
+  });
+
+  it("hover lift and hover colours live only inside the hover-capable media block", () => {
+    const hoverBlock = /@media \(hover: hover\) \{([\s\S]*?)\n\}/.exec(components);
+    expect(hoverBlock).not.toBeNull();
+    const inside = hoverBlock?.[1] ?? "";
+    expect(inside).toMatch(/primary-button:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)[^}]*translateY\(-1px\)/);
+    expect(inside).toMatch(/primary-button:hover[^}]*background: var\(--green-dark\)/);
+    const outside = components.replace(hoverBlock?.[0] ?? "", "");
+    expect(outside).not.toMatch(/:hover[^{]*\{[^}]*translateY/);
+    expect(outside).not.toMatch(/(primary|subtle|danger|text)-button:hover/);
+  });
+
+  it("reduced motion drops the press and lift transforms but keeps colour changes", () => {
+    const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(base);
+    expect(block?.[1]).toMatch(/:active[^{]*\{[^}]*transform: none/);
+    expect(block?.[1]).toMatch(/primary-button:hover[^{]*\{[^}]*transform: none/);
   });
 
   it("buttons, tabs and tab-bar links scale down on press, never when disabled or busy", () => {

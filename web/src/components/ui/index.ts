@@ -1,6 +1,6 @@
 export { Avatar } from "./Avatar";
 export { Brand } from "./Brand";
-export { Button, ButtonLink, buttonClass, type ButtonVariant } from "./Button";
+export { Button, ButtonLink, busyProps, buttonClass, type ButtonVariant } from "./Button";
 export { DateTile } from "./DateTile";
 export { EventCard } from "./EventCard";
 export { EventImage } from "./EventImage";

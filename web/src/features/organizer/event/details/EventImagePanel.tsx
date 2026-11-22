@@ -7,7 +7,7 @@ import { confirmAction } from "../../../../components/ui/ActionDialog";
 import { EmptyState, FormMessage, Panel, PanelHeading, StatusPill, TextField, useToast } from "../../../../components/ui";
 import { usePublicSettings } from "../../../../hooks/usePublicSettings";
 import { fileSizeLabel } from "../../../support/attachments";
-import { ImageRow } from "./ImageRow";
+import { ImageRow, type ImageAction } from "./ImageRow";
 import { ACCEPTED_IMAGE_TYPES, imageProblem, movedOrder } from "./imageRules";
 
 // The event gallery: upload, choose the cover (the first image), reorder and
@@ -54,15 +54,15 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const move = (image: EventImageRecord, step: -1 | 1) => {
     const order = movedOrder(images.map((item) => item.id), image.id, step);
     if (!order) return;
-    void run(image.id, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
+    void run(`${image.id}:${step < 0 ? "up" : "down"}`, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
   };
 
   const makeCover = (image: EventImageRecord) =>
-    void run(image.id, async () => setImages(await setEventCover(event.id, image.id)), t("org.cover_changed"));
+    void run(`${image.id}:cover`, async () => setImages(await setEventCover(event.id, image.id)), t("org.cover_changed"));
 
   const remove = async (image: EventImageRecord) => {
     if (!(await confirmAction(t("org.image_delete_confirm", { p0: image.alt_text })))) return;
-    void run(image.id, async () => {
+    void run(`${image.id}:delete`, async () => {
       await deleteEventImage(event.id, image.id);
       setImages((current) => current.filter((item) => item.id !== image.id));
     }, t("org.image_deleted"));
@@ -83,7 +83,8 @@ export function EventImagePanel({ event }: { event: EventView }) {
               image={image}
               first={index === 0}
               last={index === images.length - 1}
-              busy={busy !== ""}
+              pending={busy.startsWith(`${image.id}:`) ? (busy.slice(image.id.length + 1) as ImageAction) : null}
+              locked={busy !== ""}
               onUp={() => move(image, -1)}
               onDown={() => move(image, 1)}
               onCover={() => makeCover(image)}

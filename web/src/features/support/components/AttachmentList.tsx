@@ -3,7 +3,7 @@ import { useState } from "react";
 import { describeError } from "../../../api/errors";
 import { attachmentDownloadLink } from "../../../api/support";
 import type { SupportAttachment } from "../../../api/types/support";
-import { useToast } from "../../../components/ui";
+import { busyProps, useToast } from "../../../components/ui";
 import { fileSizeLabel } from "../attachments";
 
 interface AttachmentListProps {
@@ -43,9 +43,7 @@ export function AttachmentList({ caseId, attachments }: AttachmentListProps) {
           <button
             type="button"
             className="support-file"
-            aria-busy={busyId === attachment.id || undefined}
-            aria-disabled={busyId === attachment.id || undefined}
-            onClick={() => { if (busyId !== attachment.id) void download(attachment); }}
+            {...busyProps(busyId === attachment.id, () => void download(attachment))}
             aria-label={t("support.download_file", { p0: attachment.original_filename })}
           >
             <span aria-hidden="true">{attachment.mime_type === "application/pdf" ? "PDF" : "IMG"}</span>

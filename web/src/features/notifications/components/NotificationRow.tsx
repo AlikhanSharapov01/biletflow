@@ -1,5 +1,6 @@
 import { t, useLocale } from "../../../i18n";
 import type { AppNotification } from "../../../api/types/notifications";
+import { busyProps } from "../../../components/ui";
 import { dateLabel } from "../../../utils/format";
 import { notificationContent } from "../notificationContent";
 
@@ -28,9 +29,7 @@ export function NotificationRow({ notification, busy, onOpen }: NotificationRowP
       <button
         type="button"
         className={`notification-row ${unread ? "unread" : ""}`}
-        aria-busy={busy || undefined}
-        aria-disabled={busy || undefined}
-        onClick={() => { if (!busy) onOpen(notification); }}
+        {...busyProps(busy, () => onOpen(notification))}
       >
         <span className="row-icon" aria-hidden="true">
           {KIND_GLYPH[notification.kind] ?? "N"}

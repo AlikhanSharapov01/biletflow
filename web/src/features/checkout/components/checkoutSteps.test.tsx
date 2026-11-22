@@ -129,9 +129,15 @@ describe("TicketSelector", () => {
     expect(onReserve).toHaveBeenCalledTimes(1);
   });
 
-  it("disables reserving while busy and shows the server message", () => {
-    render(<Harness busy message="Not enough places are left for that selection." />);
-    expect(button("Reserving…").getAttribute("aria-busy")).toBe("true");
+  it("ignores reserving while busy and shows the server message", () => {
+    const onReserve = vi.fn();
+    render(<Harness busy onReserve={onReserve} message="Not enough places are left for that selection." />);
+    fireEvent.change(quantity("General"), { target: { value: "1" } });
+    const reserve = button("Reserving…");
+    expect(reserve.getAttribute("aria-busy")).toBe("true");
+    expect(reserve.disabled).toBe(false);
+    fireEvent.click(reserve);
+    expect(onReserve).not.toHaveBeenCalled();
     expect(screen.getByText("Not enough places are left for that selection.")).toBeTruthy();
   });
 
@@ -185,12 +191,28 @@ describe("PromoCodeField", () => {
     fireEvent.click(button("Apply"));
     expect(previewPromoMock).toHaveBeenCalledWith("e1", "SPRING10");
     expect(button("Checking…").getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(button("Checking…"));
+    expect(previewPromoMock).toHaveBeenCalledTimes(1);
 
     await act(async () => pending.resolve(preview));
     expect(onApplied).toHaveBeenLastCalledWith(preview);
     expect(screen.getByRole("status").textContent).toBe("SPRING10: 10% off every ticket");
     expect(input().disabled).toBe(true);
     expect(readStashedPromo("e1")).toBe("SPRING10");
+  });
+
+  it("keeps focus on the field and ignores Enter while the lookup is pending", () => {
+    previewPromoMock.mockReturnValue(deferred<PromoPreview>().promise);
+    render(<Harness />);
+    fireEvent.change(input(), { target: { value: "spring10" } });
+    fireEvent.click(button("Apply"));
+    input().focus();
+    expect(input().disabled).toBe(false);
+    expect(input().readOnly).toBe(true);
+    expect(document.activeElement).toBe(input());
+    fireEvent.submit(input().closest("form") as HTMLFormElement);
+    expect(previewPromoMock).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(input());
   });
 
   it("removes an applied code and forgets it", async () => {
@@ -301,10 +323,17 @@ describe("RecipientForm", () => {
     expect(button("Continue to payment")).toBeTruthy();
   });
 
-  it("locks both actions while busy", () => {
-    const { unmount } = render(<Harness busy paid message="Each reserved place needs exactly one recipient." />);
+  it("marks the running action busy and ignores both actions meanwhile", () => {
+    const onConfirm = vi.fn();
+    const onRelease = vi.fn();
+    const { unmount } = render(<Harness busy paid onConfirm={onConfirm} onRelease={onRelease} message="Each reserved place needs exactly one recipient." />);
     expect(button("Preparing payment…").getAttribute("aria-busy")).toBe("true");
-    expect(button("Choose again").getAttribute("aria-busy")).toBe("true");
+    expect(button("Choose again").hasAttribute("aria-busy")).toBe(false);
+    expect(button("Choose again").getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(button("Preparing payment…"));
+    fireEvent.click(button("Choose again"));
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onRelease).not.toHaveBeenCalled();
     expect(screen.getByText("Each reserved place needs exactly one recipient.")).toBeTruthy();
     unmount();
     render(<Harness busy />);

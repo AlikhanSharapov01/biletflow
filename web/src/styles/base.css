@@ -30,6 +30,8 @@ a { color: var(--green); }
 button:disabled, button[aria-disabled="true"], a[aria-disabled="true"] { cursor: not-allowed; opacity: .65; }
 /* A request in flight: the control stays focusable but waits. Must follow the disabled rule. */
 button[aria-busy="true"], a[aria-busy="true"] { cursor: wait; }
+/* Dimmed controls keep a focus ring that still reads at 3:1. */
+button[aria-disabled="true"]:focus-visible, a[aria-disabled="true"]:focus-visible { opacity: .75; }
 code { font-size: 13px; }
 
 .serif { font-family: var(--font-serif); font-weight: 400; }
@@ -41,4 +43,7 @@ code { font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  /* No press or lift movement; the colour change stays as the cue. */
+  .primary-button:hover, .primary-button:active, .subtle-button:active, .text-button:active, .tab:active,
+  .top-tab:active, .icon-button:active, .tab-bar-link:active { transform: none !important; }
 }

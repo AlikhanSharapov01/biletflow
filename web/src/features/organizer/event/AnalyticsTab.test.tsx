@@ -82,6 +82,17 @@ describe("analytics tab", () => {
     expect(api.getAnalytics).toHaveBeenLastCalledWith("e1", { ticket_type_id: "t1" });
   });
 
+  it("marks the export busy without disabling it and ignores a second click", async () => {
+    vi.mocked(api.downloadAnalyticsCsv).mockReturnValue(new Promise(() => undefined));
+    render(<AnalyticsTab event={makeEvent()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Download CSV" }));
+    const busy = await screen.findByRole("button", { name: "Preparing CSV…" });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(busy.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(busy);
+    expect(api.downloadAnalyticsCsv).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the server's message when the export fails", async () => {
     vi.mocked(api.downloadAnalyticsCsv).mockRejectedValue(new ApiError("You don't have permission to do that.", 403, "permission_denied"));
     render(<AnalyticsTab event={makeEvent()} />);

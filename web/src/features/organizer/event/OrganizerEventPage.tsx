@@ -103,7 +103,8 @@ export function OrganizerEventPage() {
     const first = GROUPS.find((item) => item.id === id)?.tabs[0];
     if (first) selectTab(first.id);
   };
-  const [busy, setBusy] = useState(false);
+  // Which header action is running; the others wait (aria-disabled) until it settles.
+  const [pending, setPending] = useState<"publish" | "duplicate" | "cancel" | null>(null);
 
   const page = useRequest(
     async () => {
@@ -122,8 +123,8 @@ export function OrganizerEventPage() {
   const published = event.publication_state === "published";
   const cancelled = event.publication_state === "cancelled";
 
-  const act = async (action: () => Promise<unknown>, done: string) => {
-    setBusy(true);
+  const act = async (kind: "publish" | "cancel", action: () => Promise<unknown>, done: string) => {
+    setPending(kind);
     try {
       await action();
       notify(done);
@@ -131,17 +132,17 @@ export function OrganizerEventPage() {
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const cancel = async () => {
     if (!await confirmAction(t("organizer.cancel_event_confirm"))) return;
-    await act(() => cancelEvent(event.id), t("org.event_cancelled"));
+    await act("cancel", () => cancelEvent(event.id), t("org.event_cancelled"));
   };
 
   const duplicate = async () => {
-    setBusy(true);
+    setPending("duplicate");
     try {
       const copy = await duplicateEvent(event.id);
       notify(t("org.draft_copied"));
@@ -149,7 +150,7 @@ export function OrganizerEventPage() {
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -167,15 +168,16 @@ export function OrganizerEventPage() {
             {!cancelled ? (
               <Button
                 variant="primary"
-                busy={busy}
-                onClick={() => void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
+                busy={pending === "publish"}
+                aria-disabled={pending !== null && pending !== "publish"}
+                onClick={() => void act("publish", () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
               >
                 {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button busy={busy} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
+            <Button busy={pending === "duplicate"} aria-disabled={pending !== null && pending !== "duplicate"} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
             {!cancelled ? (
-              <Button variant="danger" busy={busy} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
+              <Button variant="danger" busy={pending === "cancel"} aria-disabled={pending !== null && pending !== "cancel"} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
             ) : null}
           </>
         }

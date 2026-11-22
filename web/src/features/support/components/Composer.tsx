@@ -116,7 +116,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
         <Button variant="primary" type="submit" busy={busy || uploading || checking}>
           {busy ? t("common.sending") : uploading ? t("support.uploading_files") : checking ? t("support.checking_files") : t("support.send")}
         </Button>
-        <Button onClick={() => picker.current?.click()} disabled={busy}>{t("support.attach_file")}{" "}</Button>
+        <Button onClick={() => picker.current?.click()} aria-disabled={busy}>{t("support.attach_file")}{" "}</Button>
         {maxBytes !== null ? <span className="field-note">{t("support.file_types_hint")}{" "}{fileSizeLabel(maxBytes)}{" "}{t("word.each")}</span> : null}
         <input ref={picker} type="file" accept={ATTACHMENT_ACCEPT} multiple hidden onChange={handlePick} />
       </div>

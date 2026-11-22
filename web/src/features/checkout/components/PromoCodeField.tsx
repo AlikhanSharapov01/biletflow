@@ -52,6 +52,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     void check(code);
   };
 
@@ -70,7 +71,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
         </span>
         </label>
         <span className="promo-row">
-          <input id={inputId} value={code} maxLength={32} autoComplete="off" disabled={busy || Boolean(applied)} onChange={(e) => setCode(e.target.value)} />
+          <input id={inputId} value={code} maxLength={32} autoComplete="off" disabled={Boolean(applied)} readOnly={busy} onChange={(e) => setCode(e.target.value)} />
           {applied ? (
             <Button size="sm" onClick={remove}>{t("common.remove")}</Button>
           ) : (
