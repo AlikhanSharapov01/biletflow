@@ -8,6 +8,9 @@ import { defineConfig } from "@playwright/test";
 // The cases pin the DejaVu fonts (Debian/Ubuntu: apt-get install fonts-dejavu-core) and
 // fail with a clear message when they are missing.
 //
+// CI runs Playwright 1.49.1 (Chromium 131), which is the gate. A newer local Chromium can
+// differ by a pixel (for example fractional scroll offsets), so a local pass is not a CI pass.
+//
 // PW_CHROMIUM_PATH points the run at an existing Chromium binary.
 const CI = Boolean(process.env.CI);
 const executablePath = process.env.PW_CHROMIUM_PATH || undefined;
