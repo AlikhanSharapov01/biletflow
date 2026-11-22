@@ -5,6 +5,9 @@ import { defineConfig } from "@playwright/test";
 //
 //   cd e2e && npm ci && npx playwright install chromium && npm run test:layout
 //
+// The cases pin the DejaVu fonts (Debian/Ubuntu: apt-get install fonts-dejavu-core) and
+// fail with a clear message when they are missing.
+//
 // PW_CHROMIUM_PATH points the run at an existing Chromium binary.
 const CI = Boolean(process.env.CI);
 const executablePath = process.env.PW_CHROMIUM_PATH || undefined;

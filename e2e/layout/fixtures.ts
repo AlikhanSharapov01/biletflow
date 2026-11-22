@@ -16,7 +16,8 @@ export const NOW = new Date("2027-01-15T06:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 // Dates are anchored to local midnight in Almaty (UTC+5, the browser's time zone), so an
 // event "at 14:00" really shows 14:00.
-const ALMATY_MIDNIGHT = Date.parse("2027-01-15T00:00:00+05:00");
+// Derived from NOW's calendar day (06:00 UTC is 11:00 in Almaty, the same day).
+const ALMATY_MIDNIGHT = Date.parse(`${NOW.toISOString().slice(0, 10)}T00:00:00+05:00`);
 const at = (days: number, hour = 0) => new Date(ALMATY_MIDNIGHT + days * DAY + hour * 60 * 60 * 1000).toISOString();
 
 const CREATED = at(-90);
@@ -99,7 +100,7 @@ function eventView(n: number, title: string, overrides: Partial<EventView> = {})
   };
 }
 
-// Ten events: the first three open on the event pages and have no cover image;
+// Twelve events: the first three open on the event pages and have no cover image;
 // "Short" has a wide cover and "Almaty Jazz Night" a tall one.
 const id = (n: number) => uuid(100 + n);
 export const events: EventView[] = [
@@ -113,6 +114,9 @@ export const events: EventView[] = [
   eventView(7, "A_very_long_unbroken_title_" + "without_any_spaces_".repeat(6), { price_from_minor: null }),
   eventView(8, "Tech Summit 2027", { sold_out: true }),
   eventView(9, "Фестиваль уличной еды и музыки под открытым небом"),
+  // Offer labels: no public tickets yet, and sales closed while the event is still ahead.
+  eventView(10, "Pop-up night market with no tickets on sale yet", { price_from_minor: null }),
+  eventView(11, "Late registration workshop", { registration_closes_at: at(-1) }),
 ];
 
 // Filtering Discover by this category returns more events than one page holds.

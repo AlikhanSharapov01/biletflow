@@ -102,6 +102,16 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.evaluate(() => document.fonts.ready);
+    // A missing pinned font would silently change every text width.
+    const pinned = await page.evaluate(() => {
+      const context = document.createElement("canvas").getContext("2d")!;
+      const sample = "Wiiiiimmmmm 0123456789 Ыы Әә";
+      context.font = '16px "DejaVu Sans", monospace';
+      const withFont = context.measureText(sample).width;
+      context.font = "16px monospace";
+      return withFont !== context.measureText(sample).width;
+    });
+    if (!pinned) throw new Error("install DejaVu fonts (fonts-dejavu-core): the layout checks pin them");
   } catch (failure) {
     if (mocked.unmocked.length === 0 && pageErrors.length === 0) throw failure;
     const details = [
@@ -230,6 +240,12 @@ function measureLayout(): string[] {
     const box = rendered(element);
     if (box && (box.right > width + TOLERANCE || box.left < -TOLERANCE)) {
       problems.push(`content ${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
+    }
+    // Text running out of a block, so a known "page scrolls" row cannot hide it.
+    for (const text of textBoxes(element)) {
+      if (text.right > width + TOLERANCE || text.left < -TOLERANCE) {
+        problems.push(`content ${describe(element)} text spans ${Math.round(text.left)}..${Math.round(text.right)} of ${width}`);
+      }
     }
   }
 
