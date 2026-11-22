@@ -125,6 +125,7 @@
 .skeleton-page .page-heading .skeleton-shape { background-image: linear-gradient(90deg, var(--line) 30%, var(--line-soft) 50%, var(--line) 70%); }
 .skeleton-page { display: grid; gap: var(--heading-gap); }
 .skeleton-page .page-heading { margin-bottom: 0; }
+/* 22.3px is the measured height of a StatusPill (11px micro text at 1.3 line height plus 4px padding twice). */
 .skeleton-pill { width: 84px; height: 22.3px; border-radius: var(--radius-pill); }
 .skeleton-back { width: 110px; height: 15px; margin-top: 1px; margin-bottom: 16px; padding-block: 3px; }
 .skeleton-h1 { width: min(360px, 70%); height: 34px; margin-top: 6px; padding-block: 4.25px; }
@@ -204,5 +205,7 @@
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shape, .skeleton-art, .skeleton-tile { animation: none; background-image: none; background-color: var(--line-soft); }
   .skeleton-page .page-heading .skeleton-shape { background-image: none; background-color: var(--line); }
-  .event-grid, .event-grid[aria-busy="true"] { transition: none; }
+  .event-grid { transition: none; }
+  /* No animation, but the same 150 ms delay, so a quick answer never flashes the dim. */
+  .event-grid[aria-busy="true"] { transition: opacity 0s .15s; }
 }

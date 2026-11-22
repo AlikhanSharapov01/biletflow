@@ -1,5 +1,5 @@
 import { categoryName, t, useLocale } from "../../i18n";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { useSearchParams } from "react-router";
 import { listCategories, listVenues } from "../../api/catalog";
 import type { Category, Venue } from "../../api/types";
@@ -97,6 +97,7 @@ interface DiscoverResultsProps {
 function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResultsProps) {
   useLocale();
   const grid = useRef<HTMLDivElement>(null);
+  // Layout effects below: they run in the commit that shows the new cards, before any later click or test read.
   // Set when Load more had the focus, so it can follow the new cards if the button goes away.
   const refocusFrom = useRef<number | null>(null);
   const maps = useMemo(
@@ -108,7 +109,7 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
   );
 
   const { events, hasMore, loadingMore, loadMoreFailed } = found;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (refocusFrom.current === null || loadingMore) return;
     const from = refocusFrom.current;
     refocusFrom.current = null;
@@ -124,7 +125,7 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
   // the focus to the page. Once the results settle it returns to the same card, else to the search box.
   const focusedCard = useRef<string | null>(null);
   const wasLoading = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const was = wasLoading.current;
     wasLoading.current = found.loading;
     if (!was || found.loading) return;
@@ -169,8 +170,9 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
         onFocus={(event) => {
           focusedCard.current = event.target instanceof Element ? (event.target.closest("a")?.getAttribute("href") ?? null) : null;
         }}
-        onBlur={() => {
-          if (!wasLoading.current) focusedCard.current = null;
+        onBlur={(event) => {
+          // A blur caused by the grid turning inert must not forget the card.
+          if (!event.currentTarget.hasAttribute("inert")) focusedCard.current = null;
         }}
       >
         {events.map((event, index) => {

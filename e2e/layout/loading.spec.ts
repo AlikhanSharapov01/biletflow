@@ -98,6 +98,7 @@ for (const width of WIDTHS) {
       await setUp(page, width);
       await page.goto("/discover");
       await expect(page.locator(REAL_CARD).first()).toBeVisible();
+      await assertPinnedFonts(page);
       // Typing in the search box can change the filters' height; the cards only have to stay
       // where they were under the filters.
       const gap = () => page.evaluate((card) => document.querySelector(card)!.getBoundingClientRect().top - document.querySelector(".discover-filters")!.getBoundingClientRect().bottom, REAL_CARD);
