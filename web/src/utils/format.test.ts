@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "../i18n";
+import { intlLocale } from "./intlLocale";
 import { consumeHashToken, dateLabel, firstName, formatCountdown, initials, isoToLocalInput, localInputToIso, priceLabel, seatLabel, tengeToMinor } from "./format";
 
 describe("dateLabel", () => {
@@ -77,5 +79,31 @@ describe("consumeHashToken", () => {
     const history = { replaceState: vi.fn() } as unknown as History;
     expect(consumeHashToken({ href: "http://localhost:5173/verify-email", hash: "" } as Location, history)).toBe("");
     expect(history.replaceState).not.toHaveBeenCalled();
+  });
+});
+
+describe("Kazakh fallback", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    setLocale("en");
+  });
+
+  it("uses the Russian formats when the engine has no Kazakh data", () => {
+    setLocale("ru");
+    const russian = priceLabel(300000);
+    vi.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue([]);
+    vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue([]);
+    setLocale("kk");
+    expect(intlLocale("kk")).toBe("ru");
+    expect(priceLabel(300000)).toBe(russian);
+    expect(intlLocale("en")).toBe("en");
+  });
+
+  it("keeps Kazakh when the engine supports it", () => {
+    const spy = vi.spyOn(Intl, "NumberFormat");
+    setLocale("kk");
+    priceLabel(300000);
+    expect(intlLocale("kk")).toBe("kk");
+    expect(spy.mock.calls[0]![0]).toBe("kk");
   });
 });

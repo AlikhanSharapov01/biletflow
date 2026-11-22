@@ -1,5 +1,6 @@
 import type { SeatSnapshot } from "@/api/types";
 import { getLocale } from "@/i18n";
+import { intlLocale } from "@/utils/intlLocale";
 import { localizedStatus } from "@/i18n/status";
 import { t } from "@/i18n";
 
@@ -9,7 +10,7 @@ export function dateLabel(value: string | null | undefined, options: Intl.DateTi
   if (!value) return t("common.not_available");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t("common.not_available");
-  return new Intl.DateTimeFormat(getLocale(), options).format(date);
+  return new Intl.DateTimeFormat(intlLocale(getLocale()), options).format(date);
 }
 
 export function dayNumber(value: string): string {
@@ -24,7 +25,7 @@ export function monthShort(value: string): string {
 // rather than Intl.NumberFormat, whose tenge support varies between phones.
 function money(minor: number): string {
   const amount = (Math.abs(minor) / 100).toFixed(2);
-  if (getLocale() === "en") return `₸${amount}`;
+  if (intlLocale(getLocale()) === "en") return `₸${amount}`;
   const [whole = "0", cents = "00"] = amount.split(".");
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")},${cents}\u00a0₸`;
 }

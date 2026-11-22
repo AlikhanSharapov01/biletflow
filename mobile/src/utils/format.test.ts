@@ -1,4 +1,6 @@
-import { formatCountdown, localInputToIso, tokenFromLink } from "@/utils/format";
+import { dateLabel, formatCountdown, localInputToIso, tokenFromLink } from "@/utils/format";
+import { setLocale } from "@/i18n";
+import { intlLocale } from "@/utils/intlLocale";
 
 describe("tokenFromLink", () => {
   it("reads the token from an emailed link fragment", () => {
@@ -31,5 +33,26 @@ describe("localInputToIso", () => {
   it("rejects text that is not a date", () => {
     expect(localInputToIso("tomorrow evening")).toBeNull();
     expect(localInputToIso("")).toBeNull();
+  });
+});
+
+describe("Kazakh fallback", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    setLocale("en");
+  });
+
+  it("formats dates in Russian when the engine has no Kazakh data", () => {
+    setLocale("ru");
+    const russian = dateLabel("2026-10-18T13:00:00Z", { month: "long", timeZone: "UTC" });
+    jest.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue([]);
+    setLocale("kk");
+    expect(intlLocale("kk")).toBe("ru");
+    expect(intlLocale("en")).toBe("en");
+    expect(dateLabel("2026-10-18T13:00:00Z", { month: "long", timeZone: "UTC" })).toBe(russian);
+  });
+
+  it("keeps Kazakh when the engine supports it", () => {
+    expect(intlLocale("kk")).toBe(Intl.DateTimeFormat.supportedLocalesOf(["kk"]).length ? "kk" : "ru");
   });
 });
