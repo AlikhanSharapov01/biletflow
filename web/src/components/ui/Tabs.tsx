@@ -52,6 +52,8 @@ export function Tabs<T extends string>({ label, items, value, onChange, idPrefix
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(reveal);
     observer.observe(row);
+    // A longer label (locale switch) changes a tab's width without changing the row's.
+    for (const tab of refs.current) if (tab) observer.observe(tab);
     return () => observer.disconnect();
   }, [selectedIndex, items.length]);
 

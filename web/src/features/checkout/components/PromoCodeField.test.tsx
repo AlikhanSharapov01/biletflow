@@ -44,4 +44,23 @@ describe("PromoCodeField focus", () => {
     expect(input.readOnly).toBe(false);
     expect(input.value).toBe("");
   });
+
+  it("keeps the applied discount when Enter is pressed again", async () => {
+    vi.mocked(previewPromo).mockResolvedValueOnce(preview).mockRejectedValue(new Error("Code expired"));
+    const onApplied = vi.fn();
+    function Spy() {
+      const [applied, setApplied] = useState<PromoPreview | null>(null);
+      return <PromoCodeField eventId="e1" initialCode="" applied={applied} onApplied={(next) => { onApplied(next); setApplied(next); }} />;
+    }
+    render(<Spy />);
+    const input = screen.getByLabelText(/Promo code/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "spring" } });
+    fireEvent.submit(input.closest("form")!);
+    await screen.findByRole("button", { name: "Remove" });
+    fireEvent.submit(input.closest("form")!);
+    await Promise.resolve();
+    expect(previewPromo).toHaveBeenCalledTimes(1);
+    expect(onApplied).toHaveBeenCalledTimes(1);
+    expect(onApplied).toHaveBeenLastCalledWith(preview);
+  });
 });

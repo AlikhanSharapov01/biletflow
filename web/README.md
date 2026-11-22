@@ -77,7 +77,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   (no Google script in the browser), owners connect the organization in the workspace, and the
   Analytics tab shows a Traffic section. See
   [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
-- **814 tests in 94 files** and a **Web CI workflow** (type check, tests, production build), plus
+- **822 tests in 95 files** and a **Web CI workflow** (type check, tests, production build), plus
   Playwright browser tests in the repository's `e2e/` folder (#120). See [Tests](#tests).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
   and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
@@ -282,7 +282,7 @@ See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md) for the promo, campaign, checkout a
 npm test
 ```
 
-There are 814 tests in 94 files (all passing on 22 November 2026), next to the code they test
+There are 822 tests in 95 files (all passing on 22 November 2026), next to the code they test
 (`*.test.ts(x)`); shared fixtures are in `tests/helpers/` and the jsdom setup in `src/test/`.
 They cover the API client, file downloads, idempotency keys and error messages, formatting,
 checkout rules and components (steps, seating, payment) and the checkout flow hook, seat and

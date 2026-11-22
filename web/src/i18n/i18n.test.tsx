@@ -105,7 +105,8 @@ describe("localization", () => {
     vi.mocked(updateProfile).mockRejectedValue(new Error("offline"));
     render(<LanguageSwitcher />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "kk" } });
-    await waitFor(() => expect((screen.getByRole("combobox") as HTMLSelectElement).disabled).toBe(false));
+    await waitFor(() => expect(screen.getByRole("combobox").hasAttribute("aria-busy")).toBe(false));
+    expect(updateProfile).toHaveBeenCalledTimes(1);
     expect(getLocale()).toBe("en");
     expect(save).not.toHaveBeenCalled();
   });

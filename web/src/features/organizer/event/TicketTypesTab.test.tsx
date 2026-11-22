@@ -27,6 +27,9 @@ describe("ticket types busy rule", () => {
     const add = create.getByRole("button", { name: "Add ticket type" });
     expect(add.hasAttribute("aria-busy")).toBe(false);
     expect(add.getAttribute("aria-disabled")).toBe("true");
+    // Fill the create form validly, so only the lock can stop the request.
+    fireEvent.change(create.getByLabelText(/Name/), { target: { value: "VIP" } });
+    fireEvent.change(create.getByLabelText(/Quantity/), { target: { value: "10" } });
     fireEvent.click(add);
     expect(createTicketType).not.toHaveBeenCalled();
     expect(updateTicketType).toHaveBeenCalledTimes(1);

@@ -53,7 +53,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || applied) return;
     void check(code);
   };
 
