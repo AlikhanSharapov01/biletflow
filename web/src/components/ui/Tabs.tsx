@@ -22,17 +22,38 @@ interface TabsProps<T extends string> {
 export function Tabs<T extends string>({ label, items, value, onChange, idPrefix, fill = false, secondary = false }: TabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  // Keeps the selected tab visible in a row that scrolls sideways (phones, long labels).
+  // Keeps the selected tab fully visible in a row that scrolls sideways (phones, long labels).
   // Sets scrollLeft instead of using scrollIntoView so the page never moves vertically.
+  // Some browsers truncate scrollLeft to an integer, so a fractional target is rounded
+  // outwards (up for the end edge, down for the start edge) and the ends snap to 0 and max.
+  const selectedIndex = items.findIndex((item) => item.id === value);
   useEffect(() => {
-    const selected = refs.current[items.findIndex((item) => item.id === value)];
+    const selected = refs.current[selectedIndex];
     const row = selected?.parentElement;
-    if (!selected || !row || row.scrollWidth <= row.clientWidth) return;
-    const tab = selected.getBoundingClientRect();
-    const box = row.getBoundingClientRect();
-    if (tab.left < box.left) row.scrollLeft -= box.left - tab.left;
-    else if (tab.right > box.right) row.scrollLeft += tab.right - box.right;
-  }, [value]);
+    if (!selected || !row) return;
+
+    const reveal = () => {
+      const max = row.scrollWidth - row.clientWidth;
+      if (max <= 0) return;
+      let target = row.scrollLeft;
+      if (selectedIndex === 0) target = 0;
+      else if (selectedIndex === items.length - 1) target = max;
+      else {
+        const tab = selected.getBoundingClientRect();
+        const box = row.getBoundingClientRect();
+        if (tab.left < box.left) target = Math.floor(row.scrollLeft - (box.left - tab.left));
+        else if (tab.right > box.right) target = Math.ceil(row.scrollLeft + (tab.right - box.right));
+      }
+      target = Math.min(Math.max(target, 0), max);
+      if (target !== row.scrollLeft) row.scrollLeft = target;
+    };
+
+    reveal();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(reveal);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [selectedIndex, items.length]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = items.length - 1;
