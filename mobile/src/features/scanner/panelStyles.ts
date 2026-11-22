@@ -16,8 +16,10 @@ export const panelStyles = StyleSheet.create({
   },
   panelTitle: {
     color: colors.onGreen,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 26,
+    fontWeight: "700",
+    letterSpacing: -0.57,
   },
   panelLine: {
     color: colors.onGreen,

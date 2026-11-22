@@ -99,8 +99,9 @@ const styles = StyleSheet.create({
   },
   artLetter: {
     color: overlays.artInk,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 37,
+    fontWeight: "600",
   },
   copy: {
     padding: 14,

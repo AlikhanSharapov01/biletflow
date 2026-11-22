@@ -37,8 +37,11 @@ const styles = StyleSheet.create({
   },
   countsValue: {
     color: colors.ink,
-    fontFamily: fonts.serif,
+    fontFamily: fonts.sans,
     fontSize: 28,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -0.62,
   },
   countsTotal: {
     color: colors.muted,
