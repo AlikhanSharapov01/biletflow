@@ -189,6 +189,18 @@ function measureLayout(): string[] {
     }
   });
 
+  // A select's chosen option must fit beside the arrow, or its text is cut off.
+  const SELECT_ARROW = 22;
+  const canvas = document.createElement("canvas").getContext("2d");
+  for (const select of document.querySelectorAll<HTMLSelectElement>(".discover-filters select")) {
+    if (!canvas || !rendered(select)) continue;
+    const style = getComputedStyle(select);
+    canvas.font = style.font;
+    const room = select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - SELECT_ARROW;
+    const shown = select.selectedOptions[0]?.textContent ?? "";
+    if (canvas.measureText(shown).width > room) problems.push(`filter ${describe(select)} cuts off "${shown}" (${Math.round(canvas.measureText(shown).width)} > ${Math.round(room)})`);
+  }
+
   const scroll = document.documentElement.scrollWidth;
   if (scroll > width) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${width}`);
 
