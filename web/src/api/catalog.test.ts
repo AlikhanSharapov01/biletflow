@@ -12,11 +12,11 @@ describe("listEvents", () => {
     vi.unstubAllGlobals();
   });
 
-  const lastParams = () => new URL(String(fetchMock.mock.calls[0][0]), "http://x").searchParams;
+  const sentParams = () => new URL(String(fetchMock.mock.calls[0][0]), "http://x").searchParams;
 
   it("defaults the limit to 50 and sends nothing else", async () => {
     await listEvents();
-    expect(lastParams().toString()).toBe("limit=50");
+    expect(sentParams().toString()).toBe("limit=50");
   });
 
   it("sends every defined filter under the backend names", async () => {
@@ -32,7 +32,7 @@ describe("listEvents", () => {
       limit: 24,
       offset: 48,
     });
-    const p = lastParams();
+    const p = sentParams();
     expect(Object.fromEntries(p)).toEqual({
       q: "jazz",
       category_id: "c1",
@@ -49,6 +49,6 @@ describe("listEvents", () => {
 
   it("keeps a zero offset and min price, and omits free when off", async () => {
     await listEvents({ min_price: 0, offset: 0, free: false });
-    expect(Object.fromEntries(lastParams())).toEqual({ min_price: "0", offset: "0", limit: "50" });
+    expect(Object.fromEntries(sentParams())).toEqual({ min_price: "0", offset: "0", limit: "50" });
   });
 });

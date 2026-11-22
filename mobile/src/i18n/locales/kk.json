@@ -263,6 +263,7 @@
   "discover.venue_missing": "Өткізу орны туралы деректер жоқ",
   "discover.tickets_available": "Билеттер бар",
   "discover.view_event": "Іс-шараны ашу →",
+  "discover.price_range_error": "Ең төменгі баға ең жоғарғы бағадан аспауы тиіс.",
   "event.loading": "Іс-шара мәліметтері жүктелуде…",
   "event.load_error": "Бұл іс-шараны жүктеу мүмкін болмады.",
   "event.back": "Іс-шараларға оралу",
@@ -1600,6 +1601,5 @@
   "org.traffic_event_view": "Іс-шара бетін қарады",
   "org.traffic_checkout_start": "Тапсырысты бастады",
   "org.traffic_purchase": "GA4-ке жіберілген сатып алулар",
-  "org.traffic_refund": "GA4-ке жіберілген қайтарулар",
-  "discover.price_range_error": "Ең төменгі баға ең жоғарғы бағадан көп болмауы керек."
+  "org.traffic_refund": "GA4-ке жіберілген қайтарулар"
 }

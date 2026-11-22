@@ -263,6 +263,7 @@ discover.empty	No events match those filters yet. Try another search or check ba
 discover.venue_missing	Venue details unavailable	Данные о площадке недоступны	Өткізу орны туралы деректер жоқ
 discover.tickets_available	Tickets available	Билеты доступны	Билеттер бар
 discover.view_event	View event →	Открыть мероприятие →	Іс-шараны ашу →
+discover.price_range_error	Minimum price can’t be higher than maximum price.	Минимальная цена не может быть выше максимальной.	Ең төменгі баға ең жоғарғы бағадан аспауы тиіс.
 event.loading	Loading event details…	Загрузка мероприятия…	Іс-шара мәліметтері жүктелуде…
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.
 event.back	Back to events	К мероприятиям	Іс-шараларға оралу
@@ -1601,4 +1602,3 @@ org.traffic_event_view	Viewed the event page	Смотрели страницу �
 org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
 org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
 org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар
-discover.price_range_error	Minimum price can't be higher than maximum price.	Минимальная цена не может быть выше максимальной.	Ең төменгі баға ең жоғарғы бағадан көп болмауы керек.

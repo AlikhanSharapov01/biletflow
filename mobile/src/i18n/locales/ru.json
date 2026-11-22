@@ -263,6 +263,7 @@
   "discover.venue_missing": "Данные о площадке недоступны",
   "discover.tickets_available": "Билеты доступны",
   "discover.view_event": "Открыть мероприятие →",
+  "discover.price_range_error": "Минимальная цена не может быть выше максимальной.",
   "event.loading": "Загрузка мероприятия…",
   "event.load_error": "Не удалось загрузить это мероприятие.",
   "event.back": "К мероприятиям",
@@ -1600,6 +1601,5 @@
   "org.traffic_event_view": "Смотрели страницу мероприятия",
   "org.traffic_checkout_start": "Начали оформление",
   "org.traffic_purchase": "Покупки, переданные в GA4",
-  "org.traffic_refund": "Возвраты, переданные в GA4",
-  "discover.price_range_error": "Минимальная цена не может быть выше максимальной."
+  "org.traffic_refund": "Возвраты, переданные в GA4"
 }
