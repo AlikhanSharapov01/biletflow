@@ -115,6 +115,24 @@ describe("PaymentStep", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
+  it("marks the failed-payment button busy when it is the one running", async () => {
+    simulateMock.mockReturnValue(new Promise(() => undefined));
+    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} onCancel={vi.fn()} />);
+    const failed = button("Simulate failed payment");
+    failed.focus();
+    await act(async () => fireEvent.click(failed));
+    expect(simulateMock).toHaveBeenCalledTimes(1);
+    expect(simulateMock).toHaveBeenCalledWith("pay1", "failed");
+    expect(failed.getAttribute("aria-busy")).toBe("true");
+    expect(failed.textContent).toContain("Sending…");
+    const success = button("Simulate successful payment");
+    expect(success.hasAttribute("aria-busy")).toBe(false);
+    expect(success.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(failed);
+    fireEvent.click(success);
+    expect(simulateMock).toHaveBeenCalledTimes(1);
+  });
+
   it("offers to choose again for an expired order", () => {
     const onClosed = vi.fn();
     const onCancel = vi.fn();

@@ -39,7 +39,7 @@ describe("Button", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("aria-disabled ignores click and Enter, keeps focus, and is not busy", () => {
+  it("aria-disabled ignores clicks, keeps focus, and is not busy", () => {
     const onClick = vi.fn();
     const onSubmit = vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
     render(<form onSubmit={onSubmit}><Button type="submit" aria-disabled onClick={onClick}>Other</Button></form>);
@@ -149,8 +149,12 @@ describe("button states in CSS", () => {
 
   it("reduced motion drops the press and lift transforms but keeps colour changes", () => {
     const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(base);
-    expect(block?.[1]).toMatch(/:active[^{]*\{[^}]*transform: none/);
-    expect(block?.[1]).toMatch(/primary-button:hover[^{]*\{[^}]*transform: none/);
+    const reduced = block?.[1] ?? "";
+    const selectors = /([^{}]*)\{[^}]*transform: none/.exec(reduced)?.[1] ?? "";
+    expect(selectors).not.toBe("");
+    for (const selector of [".primary-button:hover", ".primary-button:active", ".subtle-button:active", ".text-button:active", ".tab:active", ".top-tab:active", ".icon-button:active", ".tab-bar-link:active"]) {
+      expect(selectors).toContain(selector);
+    }
   });
 
   it("buttons, tabs and tab-bar links scale down on press, never when disabled or busy", () => {

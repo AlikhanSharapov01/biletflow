@@ -201,7 +201,7 @@ describe("PromoCodeField", () => {
     expect(readStashedPromo("e1")).toBe("SPRING10");
   });
 
-  it("keeps focus on the field and ignores Enter while the lookup is pending", () => {
+  it("keeps focus on the field and ignores submit while the lookup is pending", () => {
     previewPromoMock.mockReturnValue(deferred<PromoPreview>().promise);
     render(<Harness />);
     fireEvent.change(input(), { target: { value: "spring10" } });
@@ -240,6 +240,7 @@ describe("PromoCodeField", () => {
     expect((await screen.findByRole("status")).textContent).toBe("This item could not be found.");
     expect(onApplied).toHaveBeenLastCalledWith(null);
     expect(input().disabled).toBe(false);
+    expect(input().readOnly).toBe(false);
   });
 
   it("shows the reason a code was rejected", async () => {
