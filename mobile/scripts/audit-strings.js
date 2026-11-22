@@ -19,7 +19,7 @@ const READABLE = new Set([
 ]);
 const TECHNICAL_PROPS = new Set([
   "testID", "keyboardType", "autoCapitalize", "autoComplete", "returnKeyType", "contentFit", "accessibilityRole", "tone",
-  "textContentType", "icon", "name", "id", "key", "style", "mode", "variant", "pointerEvents", "resizeMode", "href",
+  "textContentType", "d", "viewBox", "strokeDasharray", "icon", "name", "id", "key", "style", "mode", "variant", "pointerEvents", "resizeMode", "href",
 ]);
 const DATA_KEYS = new Set(["pathname", "mimeType", "type", "status", "kind", "code", "tone", "value", "id"]);
 // `push` is deliberately not here: `lines.push("…")` puts text on screen, and
