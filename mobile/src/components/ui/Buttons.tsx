@@ -33,9 +33,10 @@ export function PrimaryButton({ label, onPress, disabled, loading, style }: Butt
       style={[
         styles.primary,
         press.pressed && styles.primaryPressed,
-        inactive && styles.inactive,
         style,
         press.style,
+        // Last, so the reduced-motion opacity (1 at rest) never undoes the dim.
+        inactive && styles.inactive,
       ]}
     >
       {loading ? (
@@ -70,9 +71,9 @@ export function SubtleButton({
         styles.subtle,
         danger && styles.dangerBorder,
         press.pressed && styles.subtlePressed,
-        inactive && styles.inactive,
         style,
         press.style,
+        inactive && styles.inactive,
       ]}
     >
       {loading ? (
@@ -105,7 +106,7 @@ export function TextButton({
       onPressOut={press.onPressOut}
       disabled={disabled}
       hitSlop={8}
-      style={[disabled && styles.inactive, style, press.style]}
+      style={[style, press.style, disabled && styles.inactive]}
     >
       <Text style={[styles.textButton, light && styles.textButtonLight]}>{label}</Text>
     </AnimatedPressable>

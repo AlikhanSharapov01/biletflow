@@ -69,4 +69,21 @@ describe("press feedback", () => {
     await fireEvent.press(screen.getByRole("button"));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+  describe.each([
+    ["off", false],
+    ["on", true],
+  ])("with reduced motion %s", (_name, reduced) => {
+    it.each([
+      ["a disabled primary", <PrimaryButton key="p" label="Go" disabled onPress={jest.fn()} />],
+      ["a busy primary", <PrimaryButton key="b" label="Go" loading onPress={jest.fn()} />],
+      ["a disabled subtle", <SubtleButton key="s" label="Go" disabled onPress={jest.fn()} />],
+      ["a busy subtle", <SubtleButton key="sb" label="Go" loading onPress={jest.fn()} />],
+      ["a disabled text", <TextButton key="t" label="Go" disabled onPress={jest.fn()} />],
+    ])("%s button stays dimmed", async (_label, button) => {
+      jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(reduced);
+      await render(button);
+      await act(async () => {});
+      expect(StyleSheet.flatten(screen.getByRole("button").props.style).opacity).toBe(0.55);
+    });
+  });
 });
