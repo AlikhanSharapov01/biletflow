@@ -54,13 +54,14 @@ jobs:
 
       # The load harness migrates and fills the database it is given and never truncates it, while
       # the suite truncates its own database before every test. So each load run gets a database
-      # of its own: the load test inside the full suite, and the two direct runs below. Every one
+      # of its own: the load test inside the full suite, and the three direct runs below. Every one
       # starts empty and no run sees another's rows. The harness refuses names not ending _test.
       - name: Create the load databases
         env:
           PGPASSWORD: postgres
         run: |
-          for name in biletflow_suite_load_test biletflow_load_5_test biletflow_load_20_test; do
+          for name in biletflow_suite_load_test biletflow_load_5_test biletflow_load_20_test \
+            biletflow_load_20_workers_2_test; do
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $name"
           done
 
@@ -75,11 +76,12 @@ jobs:
           LOAD_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_suite_load_test
         run: uv run pytest -q -rs
 
-      # Admission p95 alone and with 5 analytics clients (scenarios A and B), then with 20. The
+      # Admission p95 alone and with 5 analytics clients (scenarios A and B), then with 20, on one
+      # API process; then with 20 on two API processes as Docker Compose runs it (#118). The
       # recorded #80 figures used the harness defaults for everything else (50 checkouts for 40
-      # tickets, 10 scanners), so only --runs and --analytics-clients are set. The harness exits
-      # with 1 when an invariant fails or the 2 s admission target is missed. The steps run after
-      # a failure above too, so one run reports all three figures.
+      # tickets, 10 scanners), so only --runs, --analytics-clients and --api-workers are set. The
+      # harness exits with 1 when an invariant fails or the 2 s admission target is missed. The
+      # steps run after a failure above too, so one run reports every figure.
       - name: Load report, 5 analytics clients
         if: ${{ !cancelled() }}
         run: >-
@@ -96,14 +98,23 @@ jobs:
           --runs 3 --analytics-clients 20
           --output-dir ${{ runner.temp }}/load-20
 
+      - name: Load report, 20 analytics clients, 2 API workers
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run python -m tests.load.load_harness
+          --database-url postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_load_20_workers_2_test
+          --runs 3 --analytics-clients 20 --api-workers 2
+          --output-dir ${{ runner.temp }}/load-20-workers-2
+
       # The harness writes results.md and results.json into a timestamped folder of --output-dir.
       - name: Load reports in the job summary
         if: ${{ !cancelled() }}
         run: |
-          for clients in 5 20; do
-            report=$(find "${{ runner.temp }}/load-$clients" -name results.md 2>/dev/null | head -n 1)
+          for run in "5:5 analytics clients" "20:20 analytics clients" \
+            "20-workers-2:20 analytics clients, 2 API workers"; do
+            report=$(find "${{ runner.temp }}/load-${run%%:*}" -name results.md 2>/dev/null | head -n 1)
             {
-              echo "## Load harness, $clients analytics clients"
+              echo "## Load harness, ${run#*:}"
               echo
               if [ -n "$report" ]; then
                 cat "$report"
@@ -122,3 +133,4 @@ jobs:
           path: |
             ${{ runner.temp }}/load-5
             ${{ runner.temp }}/load-20
+            ${{ runner.temp }}/load-20-workers-2

@@ -140,7 +140,9 @@ The response lists every route the process has served since it started, not only
 `outbox_by_kind` lists every kind with an open job.
 
 **`requests`** — counted by this API process since it started (it restarts from zero with the
-process, and each process counts separately if more than one is run). Labels are bounded: the
+process, and each process counts separately if more than one is run). Docker Compose runs
+`API_WORKERS` processes (default 2, #118), so one response covers only the process that answered
+it, and two calls in a row may come from different processes. Labels are bounded: the
 route template, or `unmatched`, and the HTTP method (unknown methods count as `OTHER`).
 `client_errors` are 4xx, `server_errors` are 5xx (including unhandled exceptions), and
 `error_rate` is `server_errors / requests`. `latency_ms` is a cumulative histogram (`le` is the
