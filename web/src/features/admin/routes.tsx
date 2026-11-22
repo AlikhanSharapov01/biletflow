@@ -1,18 +1,20 @@
 import { Navigate, Route } from "react-router";
 import { RequireAuth } from "../../components/layout/RequireAuth";
-import { AdminLayout } from "./AdminLayout";
 import { ADMIN_PATHS } from "./adminPaths";
-import { AdminEventsPage } from "./pages/AdminEventsPage";
-import { AdminExportsPage } from "./pages/AdminExportsPage";
-import { AdminInspectPage } from "./pages/AdminInspectPage";
-import { AdminJobsPage } from "./pages/AdminJobsPage";
-import { AdminModerationPage } from "./pages/AdminModerationPage";
-import { AdminOrdersPage } from "./pages/AdminOrdersPage";
-import { AdminPaymentsPage } from "./pages/AdminPaymentsPage";
-import { AdminReportsPage } from "./pages/AdminReportsPage";
-import { AdminSettingsPage } from "./pages/AdminSettingsPage";
-import { AdminTicketsPage } from "./pages/AdminTicketsPage";
-import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { lazyPage } from "../../app/lazyPage";
+
+const AdminLayout = lazyPage(() => import("./AdminLayout").then((m) => ({ default: m.AdminLayout })));
+const AdminEventsPage = lazyPage(() => import("./pages/AdminEventsPage").then((m) => ({ default: m.AdminEventsPage })));
+const AdminExportsPage = lazyPage(() => import("./pages/AdminExportsPage").then((m) => ({ default: m.AdminExportsPage })));
+const AdminInspectPage = lazyPage(() => import("./pages/AdminInspectPage").then((m) => ({ default: m.AdminInspectPage })));
+const AdminJobsPage = lazyPage(() => import("./pages/AdminJobsPage").then((m) => ({ default: m.AdminJobsPage })));
+const AdminModerationPage = lazyPage(() => import("./pages/AdminModerationPage").then((m) => ({ default: m.AdminModerationPage })));
+const AdminOrdersPage = lazyPage(() => import("./pages/AdminOrdersPage").then((m) => ({ default: m.AdminOrdersPage })));
+const AdminPaymentsPage = lazyPage(() => import("./pages/AdminPaymentsPage").then((m) => ({ default: m.AdminPaymentsPage })));
+const AdminReportsPage = lazyPage(() => import("./pages/AdminReportsPage").then((m) => ({ default: m.AdminReportsPage })));
+const AdminSettingsPage = lazyPage(() => import("./pages/AdminSettingsPage").then((m) => ({ default: m.AdminSettingsPage })));
+const AdminTicketsPage = lazyPage(() => import("./pages/AdminTicketsPage").then((m) => ({ default: m.AdminTicketsPage })));
+const AdminUsersPage = lazyPage(() => import("./pages/AdminUsersPage").then((m) => ({ default: m.AdminUsersPage })));
 
 export { ADMIN_PATHS } from "./adminPaths";
 export { useIsPlatformAdmin } from "./useIsPlatformAdmin";

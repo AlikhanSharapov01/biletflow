@@ -190,6 +190,8 @@
   "errors.validation": "Some details need attention. Review the form and try again.",
   "errors.session": "Your session expired. Sign in again to continue.",
   "errors.network": "Can’t reach BiletFlow right now. Check that the API is running and try again.",
+  "errors.chunk_load_title": "Couldn’t load this page",
+  "errors.chunk_load": "The app may have been updated. Reload to get the latest version.",
   "format.section_row_seat": "Section {section} · Row {row} · Seat {seat}",
   "format.seat_accessible_label": "Section {section}, row {row}, seat {seat}",
   "format.section": "Section {section}",

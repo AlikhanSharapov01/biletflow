@@ -13,11 +13,17 @@ import { checkoutPublicRoutes } from "../features/checkout/routes";
 import { notificationRoutes } from "../features/notifications/routes";
 import { OrderPage } from "../features/orders/OrderPage";
 import { OrdersPage } from "../features/orders/OrdersPage";
-import { OrganizerEventPage } from "../features/organizer/event/OrganizerEventPage";
-import { OrganizerPage } from "../features/organizer/workspace/OrganizerPage";
 import { supportRoutes } from "../features/support/routes";
 import { TicketPage } from "../features/tickets/TicketPage";
 import { TicketsPage } from "../features/tickets/TicketsPage";
+import { lazyPage } from "./lazyPage";
+
+const OrganizerPage = lazyPage(() =>
+  import("../features/organizer/workspace/OrganizerPage").then((m) => ({ default: m.OrganizerPage })),
+);
+const OrganizerEventPage = lazyPage(() =>
+  import("../features/organizer/event/OrganizerEventPage").then((m) => ({ default: m.OrganizerEventPage })),
+);
 
 export function AppRoutes() {
   return (

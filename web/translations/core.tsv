@@ -190,6 +190,8 @@ errors.not_found	This item could not be found.	Объект не найден.	�
 errors.validation	Some details need attention. Review the form and try again.	Проверьте данные в форме и повторите попытку.	Пішіндегі деректерді тексеріп, қайталап көріңіз.
 errors.session	Your session expired. Sign in again to continue.	Сессия истекла. Войдите снова, чтобы продолжить.	Сеанс аяқталды. Жалғастыру үшін қайта кіріңіз.
 errors.network	Can’t reach BiletFlow right now. Check that the API is running and try again.	Не удаётся связаться с BiletFlow. Проверьте доступность API и повторите попытку.	BiletFlow қызметіне қосылу мүмкін емес. API жұмыс істеп тұрғанын тексеріп, қайталап көріңіз.
+errors.chunk_load_title	Couldn’t load this page	Не удалось загрузить страницу	Бетті жүктеу мүмкін болмады
+errors.chunk_load	The app may have been updated. Reload to get the latest version.	Возможно, приложение обновилось. Перезагрузите страницу, чтобы получить новую версию.	Қолданба жаңартылған болуы мүмкін. Соңғы нұсқаны алу үшін бетті қайта жүктеңіз.
 format.section_row_seat	Section {section} · Row {row} · Seat {seat}	Секция {section} · Ряд {row} · Место {seat}	{section} секторы · {row} қатары · {seat} орны
 format.seat_accessible_label	Section {section}, row {row}, seat {seat}	Секция {section}, ряд {row}, место {seat}	{section} секторы, {row} қатары, {seat} орны
 format.section	Section {section}	Секция {section}	{section} секторы

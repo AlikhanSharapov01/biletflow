@@ -190,6 +190,8 @@
   "errors.validation": "Пішіндегі деректерді тексеріп, қайталап көріңіз.",
   "errors.session": "Сеанс аяқталды. Жалғастыру үшін қайта кіріңіз.",
   "errors.network": "BiletFlow қызметіне қосылу мүмкін емес. API жұмыс істеп тұрғанын тексеріп, қайталап көріңіз.",
+  "errors.chunk_load_title": "Бетті жүктеу мүмкін болмады",
+  "errors.chunk_load": "Қолданба жаңартылған болуы мүмкін. Соңғы нұсқаны алу үшін бетті қайта жүктеңіз.",
   "format.section_row_seat": "{section} секторы · {row} қатары · {seat} орны",
   "format.seat_accessible_label": "{section} секторы, {row} қатары, {seat} орны",
   "format.section": "{section} секторы",

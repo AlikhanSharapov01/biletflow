@@ -190,6 +190,8 @@
   "errors.validation": "Проверьте данные в форме и повторите попытку.",
   "errors.session": "Сессия истекла. Войдите снова, чтобы продолжить.",
   "errors.network": "Не удаётся связаться с BiletFlow. Проверьте доступность API и повторите попытку.",
+  "errors.chunk_load_title": "Не удалось загрузить страницу",
+  "errors.chunk_load": "Возможно, приложение обновилось. Перезагрузите страницу, чтобы получить новую версию.",
   "format.section_row_seat": "Секция {section} · Ряд {row} · Место {seat}",
   "format.seat_accessible_label": "Секция {section}, ряд {row}, место {seat}",
   "format.section": "Секция {section}",
