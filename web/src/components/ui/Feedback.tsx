@@ -22,15 +22,16 @@ interface ErrorPanelProps {
   title: string;
   message: string;
   onRetry?: () => void;
+  retryLabel?: string;
 }
 
-export function ErrorPanel({ title, message, onRetry }: ErrorPanelProps) {
+export function ErrorPanel({ title, message, onRetry, retryLabel }: ErrorPanelProps) {
   useLocale();
   return (
     <section className="panel error-panel" role="alert">
       <strong>{title}</strong>
       <p>{translate(message)}</p>
-      {onRetry ? <Button onClick={onRetry}>{t("common.try_again")}</Button> : null}
+      {onRetry ? <Button onClick={onRetry}>{retryLabel ?? t("common.try_again")}</Button> : null}
     </section>
   );
 }

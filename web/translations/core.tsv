@@ -14,6 +14,7 @@ common.disable	Disable	Отключить	Өшіру
 common.download	Download	Скачать	Жүктеп алу
 common.refresh	Refresh	Обновить	Жаңарту
 common.try_again	Try again	Повторить	Қайталау
+common.reload_page	Reload page	Перезагрузить страницу	Бетті қайта жүктеу
 common.loading	Loading…	Загрузка…	Жүктелуде…
 common.not_available	Not available	Недоступно	Қолжетімсіз
 common.not_available_yet	Not available yet	Пока недоступно	Әзірге қолжетімсіз

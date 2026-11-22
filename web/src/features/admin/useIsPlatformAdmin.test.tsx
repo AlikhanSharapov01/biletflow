@@ -1,13 +1,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getAdminMe } from "../../api/admin";
+import { getAdminMe } from "../../api/adminMe";
 import { ApiError } from "../../api/errors";
 import { makeAuthValue, makeProfile } from "../../../tests/helpers/fixtures";
 import { AuthContext, type AuthContextValue } from "../auth/AuthContext";
 import { useIsPlatformAdmin } from "./useIsPlatformAdmin";
 
-vi.mock("../../api/admin", () => ({ getAdminMe: vi.fn() }));
+vi.mock("../../api/adminMe", () => ({ getAdminMe: vi.fn() }));
 const getAdminMeMock = vi.mocked(getAdminMe);
 
 // The hook caches answers per user id for the page's lifetime, so every test

@@ -77,7 +77,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   (no Google script in the browser), owners connect the organization in the workspace, and the
   Analytics tab shows a Traffic section. See
   [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
-- **461 tests in 70 files** and a **Web CI workflow** (type check, tests, production build), plus
+- **465 tests in 71 files** and a **Web CI workflow** (type check, tests, production build), plus
   Playwright browser tests in the repository's `e2e/` folder (#120). See [Tests](#tests).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
   and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
@@ -194,7 +194,9 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 7. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours
    or pixel font sizes. Add feature styles to that feature's stylesheet.
 8. **Register routes** in `app/routes.tsx` (or the feature's `routes.tsx`), and add primary
-   sections to `components/layout/navigation.ts`.
+   sections to `components/layout/navigation.ts`. Admin and organizer pages load on demand:
+   wrap them with `lazyPage(() => import("./Page"), (m) => m.Page)` from
+   `components/layout/lazyPage.tsx`; attendee pages stay in the main bundle.
 9. **Planned endpoints.** The backend serves every endpoint the web uses, so new screens should
    be built on the documented contract (see [Backend contracts](#backend-contracts)). No screen
    uses the `NotAvailableYet` fallback (`isNotImplemented(error)` in `api/errors.ts`) any more;

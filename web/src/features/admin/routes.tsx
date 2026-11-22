@@ -1,20 +1,20 @@
 import { Navigate, Route } from "react-router";
+import { lazyPage } from "../../components/layout/lazyPage";
 import { RequireAuth } from "../../components/layout/RequireAuth";
+import { AdminLayout } from "./AdminLayout";
 import { ADMIN_PATHS } from "./adminPaths";
-import { lazyPage } from "../../app/lazyPage";
 
-const AdminLayout = lazyPage(() => import("./AdminLayout").then((m) => ({ default: m.AdminLayout })));
-const AdminEventsPage = lazyPage(() => import("./pages/AdminEventsPage").then((m) => ({ default: m.AdminEventsPage })));
-const AdminExportsPage = lazyPage(() => import("./pages/AdminExportsPage").then((m) => ({ default: m.AdminExportsPage })));
-const AdminInspectPage = lazyPage(() => import("./pages/AdminInspectPage").then((m) => ({ default: m.AdminInspectPage })));
-const AdminJobsPage = lazyPage(() => import("./pages/AdminJobsPage").then((m) => ({ default: m.AdminJobsPage })));
-const AdminModerationPage = lazyPage(() => import("./pages/AdminModerationPage").then((m) => ({ default: m.AdminModerationPage })));
-const AdminOrdersPage = lazyPage(() => import("./pages/AdminOrdersPage").then((m) => ({ default: m.AdminOrdersPage })));
-const AdminPaymentsPage = lazyPage(() => import("./pages/AdminPaymentsPage").then((m) => ({ default: m.AdminPaymentsPage })));
-const AdminReportsPage = lazyPage(() => import("./pages/AdminReportsPage").then((m) => ({ default: m.AdminReportsPage })));
-const AdminSettingsPage = lazyPage(() => import("./pages/AdminSettingsPage").then((m) => ({ default: m.AdminSettingsPage })));
-const AdminTicketsPage = lazyPage(() => import("./pages/AdminTicketsPage").then((m) => ({ default: m.AdminTicketsPage })));
-const AdminUsersPage = lazyPage(() => import("./pages/AdminUsersPage").then((m) => ({ default: m.AdminUsersPage })));
+const AdminEventsPage = lazyPage(() => import("./pages/AdminEventsPage"), (m) => m.AdminEventsPage);
+const AdminExportsPage = lazyPage(() => import("./pages/AdminExportsPage"), (m) => m.AdminExportsPage);
+const AdminInspectPage = lazyPage(() => import("./pages/AdminInspectPage"), (m) => m.AdminInspectPage);
+const AdminJobsPage = lazyPage(() => import("./pages/AdminJobsPage"), (m) => m.AdminJobsPage);
+const AdminModerationPage = lazyPage(() => import("./pages/AdminModerationPage"), (m) => m.AdminModerationPage);
+const AdminOrdersPage = lazyPage(() => import("./pages/AdminOrdersPage"), (m) => m.AdminOrdersPage);
+const AdminPaymentsPage = lazyPage(() => import("./pages/AdminPaymentsPage"), (m) => m.AdminPaymentsPage);
+const AdminReportsPage = lazyPage(() => import("./pages/AdminReportsPage"), (m) => m.AdminReportsPage);
+const AdminSettingsPage = lazyPage(() => import("./pages/AdminSettingsPage"), (m) => m.AdminSettingsPage);
+const AdminTicketsPage = lazyPage(() => import("./pages/AdminTicketsPage"), (m) => m.AdminTicketsPage);
+const AdminUsersPage = lazyPage(() => import("./pages/AdminUsersPage"), (m) => m.AdminUsersPage);
 
 export { ADMIN_PATHS } from "./adminPaths";
 export { useIsPlatformAdmin } from "./useIsPlatformAdmin";
