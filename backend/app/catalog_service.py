@@ -1,4 +1,5 @@
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy.orm import aliased
 
 from .catalog_models import (
     AccessGrant,
@@ -30,6 +31,66 @@ def live_allocation():
     return and_(
         Allocation.state.in_(ACTIVE_ALLOCATION_STATES),
         or_(Allocation.state != "held", Hold.expires_at > now()),
+    )
+
+
+def price_from_expression(current):
+    """SQL form of the card's price-from rule in `event_offers`, correlated to `Event`.
+
+    A type is in stock when it has quantity left (and, for assigned seating, a free seat).
+    The price is the cheapest in-stock type still on sale at `current`, else the cheapest
+    in-stock type; when the event is sold out it is the cheapest visible type. Null when
+    the event has no visible type.
+    """
+    tt = aliased(TicketType)
+    taken = (
+        select(func.count(Allocation.id))
+        .join(Hold, Hold.id == Allocation.hold_id)
+        .where(Allocation.ticket_type_id == tt.id, live_allocation())
+        .correlate(tt)
+        .scalar_subquery()
+    )
+    seat_taken = (
+        select(Allocation.id)
+        .join(Hold, Hold.id == Allocation.hold_id)
+        .where(Allocation.event_seat_id == EventSeat.id, live_allocation())
+    )
+    free_seats = (
+        select(func.count(EventSeat.id))
+        .where(
+            EventSeat.ticket_type_id == tt.id,
+            EventSeat.is_blocked.is_(False),
+            ~exists(seat_taken),
+        )
+        .correlate(tt)
+        .scalar_subquery()
+    )
+    event_taken = (
+        select(func.count(Allocation.id))
+        .join(Hold, Hold.id == Allocation.hold_id)
+        .where(Allocation.event_id == Event.id, live_allocation())
+        .correlate(Event)
+        .scalar_subquery()
+    )
+    in_stock = and_(
+        tt.quantity_limit - taken > 0,
+        or_(Event.seating_mode != "assigned", free_seats > 0),
+    )
+    on_sale = in_stock & (tt.sales_close_at > current)
+    cheapest_in_stock = func.min(tt.price_minor).filter(in_stock)
+    return (
+        select(
+            case(
+                (
+                    or_(event_taken >= Event.capacity, func.count().filter(in_stock) == 0),
+                    func.min(tt.price_minor),
+                ),
+                else_=func.coalesce(func.min(tt.price_minor).filter(on_sale), cheapest_in_stock),
+            )
+        )
+        .where(tt.event_id == Event.id, tt.is_hidden.is_(False), tt.quantity_limit > 0)
+        .correlate(Event)
+        .scalar_subquery()
     )
 
 

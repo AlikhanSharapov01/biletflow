@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import AwareDatetime
-from sqlalchemy import exists, func, select, text
+from sqlalchemy import func, select, text
 from starlette.concurrency import run_in_threadpool
 
 from . import catalog_schemas as s
@@ -36,6 +36,7 @@ from .catalog_service import (
     event_record,
     event_records,
     organization_guard,
+    price_from_expression,
     record,
     set_capabilities,
 )
@@ -362,6 +363,7 @@ def router(factory, settings, principal, storage):
         q: str | None = Query(None, max_length=200),
         date_from: AwareDatetime | None = None,
         date_to: AwareDatetime | None = None,
+        ends_after: AwareDatetime | None = None,
         min_price: int | None = Query(None, ge=0),
         max_price: int | None = Query(None, ge=0),
         free: bool | None = None,
@@ -399,19 +401,16 @@ def router(factory, settings, principal, storage):
                 query = query.where(Event.starts_at >= date_from)
             if date_to:
                 query = query.where(Event.starts_at <= date_to)
+            if ends_after:
+                query = query.where(Event.ends_at >= ends_after)
             if min_price is not None or max_price is not None or free is not None:
-                price = select(TicketType.id).where(
-                    TicketType.event_id == Event.id,
-                    TicketType.is_hidden.is_(False),
-                    TicketType.quantity_limit > 0,
-                )
+                shown = price_from_expression(now())
                 if min_price is not None:
-                    price = price.where(TicketType.price_minor >= min_price)
+                    query = query.where(shown >= min_price)
                 if max_price is not None:
-                    price = price.where(TicketType.price_minor <= max_price)
+                    query = query.where(shown <= max_price)
                 if free is not None:
-                    price = price.where(TicketType.kind == ("free" if free else "paid"))
-                query = query.where(exists(price))
+                    query = query.where(shown == 0 if free else shown > 0)
             page = list(
                 db.scalars(query.order_by(Event.starts_at, Event.id).limit(limit).offset(offset))
             )
