@@ -155,6 +155,11 @@ organizer.cancel_event	Cancel event	Отменить мероприятие	Іс
 organizer.cancel_event_confirm	Cancel this event? This cannot be undone.	Отменить мероприятие? Это действие нельзя отменить.	Іс-шарадан бас тартасыз ба? Бұл әрекетті қайтару мүмкін емес.
 organizer.public_page	Public page	Публичная страница	Ашық бет
 organizer.event_sections	Event sections	Разделы мероприятия	Іс-шара бөлімдері
+organizer.event_stages	Event stages	Этапы мероприятия	Іс-шара кезеңдері
+organizer.group_setup	Setup	Подготовка	Дайындық
+organizer.group_sales	Sales	Продажи	Сату
+organizer.group_event_day	Event day	День мероприятия	Іс-шара күні
+organizer.group_results	Results	Итоги	Нәтижелер
 organizer.remove_staff_confirm	Remove this staff assignment?	Удалить это назначение сотрудника?	Қызметкердің осы тағайындауын жоясыз ба?
 organizer.owner	Owner	Владелец	Иесі
 organizer.revoked	Revoked	Отозвано	Күші жойылған

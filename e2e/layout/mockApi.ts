@@ -110,6 +110,10 @@ function rules(role: Role, locale: Locale): Rule[] {
       get("/organizations", () => [organization]),
       get(`/organizations/${ID}/members`, () => []),
       get(`/organizations/${ID}/invitations`, () => []),
+      get(`/events/${ID}/check-ins`, (url, [eventId]) =>
+        eventById(eventId) && { items: [], total: 0, limit: Number(url.searchParams.get("limit")) || 50, offset: 0 },
+      ),
+      get(`/events/${ID}/sync-conflicts`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
       get(`/events/${ID}/calendar-links`, (url, [eventId]) =>
         eventById(eventId) && ({
           google: "https://calendar.google.com/",
