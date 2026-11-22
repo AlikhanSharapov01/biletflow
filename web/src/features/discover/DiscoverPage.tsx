@@ -1,45 +1,70 @@
 import { categoryName, t, useLocale } from "../../i18n";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
-import { listCategories, listEvents, listVenues } from "../../api/catalog";
-import type { Category, EventView, Venue } from "../../api/types";
-import { describeError } from "../../api/errors";
+import { listCategories, listVenues } from "../../api/catalog";
+import type { Category, Venue } from "../../api/types";
 import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading } from "../../components/ui";
 import { Button } from "../../components/ui/Button";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { DiscoverFilters } from "./components/DiscoverFilters";
-import {
-  DISCOVER_PAGE_SIZE,
-  discoverSearchParams,
-  eventFilters,
-  hasActiveFilters,
-  parseDiscoverQuery,
-  priceRangeError,
-  type DiscoverQuery,
-} from "./discoverQuery";
+import { discoverSearchParams, hasActiveFilters, parseDiscoverQuery, priceRangeError, type DiscoverQuery } from "./discoverQuery";
+import { useDiscoverEvents, type DiscoverEvents } from "./useDiscoverEvents";
 
 interface Lookups {
   categories: Category[];
   venues: Venue[];
 }
 
+// While a new search loads, show the loading state instead of the previous search's
+// cards. Set to true to keep the old cards on screen until the new ones arrive.
+const KEEP_PREVIOUS_CARDS = false;
+
 export function DiscoverPage() {
   useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryKey = searchParams.toString();
   // Parsed from the URL, so a hand-edited link is cleaned the same way as a submitted form.
-  const query = useMemo(() => parseDiscoverQuery(new URLSearchParams(queryKey)), [queryKey]);
+  const urlKey = searchParams.toString();
+  const query = useMemo(() => parseDiscoverQuery(new URLSearchParams(urlKey)), [urlKey]);
+  const key = discoverSearchParams(query).toString();
+  const rangeError = priceRangeError(query);
 
   // Categories and venues are loaded once per visit, not per search or page.
   const lookups = useRequest<Lookups>(async () => {
     const [categories, venues] = await Promise.all([listCategories(), listVenues()]);
     return { categories, venues };
   }, []);
+  const found = useDiscoverEvents(query, !rangeError);
 
   const cities = useMemo(() => lookups.data?.venues.map((venue) => venue.city) ?? [], [lookups.data]);
-  const search = (next: DiscoverQuery) => setSearchParams(discoverSearchParams(next));
-  const clear = () => setSearchParams(new URLSearchParams());
+  const searchRef = useRef<HTMLInputElement>(null);
+  const focusSearch = useRef(false);
+  useEffect(() => {
+    if (focusSearch.current && key === "") {
+      focusSearch.current = false;
+      searchRef.current?.focus();
+    }
+  }, [key]);
+
+  const search = (next: DiscoverQuery) => {
+    const params = discoverSearchParams(next);
+    // The same search again refreshes the results instead of adding a history entry.
+    if (params.toString() === key) found.reload();
+    else setSearchParams(params);
+  };
+  // The button that was pressed goes away, so the search box takes the focus.
+  const clear = () => {
+    focusSearch.current = true;
+    setSearchParams(new URLSearchParams());
+  };
+
+  // One live region outside the results, so every search is announced.
+  const settled = !lookups.error && !rangeError && !found.error && found.loaded && !found.loading;
+  const announcement = !settled
+    ? ""
+    : found.events.length === 0
+      ? hasActiveFilters(query) ? t("discover.empty_filtered") : t("discover.empty")
+      : t("discover.shown_count", { count: found.events.length });
 
   return (
     <>
@@ -48,35 +73,29 @@ export function DiscoverPage() {
         title={t("discover.title")}
         subtitle={t("discover.subtitle")}
       />
-      <DiscoverFilters query={query} categories={lookups.data?.categories ?? []} cities={cities} onSearch={search} onClear={clear} />
+      <DiscoverFilters query={query} categories={lookups.data?.categories ?? []} cities={cities} searchRef={searchRef} onSearch={search} onClear={clear} />
+      <p className="visually-hidden" role="status">{announcement}</p>
       {lookups.error ? (
         <ErrorPanel title={t("discover.load_error")} message={lookups.error} onRetry={lookups.reload} />
-      ) : priceRangeError(query) ? null : (
-        // A new search starts a fresh list: the key drops loaded pages and any request in flight.
-        <DiscoverResults key={queryKey} query={query} lookups={lookups.data} onClear={clear} />
+      ) : rangeError ? null : (
+        <DiscoverResults found={found} lookups={lookups.data} filtered={hasActiveFilters(query)} onClear={clear} />
       )}
     </>
   );
 }
 
 interface DiscoverResultsProps {
-  query: DiscoverQuery;
+  found: DiscoverEvents;
   lookups: Lookups | null;
+  filtered: boolean;
   onClear: () => void;
 }
 
-function DiscoverResults({ query, lookups, onClear }: DiscoverResultsProps) {
+function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsProps) {
   useLocale();
-  // One clock reading per search, so every page asks for the same date window.
-  const [now] = useState(() => new Date());
-  const first = useRequest(() => listEvents(eventFilters(query, now, { limit: DISCOVER_PAGE_SIZE, offset: 0 })), []);
-  const [more, setMore] = useState<{ events: EventView[]; lastSize: number | null }>({ events: [], lastSize: null });
-  const [moreError, setMoreError] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const busy = useRef(false);
-
-  const events = useMemo(() => [...(first.data ?? []), ...more.events], [first.data, more.events]);
-  const lastSize = more.lastSize ?? first.data?.length ?? 0;
+  const grid = useRef<HTMLDivElement>(null);
+  // Set when Load more had the focus, so it can follow the new cards if the button goes away.
+  const refocusFrom = useRef<number | null>(null);
   const maps = useMemo(
     () => ({
       venues: new Map(lookups?.venues.map((venue) => [venue.id, venue] as const) ?? []),
@@ -85,33 +104,27 @@ function DiscoverResults({ query, lookups, onClear }: DiscoverResultsProps) {
     [lookups],
   );
 
-  const loadMore = () => {
-    if (busy.current) return;
-    busy.current = true;
-    setLoadingMore(true);
-    setMoreError(null);
-    listEvents(eventFilters(query, now, { limit: DISCOVER_PAGE_SIZE, offset: events.length }))
-      .then((page) => {
-        setMore((current) => {
-          const known = new Set([...(first.data ?? []), ...current.events].map((event) => event.id));
-          return { events: [...current.events, ...page.filter((event) => !known.has(event.id))], lastSize: page.length };
-        });
-      })
-      .catch((failure: unknown) => setMoreError(describeError(failure)))
-      .finally(() => {
-        busy.current = false;
-        setLoadingMore(false);
-      });
-  };
+  const { events, hasMore, loadingMore, loadMoreFailed } = found;
+  useEffect(() => {
+    if (refocusFrom.current === null || loadingMore) return;
+    const from = refocusFrom.current;
+    refocusFrom.current = null;
+    if (hasMore || loadMoreFailed) return;
+    const cards = grid.current?.querySelectorAll<HTMLAnchorElement>("a");
+    const links = [...(cards ?? [])];
+    const target = events[from] ?? events.at(-1);
+    const path = target ? `/events/${encodeURIComponent(target.id)}` : "";
+    (links.find((link) => link.getAttribute("href") === path) ?? links.at(-1))?.focus();
+  }, [events, hasMore, loadingMore, loadMoreFailed]);
 
-  if (first.error) return <ErrorPanel title={t("discover.load_error")} message={first.error} onRetry={first.reload} />;
-  if (!first.data || !lookups) return <Loading label={t("discover.loading")} />;
+  if (found.error) return <ErrorPanel title={t("discover.load_error")} message={found.error} onRetry={found.reload} />;
+  if (!lookups || !found.loaded || (found.loading && !KEEP_PREVIOUS_CARDS)) return <Loading label={t("discover.loading")} />;
 
   if (events.length === 0) {
     return (
       <div className="event-grid">
         <EmptyState wide>
-          {hasActiveFilters(query) ? (
+          {filtered ? (
             <>
               <p>{t("discover.empty_filtered")}</p>
               <Button className="empty-action" onClick={onClear}>{t("discover.clear_filters")}</Button>
@@ -126,7 +139,7 @@ function DiscoverResults({ query, lookups, onClear }: DiscoverResultsProps) {
 
   return (
     <>
-      <div className="event-grid">
+      <div className="event-grid" ref={grid}>
         {events.map((event, index) => {
           const venue = maps.venues.get(event.venue_id);
           const categoryLabel = categoryName(maps.categories.get(event.category_id));
@@ -150,13 +163,20 @@ function DiscoverResults({ query, lookups, onClear }: DiscoverResultsProps) {
           );
         })}
       </div>
-      <p className="visually-hidden" role="status">{t("discover.shown_count", { count: events.length })}</p>
-      {moreError || lastSize >= DISCOVER_PAGE_SIZE ? (
+      {hasMore || loadingMore || loadMoreFailed ? (
         <div className="load-more">
-          {moreError ? <p className="form-message" role="alert">{t("discover.load_more_error")}</p> : null}
+          {loadMoreFailed ? <p className="form-message" role="alert">{t("discover.load_more_error")}</p> : null}
           {/* Stays focusable while busy: aria-disabled, not disabled, keeps keyboard focus on it. */}
-          <Button onClick={loadMore} aria-disabled={loadingMore || undefined} aria-busy={loadingMore || undefined}>
-            {loadingMore ? t("common.loading") : moreError ? t("common.try_again") : t("discover.load_more")}
+          <Button
+            onClick={(event) => {
+              if (loadingMore) return;
+              refocusFrom.current = event.currentTarget === document.activeElement ? events.length : null;
+              found.loadMore();
+            }}
+            aria-disabled={loadingMore || undefined}
+            aria-busy={loadingMore || undefined}
+          >
+            {loadingMore ? t("common.loading") : loadMoreFailed ? t("common.try_again") : t("discover.load_more")}
           </Button>
         </div>
       ) : null}

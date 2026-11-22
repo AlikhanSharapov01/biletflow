@@ -264,6 +264,7 @@
   "discover.tickets_available": "Билеты доступны",
   "discover.view_event": "Открыть мероприятие →",
   "discover.price_range_error": "Минимальная цена не может быть выше максимальной.",
+  "discover.price_invalid": "Укажите целую сумму в тенге.",
   "discover.city": "Город",
   "discover.all_cities": "Все города",
   "discover.when": "Когда",

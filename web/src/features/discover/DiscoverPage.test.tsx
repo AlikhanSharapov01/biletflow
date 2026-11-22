@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router";
+import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listCategories, listEvents, listVenues } from "../../api/catalog";
 import { deferred, makeEvent } from "../../../tests/helpers/fixtures";
@@ -28,7 +28,14 @@ function events(count: number, from = 0) {
 
 function Probe() {
   const location = useLocation();
-  return <output data-testid="url">{`${location.pathname}${location.search}`}</output>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="url">{`${location.pathname}${location.search}`}</output>
+      <button type="button" data-testid="back" onClick={() => navigate(-1)} />
+      <button type="button" data-testid="forward" onClick={() => navigate(1)} />
+    </>
+  );
 }
 
 function renderPage(url = "/discover") {
@@ -155,8 +162,16 @@ describe("filter form", () => {
     listEventsMock.mockClear();
     fireEvent.change(screen.getByLabelText("Price from, ₸"), { target: { value: "900" } });
     fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "100" } });
-    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
     const to = screen.getByLabelText("Price to, ₸");
+    // What a screen reader would read when the field takes focus.
+    let atFocus: Array<string | null | undefined> = [];
+    to.addEventListener("focus", () => {
+      const id = to.getAttribute("aria-describedby");
+      atFocus = [to.getAttribute("aria-invalid"), id && document.getElementById(id)?.textContent];
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    expect(atFocus).toEqual(["true", "Minimum price can’t be higher than maximum price."]);
+    expect(screen.getByRole("alert").textContent).toBe("Minimum price can’t be higher than maximum price.");
     expect(to.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(to);
     const message = screen.getByText("Minimum price can’t be higher than maximum price.");
@@ -227,7 +242,7 @@ describe("Load more", () => {
     expect(busy).toBe(button);
     expect(busy.getAttribute("aria-busy")).toBe("true");
     expect(busy.getAttribute("aria-disabled")).toBe("true");
-    expect((busy as HTMLInputElement).disabled).toBe(false);
+    expect((busy as HTMLButtonElement).disabled).toBe(false);
     expect(document.activeElement).toBe(busy);
     fireEvent.click(busy);
     expect(listEventsMock).toHaveBeenCalledTimes(2);
@@ -313,8 +328,9 @@ describe("Clear filters", () => {
   it("an empty filtered result says nothing matched and offers Clear filters", async () => {
     listEventsMock.mockResolvedValueOnce([]).mockResolvedValue(events(3));
     renderPage("/discover?q=zzz");
-    expect(await screen.findByText("No events matched your filters.")).toBeTruthy();
+    await waitFor(() => expect(document.querySelector(".empty-state")).toBeTruthy());
     const empty = document.querySelector(".empty-state") as HTMLElement;
+    expect(empty.textContent).toContain("No events matched your filters.");
     fireEvent.click(within(empty).getByRole("button", { name: "Clear filters" }));
     expect(url()).toBe("/discover");
     await waitFor(() => expect(cards()).toHaveLength(3));
@@ -323,7 +339,8 @@ describe("Clear filters", () => {
   it("an empty result without filters keeps the plain message", async () => {
     listEventsMock.mockResolvedValue([]);
     renderPage();
-    expect(await screen.findByText(/No events match those filters yet/)).toBeTruthy();
+    await waitFor(() => expect(document.querySelector(".empty-state")).toBeTruthy());
+    expect(document.querySelector(".empty-state")!.textContent).toMatch(/No events match those filters yet/);
     expect(document.querySelector(".empty-state")!.querySelector("button")).toBeNull();
   });
 });
@@ -335,5 +352,181 @@ describe("errors", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("We couldn’t load events.");
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => expect(cards()).toHaveLength(2));
+  });
+});
+
+const searchBox = () => screen.getByRole("textbox", { name: "Search events" });
+const status = () => document.querySelector("[role=status]:not(.loading-state)")!.textContent;
+
+describe("keyboard focus", () => {
+  it("stays on the Search button after submitting with it", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    const button = screen.getByRole("button", { name: "Search events" });
+    button.focus();
+    fireEvent.click(button);
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    await waitFor(() => expect(lastCall()).toMatchObject({ q: "jazz" }));
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("stays in the search box after Enter, with its text", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const box = searchBox() as HTMLInputElement;
+    box.focus();
+    fireEvent.change(box, { target: { value: "jazz" } });
+    fireEvent.submit(box.form!);
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    await waitFor(() => expect(lastCall()).toMatchObject({ q: "jazz" }));
+    expect(document.activeElement).toBe(searchBox());
+    expect((searchBox() as HTMLInputElement).value).toBe("jazz");
+  });
+
+  it("moves to the search box after Clear filters in the form", async () => {
+    renderPage("/discover?q=jazz&city=Almaty");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const clear = screen.getByRole("button", { name: "Clear filters" });
+    clear.focus();
+    fireEvent.click(clear);
+    await waitFor(() => expect(url()).toBe("/discover"));
+    expect(document.activeElement).toBe(searchBox());
+    expect((searchBox() as HTMLInputElement).value).toBe("");
+  });
+
+  it("moves to the search box after Clear filters in the empty state", async () => {
+    listEventsMock.mockResolvedValueOnce([]).mockResolvedValue(events(3));
+    renderPage("/discover?q=zzz");
+    await waitFor(() => expect(document.querySelector(".empty-state button")).toBeTruthy());
+    const clear = document.querySelector(".empty-state button") as HTMLButtonElement;
+    clear.focus();
+    fireEvent.click(clear);
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    expect(document.activeElement).toBe(searchBox());
+  });
+
+  it("follows the new cards when the last page hides Load more", async () => {
+    listEventsMock.mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE)).mockResolvedValueOnce(events(3, DISCOVER_PAGE_SIZE));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    const button = screen.getByRole("button", { name: "Load more" });
+    button.focus();
+    fireEvent.click(button);
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 3));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+    const active = document.activeElement as HTMLAnchorElement;
+    expect(active.getAttribute("href")).toBe(`/events/e${DISCOVER_PAGE_SIZE}`);
+  });
+
+  it("does not move the focus when Load more was not focused", async () => {
+    listEventsMock.mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE)).mockResolvedValueOnce(events(3, DISCOVER_PAGE_SIZE));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    searchBox().focus();
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 3));
+    expect(document.activeElement).toBe(searchBox());
+  });
+
+  it("puts Search and Clear before More filters, matching the visual order", async () => {
+    renderPage("/discover?city=Almaty");
+    const actions = document.querySelector(".filter-actions")!;
+    const details = document.querySelector("details")!;
+    expect(actions.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("More filters summary", () => {
+  it("has a decorative chevron", () => {
+    renderPage();
+    const chevron = document.querySelector("summary svg")!;
+    expect(chevron.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("history", () => {
+  it("Back and Forward restore the form", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(url()).toBe("/discover"));
+    expect((searchBox() as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByTestId("forward"));
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    expect((searchBox() as HTMLInputElement).value).toBe("jazz");
+  });
+
+  it("Back after Clear filters restores the search the user cleared", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    await waitFor(() => expect(url()).toBe("/discover"));
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz"));
+    expect((searchBox() as HTMLInputElement).value).toBe("jazz");
+  });
+
+  it("searching again with the same filters reloads without a history entry", async () => {
+    renderPage("/discover?q=jazz");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    expect(url()).toBe("/discover?q=jazz");
+    fireEvent.click(screen.getByTestId("back"));
+    // The only entry is the initial one, so Back goes nowhere.
+    expect(url()).toBe("/discover?q=jazz");
+  });
+});
+
+describe("paging details", () => {
+  it("asks for the next page by rows received, not by cards shown", async () => {
+    const first = events(DISCOVER_PAGE_SIZE);
+    // The second page repeats the last card of the first one.
+    const second = [first[DISCOVER_PAGE_SIZE - 1]!, ...events(DISCOVER_PAGE_SIZE - 1, DISCOVER_PAGE_SIZE)];
+    listEventsMock.mockResolvedValueOnce(first).mockResolvedValueOnce(second).mockResolvedValueOnce([]);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE * 2 - 1));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(3));
+    expect(lastCall()).toMatchObject({ offset: DISCOVER_PAGE_SIZE * 2 });
+  });
+
+  it("keeps the first page's date window when the clock moves on", async () => {
+    listEventsMock.mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE)).mockResolvedValueOnce(events(1, DISCOVER_PAGE_SIZE));
+    renderPage("/discover?when=today");
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    const firstWindow = { date_from: lastCall().date_from, date_to: lastCall().date_to };
+    vi.setSystemTime(new Date(2026, 5, 12, 9));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    expect({ date_from: lastCall().date_from, date_to: lastCall().date_to }).toEqual(firstWindow);
+  });
+
+  it("reads a price typed with an exponent as whole tenge", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(screen.getByLabelText("Price from, ₸"), { target: { value: "1e3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(url()).toBe("/discover?min_price=1000"));
+  });
+});
+
+describe("announcements", () => {
+  it("one status region reports the count, then what an empty search found", async () => {
+    listEventsMock.mockResolvedValueOnce(events(3)).mockResolvedValueOnce([]);
+    renderPage();
+    await waitFor(() => expect(status()).toBe("Events shown: 3"));
+    fireEvent.change(searchBox(), { target: { value: "zzz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(status()).toBe("No events matched your filters."));
   });
 });

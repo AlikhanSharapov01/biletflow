@@ -43,7 +43,7 @@ export function parseDiscoverQuery(params: URLSearchParams): DiscoverQuery {
   const category = params.get("category") ?? "";
   return {
     q: limited(params.get("q"), MAX_TEXT_LENGTH),
-    category: UUID.test(category) ? category : "",
+    category: UUID.test(category) ? category.toLowerCase() : "",
     city: limited(params.get("city"), MAX_CITY_LENGTH),
     when: (WHEN_VALUES as readonly string[]).includes(when) ? (when as DiscoverWhen) : "",
     free: params.get("free") === "1",
@@ -131,8 +131,15 @@ export function cityOptions(cities: readonly string[], selected: string, locale:
   const byKey = new Map<string, string>();
   for (const city of [...cities, selected]) {
     const name = city.trim();
-    if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+    // A longer name would be dropped from the URL (see parseDiscoverQuery), so it cannot be a filter.
+    if (name && name.length <= MAX_CITY_LENGTH && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
   }
   const options = [...byKey.values()].sort((a, b) => a.localeCompare(b, locale));
   return { options, value: byKey.get(selected.trim().toLowerCase()) ?? "" };
+}
+
+/** How many of the filters inside "More filters" (city, when, free, price) are set. */
+export function moreFiltersCount(query: DiscoverQuery): number {
+  const price = !query.free && (query.minPrice || query.maxPrice);
+  return [query.city, query.when, query.free, price].filter(Boolean).length;
 }

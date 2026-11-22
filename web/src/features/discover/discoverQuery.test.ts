@@ -6,6 +6,7 @@ import {
   discoverSearchParams,
   eventFilters,
   hasActiveFilters,
+  moreFiltersCount,
   normalisePrice,
   parseDiscoverQuery,
   priceRangeError,
@@ -49,7 +50,7 @@ describe("parse and serialise", () => {
 
   it("drops values the API would reject", () => {
     expect(parseDiscoverQuery(new URLSearchParams("category=not-a-uuid")).category).toBe("");
-    expect(parseDiscoverQuery(new URLSearchParams(`category=${CAT.toUpperCase()}`)).category).toBe(CAT.toUpperCase());
+    expect(parseDiscoverQuery(new URLSearchParams(`category=${CAT.toUpperCase()}`)).category).toBe(CAT);
     expect(parseDiscoverQuery(new URLSearchParams({ q: "a".repeat(201) })).q).toBe("");
     expect(parseDiscoverQuery(new URLSearchParams({ q: "a".repeat(200) })).q).toBe("a".repeat(200));
     expect(parseDiscoverQuery(new URLSearchParams({ city: "c".repeat(101) })).city).toBe("");
@@ -189,6 +190,11 @@ describe("priceRangeError", () => {
 });
 
 describe("hasActiveFilters", () => {
+  it("ignores a search text that is only whitespace", () => {
+    expect(hasActiveFilters(q({ q: "   " }))).toBe(false);
+    expect(hasActiveFilters(q({ q: " a " }))).toBe(true);
+  });
+
   it("is false for an empty query and true for any filter", () => {
     expect(hasActiveFilters(empty)).toBe(false);
     for (const patch of [{ q: "a" }, { category: CAT }, { city: "x" }, { when: "today" as const }, { free: true }, { minPrice: "1" }, { maxPrice: "1" }]) {
@@ -197,17 +203,10 @@ describe("hasActiveFilters", () => {
   });
 });
 
-describe("hasActiveFilters whitespace", () => {
-  it("ignores a search text that is only whitespace", () => {
-    expect(hasActiveFilters(q({ q: "   " }))).toBe(false);
-    expect(hasActiveFilters(q({ q: " a " }))).toBe(true);
-  });
-});
-
 describe("cityOptions", () => {
   it("dedupes case-insensitively and sorts in the given locale", () => {
     const result = cityOptions(["Almaty", "astana", " Almaty ", "Astana", "", "Шымкент", "Алматы"], "", "ru");
-    expect(result.options).toEqual(["Алматы", "Almaty", "astana", "Шымкент"].sort((a, b) => a.localeCompare(b, "ru")));
+    expect(result.options).toEqual(["Алматы", "Шымкент", "Almaty", "astana"]);
     expect(result.value).toBe("");
   });
 
@@ -217,9 +216,27 @@ describe("cityOptions", () => {
     expect(result.options).toEqual(["Almaty", "Astana"]);
   });
 
+  it("leaves out a city longer than the URL allows", () => {
+    expect(cityOptions(["Almaty", "x".repeat(101)], "", "en").options).toEqual(["Almaty"]);
+  });
+
   it("keeps a city that no venue has, so the active filter stays visible", () => {
     const result = cityOptions(["Almaty"], "Oral", "en");
     expect(result.options).toEqual(["Almaty", "Oral"]);
     expect(result.value).toBe("Oral");
+  });
+});
+
+describe("moreFiltersCount", () => {
+  it("counts city, when, free and the price pair once", () => {
+    expect(moreFiltersCount(empty)).toBe(0);
+    expect(moreFiltersCount(q({ q: "a", category: CAT }))).toBe(0);
+    expect(moreFiltersCount(q({ city: "Almaty", when: "today" }))).toBe(2);
+    expect(moreFiltersCount(q({ minPrice: "1", maxPrice: "2" }))).toBe(1);
+    expect(moreFiltersCount(q({ city: "A", when: "month", free: true }))).toBe(3);
+  });
+
+  it("ignores prices while Free only is on", () => {
+    expect(moreFiltersCount(q({ free: true, minPrice: "5", maxPrice: "9" }))).toBe(1);
   });
 });

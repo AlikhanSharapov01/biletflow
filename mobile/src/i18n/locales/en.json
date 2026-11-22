@@ -264,6 +264,7 @@
   "discover.tickets_available": "Tickets available",
   "discover.view_event": "View event →",
   "discover.price_range_error": "Minimum price can’t be higher than maximum price.",
+  "discover.price_invalid": "Enter a whole amount in tenge.",
   "discover.city": "City",
   "discover.all_cities": "All cities",
   "discover.when": "When",

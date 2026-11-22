@@ -1,5 +1,4 @@
 /* Discover, the public event page and free checkout. */
-.discover-filters { grid-template-columns: minmax(220px, 1fr) minmax(180px, .55fr) auto; align-items: end; gap: var(--gap); margin-bottom: 16px; }
 .search-box { display: flex; min-height: var(--control-height); align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: #fff; }
 .search-box span { color: #829087; font-size: 16px; }
 .search-box input { width: 100%; min-width: 0; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 15px; }
@@ -28,9 +27,6 @@
 .recipient { margin: 0; padding: 12px 16px 16px; border: 1px solid var(--line); border-radius: var(--radius-button); }
 .recipient legend { padding: 0 6px; color: var(--button-ink); font-size: var(--text-label); font-weight: 700; }
 
-@media (max-width: 760px) {
-  .discover-filters { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 480px) {
   .ticket-option { flex-wrap: wrap; }
   .ticket-option-copy { flex-basis: 100%; }
@@ -46,30 +42,38 @@
 .event-hero { grid-column: 1 / -1; width: 100%; max-height: 360px; border-radius: var(--radius-panel); object-fit: cover; }
 .event-gallery-image { width: 100%; aspect-ratio: 3 / 2; border-radius: var(--radius-panel); object-fit: cover; }
 
-/* Discover filters: search and category, the actions, then "More filters". */
-.filter-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.more-filters { grid-column: 1 / -1; }
-.more-filters summary { color: var(--button-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 700; }
-.more-filters-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; gap: var(--gap); }
-.price-range { display: contents; }
-.price-range[hidden] { display: none; }
-.price-error { grid-column: 1 / -1; }
-.empty-state p { margin: 0 0 12px; }
+/* Discover filters: search and category, the actions, then "More filters". The
+   breakpoint at 760px matches PHONE in DiscoverFilters.tsx. */
+.discover-filters { grid-template-columns: minmax(0, 1.4fr) minmax(190px, 1fr); align-items: end; gap: var(--gap); margin-bottom: 16px; }
+.discover-filters .filter-actions { display: flex; flex-wrap: wrap; grid-column: 1 / -1; gap: 10px; }
+.discover-filters .more-filters { grid-column: 1 / -1; }
+.discover-filters .more-filters summary { display: none; }
+.discover-filters .more-filters-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: end; gap: var(--gap); }
+.discover-filters .price-range { display: grid; grid-column: span 2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+.discover-filters .price-range[hidden] { display: none; }
+.discover-filters .price-error { grid-column: 1 / -1; margin: 0; }
+.discover-filters .field input[aria-invalid="true"] { border-color: var(--error); }
+.event-grid .empty-state p { margin: 0 0 12px; }
 .empty-action { margin-inline: auto; }
 .load-more { display: grid; justify-items: center; gap: 10px; margin-top: 20px; }
 .load-more .form-message { margin: 0; text-align: center; }
 
-@media (min-width: 761px) {
-  .more-filters summary { display: none; }
-  .more-filters-body { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+@media (min-width: 1100px) {
+  .discover-filters { grid-template-columns: minmax(220px, 1fr) minmax(190px, .55fr) auto; }
+  .discover-filters .filter-actions { grid-column: auto; }
 }
 @media (max-width: 760px) {
-  .filter-actions { order: 1; }
-  .filter-actions > * { flex: 1 1 140px; }
-  .more-filters { padding: 2px 0; }
-  .more-filters summary { display: flex; min-height: var(--control-height); align-items: center; }
-  .more-filters-body { grid-template-columns: minmax(0, 1fr); margin-top: 10px; }
-  /* 16px keeps iOS from zooming into a focused field. */
-  .discover-filters input, .discover-filters select { font-size: 16px; }
-  .discover-filters .field input:not([type="checkbox"]), .discover-filters .field select { font-size: 16px; }
+  .discover-filters { grid-template-columns: minmax(0, 1fr); }
+  .discover-filters .filter-actions > * { flex: 1 1 140px; }
+  .discover-filters .more-filters summary { display: flex; min-height: var(--control-height); align-items: center; justify-content: space-between; gap: 8px; color: var(--button-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 700; }
+  .discover-filters .more-filters .chevron { flex: none; transition: transform .15s; }
+  .discover-filters .more-filters[open] .chevron { transform: rotate(180deg); }
+  .discover-filters .more-filters-body { grid-template-columns: minmax(0, 1fr); margin-top: 10px; }
+  .discover-filters .price-range { grid-column: auto; }
+}
+@media (max-width: 480px) {
+  .discover-filters .price-range { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discover-filters .more-filters .chevron { transition: none; }
 }
