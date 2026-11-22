@@ -46,7 +46,7 @@ export const statusTones = {
   positive: { background: "#eef5e9", color: "#4a7151" },
   pending: { background: "#fff3dd", color: "#805313" },
   blocked: { background: "#f9e9e4", color: "#984432" },
-  neutral: { background: "#edf0ef", color: "#68686d" },
+  neutral: { background: "#ececf0", color: "#68686d" },
 } as const;
 
 export type StatusTone = keyof typeof statusTones;

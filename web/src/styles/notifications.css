@@ -1,6 +1,8 @@
 /* Notifications inbox and the top-bar bell badge. */
 .notification-list { display: grid; margin: 0; padding: 0; list-style: none; }
-.notification-list > li + li { border-top: 1px solid var(--line-soft); }
+/* A grouped list inside the panel: hairlines inset by the row padding, no border on the rows. */
+.notification-list > li { position: relative; }
+.notification-list > li + li::before { position: absolute; top: 0; left: 8px; right: 0; border-top: 0.5px solid var(--separator); content: ""; pointer-events: none; }
 .notification-row { display: grid; width: 100%; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding: 14px 8px; border: 0; border-radius: var(--radius-button); background: none; color: var(--ink); cursor: pointer; text-align: left; }
 @media (hover: hover) { .notification-row:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--hover-surface); } }
 .notification-row.unread { background: var(--note); }

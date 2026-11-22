@@ -2,7 +2,7 @@
 .stat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--gap); margin: 0; padding: 0; list-style: none; }
 .stat-tile { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-panel); }
 .stat-label { color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
-.stat-value { font-family: var(--font-serif); font-size: 26px; font-weight: 400; line-height: 1.1; }
+.stat-value { font-family: var(--font-display); font-size: 26px; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: var(--track-title); line-height: var(--leading-title); }
 .stat-note { color: var(--meta); font-size: 12px; }
 
 .sales-chart { display: grid; gap: 8px; margin: 0; }

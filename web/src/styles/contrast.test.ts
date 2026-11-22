@@ -86,6 +86,7 @@ const TEXT_PAIRS: Pair[] = [
   ["faint", "tone-neutral-bg", ".seat-unavailable"],
   ["placeholder", "paper", "field placeholder"],
   ["placeholder", "raised-surface", ".search-box placeholder"],
+  ["placeholder", "canvas", "field placeholder seen through a field on the page"],
   ["subtitle", "paper", ".auth-subtitle"],
   ["subtitle", "canvas", ".auth-subtitle on the page"],
   ["intro", "paper", ".form-intro"],
@@ -102,6 +103,8 @@ const TEXT_PAIRS: Pair[] = [
   ["button-ink", "paper", ".form-details summary"],
   ["button-ink", "canvas", ".seat-section h4"],
   ["nav-ink", "tab-track", ".admin-nav-link"],
+  ["nav-ink", "paper", "nav text in a panel"],
+  ["nav-ink", "canvas", "nav text on the page"],
   ["green-dark", "active-nav", ".top-tab[aria-current] and active tab-bar link"],
   ["hint", "paper", ".field-label small"],
   ["hint", "canvas", ".account-email"],
@@ -120,6 +123,7 @@ const TEXT_PAIRS: Pair[] = [
   ["timeline-ink", "canvas", ".timeline span on the page"],
   ["note-ink", "note", ".organizer-note p (panel tone note)"],
   ["note-ink", "paper", ".organizer-note p if the panel is plain"],
+  ["note-ink", "canvas", ".organizer-note p outside a panel"],
   ["error", "paper", ".form-message"],
   ["error", "canvas", ".form-message on the page"],
   ["error-title", "paper", ".error-panel strong"],
@@ -157,6 +161,17 @@ const TEXT_PAIRS: Pair[] = [
   ["paper", "green", ".primary-button"],
   ["on-green", "green", ".primary-button, .skip-link, .brand-mark"],
   ["on-green", "green-dark", ".primary-button:hover"],
+  // Subtle buttons: dark green on the translucent grey fill, at rest and hovered, wherever they sit.
+  ["green-dark", ["fill", "paper"], ".subtle-button in a panel"],
+  ["green-dark", ["fill", "canvas"], ".subtle-button on the page"],
+  ["green-dark", ["fill", "note"], ".subtle-button in a note panel"],
+  ["green-dark", ["fill-strong", "paper"], ".subtle-button:hover in a panel"],
+  ["green-dark", ["fill-strong", "canvas"], ".subtle-button:hover on the page"],
+  ["green-dark", ["fill-strong", "note"], ".subtle-button:hover in a note panel"],
+  // A linked row of a grouped list (tickets, orders) while hovered or pressed.
+  ["muted", "hover-surface", ".eyebrow in a highlighted row"],
+  ["price-ink", "hover-surface", ".price in a highlighted row"],
+  ["ink", "hover-surface", "titles and offers in a highlighted row"],
 ];
 
 // Apple-style neutrals and materials: every text role is checked on the solid chrome fallback and on
@@ -251,16 +266,29 @@ describe("WCAG AA colour tokens", () => {
     expect(declarations.get("--font-display")).toMatch(/^-apple-system, BlinkMacSystemFont, "SF Pro Display"/);
   });
 
-  it("--ease-spring starts at 0, ends at 1 and never overshoots", () => {
+  it("--ease-spring samples the critically damped step response and never overshoots", () => {
     const points = (declarations.get("--ease-spring") ?? "").match(/^linear\(([^)]*)\)$/)?.[1]?.split(",").map((part) => Number(part.trim()));
     expect(points, "--ease-spring must be linear(...)").toBeDefined();
-    expect(points!.length).toBeGreaterThanOrEqual(10);
-    expect(points![0]).toBe(0);
-    expect(points![points!.length - 1]).toBe(1);
+    // x(t) = 1 - (1 + w*t) * e^(-w*t), w = 2*pi / 0.35s, at 20 even steps over --dur-spring (0.42s).
+    const omega = (2 * Math.PI) / 0.35;
+    const step = (t: number) => 1 - (1 + omega * t) * Math.exp(-omega * t);
+    expect(points).toHaveLength(20);
+    points!.forEach((point, i) => {
+      const t = (i * 0.42) / 19;
+      // The last stop is pinned to 1 so the motion ends exactly at rest.
+      if (i === 19) expect(point).toBe(1);
+      else expect(Math.abs(point - step(t)), `point ${i} (t=${t.toFixed(4)}s)`).toBeLessThanOrEqual(0.001);
+    });
     for (let i = 1; i < points!.length; i += 1) {
       expect(points![i]).toBeGreaterThanOrEqual(points![i - 1]!);
       expect(points![i]).toBeLessThanOrEqual(1);
     }
+  });
+
+  it.each(["disabled-surface", "spinner-track", "tone-neutral-bg"])("--%s is a cool neutral grey (equal red and green, blue at least as high)", (token) => {
+    const { r, g, b } = colourOf(token);
+    expect(r, token).toBe(g);
+    expect(b, token).toBeGreaterThanOrEqual(r);
   });
 
   it("parses 8-digit hex and comma-separated rgba()", () => {

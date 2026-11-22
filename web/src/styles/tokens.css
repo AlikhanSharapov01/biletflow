@@ -22,7 +22,7 @@
   --hover-surface: #ececf0;
   --hover-line: #a1a1a6;
   --raised-surface: #ffffff;
-  --disabled-surface: #f3f3ee;
+  --disabled-surface: #f2f2f7;
   --print-surface: #fff;
   --scrim: rgb(0 0 0 / 32%);
   --fill: rgb(118 118 128 / 12%);
@@ -84,8 +84,7 @@
   --input-line: #86868b;
   --placeholder: #6e6e73;
   --tab-track: #e8e8ed;
-  --spinner-track: #dfe6dc;
-  --card-hover-line: #cfd8cc;
+  --spinner-track: #e5e5ea;
   --active-nav: #e8f0e6;
   --row-icon: #edf3e8;
   --date-tile: #f3eee1;
@@ -110,7 +109,7 @@
   --tone-pending: #805313;
   --tone-blocked-bg: #f9e9e4;
   --tone-blocked: #984432;
-  --tone-neutral-bg: #edf0ef;
+  --tone-neutral-bg: #ececf0;
   --tone-neutral: #68686d;
 
   /* Event artwork gradients */
@@ -159,6 +158,12 @@
   --radius-pill: 999px;
   --radius-segment: 9px;
   --radius-thumb: 7px;
+  /* Small rounded shapes: skeleton text lines and legend swatches. */
+  --radius-line: 4px;
+  /* A seat: rounded top corners over a flatter base, like a chair seen from the front. */
+  --radius-seat: 6px 6px 3px 3px;
+  /* The brand mark's speech-bubble corner. */
+  --radius-brand: 10px 10px 10px 3px;
 
   /* Depth: the biggest surfaces read thickest */
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 4%), 0 2px 8px rgb(0 0 0 / 4%);

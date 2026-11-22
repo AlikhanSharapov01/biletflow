@@ -75,8 +75,8 @@ code { font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  /* No press or lift movement; the colour change stays as the cue. */
-  .primary-button:hover, .primary-button:active, .subtle-button:active, .text-button:active, .tab:active,
+  /* No press movement; the colour and shadow changes stay as the cue. */
+  .primary-button:active, .subtle-button:active, .event-card-linked:active, .tab:active,
   .top-tab:active, .icon-button:active, .tab-bar-link:active .tab-bar-icon { transform: none !important; }
   /* Dialogs, the sheet, the menu and the toast only cross-fade: no scale, slide or rise. */
   .action-dialog, .avatar-menu-panel, .toast { transform: none !important; }
