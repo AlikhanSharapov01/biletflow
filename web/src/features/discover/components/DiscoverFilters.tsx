@@ -90,11 +90,14 @@ export function DiscoverFilters({ query, categories, cities, searchRef, onSearch
       if (typeof value === "string") raw.set(name, name === "q" ? value.trim() : value);
     }
     let error: PriceError | null = null;
+    // The form is not natively validated (the browser's bubble would hide a collapsed field).
     // A number input accepts "1e5"; read its value as a number and send whole tenge.
     for (const field of ["min_price", "max_price"] as const) {
       const input = form.elements.namedItem(field) as HTMLInputElement;
-      if (input.disabled || !input.value.trim()) continue;
-      if (Number.isSafeInteger(input.valueAsNumber) && input.valueAsNumber >= 0) raw.set(field, String(input.valueAsNumber));
+      const malformed = input.validity.badInput;
+      if (input.disabled || (!malformed && !input.value.trim())) continue;
+      const amount = input.valueAsNumber;
+      if (!malformed && Number.isSafeInteger(amount) && amount >= 0 && amount <= Number(MAX_PRICE)) raw.set(field, String(amount));
       else error ??= { field, message: "discover.price_invalid" };
     }
     const next = parseDiscoverQuery(raw);
@@ -120,7 +123,7 @@ export function DiscoverFilters({ query, categories, cities, searchRef, onSearch
   const describedBy = (field: PriceField) => (priceError?.field === field ? PRICE_ERROR_ID : undefined);
 
   return (
-    <form className="panel discover-filters" onSubmit={handleSubmit}>
+    <form className="panel discover-filters" onSubmit={handleSubmit} noValidate>
       <Fragment key={`search-${epoch}`}>
         <label className="search-box">
           <span aria-hidden="true">⌕</span>

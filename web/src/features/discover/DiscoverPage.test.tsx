@@ -530,3 +530,108 @@ describe("announcements", () => {
     await waitFor(() => expect(status()).toBe("No events matched your filters."));
   });
 });
+
+describe("coming back to a search", () => {
+  const search = (text: string) => {
+    fireEvent.change(searchBox(), { target: { value: text } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+  };
+  const back = () => fireEvent.click(screen.getByTestId("back"));
+
+  it("is not left busy by a Load more that was still running", async () => {
+    const late = deferred<ReturnType<typeof events>>();
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockReturnValueOnce(late.promise)
+      .mockResolvedValueOnce(events(3, 100))
+      .mockResolvedValue(events(DISCOVER_PAGE_SIZE));
+    renderPage("/discover?q=a");
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    search("jazz");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    await act(async () => late.resolve(events(DISCOVER_PAGE_SIZE, 300)));
+    back();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    const button = screen.getByRole("button", { name: "Load more" });
+    expect(button.getAttribute("aria-busy")).toBeNull();
+    expect(button.getAttribute("aria-disabled")).toBeNull();
+    fireEvent.click(button);
+    await waitFor(() => expect(lastCall()).toMatchObject({ q: "a", offset: DISCOVER_PAGE_SIZE }));
+  });
+
+  it("does not bring back an old Load more error", async () => {
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockRejectedValueOnce(new Error("Boom"))
+      .mockResolvedValueOnce(events(3, 100))
+      .mockResolvedValue(events(DISCOVER_PAGE_SIZE));
+    renderPage("/discover?q=a");
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await screen.findByRole("alert");
+    search("jazz");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    back();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("starts again from the first page, without the pages loaded before", async () => {
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE, DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(3, 100))
+      .mockResolvedValue(events(DISCOVER_PAGE_SIZE));
+    renderPage("/discover?q=a");
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE * 2));
+    search("jazz");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    back();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+  });
+});
+
+describe("repeating a search", () => {
+  it("uses the current day's window when it is repeated the next day", async () => {
+    renderPage("/discover?when=today");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    expect(lastCall()).toMatchObject(dateRange("today", NOW));
+    const tomorrow = new Date(2026, 5, 11, 9);
+    vi.setSystemTime(tomorrow);
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    expect(lastCall()).toMatchObject(dateRange("today", tomorrow));
+  });
+});
+
+describe("malformed prices", () => {
+  it("shows an inline error on the field, focuses it and sends nothing", async () => {
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    listEventsMock.mockClear();
+    const form = screen.getByRole("button", { name: "Search events" }).closest("form")!;
+    expect(form.noValidate).toBe(true);
+    const from = screen.getByLabelText("Price from, ₸");
+    fireEvent.change(from, { target: { value: "-5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    expect(from.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(from);
+    expect(screen.getByRole("alert").textContent).toBe("Enter a whole amount in tenge.");
+    expect(url()).toBe("/discover");
+    expect(listEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("opens More filters on a phone when the bad price is inside it", async () => {
+    setPhone(true);
+    renderPage();
+    const details = document.querySelector("details")!;
+    expect(details.hasAttribute("open")).toBe(false);
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "1.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    expect(details.hasAttribute("open")).toBe(true);
+    expect(document.activeElement).toBe(screen.getByLabelText("Price to, ₸"));
+  });
+});

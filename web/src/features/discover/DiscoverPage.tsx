@@ -17,7 +17,8 @@ interface Lookups {
 }
 
 // While a new search loads, show the loading state instead of the previous search's
-// cards. Set to true to keep the old cards on screen until the new ones arrive.
+// cards. With true, the previous search's first page stays on screen until the new one
+// arrives (pages added by Load more are not kept); `loading` tells the two apart.
 const KEEP_PREVIOUS_CARDS = false;
 
 export function DiscoverPage() {
