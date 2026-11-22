@@ -10,14 +10,17 @@ interface TicketTypeFormProps {
   event: EventView;
   initial?: TicketType;
   submitLabel: string;
+  // This form's request is running.
   busy: boolean;
+  // The other form's request is running: the submit waits, without claiming to be busy.
+  locked?: boolean;
   message: string;
   onSubmit: (input: TicketTypeInput) => Promise<void>;
   onInvalid: (error: string) => void;
   onCancel?: () => void;
 }
 
-export function TicketTypeForm({ event, initial, submitLabel, busy, message, onSubmit, onInvalid, onCancel }: TicketTypeFormProps) {
+export function TicketTypeForm({ event, initial, submitLabel, busy, locked = false, message, onSubmit, onInvalid, onCancel }: TicketTypeFormProps) {
   useLocale();
   const [values, setValues] = useState<TicketTypeFormValues>(() => ticketTypeFormValues(initial));
   const update = <K extends keyof TicketTypeFormValues>(key: K, value: TicketTypeFormValues[K]) =>
@@ -76,7 +79,7 @@ export function TicketTypeForm({ event, initial, submitLabel, busy, message, onS
       <p className="form-intro">{t("org.sales_window_hint")}</p>
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" type="submit" busy={busy}>
+        <Button variant="primary" type="submit" busy={busy} aria-disabled={locked || undefined}>
           {submitLabel}
         </Button>
         {onCancel ? <Button onClick={onCancel}>{t("common.cancel")}</Button> : null}

@@ -58,6 +58,15 @@ describe("CredentialsForm", () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
+  it("locks the submit button without marking it busy while another sign-in runs", () => {
+    const props = renderForm({ locked: true });
+    const submit = screen.getByRole("button", { name: /^Sign in/ });
+    expect(submit.hasAttribute("aria-busy")).toBe(false);
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(submit);
+    expect(props.onSubmit).not.toHaveBeenCalled();
+  });
+
   it("marks the submit button busy and does not submit again", () => {
     const props = renderForm({ busy: true });
     const submit = screen.getByRole("button", { name: /^Signing in…/ });

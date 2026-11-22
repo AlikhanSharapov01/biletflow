@@ -96,7 +96,7 @@ export function SeatPicker({ event, tickets, busy, message, promoSlot, onReserve
         <Button variant="primary" busy={busy} disabled={chosen.length === 0} onClick={() => onReserve(seatHoldLines(all, selected))}>
           {busy ? t("checkout.reserving") : chosen.length > 0 ? t("checkout.reserve_count", { items: quantityLabel("seat", chosen.length) }) : t("checkout.reserve_seats")}
         </Button>
-        <Button busy={busy || seats.loading} onClick={refresh}>{t("checkout.refresh_seats")}</Button>
+        <Button busy={seats.loading} aria-disabled={busy || undefined} onClick={refresh}>{t("checkout.refresh_seats")}</Button>
         <small className="form-intro">{t("checkout.seat_hold_hint")}</small>
       </div>
     </div>

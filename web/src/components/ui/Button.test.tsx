@@ -108,6 +108,17 @@ describe("busyProps", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("locks a sibling with aria-disabled only, and swallows its click", () => {
+    const onClick = vi.fn();
+    render(<button type="button" {...busyProps(false, onClick, true)}>Go</button>);
+    const button = screen.getByRole("button", { name: "Go" });
+    expect(button.hasAttribute("aria-busy")).toBe(false);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("passes clicks through and adds no attributes when idle", () => {
     const onClick = vi.fn();
     render(<button type="button" {...busyProps(false, onClick)}>Go</button>);

@@ -14,30 +14,31 @@ export function TicketTypesTab({ event }: { event: EventView }) {
   const { notify } = useToast();
   const types = useRequest(() => listTicketTypes(event.id), [event.id]);
   const [editingId, setEditingId] = useState("");
-  const [state, setState] = useState({ busy: false, message: "" });
+  // `busy` names the form whose request is running; the other form's submit waits.
+  const [state, setState] = useState<{ busy: "create" | "update" | null; message: string }>({ busy: null, message: "" });
 
   const create = async (input: TicketTypeInput) => {
-    setState({ busy: true, message: "" });
+    setState({ busy: "create", message: "" });
     try {
       await createTicketType(event.id, input);
       notify(t("org.ticket_type_added"));
-      setState({ busy: false, message: "" });
+      setState({ busy: null, message: "" });
       types.reload();
     } catch (failure) {
-      setState({ busy: false, message: describeError(failure) });
+      setState({ busy: null, message: describeError(failure) });
     }
   };
 
   const update = async (type: TicketType, input: TicketTypeInput) => {
-    setState({ busy: true, message: "" });
+    setState({ busy: "update", message: "" });
     try {
       await updateTicketType(event.id, type.id, input);
       notify(t("org.ticket_type_saved"));
-      setState({ busy: false, message: "" });
+      setState({ busy: null, message: "" });
       setEditingId("");
       types.reload();
     } catch (failure) {
-      setState({ busy: false, message: describeError(failure) });
+      setState({ busy: null, message: describeError(failure) });
     }
   };
 
@@ -72,10 +73,11 @@ export function TicketTypesTab({ event }: { event: EventView }) {
                       event={event}
                       initial={type}
                       submitLabel={t("org.save_ticket_type")}
-                      busy={state.busy}
+                      busy={state.busy === "update"}
+                      locked={state.busy === "create"}
                       message={state.message}
                       onSubmit={(input) => update(type, input)}
-                      onInvalid={(error) => setState({ busy: false, message: error })}
+                      onInvalid={(error) => setState({ busy: null, message: error })}
                       onCancel={() => setEditingId("")}
                     />
                   </div>
@@ -90,10 +92,11 @@ export function TicketTypesTab({ event }: { event: EventView }) {
         <TicketTypeForm
           event={event}
           submitLabel={t("org.add_ticket_type")}
-          busy={state.busy}
+          busy={state.busy === "create"}
+          locked={state.busy === "update"}
           message={editingId ? "" : state.message}
           onSubmit={create}
-          onInvalid={(error) => setState({ busy: false, message: error })}
+          onInvalid={(error) => setState({ busy: null, message: error })}
         />
       </Panel>
     </div>

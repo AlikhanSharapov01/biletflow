@@ -25,12 +25,13 @@ export function PayoutList({ eventId, version, onChanged }: PayoutListProps) {
   useLocale();
   const { notify } = useToast();
   const [offset, setOffset] = useState(0);
-  const [busyId, setBusyId] = useState("");
+  // The simulation running now; every other button waits (aria-disabled).
+  const [running, setRunning] = useState<{ id: string; target: PayoutSimulationTarget } | null>(null);
   const [simulatorOff, setSimulatorOff] = useState(false);
   const page = useRequest(() => listPayouts(eventId, { limit: PAGE_SIZE, offset }), [eventId, offset, version]);
 
   const move = async (payout: Payout, target: PayoutSimulationTarget) => {
-    setBusyId(payout.id);
+    setRunning({ id: payout.id, target });
     try {
       await simulatePayout(eventId, payout.id, target);
       notify(t("org.payout_now", { p0: statusLabel(target) }));
@@ -44,7 +45,7 @@ export function PayoutList({ eventId, version, onChanged }: PayoutListProps) {
         notify(describeError(failure));
       }
     } finally {
-      setBusyId("");
+      setRunning(null);
     }
   };
 
@@ -76,7 +77,8 @@ export function PayoutList({ eventId, version, onChanged }: PayoutListProps) {
                       key={target}
                       size="sm"
                       variant={target === "failed" ? "danger" : "subtle"}
-                      busy={busyId === payout.id}
+                      busy={running?.id === payout.id && running.target === target}
+                      aria-disabled={running !== null && !(running.id === payout.id && running.target === target) ? true : undefined}
                       onClick={() => void move(payout, target)}
                     >
                       {t(target === "eligible" ? "org.payout_mark_eligible" : target === "sent" ? "org.payout_mark_sent" : "org.payout_mark_failed")}

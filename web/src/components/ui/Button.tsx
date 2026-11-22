@@ -52,11 +52,14 @@ function ignoreWhileUnavailable<E extends MouseEvent>(unavailable: boolean, onCl
 
 const BUSY_ATTRIBUTES = { "aria-busy": true, "aria-disabled": true } as const;
 
-// Props for a raw <button> whose request is in flight: same semantics as <Button busy>.
-export function busyProps<E extends MouseEvent>(busy: boolean, onClick?: (event: E) => void) {
+const LOCKED_ATTRIBUTES = { "aria-disabled": true } as const;
+
+// Props for a raw <button>: busy while its own request runs (aria-busy + aria-disabled),
+// or locked (aria-disabled only) while a sibling's request runs. Both ignore activation.
+export function busyProps<E extends MouseEvent>(busy: boolean, onClick?: (event: E) => void, locked = false) {
   return {
-    ...(busy ? BUSY_ATTRIBUTES : {}),
-    onClick: ignoreWhileUnavailable(busy, onClick),
+    ...(busy ? BUSY_ATTRIBUTES : locked ? LOCKED_ATTRIBUTES : {}),
+    onClick: ignoreWhileUnavailable(busy || locked, onClick),
   };
 }
 
