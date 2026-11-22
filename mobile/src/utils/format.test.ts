@@ -1,6 +1,6 @@
 import { dateLabel, formatCountdown, localInputToIso, tokenFromLink } from "@/utils/format";
 import { setLocale } from "@/i18n";
-import { intlLocale } from "@/utils/intlLocale";
+import { clearIntlLocales, intlLocale } from "@/utils/intlLocale";
 
 describe("tokenFromLink", () => {
   it("reads the token from an emailed link fragment", () => {
@@ -37,9 +37,40 @@ describe("localInputToIso", () => {
 });
 
 describe("Kazakh fallback", () => {
+  beforeEach(() => clearIntlLocales());
   afterEach(() => {
     jest.restoreAllMocks();
+    clearIntlLocales();
     setLocale("en");
+  });
+
+  // Some engines list "kk" as supported but have no month names for it, and print
+  // "2027 M02 4" for a date.
+  function monthNamesFor(locale: string, value: string) {
+    const real = Intl.DateTimeFormat.prototype.formatToParts;
+    jest.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockImplementation(function (this: Intl.DateTimeFormat, date) {
+      const parts = real.call(this, date);
+      if (!this.resolvedOptions().locale.startsWith(locale)) return parts;
+      return parts.map((part) => (part.type === "month" ? { ...part, value } : part));
+    });
+  }
+
+  it("uses Russian when the engine lists Kazakh without month names", () => {
+    monthNamesFor("kk", "M02");
+    expect(intlLocale("kk")).toBe("ru");
+  });
+
+  it("uses Russian when Kazakh months come out as numbers", () => {
+    monthNamesFor("kk", "2");
+    expect(intlLocale("kk")).toBe("ru");
+  });
+
+  it("checks each locale once", () => {
+    const check = jest.spyOn(Intl.DateTimeFormat, "supportedLocalesOf");
+    intlLocale("kk");
+    intlLocale("kk");
+    intlLocale("ru");
+    expect(check).toHaveBeenCalledTimes(2);
   });
 
   it("formats dates in Russian when the engine has no Kazakh data", () => {
