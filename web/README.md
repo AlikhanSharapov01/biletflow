@@ -210,7 +210,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/` | Anyone | Redirects to `/discover`; so does any unknown path |
 | `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google, language |
 | `/verify-email#token=`, `/reset-password#token=` | Anyone | Pages opened from emailed links |
-| `/discover` | Anyone | Published events with search and category filter |
+| `/discover` | Anyone | Published events with search, category, city, date, price and free filters in the URL, Load more paging |
 | `/events/:eventId` | Anyone | Event details, publication label, tickets, seat map, promo code, calendar, report, get help |
 | `/c/:token` | Anyone | Campaign QR link: resolves the promo and opens the event |
 | `/tickets`, `/tickets/:ticketId` | Signed in | Tickets: QR, PDF, delivery, admission status, entry confirmation |
