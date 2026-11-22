@@ -41,6 +41,7 @@
 .filter-bar .form-message { grid-column: 1 / -1; }
 .plain-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .plain-fieldset:disabled { opacity: .6; }
+.form-group legend { padding: 0; margin-bottom: 6px; font-size: var(--text-label); font-weight: 700; }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .pagination-count { margin-right: auto; color: var(--meta); font-size: var(--text-meta); }
 .cell-note { display: block; margin-top: 2px; color: var(--meta); font-size: 12px; }
