@@ -34,7 +34,7 @@ def live_allocation():
 
 
 def event_offers(db, events):
-    """Price-from and sold-out flags per event id, in three grouped queries."""
+    """Price-from and sold-out flags per event id, in two grouped queries, plus one for assigned seating."""
     ids = [e.id for e in events]
     if not ids:
         return {}

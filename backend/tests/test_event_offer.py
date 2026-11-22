@@ -209,6 +209,11 @@ def test_assigned_seating_without_free_seats_is_sold_out(client, setup, factory)
     assert offer(client, f) == (0, True)
 
 
+def test_seated_draft_without_mapped_seats_is_sold_out(client, setup):
+    f = setup(assigned=True)
+    assert offer(client, f) == (0, True)
+
+
 def test_assigned_seating_with_free_seats_is_available(client, setup, factory):
     f, seats = seated_event(client, setup)
     add_allocation(factory, f, seat_id=seats[0])
@@ -284,6 +289,13 @@ def offer_queries(app, client):
     finally:
         sa_event.remove(app.state.engine, "before_cursor_execute", count)
     return len(seen)
+
+
+def test_general_admission_page_uses_two_offer_queries(client, setup, account, app):
+    for _ in range(2):
+        f = setup(headers=account()[2])
+        publish(client, f)
+    assert offer_queries(app, client) == 2
 
 
 def test_offer_queries_stay_constant(client, setup, account, app):

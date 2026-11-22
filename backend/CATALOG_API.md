@@ -46,7 +46,9 @@ Every `EventView` response (Discover, event detail, organizer lists, edits and p
 - `null` together with `sold_out = false` means the event offers no public tickets.
 - Not considered: paid-sales activation, per-order limits and the sales window start.
 
-List endpoints compute both fields for the whole page with three grouped queries (ticket types, allocations, free seats), not per event.
+List endpoints compute both fields for the whole page with two grouped queries (ticket types, allocations), plus one (free seats) when the page has assigned-seating events, not per event.
+
+A draft with assigned seating and no seats mapped yet reports `sold_out = true` (no seat can be sold); it cannot reach Discover, because publishing requires mapped seats.
 
 ## Event images (9 November 2026)
 
