@@ -17,7 +17,7 @@ export default defineConfig({
   retries: 0,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  reporter: CI ? [["list"], ["html", { open: "never" }]] : "list",
+  reporter: "list",
   webServer: {
     command: "npm --prefix ../web run dev -- --port 5180 --strictPort",
     url: "http://localhost:5180",

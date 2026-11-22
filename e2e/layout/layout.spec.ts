@@ -1,12 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, type Locale } from "./fixtures";
-import { mockApi, type Role } from "./mockApi";
+import { FOCUS_EVENT, LOCALES, NOW, type Locale } from "./fixtures";
+import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
+  narrow: { width: 320, height: 640 },
   phone: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
+  laptop: { width: 1024, height: 768 },
   desktop: { width: 1440, height: 900 },
 } as const;
+type ViewportName = keyof typeof VIEWPORTS;
+
+// Browser language per UI language, so native controls and Accept-Language follow it.
+const BROWSER_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", kk: "kk-KZ" };
 
 interface PageCase {
   name: string;
@@ -24,99 +30,214 @@ const PAGES: PageCase[] = [
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
 ];
 
-// Cases that fail today because of a layout defect another task fixes. They are
-// marked test.fail(): the suite stays green now and turns red when the fix lands,
-// which is the reminder to delete the entry. Key: `${page} ${viewport} ${locale}`.
-const KNOWN_FAILURES = new Map<string, string>();
+// Problems that open defects cause today, each with the task that fixes it.
+const TOP_BAR = "Task 10 (top bar)";
+const TAB_BAR = "Task 11 (tab bar labels)";
+type Expected = [pattern: RegExp, task: string];
+const PAGE_SCROLL: Expected = [/^page scrolls horizontally/, TOP_BAR];
+const ACTIONS_EDGE: Expected = [/^div\.topbar-actions .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
+const SIGN_IN_EDGE: Expected = [/^a\.primary-button .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
+const AVATAR_EDGE: Expected = [/^(details\.avatar-menu|summary|span\.avatar) .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
+const TOP_TAB_EDGE: Expected = [/^a\.top-tab .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
+const TOP_TAB_OVERLAP: Expected = [/^a\.top-tab .* overlaps the top bar actions$/, TOP_BAR];
+const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its box$/, TAB_BAR];
+const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
+const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
-// Task 10 (top bar): with six sections the top tabs run into the actions at 768px
-// (and past the viewport in Russian and Kazakh), so the page also scrolls sideways.
-for (const pageCase of PAGES.filter((item) => item.role === "admin")) {
-  for (const locale of LOCALES) {
-    KNOWN_FAILURES.set(`${pageCase.name} tablet ${locale}`, "top bar overflows at 768px with six sections; fixed by Task 10");
-  }
+const ADMIN_PAGES = ["discover-admin", "event-admin", "organizer-event-admin"];
+const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
+  { pages: ["discover-visitor"], viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: ["discover-visitor"], viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+];
+
+// Cases whose layout is broken today by a defect another task fixes. Everything else in
+// such a case is still checked: a problem matching no entry fails the case, and so does
+// an entry that no longer occurs (the fix landed: delete it).
+// Key: `${page} ${viewport} ${locale}`.
+const KNOWN_FAILURES = new Map<string, Expected[]>();
+for (const row of KNOWN_ROWS) {
+  for (const page of row.pages) KNOWN_FAILURES.set(`${page} ${row.viewport} ${row.locale}`, row.expected);
 }
 
 const NAV_LINKS = { visitor: 1, admin: 6 } as const;
 
-async function openPage(page: Page, pageCase: PageCase, locale: Locale) {
-  const mocked = await mockApi(page, pageCase.role, locale);
+async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi) {
+  // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
+  await page.clock.setFixedTime(NOW);
   // The app picks its language from this stored preference (web/src/i18n/index.ts);
   // a signed-in profile's own locale takes over once it loads.
   await page.addInitScript((value) => localStorage.setItem("biletflow:locale", value), locale);
-  await page.goto(pageCase.path(locale));
-  await expect(page.locator(pageCase.ready).first()).toBeVisible();
-  await expect(page.locator(".loading-state")).toHaveCount(0);
-  await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
-  await expect(page.locator("html")).toHaveAttribute("lang", locale);
-  await page.evaluate(() => document.fonts.ready);
-  return mocked;
+  try {
+    await page.goto(pageCase.path(locale));
+    await expect(page.locator(pageCase.ready).first()).toBeVisible();
+    await expect(page.locator(".loading-state")).toHaveCount(0);
+    await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await page.evaluate(() => document.fonts.ready);
+  } catch (failure) {
+    if (mocked.unmocked.length === 0) throw failure;
+    throw new Error(`Page did not load; API calls without a fixture: ${mocked.unmocked.join(", ")}`, { cause: failure });
+  }
 }
 
-// Everything measured in the browser, so the checks see the real rendered boxes.
-function measureLayout() {
-  const viewport = document.documentElement.clientWidth;
+// Runs in the browser, so it sees the real rendered boxes. Returns one line per problem.
+function measureLayout(): string[] {
   const problems: string[] = [];
+  const width = window.innerWidth;
+  const TOLERANCE = 0.5;
+
   const describe = (element: Element) => {
     const text = (element.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 30);
-    return `${element.tagName.toLowerCase()}.${String(element.className).split(" ")[0]}${text ? ` "${text}"` : ""}`;
+    const name = (element.getAttribute("class") ?? "").split(" ")[0];
+    return `${element.tagName.toLowerCase()}${name ? `.${name}` : ""}${text ? ` "${text}"` : ""}`;
   };
-  const visible = (element: Element) => {
-    const box = element.getBoundingClientRect();
+
+  interface Box { left: number; right: number; top: number; bottom: number }
+  // The part of a box that an ancestor with its own overflow handling (a scrollable
+  // strip, a clipped label) actually shows.
+  const clipped = (element: Element, box: Box): Box | null => {
+    let result = box;
+    for (let parent = element.parentElement; parent && parent !== document.documentElement; parent = parent.parentElement) {
+      if (getComputedStyle(parent).overflowX === "visible") continue;
+      const outer = parent.getBoundingClientRect();
+      result = {
+        left: Math.max(result.left, outer.left),
+        right: Math.min(result.right, outer.right),
+        top: result.top,
+        bottom: result.bottom,
+      };
+      if (result.right - result.left <= 0) return null;
+    }
+    return result;
+  };
+  const rendered = (element: Element) => {
     const style = getComputedStyle(element);
-    const hidden = element.closest(".visually-hidden") !== null;
-    return !hidden && box.width > 0 && box.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    const box = element.getBoundingClientRect();
+    // Content of a closed menu (<details>) is not shown, though it keeps a box.
+    const menu = element.closest("details:not([open])");
+    if (menu && !element.closest("summary") && element !== menu) return null;
+    if (element.closest(".visually-hidden") || style.visibility === "hidden" || style.display === "none") return null;
+    if (box.width <= 0 || box.height <= 0) return null;
+    return clipped(element, box);
+  };
+  const overlaps = (a: Box, b: Box) =>
+    Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+
+  // Boxes of the text an element draws (a text node can overflow its box): its own text
+  // nodes, or with `deep` those of its descendants too. Menu options are not drawn inline.
+  const textBoxes = (element: Element, deep = false): Box[] => {
+    const boxes: Box[] = [];
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!(node.textContent ?? "").trim()) continue;
+      const parent = node.parentElement;
+      if (!parent || !rendered(parent) || parent.closest("option, select")) continue;
+      if (!deep && parent !== element) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        const shown = clipped(node.parentElement!, rect);
+        if (shown) boxes.push(shown);
+      }
+    }
+    return boxes;
   };
 
   const scroll = document.documentElement.scrollWidth;
-  if (scroll > window.innerWidth) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${window.innerWidth}`);
+  if (scroll > width) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${width}`);
 
   for (const bar of document.querySelectorAll(".topbar, .tab-bar")) {
     for (const element of [bar, ...bar.querySelectorAll("*")]) {
-      if (!visible(element)) continue;
-      const box = element.getBoundingClientRect();
-      if (box.right > viewport + 0.5 || box.left < -0.5) {
-        problems.push(`${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${viewport}`);
+      const box = rendered(element);
+      if (!box) continue;
+      if (box.right > width + TOLERANCE || box.left < -TOLERANCE) {
+        problems.push(`${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
+      }
+      // Text spilling out of its own box, or out of the viewport.
+      const own = element.getBoundingClientRect();
+      for (const text of textBoxes(element)) {
+        if (text.right > width + TOLERANCE || text.left < -TOLERANCE) {
+          problems.push(`${describe(element)} text spans ${Math.round(text.left)}..${Math.round(text.right)} of ${width}`);
+        } else if (getComputedStyle(element).overflowX === "visible" && (text.right > own.right + 1 || text.left < own.left - 1)) {
+          problems.push(`${describe(element)} text spills out of its box`);
+        }
       }
     }
   }
 
-  const actions = document.querySelector(".topbar-actions");
-  if (actions && visible(actions)) {
-    const area = actions.getBoundingClientRect();
-    for (const tab of document.querySelectorAll(".top-tab")) {
-      if (!visible(tab)) continue;
-      const box = tab.getBoundingClientRect();
-      if (box.left < area.right && box.right > area.left && box.top < area.bottom && box.bottom > area.top) {
-        problems.push(`${describe(tab)} overlaps the top bar actions`);
+  // Labels of sibling tabs must not run into each other.
+  for (const selector of [".tab-bar-link", ".top-tab"]) {
+    const links = [...document.querySelectorAll(selector)].filter((link) => rendered(link));
+    links.forEach((link, index) => {
+      for (const other of links.slice(index + 1)) {
+        if (textBoxes(link, true).some((a) => textBoxes(other, true).some((b) => overlaps(a, b)))) {
+          problems.push(`${describe(link)} and ${describe(other)} labels overlap`);
+        }
       }
+    });
+  }
+
+  const actions = document.querySelector(".topbar-actions");
+  const area = actions && rendered(actions);
+  if (area) {
+    for (const tab of document.querySelectorAll(".top-tab")) {
+      const box = rendered(tab);
+      if (box && overlaps(box, area)) problems.push(`${describe(tab)} overlaps the top bar actions`);
     }
   }
   return problems;
 }
 
-for (const [viewportName, size] of Object.entries(VIEWPORTS)) {
-  test.describe(viewportName, () => {
-    test.use({ viewport: size });
+for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportName, (typeof VIEWPORTS)[ViewportName]]>) {
+  for (const locale of LOCALES) {
+    test.describe(`${viewportName} ${locale}`, () => {
+      test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
 
-    for (const pageCase of PAGES) {
-      for (const locale of LOCALES) {
+      for (const pageCase of PAGES) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
         test(key, async ({ page }, testInfo) => {
-          const reason = KNOWN_FAILURES.get(key);
-          if (reason) test.fail(true, reason);
+          const mocked = await mockApi(page, pageCase.role, locale);
+          const pageErrors: string[] = [];
+          page.on("pageerror", (error) => pageErrors.push(error.message));
 
-          const mocked = await openPage(page, pageCase, locale);
+          await openPage(page, pageCase, locale, mocked);
           const problems = await page.evaluate(measureLayout);
 
-          await testInfo.attach("full-page", {
-            body: await page.screenshot({ fullPage: true }),
-            contentType: "image/png",
-          });
+          // Saved under test-results/ (and uploaded by CI). The full-page shot shows all
+          // content; the viewport shot shows the fixed tab bar where it really sits.
+          for (const [name, fullPage] of [["full-page", true], ["viewport", false]] as const) {
+            const file = testInfo.outputPath(`${name}.png`);
+            await page.screenshot({ path: file, fullPage });
+            await testInfo.attach(name, { path: file, contentType: "image/png" });
+          }
+
           expect(mocked.unmocked, "API calls without a fixture").toEqual([]);
-          expect(problems, "layout problems").toEqual([]);
+          expect(pageErrors, "uncaught page errors").toEqual([]);
+
+          const known = KNOWN_FAILURES.get(key);
+          if (!known) {
+            expect(problems, "layout problems").toEqual([]);
+            return;
+          }
+          const unexpected = problems.filter((problem) => !known.some(([pattern]) => pattern.test(problem)));
+          expect(unexpected, "layout problems beyond the known ones").toEqual([]);
+          for (const [pattern, task] of known) {
+            expect(
+              problems.some((problem) => pattern.test(problem)),
+              `${pattern} no longer occurs: ${task} fixed it, delete this expectation from KNOWN_FAILURES`,
+            ).toBe(true);
+          }
         });
       }
-    }
-  });
+    });
+  }
 }

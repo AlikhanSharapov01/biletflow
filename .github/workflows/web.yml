@@ -6,12 +6,18 @@ on:
       - "web/**"
       - "e2e/layout/**"
       - "e2e/layout.config.ts"
+      - "e2e/package.json"
+      - "e2e/package-lock.json"
+      - "e2e/tsconfig.json"
       - ".github/workflows/web.yml"
   pull_request:
     paths:
       - "web/**"
       - "e2e/layout/**"
       - "e2e/layout.config.ts"
+      - "e2e/package.json"
+      - "e2e/package-lock.json"
+      - "e2e/tsconfig.json"
       - ".github/workflows/web.yml"
 
 permissions:
@@ -60,6 +66,8 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npm ci
+        working-directory: e2e
+      - run: npm run typecheck
         working-directory: e2e
       - run: npx playwright install --with-deps chromium
         working-directory: e2e
