@@ -19,6 +19,8 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   const [recipients, setRecipients] = useState<RecipientValues>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  // True once a hold ran out, until the next reservation.
+  const [expired, setExpired] = useState(false);
   const secondsLeft = useCountdown(hold?.expires_at ?? null);
   // A paid ticket discounted to zero must use free confirmation. The server's
   // saved pricing is authoritative; the fallback supports an older demo stack.
@@ -31,7 +33,10 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
   }, []);
 
   useEffect(() => {
-    if (hold && secondsLeft === 0) reset(t("checkout.expired"));
+    if (hold && secondsLeft === 0) {
+      setExpired(true);
+      reset(t("checkout.expired"));
+    }
   }, [hold, secondsLeft, reset]);
 
   const reserve = async (lines: HoldLine[]) => {
@@ -42,6 +47,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
     }
     setBusy(true);
     setMessage("");
+    setExpired(false);
     try {
       const created = await createHold(event.id, lines, promo?.code);
       setHold(created);
@@ -92,5 +98,5 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
     }
   };
 
-  return { hold, order, recipients, setRecipients, busy, message, secondsLeft, paid, reserve, release, confirm, finished, reset };
+  return { hold, order, recipients, setRecipients, busy, message, secondsLeft, expired, paid, reserve, release, confirm, finished, reset };
 }

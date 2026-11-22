@@ -1634,7 +1634,7 @@
   "checkout.step_seats": "Места",
   "checkout.step_recipients": "Получатели",
   "checkout.step_completed": "шаг пройден",
-  "checkout.hold_five_minutes": "До конца брони осталось 5 минут",
-  "checkout.hold_one_minute": "До конца брони осталась 1 минута",
+  "checkout.hold_five_minutes": "До конца брони осталось меньше 5 минут",
+  "checkout.hold_one_minute": "До конца брони осталось меньше минуты",
   "checkout.hold_expired_notice": "Бронь истекла"
 }

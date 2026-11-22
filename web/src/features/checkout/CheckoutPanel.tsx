@@ -6,7 +6,7 @@ import type { PromoPreview } from "../../api/types/promo";
 import { EmptyState } from "../../components/ui/Feedback";
 import { useAuth } from "../auth/AuthContext";
 import { CheckoutSteps, type CheckoutStep } from "./components/CheckoutSteps";
-import { HoldCountdown } from "./components/HoldCountdown";
+import { HoldCountdown, holdAnnouncement } from "./components/HoldCountdown";
 import { PaymentStep } from "./components/PaymentStep";
 import { PromoCodeField } from "./components/PromoCodeField";
 import { RecipientForm } from "./components/RecipientForm";
@@ -72,6 +72,7 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     <div className="checkout-progress">
       <CheckoutSteps step={step} assigned={event.seating_mode === "assigned"} paid={flow.hold ? flow.paid : paidBeforeHold} />
       {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
+      <span className="visually-hidden" role="status">{flow.hold ? holdAnnouncement(flow.secondsLeft) : flow.expired ? holdAnnouncement(0, true) : ""}</span>
     </div>
   );
 

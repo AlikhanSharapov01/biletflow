@@ -8,7 +8,7 @@ import type { PromoPreview } from "../../../api/types/promo";
 import { deferred, makeAllocation, makeEvent, makeHold, makeOrder, makeTicketType } from "../../../../tests/helpers/fixtures";
 import type { Quantities, RecipientValues } from "../utils/checkout";
 import { readStashedPromo } from "../utils/promo";
-import { HoldCountdown } from "./HoldCountdown";
+import { HoldCountdown, holdAnnouncement } from "./HoldCountdown";
 import { PriceSummary } from "./PriceSummary";
 import { PromoCodeField } from "./PromoCodeField";
 import { RecipientForm } from "./RecipientForm";
@@ -34,21 +34,20 @@ describe("HoldCountdown", () => {
     expect(screen.getByRole("timer").textContent).toBe("Held for 0:00");
   });
 
-  it("keeps the timer silent and speaks only at the thresholds", () => {
-    const { rerender } = render(<HoldCountdown secondsLeft={540} />);
+  it("keeps the timer silent", () => {
+    render(<HoldCountdown secondsLeft={540} />);
     expect(screen.getByRole("timer").getAttribute("aria-live")).toBeNull();
-    const status = () => screen.getByRole("status").textContent;
-    expect(status()).toBe("");
-    rerender(<HoldCountdown secondsLeft={301} />);
-    expect(status()).toBe("");
-    rerender(<HoldCountdown secondsLeft={300} />);
-    expect(status()).toBe("5 minutes left on your reservation");
-    rerender(<HoldCountdown secondsLeft={61} />);
-    expect(status()).toBe("5 minutes left on your reservation");
-    rerender(<HoldCountdown secondsLeft={60} />);
-    expect(status()).toBe("1 minute left on your reservation");
-    rerender(<HoldCountdown secondsLeft={0} />);
-    expect(status()).toBe("Your reservation has expired");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("words the announcement per threshold, aligned with the urgent style", () => {
+    expect(holdAnnouncement(540)).toBe("");
+    expect(holdAnnouncement(300)).toBe("");
+    expect(holdAnnouncement(299)).toBe("Less than 5 minutes left on your reservation");
+    expect(holdAnnouncement(60)).toBe("Less than 5 minutes left on your reservation");
+    expect(holdAnnouncement(59)).toBe("Less than 1 minute left on your reservation");
+    expect(holdAnnouncement(0)).toBe("Your reservation has expired");
+    expect(holdAnnouncement(500, true)).toBe("Your reservation has expired");
   });
 });
 

@@ -1634,6 +1634,6 @@ checkout.step_tickets	Tickets	Билеты	Билеттер
 checkout.step_seats	Seats	Места	Орындар
 checkout.step_recipients	Recipients	Получатели	Алушылар
 checkout.step_completed	step completed	шаг пройден	қадам аяқталды
-checkout.hold_five_minutes	5 minutes left on your reservation	До конца брони осталось 5 минут	Бронь аяқталуына 5 минут қалды
-checkout.hold_one_minute	1 minute left on your reservation	До конца брони осталась 1 минута	Бронь аяқталуына 1 минут қалды
+checkout.hold_five_minutes	Less than 5 minutes left on your reservation	До конца брони осталось меньше 5 минут	Бронь аяқталуына 5 минуттан аз уақыт қалды
+checkout.hold_one_minute	Less than 1 minute left on your reservation	До конца брони осталось меньше минуты	Бронь аяқталуына 1 минуттан аз уақыт қалды
 checkout.hold_expired_notice	Your reservation has expired	Бронь истекла	Бронь мерзімі аяқталды

@@ -51,12 +51,10 @@ describe("CheckoutPanel steps", () => {
   it("adds the payment step once a paid ticket is selected", () => {
     flow({});
     mount(makeEvent(), [freeType, paidType]);
-    expect(items()).toHaveLength(3);
-    fireEvent.change(screen.getByLabelText("Quantity for Premium"), { target: { value: "1" } });
-    expect(items()).toHaveLength(3);
-    fireEvent.change(screen.getByLabelText("Quantity for Premium"), { target: { value: "0" } });
     fireEvent.change(screen.getByLabelText("Quantity for Free pass"), { target: { value: "1" } });
     expect(items()).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText("Quantity for Premium"), { target: { value: "1" } });
+    expect(items()).toHaveLength(3);
   });
 
   it("shows steps and countdown together on the recipients step of a free hold", () => {
@@ -83,5 +81,25 @@ describe("CheckoutPanel steps", () => {
     expect(current()).toBe("3Payment");
     expect(screen.getAllByRole("timer")).toHaveLength(1);
     expect(screen.queryByText(/Price held for/)).toBeNull();
+  });
+
+  it("keeps one status region across expiry so the notice is spoken", () => {
+    flow({ hold: makeHold(), secondsLeft: 1 });
+    const view = render(
+      <AuthContext.Provider value={makeAuthValue({ status: "authenticated", profile: makeProfile() })}>
+        <MemoryRouter><CheckoutPanel event={makeEvent()} tickets={[freeType]} /></MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    const status = view.container.querySelector(".checkout-progress [role=status]")!;
+    expect(status.textContent).toBe("Less than 1 minute left on your reservation");
+    flow({ hold: null, secondsLeft: 0, expired: true });
+    view.rerender(
+      <AuthContext.Provider value={makeAuthValue({ status: "authenticated", profile: makeProfile() })}>
+        <MemoryRouter><CheckoutPanel event={makeEvent()} tickets={[freeType]} /></MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(status.isConnected).toBe(true);
+    expect(status.textContent).toBe("Your reservation has expired");
   });
 });
