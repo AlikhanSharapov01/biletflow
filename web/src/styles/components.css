@@ -22,7 +22,7 @@
 .field-label small { color: #929b94; font-size: 12px; font-weight: 400; }
 .field input:not([type="checkbox"]), .field select, .field textarea {
   width: 100%; min-height: var(--control-height); padding: 0 13px;
-  border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); color: var(--ink); font-size: 15px;
+  border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); color: var(--ink); font-size: var(--text-field);
 }
 .field textarea { min-height: 92px; padding: 11px 13px; line-height: 1.5; resize: vertical; }
 .field input::placeholder, .field textarea::placeholder { color: var(--placeholder); }

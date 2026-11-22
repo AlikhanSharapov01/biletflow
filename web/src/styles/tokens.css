@@ -73,10 +73,12 @@
   --text-card-title: 20px;
   --text-panel-title: 16px;
   --text-body: 15px;
+  --text-field: var(--text-body);
   --text-body-sm: 14px;
   --text-meta: 13px;
   --text-label: 13px;
   --text-micro: 11px;
+  --tap-highlight: rgb(35 107 85 / 14%);
 
   /* Spacing and shape */
   --gutter: 16px;
@@ -102,4 +104,9 @@
     --gutter: 32px;
     --panel-pad: 20px;
   }
+}
+
+/* iOS Safari zooms into fields under 16px; desktop keeps the body size. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :root { --text-field: 16px; }
 }

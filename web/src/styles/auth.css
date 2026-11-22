@@ -1,6 +1,6 @@
 /* Sign-in screen (two-column story layout) and emailed-link pages. */
-.auth-screen { display: grid; min-height: 100vh; grid-template-columns: minmax(350px, .92fr) minmax(490px, 1.08fr); }
-.auth-story { position: relative; display: flex; min-height: 100vh; overflow: hidden; flex-direction: column; justify-content: space-between; padding: 34px clamp(28px, 5vw, 76px) 30px; background: var(--green-story); color: #f7f4e9; }
+.auth-screen { display: grid; min-height: 100vh; min-height: 100dvh; grid-template-columns: minmax(350px, .92fr) minmax(490px, 1.08fr); }
+.auth-story { position: relative; display: flex; min-height: 100vh; min-height: 100dvh; overflow: hidden; flex-direction: column; justify-content: space-between; padding: 34px clamp(28px, 5vw, 76px) 30px; background: var(--green-story); color: #f7f4e9; }
 .auth-story::before { position: absolute; top: 18%; right: -140px; width: 430px; height: 430px; border: 1px solid rgb(226 244 191 / 17%); border-radius: 50%; box-shadow: 0 0 0 42px rgb(226 244 191 / 4%), 0 0 0 90px rgb(226 244 191 / 4%); content: ""; }
 .auth-story::after { position: absolute; right: -7%; bottom: 12%; width: 63%; height: 42%; border-radius: 48% 0 0 0; background: linear-gradient(145deg, #35745a, #214e3e 75%); content: ""; transform: rotate(-12deg); }
 .auth-story .brand { z-index: 1; color: var(--paper); }
@@ -16,7 +16,7 @@
 .story-ticket span { display: block; margin-top: 5px; color: #d1ddd2; font-size: 13px; }
 .auth-foot { z-index: 1; color: #bed0c5; font-size: 12px; }
 
-.auth-panel { display: grid; min-height: 100vh; place-items: center; padding: 40px clamp(24px, 6vw, 90px); }
+.auth-panel { display: grid; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 40px clamp(24px, 6vw, 90px); }
 .auth-box { width: min(100%, 420px); animation: rise-in .45s ease both; }
 .auth-box > .eyebrow { margin-bottom: 8px; }
 .auth-box h2, .token-title { margin: 0 0 10px; font-size: 34px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
@@ -33,7 +33,7 @@
 .divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }
 .auth-legal { margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
-.token-screen { display: grid; min-height: 100vh; place-items: center; padding: 40px 24px; }
+.token-screen { display: grid; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 40px 24px; }
 .token-screen .auth-box > .brand { margin-bottom: 26px; }
 .token-eyebrow { margin: 8px 0; }
 .token-screen .auth-subtitle { margin-bottom: 18px; }

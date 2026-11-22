@@ -1,5 +1,5 @@
 /* App shell: top bar, centred content column, phone tab bar. */
-.app-shell { min-height: 100vh; }
+.app-shell { min-height: 100vh; min-height: 100dvh; }
 .skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
 .skip-link:focus { top: 12px; }
 
