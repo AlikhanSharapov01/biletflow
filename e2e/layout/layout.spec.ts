@@ -4,6 +4,8 @@ import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
   narrow: { width: 320, height: 640 },
+  // 360 is the most common Android phone width; the admin case has six tab bar sections.
+  compact: { width: 360, height: 740 },
   phone: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
   laptop: { width: 1024, height: 768 },
@@ -60,32 +62,10 @@ const PAGES: PageCase[] = [
   { name: "organizer-finance-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=finance`, ready: "#event-section-panel .stat, #event-section-panel dl, #event-section-panel .panel" },
 ];
 
-// Problems that open defects cause today, each with the task that fixes it.
-const TAB_BAR = "Task 11 (tab bar labels)";
+// Problems that open defects cause today, each with the task that fixes it. Add a row to
+// KNOWN_ROWS only for a defect another task owns; delete it when that task lands.
 type Expected = [pattern: RegExp, task: string];
-const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its box$/, TAB_BAR];
-const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
-const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
-
-const ADMIN_PAGES = [
-  "discover-admin",
-  "event-admin",
-  "checkout-hold",
-  "organizer-event-admin",
-  "organizer-check-ins-admin",
-  "organizer-staff-admin",
-  "organizer-finance-admin",
-];
-const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "small", locale: "en", expected: [TAB_LABEL_SPILL] },
-  { pages: ADMIN_PAGES, viewport: "small", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "small", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-];
+const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in
 // such a case is still checked: a problem matching no entry fails the case, and so does
@@ -323,6 +303,20 @@ function measureLayout(): string[] {
     const tabsShown = getComputedStyle(document.querySelector(".top-tabs")!).display !== "none";
     if (width <= 1024 && (!barShown || tabsShown)) problems.push(`navigation at ${width}px: bottom tab bar expected, not top tabs`);
     if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
+  }
+
+  // A tab bar label must fit its own box, wrapped to at most two lines.
+  for (const label of document.querySelectorAll(".tab-bar-link .tab-bar-label")) {
+    if (!rendered(label)) continue;
+    if (label.scrollWidth > label.clientWidth) problems.push(`${describe(label)} label is wider than its box: ${label.scrollWidth} > ${label.clientWidth}`);
+    const lines = Math.round(label.getBoundingClientRect().height / parseFloat(getComputedStyle(label).lineHeight));
+    if (lines > 2) problems.push(`${describe(label)} label wraps to ${lines} lines`);
+  }
+  const heights = new Set([...document.querySelectorAll(".tab-bar-link")].filter((link) => rendered(link)).map((link) => Math.round(link.getBoundingClientRect().height)));
+  if (heights.size > 1) problems.push(`tab bar links differ in height: ${[...heights].join(", ")}`);
+  for (const link of document.querySelectorAll(".tab-bar-link")) {
+    const box = rendered(link);
+    if (box && (box.right - box.left < 44 || box.bottom - box.top < 44)) problems.push(`${describe(link)} is smaller than 44x44`);
   }
 
   // Labels of sibling tabs must not run into each other.

@@ -34,7 +34,6 @@
 .page { max-width: calc(var(--content-max) + 2 * var(--gutter)); margin: 0 auto; padding: var(--topbar-gap) max(var(--gutter), env(safe-area-inset-right, 0px)) 56px max(var(--gutter), env(safe-area-inset-left, 0px)); }
 
 .tab-bar { display: none; }
-.nav-glyph { display: grid; width: 20px; height: 20px; place-items: center; border: 1px solid currentColor; border-radius: 6px 6px 6px 2px; font-family: var(--font-serif); font-size: 11px; }
 
 /* Page heading (mobile ui/PageHeading) */
 .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; color: var(--green); font-size: 14px; font-weight: 700; text-decoration: none; }
@@ -67,12 +66,22 @@
 
 /* Phone and tablet navigation: the bottom tab bar replaces the top tabs. */
 @media (width < 1025px) {
-  html:has(.with-tab-bar) { scroll-padding-top: 72px; scroll-padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+  html:has(.with-tab-bar) { scroll-padding-top: 72px; scroll-padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
-  .with-tab-bar { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .with-tab-bar { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
   .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
-  .tab-bar-link { display: flex; min-height: 52px; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; text-decoration: none; }
+  .tab-bar-link { display: flex; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; }
+  .tab-bar-icon { flex: none; }
+  /* Long ru/kk labels wrap to at most two lines inside their own column. */
+  .tab-bar-label { max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }
   .tab-bar-link[aria-current="page"] { background: var(--active-nav); color: var(--green-dark); }
+}
+
+/* Six sections in ru/kk on a phone: the longest labels (Администратор, Ұйымдастырушы) need
+   the full column width and 10px type to wrap to two lines. */
+@media (width < 420px) {
+  .tab-bar { gap: 0; padding-right: max(2px, env(safe-area-inset-right, 0px)); padding-left: max(2px, env(safe-area-inset-left, 0px)); }
+  .tab-bar-link { padding-right: 0; padding-left: 0; font-size: 10px; }
 }
 
 @media (max-width: 760px) {

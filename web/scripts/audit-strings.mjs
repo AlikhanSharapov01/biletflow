@@ -18,7 +18,7 @@ function walk(dir) {
         // Audit only: code, routes and backend values are deliberately retained in
         // this inventory until reviewed, rather than silently translated.
         const technical = parent?.type.startsWith('Import') || parent?.type.startsWith('TS') ||
-          parent?.type === 'JSXAttribute' && ['className','id','type','name','value','role','to','href','accept','autoComplete'].includes(parent.name?.name) ||
+          parent?.type === 'JSXAttribute' && ['className','id','type','name','value','role','to','href','accept','autoComplete','d'].includes(parent.name?.name) ||
           /^(\.{1,2}\/|https?:\/\/|image\/|application\/)/.test(value) ||
           /^[A-Z0-9_]+$/.test(value) || /^(BiletFlow|English|Русский|Қазақша)$/.test(value);
         const readableAttribute = parent?.type === 'JSXAttribute' && ['label','title','hint','placeholder','subtitle','eyebrow','submitLabel','feature','noun','aria-label','alt'].includes(parent.name?.name);
