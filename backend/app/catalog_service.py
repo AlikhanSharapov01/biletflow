@@ -1,10 +1,12 @@
-from sqlalchemy import func, select
+from sqlalchemy import and_, exists, func, or_, select
 
 from .catalog_models import (
     AccessGrant,
     Allocation,
     Event,
+    EventSeat,
     EventStaff,
+    Hold,
     Member,
     MemberPermission,
     Organization,
@@ -23,47 +25,93 @@ def record(row, omit=()):
 ACTIVE_ALLOCATION_STATES = ["held", "sold", "refund_quarantine"]
 
 
+def live_allocation():
+    """Active allocation, where a held one counts only until its hold expires."""
+    return and_(
+        Allocation.state.in_(ACTIVE_ALLOCATION_STATES),
+        or_(Allocation.state != "held", Hold.expires_at > now()),
+    )
+
+
 def event_offers(db, events):
-    """Price-from and sold-out flags per event id, in two grouped queries."""
+    """Price-from and sold-out flags per event id, in three grouped queries."""
     ids = [e.id for e in events]
     if not ids:
         return {}
     types = {}
     for row in db.execute(
         select(
-            TicketType.id, TicketType.event_id, TicketType.price_minor, TicketType.quantity_limit
-        )
-        .where(
+            TicketType.id,
+            TicketType.event_id,
+            TicketType.price_minor,
+            TicketType.quantity_limit,
+            TicketType.sales_close_at,
+        ).where(
             TicketType.event_id.in_(ids),
             TicketType.is_hidden.is_(False),
             TicketType.quantity_limit > 0,
         )
-        .order_by(TicketType.event_id)
     ):
         types.setdefault(row.event_id, []).append(row)
     taken = {}
     per_type = {}
     for event_id, type_id, count in db.execute(
         select(Allocation.event_id, Allocation.ticket_type_id, func.count(Allocation.id))
-        .where(Allocation.event_id.in_(ids), Allocation.state.in_(ACTIVE_ALLOCATION_STATES))
+        .join(Hold, Hold.id == Allocation.hold_id)
+        .where(Allocation.event_id.in_(ids), live_allocation())
         .group_by(Allocation.event_id, Allocation.ticket_type_id)
     ):
         taken[event_id] = taken.get(event_id, 0) + count
         per_type[type_id] = count
+    free_seats = {}
+    assigned = [e.id for e in events if e.seating_mode == "assigned"]
+    if assigned:
+        taken_seat = (
+            select(Allocation.id)
+            .join(Hold, Hold.id == Allocation.hold_id)
+            .where(Allocation.event_seat_id == EventSeat.id, live_allocation())
+        )
+        free_seats = {
+            type_id: count
+            for type_id, count in db.execute(
+                select(EventSeat.ticket_type_id, func.count(EventSeat.id))
+                .where(
+                    EventSeat.event_id.in_(assigned),
+                    EventSeat.is_blocked.is_(False),
+                    ~exists(taken_seat),
+                )
+                .group_by(EventSeat.ticket_type_id)
+            )
+        }
+    current = now()
     offers = {}
     for event in events:
         visible = types.get(event.id, [])
         if not visible:
             offers[event.id] = {"price_from_minor": None, "sold_out": False}
             continue
-        open_types = [t for t in visible if t.quantity_limit - per_type.get(t.id, 0) > 0]
-        sold_out = taken.get(event.id, 0) >= event.capacity or not open_types
-        pool = visible if sold_out else open_types
+        seated = event.seating_mode == "assigned"
+
+        def remaining(t, seated=seated):
+            left = t.quantity_limit - per_type.get(t.id, 0)
+            return min(left, free_seats.get(t.id, 0)) if seated else left
+
+        in_stock = [t for t in visible if remaining(t) > 0]
+        sold_out = taken.get(event.id, 0) >= event.capacity or not in_stock
+        if sold_out:
+            pool = visible
+        else:
+            pool = [t for t in in_stock if t.sales_close_at > current] or in_stock
         offers[event.id] = {
             "price_from_minor": min(t.price_minor for t in pool),
             "sold_out": sold_out,
         }
     return offers
+
+
+def event_records(db, events):
+    offers = event_offers(db, events)
+    return [event_record(e, db, offers) for e in events]
 
 
 def event_record(event, db=None, offers=None):
@@ -81,7 +129,7 @@ def event_record(event, db=None, offers=None):
 
         result["images"] = image_records(db, event.id)
         result["cover_image_url"] = result["images"][0]["url"] if result["images"] else None
-        result.update((offers or event_offers(db, [event]))[event.id])
+        result.update((event_offers(db, [event]) if offers is None else offers)[event.id])
     return result
 
 
@@ -217,7 +265,7 @@ def set_capabilities(db, model, field_name, identifier, desired):
 
 def active_allocations(db, event_id, type_id=None, seat_id=None):
     query = select(func.count(Allocation.id)).where(
-        Allocation.event_id == event_id, Allocation.state.in_(["held", "sold", "refund_quarantine"])
+        Allocation.event_id == event_id, Allocation.state.in_(ACTIVE_ALLOCATION_STATES)
     )
     if type_id:
         query = query.where(Allocation.ticket_type_id == type_id)

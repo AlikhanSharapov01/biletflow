@@ -104,8 +104,8 @@ function eventView(n: number, title: string, overrides: Partial<EventView> = {})
 const id = (n: number) => uuid(100 + n);
 export const events: EventView[] = [
   eventView(0, LONG_TITLE.en, { capacity: 1_000_000, price_from_minor: 99_999_999_900 }),
-  eventView(1, LONG_TITLE.ru, { capacity: 0 }),
-  eventView(2, LONG_TITLE.kk, { capacity: 2_147_483_647 }),
+  eventView(1, LONG_TITLE.ru, { capacity: 0, price_from_minor: 0, sold_out: true }),
+  eventView(2, LONG_TITLE.kk, { capacity: 2_147_483_647, price_from_minor: null }),
   eventView(3, "Short", cover(id(3), "wide")),
   eventView(4, "Almaty Jazz Night", cover(id(4), "tall")),
   eventView(5, "Весенний марафон «Алматы»", { time_status: "completed", starts_at: at(-5, 14), ends_at: at(-5, 18) }),
@@ -133,8 +133,10 @@ export const FOCUS_EVENT: Record<Locale, string> = {
   kk: events[2]!.id,
 };
 
-// One type with no tickets left to sell (limit 0), one free and one very expensive
-// type that can be bought today, so the purchase controls render.
+// Ticket types agree with each event's price_from_minor and sold_out above: the first
+// event sells one very expensive type, the second (sold out) and the seventh offer a
+// free type, the third has nothing public (a limit-0 type is never visible) and the
+// rest sell one ordinary paid type.
 export function ticketTypes(eventId: string): TicketType[] {
   const base = {
     created_at: CREATED,
@@ -144,19 +146,22 @@ export function ticketTypes(eventId: string): TicketType[] {
     sales_close_at: at(25),
     is_hidden: false,
   };
-  return [
-    { ...base, id: uuid(200), name: "Sold out", kind: "free", price_minor: 0, quantity_limit: 0, per_order_limit: 4 },
-    { ...base, id: uuid(202), name: "Free admission", kind: "free", price_minor: 0, quantity_limit: 100, per_order_limit: 4 },
-    {
-      ...base,
-      id: uuid(201),
-      name: "Премиальный пакет участника с участием в закрытой части программы и банкетом",
-      kind: "paid",
-      price_minor: 99_999_999_900,
-      quantity_limit: 1_000_000,
-      per_order_limit: 10,
-    },
-  ];
+  const limitZero: TicketType = { ...base, id: uuid(200), name: "Sold out", kind: "free", price_minor: 0, quantity_limit: 0, per_order_limit: 4 };
+  const premium: TicketType = {
+    ...base,
+    id: uuid(201),
+    name: "Премиальный пакет участника с участием в закрытой части программы и банкетом",
+    kind: "paid",
+    price_minor: 99_999_999_900,
+    quantity_limit: 1_000_000,
+    per_order_limit: 10,
+  };
+  const free: TicketType = { ...base, id: uuid(202), name: "Free admission", kind: "free", price_minor: 0, quantity_limit: 100, per_order_limit: 4 };
+  const standard: TicketType = { ...base, id: uuid(203), name: "Standard", kind: "paid", price_minor: 300_000, quantity_limit: 500, per_order_limit: 10 };
+  if (eventId === id(0)) return [premium];
+  if (eventId === id(1) || eventId === id(6)) return [free];
+  if (eventId === id(2)) return [limitZero];
+  return [standard];
 }
 
 export const profile = (locale: Locale): Profile => ({
