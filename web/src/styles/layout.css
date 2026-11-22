@@ -1,7 +1,7 @@
 /* App shell: top bar, centred content column, phone tab bar. */
 .app-shell { min-height: 100vh; min-height: 100dvh; }
 .skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 700; text-decoration: none; }
-.skip-link:focus { top: 12px; }
+.skip-link:focus { top: max(12px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
 
 .topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid var(--line); background: var(--topbar-glass); backdrop-filter: blur(8px); }
 .topbar-inner { display: flex; height: 64px; max-width: calc(var(--content-max) + 2 * var(--gutter)); align-items: center; gap: 24px; margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px)); }

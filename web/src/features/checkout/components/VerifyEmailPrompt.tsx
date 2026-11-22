@@ -4,6 +4,7 @@ import { describeError } from "../../../api/errors";
 import { Button } from "../../../components/ui/Button";
 import { FormMessage } from "../../../components/ui/Feedback";
 import { t, useLocale } from "../../../i18n";
+import { TICKETS_HEADING_ID } from "../../events/components/GetTicketsBar";
 import { useAuth } from "../../auth/AuthContext";
 
 type Action = "resend" | "reload";
@@ -44,6 +45,8 @@ export function VerifyEmailPrompt({ email }: { email: string }) {
     run("reload", async () => {
       const profile = await getProfile();
       setProfile(profile);
+      // The prompt is about to unmount; hand focus to the tickets heading so it is not lost to <body>.
+      if (profile.email_verified_at) requestAnimationFrame(() => document.getElementById(TICKETS_HEADING_ID)?.focus());
       return { text: profile.email_verified_at ? "" : t("checkout.verify_email_still_unverified"), success: false };
     });
 

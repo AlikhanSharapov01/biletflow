@@ -381,8 +381,11 @@ describe("event cards", () => {
     expect(foot(2).textContent).toBe("Sold out");
     expect(foot(2).querySelector(".event-offer[data-kind=sold_out]")).not.toBeNull();
     expect(screen.queryByText("Tickets available")).toBeNull();
-    // The offer is read with the link, which keeps the title as its name.
-    expect(screen.getByRole("link", { name: "Full night" }).getAttribute("aria-describedby")).toBe(foot(2).id);
+    // The offer is read with the link (which keeps the title as its name), then the date and venue.
+    const describedBy = screen.getByRole("link", { name: "Full night" }).getAttribute("aria-describedby")!.split(" ");
+    expect(describedBy[0]).toBe(foot(2).id);
+    expect(describedBy).toHaveLength(2);
+    expect(document.getElementById(describedBy[1]!)).toBe(cards()[2]!.querySelector(".event-card-meta"));
   });
 });
 

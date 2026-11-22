@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { makeEvent } from "../../../tests/helpers/fixtures";
 import { WorkspaceEventCard } from "../../features/organizer/workspace/WorkspaceEventCard";
 import { EventCard } from "./EventCard";
 
-const inRouter = (node: React.ReactNode) => render(<MemoryRouter>{node}</MemoryRouter>);
+const inRouter = (node: ReactNode) => render(<MemoryRouter>{node}</MemoryRouter>);
 
 describe("EventCard", () => {
   it("covers the card with its title link only when asked to", () => {
@@ -18,6 +19,14 @@ describe("EventCard", () => {
     const [plain, covered] = screen.getAllByRole("article");
     expect(plain!.classList.contains("event-card-linked")).toBe(false);
     expect(covered!.classList.contains("event-card-linked")).toBe(true);
+  });
+
+  it("describes the cover link by the offer, then the date and venue lines", () => {
+    inRouter(<EventCard title="Covered" to="/b" coverLink meta={["Sat, 5 Dec · Hall", "Second line"]} footer={<span>From ₸5,000</span>} />);
+    const link = screen.getByRole("link", { name: "Covered" });
+    const ids = (link.getAttribute("aria-describedby") ?? "").split(" ");
+    expect(ids).toHaveLength(3);
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toEqual(["From ₸5,000", "Sat, 5 Dec · Hall", "Second line"]);
   });
 
   it("never covers a card that has extra content", () => {

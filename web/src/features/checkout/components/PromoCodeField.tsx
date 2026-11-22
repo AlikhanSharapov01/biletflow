@@ -23,6 +23,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const tried = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
 
   const check = async (value: string) => {
     const normalized = normalizePromoCode(value);
@@ -61,6 +62,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
     stashPromo(eventId, "");
     setCode("");
     setNote(null);
+    input.current?.focus();
   };
 
   return (
@@ -71,7 +73,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
         </span>
         </label>
         <span className="promo-row">
-          <input id={inputId} value={code} maxLength={32} autoComplete="off" disabled={Boolean(applied)} readOnly={busy} onChange={(e) => setCode(e.target.value)} />
+          <input ref={input} id={inputId} value={code} maxLength={32} autoComplete="off" readOnly={busy || Boolean(applied)} onChange={(e) => setCode(e.target.value)} />
           {applied ? (
             <Button size="sm" onClick={remove}>{t("common.remove")}</Button>
           ) : (

@@ -77,7 +77,11 @@ describe("event image gallery", () => {
     for (const other of screen.getAllByRole("button", { name: /Remove|Make cover/ })) {
       expect(other.getAttribute("aria-disabled")).toBe("true");
     }
-    expect(document.querySelector<HTMLInputElement>('input[type="file"]')!.disabled).toBe(true);
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.disabled).toBe(false);
+    expect(input.getAttribute("aria-disabled")).toBe("true");
+    expect(input.hasAttribute("aria-busy")).toBe(false);
+    expect(fireEvent.click(input)).toBe(false);
     fireEvent.click(makeCover);
     fireEvent.click(move);
     expect(api.setEventCover).not.toHaveBeenCalled();

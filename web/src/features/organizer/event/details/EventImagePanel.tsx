@@ -106,7 +106,16 @@ export function EventImagePanel({ event }: { event: EventView }) {
           onChange={(changeEvent) => setAltText(changeEvent.target.value)}
         />
         <label className={`upload-area ${busy !== null ? "disabled" : ""}`}>
-          <input type="file" accept={ACCEPTED_IMAGE_TYPES.join(",")} disabled={busy !== null} onChange={choose} />
+          <input
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES.join(",")}
+            aria-busy={busy === "upload" || undefined}
+            aria-disabled={busy !== null || undefined}
+            onClick={(clickEvent) => {
+              if (busy !== null) clickEvent.preventDefault();
+            }}
+            onChange={choose}
+          />
           <strong>{busy === "upload" ? t("support.uploading") : t("org.choose_image")}</strong>
           <span>{t("org.image_validated")}</span>
         </label>

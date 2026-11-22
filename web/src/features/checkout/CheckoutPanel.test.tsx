@@ -18,6 +18,7 @@ function Harness({ initial }: { initial: Profile }) {
   return (
     <AuthContext.Provider value={auth}>
       <MemoryRouter>
+        <h2 id="tickets" tabIndex={-1}>Tickets</h2>
         <CheckoutPanel event={makeEvent()} tickets={[makeTicketType()]} />
       </MemoryRouter>
     </AuthContext.Provider>
@@ -48,6 +49,9 @@ describe("CheckoutPanel email verification", () => {
     fireEvent.click(screen.getByRole("button", { name: "I’ve confirmed my email" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Resend email" })).toBeNull());
     expect(screen.queryByText(/Verify your email address/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Reserve tickets" })).toBeTruthy();
+    expect(screen.getByLabelText("Quantity for General")).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Tickets" })));
   });
 
   it("says so when the reloaded profile is still unverified", async () => {

@@ -14,7 +14,7 @@ afterEach(() => vi.resetAllMocks());
 
 const unread: AppNotification = {
   id: "n1", kind: "unknown", locale: "en", title: "Hello", body: "World", event_id: null,
-  target: "none" as AppNotification["target"], payload: {}, read_at: null, created_at: "2026-11-01T10:00:00Z",
+  target: { type: "none", id: null }, payload: {}, read_at: null, created_at: "2026-11-01T10:00:00Z",
 };
 
 describe("notifications page", () => {

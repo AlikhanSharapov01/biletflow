@@ -197,7 +197,8 @@ describe("PromoCodeField", () => {
     await act(async () => pending.resolve(preview));
     expect(onApplied).toHaveBeenLastCalledWith(preview);
     expect(screen.getByRole("status").textContent).toBe("SPRING10: 10% off every ticket");
-    expect(input().disabled).toBe(true);
+    expect(input().readOnly).toBe(true);
+    expect(input().disabled).toBe(false);
     expect(readStashedPromo("e1")).toBe("SPRING10");
   });
 
