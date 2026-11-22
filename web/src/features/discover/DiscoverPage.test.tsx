@@ -38,9 +38,10 @@ function Probe() {
   );
 }
 
-function renderPage(url = "/discover") {
+function renderPage(url: string | string[] = "/discover") {
+  const entries = Array.isArray(url) ? url : [url];
   return render(
-    <MemoryRouter initialEntries={[url]}>
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
       <DiscoverPage />
       <Probe />
     </MemoryRouter>,
@@ -75,7 +76,7 @@ describe("URL to request", () => {
     renderPage();
     await waitFor(() => expect(cards()).toHaveLength(3));
     expect(listEventsMock).toHaveBeenCalledTimes(1);
-    expect(lastCall()).toEqual({ limit: DISCOVER_PAGE_SIZE, offset: 0 });
+    expect(lastCall()).toEqual({ ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 });
   });
 
   it("maps every filter, with the date window from the clock", async () => {
@@ -86,6 +87,7 @@ describe("URL to request", () => {
       category_id: MUSIC,
       city: "almaty",
       ...dateRange("weekend", NOW),
+      ends_after: NOW.toISOString(),
       min_price: 50000,
       max_price: 900000,
       limit: DISCOVER_PAGE_SIZE,
@@ -109,7 +111,7 @@ describe("URL to request", () => {
   it("free replaces the price range", async () => {
     renderPage("/discover?free=1&min_price=5&max_price=9");
     await waitFor(() => expect(cards()).toHaveLength(3));
-    expect(lastCall()).toEqual({ free: true, limit: DISCOVER_PAGE_SIZE, offset: 0 });
+    expect(lastCall()).toEqual({ free: true, ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 });
   });
 
   it("lists the distinct venue cities once, sorted", async () => {
@@ -209,6 +211,89 @@ describe("filter form", () => {
   });
 });
 
+describe("Load more pages in the URL", () => {
+  const full = (from: number) => events(DISCOVER_PAGE_SIZE, from);
+  const loadMore = () => fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+  it("records the page count by replacing the history entry", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24)).mockResolvedValueOnce(full(48));
+    renderPage(["/before", "/discover?q=jazz"]);
+    await waitFor(() => expect(cards()).toHaveLength(24));
+    expect(url()).toBe("/discover?q=jazz");
+    loadMore();
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz&pages=2"));
+    expect(cards()).toHaveLength(48);
+    loadMore();
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz&pages=3"));
+    expect(cards()).toHaveLength(72);
+    fireEvent.click(screen.getByTestId("back"));
+    expect(url()).toBe("/before");
+  });
+
+  it("restores every page in order at ?pages=3", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24)).mockResolvedValueOnce(full(48));
+    renderPage("/discover?pages=3");
+    await waitFor(() => expect(cards()).toHaveLength(72));
+    expect(listEventsMock.mock.calls.map(([filters]) => filters!.offset)).toEqual([0, 24, 48]);
+    expect(url()).toBe("/discover?pages=3");
+    expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy();
+  });
+
+  it("stops restoring at a short page", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(events(5, 24));
+    renderPage("/discover?pages=5");
+    await waitFor(() => expect(cards()).toHaveLength(29));
+    expect(listEventsMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("clamps a hand-edited count", async () => {
+    listEventsMock.mockResolvedValue(events(3));
+    renderPage("/discover?pages=abc");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    expect(listEventsMock).toHaveBeenCalledTimes(1);
+    expect(lastCall().offset).toBe(0);
+  });
+
+  it("caps a huge count at ten pages", async () => {
+    listEventsMock.mockImplementation(async (filters) => events(DISCOVER_PAGE_SIZE, filters!.offset ?? 0));
+    renderPage("/discover?pages=999");
+    await waitFor(() => expect(cards()).toHaveLength(240));
+    expect(listEventsMock).toHaveBeenCalledTimes(10);
+  });
+
+  it("shows the Load more error when a restore page fails, and retries it", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockRejectedValueOnce(new Error("Boom")).mockResolvedValueOnce(full(24));
+    renderPage("/discover?pages=2");
+    await screen.findByRole("alert");
+    expect(cards()).toHaveLength(24);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(cards()).toHaveLength(48));
+    expect(listEventsMock.mock.calls.map(([filters]) => filters!.offset)).toEqual([0, 24, 24]);
+  });
+
+  it("drops the count when a filter changes", async () => {
+    listEventsMock.mockImplementation(async (filters) => events(filters!.offset ? 2 : DISCOVER_PAGE_SIZE, filters!.offset ?? 0));
+    renderPage("/discover?pages=2");
+    await waitFor(() => expect(cards()).toHaveLength(26));
+    fireEvent.change(searchBox(), { target: { value: "rock" } });
+    fireEvent.submit(searchBox().closest("form")!);
+    await waitFor(() => expect(url()).toBe("/discover?q=rock"));
+  });
+
+  it("moves the focus to the first new card while more remain", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(24));
+    const button = screen.getByRole("button", { name: "Load more" });
+    button.focus();
+    fireEvent.click(button);
+    await waitFor(() => expect(cards()).toHaveLength(48));
+    expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy();
+    expect((document.activeElement as HTMLAnchorElement).getAttribute("href")).toBe("/events/e24");
+  });
+});
+
 describe("Load more", () => {
   it("appends the next page by offset, then hides on a short page", async () => {
     listEventsMock.mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE)).mockResolvedValueOnce(events(5, DISCOVER_PAGE_SIZE));
@@ -248,7 +333,7 @@ describe("Load more", () => {
     expect(listEventsMock).toHaveBeenCalledTimes(2);
     await act(async () => next.resolve(events(DISCOVER_PAGE_SIZE, DISCOVER_PAGE_SIZE)));
     await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE * 2));
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Load more" }));
+    expect((document.activeElement as HTMLAnchorElement).getAttribute("href")).toBe(`/events/e${DISCOVER_PAGE_SIZE}`);
   });
 
   it("keeps the loaded cards when a page fails and can retry", async () => {
@@ -321,7 +406,7 @@ describe("Clear filters", () => {
     await waitFor(() => expect(cards()).toHaveLength(3));
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(url()).toBe("/discover");
-    await waitFor(() => expect(lastCall()).toEqual({ limit: DISCOVER_PAGE_SIZE, offset: 0 }));
+    await waitFor(() => expect(lastCall()).toEqual({ ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 }));
     expect(document.querySelector(".empty-action")).toBeNull();
   });
 

@@ -10,10 +10,11 @@ import {
   normalisePrice,
   parseDiscoverQuery,
   priceRangeError,
+  searchKey,
   type DiscoverQuery,
 } from "./discoverQuery";
 
-const empty: DiscoverQuery = { q: "", category: "", city: "", when: "", free: false, minPrice: "", maxPrice: "" };
+const empty: DiscoverQuery = { q: "", category: "", city: "", when: "", free: false, minPrice: "", maxPrice: "", pages: 1 };
 const CAT = "0b9c1d52-4f0e-4a64-8d3a-6f1f7a5c2e11";
 const q = (patch: Partial<DiscoverQuery>): DiscoverQuery => ({ ...empty, ...patch });
 
@@ -139,6 +140,28 @@ describe("dateRange", () => {
   });
 });
 
+describe("pages", () => {
+  const pagesOf = (search: string) => parseDiscoverQuery(new URLSearchParams(search)).pages;
+
+  it("reads a count of 2 to 10 and clamps hand-edited values", () => {
+    expect(pagesOf("?pages=3")).toBe(3);
+    expect(pagesOf("")).toBe(1);
+    for (const bad of ["0", "abc", "-2", "1.5", "", "1e1"]) expect(pagesOf(`?pages=${bad}`)).toBe(1);
+    expect(pagesOf("?pages=999")).toBe(10);
+    expect(pagesOf("?pages=10")).toBe(10);
+  });
+
+  it("serialises after the filters and omits a single page", () => {
+    expect(discoverSearchParams(q({ pages: 1 })).has("pages")).toBe(false);
+    expect(discoverSearchParams(q({ q: "jazz", pages: 3 })).toString()).toBe("q=jazz&pages=3");
+  });
+
+  it("is not part of the search key or the active filters", () => {
+    expect(searchKey(q({ q: "jazz", pages: 4 }))).toBe("q=jazz");
+    expect(hasActiveFilters(q({ pages: 4 }))).toBe(false);
+  });
+});
+
 describe("eventFilters", () => {
   const now = new Date(2026, 5, 10, 9);
   const page = { limit: DISCOVER_PAGE_SIZE, offset: 24 };
@@ -154,23 +177,31 @@ describe("eventFilters", () => {
       city: "Almaty",
       min_price: 50000,
       max_price: 900000,
+      ends_after: now.toISOString(),
       limit: 24,
       offset: 24,
     });
   });
 
   it("free replaces price fields", () => {
-    expect(eventFilters(q({ free: true, minPrice: "500", maxPrice: "900" }), now, page)).toEqual({ free: true, limit: 24, offset: 24 });
+    expect(eventFilters(q({ free: true, minPrice: "500", maxPrice: "900" }), now, page)).toEqual({ free: true, ends_after: now.toISOString(), limit: 24, offset: 24 });
   });
 
   it("sends canonical prices and never a non-finite number", () => {
-    expect(eventFilters(q({ minPrice: "007", maxPrice: "1e+22" }), now, page)).toEqual({ min_price: 700, limit: 24, offset: 24 });
+    expect(eventFilters(q({ minPrice: "007", maxPrice: "1e+22" }), now, page)).toEqual({ min_price: 700, ends_after: now.toISOString(), limit: 24, offset: 24 });
     expect(eventFilters(q({ minPrice: "1 500" }), now, page).min_price).toBe(150000);
+  });
+
+  it("always lists upcoming events only, with or without a date preset", () => {
+    for (const when of ["", "today", "weekend", "month"] as const) {
+      expect(eventFilters(q({ when }), now, page).ends_after).toBe(now.toISOString());
+    }
+    expect(eventFilters(q({ when: "today" }), now, page).date_from).toBe(new Date(2026, 5, 10).toISOString());
   });
 
   it("omits empty fields and includes the date range", () => {
     const f = eventFilters(q({ when: "today", q: "  " }), now, { limit: 24, offset: 0 });
-    expect(f).toEqual({ ...dateRange("today", now), limit: 24, offset: 0 });
+    expect(f).toEqual({ ...dateRange("today", now), ends_after: now.toISOString(), limit: 24, offset: 0 });
     expect(f).not.toHaveProperty("q");
     expect(f).not.toHaveProperty("free");
   });

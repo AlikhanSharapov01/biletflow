@@ -2,6 +2,8 @@ import type { EventFilters } from "../../api/types";
 import type { TranslationKey } from "../../i18n";
 
 export const DISCOVER_PAGE_SIZE = 24;
+/** Most pages of results a link can ask to restore (the `pages` URL parameter). */
+export const MAX_DISCOVER_PAGES = 10;
 
 export type DiscoverWhen = "" | "today" | "weekend" | "month";
 
@@ -14,6 +16,8 @@ export interface DiscoverQuery {
   /** Whole tenge, as typed. */
   minPrice: string;
   maxPrice: string;
+  /** Pages of results shown, 1 to MAX_DISCOVER_PAGES; the rest of the query does not depend on it. */
+  pages: number;
 }
 
 const WHEN_VALUES: readonly DiscoverWhen[] = ["today", "weekend", "month"];
@@ -38,6 +42,11 @@ function limited(value: string | null, max: number): string {
   return value !== null && value.length <= max ? value : "";
 }
 
+function parsePages(raw: string | null): number {
+  if (raw === null || !/^\d{1,6}$/.test(raw)) return 1;
+  return Math.min(Math.max(Number(raw), 1), MAX_DISCOVER_PAGES);
+}
+
 export function parseDiscoverQuery(params: URLSearchParams): DiscoverQuery {
   const when = params.get("when") ?? "";
   const category = params.get("category") ?? "";
@@ -49,6 +58,7 @@ export function parseDiscoverQuery(params: URLSearchParams): DiscoverQuery {
     free: params.get("free") === "1",
     minPrice: normalisePrice(params.get("min_price") ?? ""),
     maxPrice: normalisePrice(params.get("max_price") ?? ""),
+    pages: parsePages(params.get("pages")),
   };
 }
 
@@ -61,7 +71,13 @@ export function discoverSearchParams(query: DiscoverQuery): URLSearchParams {
   if (query.free) params.set("free", "1");
   if (query.minPrice) params.set("min_price", query.minPrice);
   if (query.maxPrice) params.set("max_price", query.maxPrice);
+  if (query.pages > 1) params.set("pages", String(Math.min(query.pages, MAX_DISCOVER_PAGES)));
   return params;
+}
+
+/** Identifies a search: the serialised query without how many pages of it are shown. */
+export function searchKey(query: DiscoverQuery): string {
+  return discoverSearchParams({ ...query, pages: 1 }).toString();
 }
 
 /** Date window for a quick "when" choice, in the browser's local time zone. */
@@ -94,7 +110,8 @@ export function dateRange(when: DiscoverWhen, now: Date): { date_from?: string; 
 }
 
 export function eventFilters(query: DiscoverQuery, now: Date, page: { limit: number; offset: number }): EventFilters {
-  const filters: EventFilters = { ...dateRange(query.when, now), limit: page.limit, offset: page.offset };
+  // Discover lists upcoming events only: whatever has not ended by now, with or without a date preset.
+  const filters: EventFilters = { ...dateRange(query.when, now), ends_after: now.toISOString(), limit: page.limit, offset: page.offset };
   const text = query.q.trim();
   if (text) filters.q = text;
   if (query.category) filters.category_id = query.category;
