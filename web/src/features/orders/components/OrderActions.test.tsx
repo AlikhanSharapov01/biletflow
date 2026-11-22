@@ -26,10 +26,16 @@ describe("refund requests and cancellations", () => {
     vi.mocked(requestRefund).mockResolvedValue({ order_id: "ord1", status: "requested", case_id: "case/1" });
     const changed = mount(true);
     fireEvent.change(screen.getByRole("textbox"), { target: { value: " Wrong date " } });
+    screen.getByRole("button", { name: "Request refund" }).focus();
     fireEvent.click(screen.getByRole("button", { name: "Request refund" }));
     expect((await screen.findByRole("link", { name: "View refund request" })).getAttribute("href")).toBe("/support/cases/case%2F1");
     expect(requestRefund).toHaveBeenCalledWith("ord1", { reason: "Wrong date" });
-    expect((screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement).disabled).toBe(true);
+    const submit = screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement;
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    expect(submit.disabled).toBe(false);
+    expect(document.activeElement).toBe(submit);
+    fireEvent.click(submit);
+    expect(requestRefund).toHaveBeenCalledTimes(1);
     expect(changed).not.toHaveBeenCalled();
   });
 

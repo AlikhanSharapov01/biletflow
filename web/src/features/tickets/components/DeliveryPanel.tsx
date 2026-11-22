@@ -49,12 +49,12 @@ export function DeliveryPanel({ ticketId }: { ticketId: string }) {
           {delivery.status === "failed" ? <p className="form-intro">{t("tickets.email_failed_hint")}</p> : null}
           <FormMessage message={message.text} success={message.success} />
           <div className="form-actions">
-            <Button busy={busy} disabled={!delivery.can_resend} onClick={() => void resend()}>
+            <Button busy={busy} aria-disabled={!delivery.can_resend} aria-describedby={resendHint(delivery) ? "resend-hint" : undefined} onClick={() => void resend()}>
               {busy ? t("common.sending") : t("tickets.resend")}
             </Button>
             <Button variant="text" onClick={() => { setOverride(null); loaded.reload(); }}>{t("common.refresh")}</Button>
           </div>
-          {resendHint(delivery) ? <small className="form-intro">{resendHint(delivery)}</small> : null}
+          {resendHint(delivery) ? <small id="resend-hint" className="form-intro">{resendHint(delivery)}</small> : null}
         </>
       ) : null}
     </Panel>

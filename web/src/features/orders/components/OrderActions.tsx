@@ -52,7 +52,7 @@ export function OrderActions({ order, onChanged }: OrderActionsProps) {
         <FormMessage message={message.text} success={message.success} />
         {caseId ? <ButtonLink to={`/support/cases/${encodeURIComponent(caseId)}`}>{t("checkout.view_refund_request")}</ButtonLink> : null}
         <div className="form-actions">
-          <Button type="submit" variant="danger" busy={busy} disabled={Boolean(caseId)}>
+          <Button type="submit" variant="danger" busy={busy} aria-disabled={Boolean(caseId)}>
             {busy ? t("common.sending") : paid ? t("checkout.request_refund") : t("checkout.cancel_registration")}
           </Button>
         </div>

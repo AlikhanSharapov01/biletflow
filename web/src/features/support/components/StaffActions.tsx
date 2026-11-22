@@ -52,6 +52,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
 
   const handleStatus = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (status === supportCase.status) return;
     void run("status", () => changeStatus(supportCase.id, status, reason.trim()), t("support.status_updated"));
   };
 
@@ -77,7 +78,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
         </SelectField>
         <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
         <div className="form-actions">
-          <Button type="submit" busy={pending === "status"} aria-disabled={pending !== null && pending !== "status"} disabled={status === supportCase.status}>{t("support.update_status")}{" "}</Button>
+          <Button type="submit" busy={pending === "status"} aria-disabled={(pending !== null && pending !== "status") || status === supportCase.status}>{t("support.update_status")}{" "}</Button>
           {assignedToMe ? (
             <Button busy={pending === "assign"} aria-disabled={pending !== null && pending !== "assign"} onClick={() => void run("assign", () => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
           ) : (
