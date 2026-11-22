@@ -97,10 +97,8 @@
   --error: #a44735;
   --error-title: #745247;
   --error-text: #79594f;
-  --danger: #a85443;
+  --danger: #90483a;
   --danger-line: #f0d8d2;
-  --danger-line-hover: #d5a69c;
-  --danger-surface: #fff8f5;
 
   /* Status pill tones (background / text) */
   --tone-positive-bg: #eef5e9;

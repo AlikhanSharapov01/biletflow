@@ -1,8 +1,13 @@
 /* Platform-admin portal (features/admin). */
-.admin-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; padding: 4px; border-radius: var(--radius-segment); background: var(--tab-track); }
-.admin-nav-link { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-thumb); color: var(--nav-ink); font-size: var(--text-body-sm); font-weight: 600; text-decoration: none; }
+/* The same segmented control as .tabs (components.css): a grey track and a raised paper thumb. */
+.admin-nav { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 16px; padding: 2px; border-radius: var(--radius-segment); background: var(--tab-track); }
+.admin-nav-link {
+  display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-thumb); color: var(--tab-ink); font-size: var(--text-body-sm); font-weight: 500; text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
 @media (hover: hover) { .admin-nav-link:hover { color: var(--ink); } }
-.admin-nav-link.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 700; }
+.admin-nav-link:active { transform: scale(.97); }
+.admin-nav-link.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 600; }
 .admin-content { display: grid; gap: var(--gap); }
 
 @media (max-width: 760px) {

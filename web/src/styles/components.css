@@ -14,14 +14,14 @@
   font-size: var(--text-meta); font-weight: 600;
   transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
-/* Destructive: the subtle shape on paper with its own red tokens. */
-.danger-button { border: 1px solid var(--danger-line); background: var(--paper); color: var(--danger); }
+/* Destructive: always rendered with .subtle-button (ui/Button.tsx), so it is the same tinted grey fill, hover and
+   contrast edges, with the text in the danger colour. */
+.danger-button { color: var(--danger); }
 .text-button { padding: 0; border: 0; background: none; color: var(--green); cursor: pointer; font-size: var(--text-meta); font-weight: 600; text-decoration: none; transition: opacity var(--dur-press) var(--ease-out); }
 /* Hover feedback only where hovering exists, so touch screens never keep a stuck hover colour. */
 @media (hover: hover) {
   .primary-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--green-dark); }
   .subtle-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--fill-strong); }
-  .danger-button:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--danger-line-hover); background: var(--danger-surface); }
   .text-button:hover:not(:disabled):not([aria-disabled="true"]) { text-decoration: underline; }
 }
 /* Pressed: a short scale-down (a dim for text buttons). Not on disabled or busy controls. */
@@ -63,6 +63,10 @@
   border: 0; border-radius: var(--radius-panel); background: var(--paper); box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-raised); outline: 1px solid transparent; outline-offset: -1px;
 }
 .panel-note { background: var(--note); }
+/* A panel inside a panel (an error panel in a tab, say) is a grouped inset: the grey fill on the outer
+   paper, with no second ring or shadow. A note-toned panel keeps its tint. */
+.panel .panel { box-shadow: none; }
+.panel .panel:not(.panel-note) { background: var(--fill); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .panel-heading-copy { min-width: 0; }
 .panel-heading h2 { font-size: var(--text-panel-title); font-weight: 600; letter-spacing: var(--track-panel); line-height: var(--leading-card); }
@@ -78,7 +82,7 @@
 /* Date tile (mobile ui/DateTile) */
 .date-tile { display: grid; width: 48px; height: 50px; flex: none; place-content: center; border-radius: var(--radius-thumb); background: var(--date-tile); color: var(--date-tile-ink); text-align: center; }
 .date-tile b { font-size: 17px; line-height: 1.1; }
-.date-tile span { margin-top: 2px; font-size: var(--text-micro); font-weight: 800; letter-spacing: .5px; }
+.date-tile span { margin-top: 2px; font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); }
 
 /* Event card (mobile EventCard): a borderless paper card like the panels. A linked card deepens its shadow on
    hover without moving, and presses down slightly on pointer-down. The art inherits the card's corners. */
@@ -203,8 +207,8 @@
 .skeleton-short { width: 55%; }
 /* A reload keeps the previous cards in place: dimmed and not clickable until the new ones arrive.
    The dim starts after a short delay, so an answer that comes back at once never flashes; it eases back in on the way out. */
-.event-grid { transition: opacity .2s ease; }
-.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity .2s ease .15s; }
+.event-grid { transition: opacity var(--dur-base) var(--ease-out); }
+.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out) .15s; }
 
 /* Loading, error, empty (mobile ui/States) */
 .loading-state { display: flex; min-height: 150px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: var(--text-body-sm); }
@@ -237,7 +241,7 @@
 .table-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
 .data-table th, .data-table td { padding: 11px 10px; border-top: 1px solid var(--line-soft); text-align: left; vertical-align: middle; }
-.data-table th { border-top: 0; color: var(--table-head); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+.data-table th { border-top: 0; color: var(--table-head); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-transform: uppercase; white-space: nowrap; }
 
 /* Toast */
 /* A pill of thick material that rises 8px into place and sinks back the same way. The second radius is
@@ -305,6 +309,7 @@
     .event-card-linked:hover { box-shadow: 0 0 0 1px var(--input-line), var(--shadow-lift); }
   }
   .row-grid > .event-card, .card-list > .event-card { box-shadow: none; }
+  .panel .panel { box-shadow: inset 0 0 0 1px var(--input-line); }
   .subtle-button { box-shadow: inset 0 0 0 1px var(--input-line); }
 }
 @media (forced-colors: active) {

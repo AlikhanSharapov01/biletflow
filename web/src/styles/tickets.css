@@ -28,9 +28,13 @@
 .content-grid.ticket-side-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* The live entry panel keeps its yellow edge as a ring, since panels have no border. */
 .entry-panel { box-shadow: 0 0 0 1.5px var(--yellow), var(--shadow-raised); }
+/* More contrast: the same input-line edge as every other panel (the yellow ring would win over it). */
+@media (prefers-contrast: more) {
+  .entry-panel { box-shadow: 0 0 0 1px var(--input-line), var(--shadow-raised); }
+}
 .entry-grid { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 20px; }
 .entry-qr { display: grid; justify-items: center; gap: 8px; margin: 0; }
-.entry-qr figcaption { padding: 4px 10px; border-radius: var(--radius-pill); background: var(--tone-pending-bg); color: var(--tone-pending); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-align: center; }
+.entry-qr figcaption { padding: 4px 10px; border-radius: var(--radius-pill); background: var(--tone-pending-bg); color: var(--tone-pending); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-align: center; }
 .entry-qr-box { padding: 10px; border: 3px dashed var(--yellow); border-radius: var(--radius-panel); background: var(--paper); }
 .entry-qr-box svg { display: block; width: 176px; height: 176px; }
 .entry-copy { display: grid; justify-items: start; gap: 8px; }

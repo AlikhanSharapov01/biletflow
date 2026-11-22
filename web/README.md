@@ -198,7 +198,9 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
    (`--shadow-raised` for cards, panels and grouped lists, `--shadow-lift` on hover), motion
    (`--dur-press` for pointer-down feedback, `--ease-out`, the overshoot-free `--ease-spring`) and
    the translucent chrome materials (`--material-*`). Buttons change colour on hover and scale on
-   press, never lift; cards and panels are borderless with a hairline `--separator` ring; lists are
+   press, never lift; danger buttons and the language select share the subtle button's grey
+   `--fill`; every transition duration is a `--dur-*` token. Cards and panels are borderless with a
+   hairline `--separator` ring, and a panel nested in a panel is a plain `--fill` inset; lists are
    grouped on one surface with inset hairlines. Without `backdrop-filter`, with
    `prefers-reduced-transparency: reduce` or with `prefers-contrast: more`, the materials turn solid
    (`--material-solid`), and more contrast also draws a 1px `--input-line` edge; reduced motion

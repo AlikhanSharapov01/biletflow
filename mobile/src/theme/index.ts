@@ -20,7 +20,7 @@ export const colors = {
   coral: "#e9755d",
   yellow: "#f4c96b",
   error: "#a44735",
-  danger: "#a85443",
+  danger: "#90483a",
   dangerLine: "#f0d8d2",
   note: "#eef3e6",
   dateTile: "#f3eee1",

@@ -12,7 +12,7 @@
 .brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-brand); background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
 
 .top-tabs { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; }
-.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .12s ease-out; }
+.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform var(--dur-press) var(--ease-out); }
 .top-tab:active { transform: scale(.97); }
 @media (hover: hover) {
   .top-tab:hover { background: var(--hover-surface); color: var(--ink); }
@@ -21,7 +21,7 @@
 
 .topbar-actions { display: flex; flex: none; align-items: center; gap: 12px; margin-left: auto; }
 @media (max-width: 480px) { .topbar-actions { gap: 8px; } }
-.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); transition: transform .12s ease-out; }
+.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); transition: transform var(--dur-press) var(--ease-out); }
 .icon-button:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
 @media (hover: hover) {
   .icon-button:hover { border-color: var(--hover-line); color: var(--ink); }
@@ -102,7 +102,7 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
     --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + var(--tab-bar-edge));
   }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
-  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator); outline: 1px solid transparent; outline-offset: -1px; }
+  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator), inset 0 1px 0 var(--material-edge); outline: 1px solid transparent; outline-offset: -1px; }
   .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: var(--text-micro); font-weight: 500; line-height: 1.15; text-align: center; text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
   /* Press feedback on the icon only, so the label never blurs while it scales. */
   .tab-bar-icon { flex: none; transition: transform var(--dur-press) var(--ease-out); }
@@ -145,6 +145,8 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
   .topbar .brand-mark { width: 26px; height: 26px; font-size: 16px; }
   .topbar .icon-button { width: 36px; height: 36px; }
   .topbar .primary-button.compact-action { padding: 0 10px; }
+  .topbar .language-switcher select { min-height: 36px; padding: 0 19px 0 8px; }
+  .topbar .language-switcher::after { right: 7px; }
 }
 
 /* Materials fall back to solid chrome: without backdrop-filter (also checked with the -webkit- prefix

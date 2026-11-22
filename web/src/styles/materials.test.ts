@@ -114,8 +114,9 @@ describe("translucent materials", () => {
   it("separates the bars with a hairline instead of a border", () => {
     const bar = (selector: string) => materials.find((block) => selectorsOf(block).some((part) => part.startsWith(selector)))!;
     expect(value(bar(".topbar").body, "box-shadow")).toBe("0 0.5px 0 var(--separator)");
-    expect(value(bar(".tab-bar").body, "box-shadow")).toBe("0 -0.5px 0 var(--separator)");
-    expect(value(bar(".get-tickets-bar").body, "box-shadow")).toBe("0 -0.5px 0 var(--separator)");
+    // The bottom bars also catch the light along their top: the bright material edge (apple-design §12).
+    expect(value(bar(".tab-bar").body, "box-shadow")).toBe("0 -0.5px 0 var(--separator), inset 0 1px 0 var(--material-edge)");
+    expect(value(bar(".get-tickets-bar").body, "box-shadow")).toBe("0 -0.5px 0 var(--separator), inset 0 1px 0 var(--material-edge)");
     for (const selector of [".topbar", ".tab-bar", ".get-tickets-bar"]) {
       const rules = all.filter((block) => !isFallback(block) && selectorsOf(block).includes(selector));
       for (const rule of rules) expect(rule.body, selector).not.toMatch(/border(-top|-bottom)?\s*:\s*1px solid var\(--line\)/);

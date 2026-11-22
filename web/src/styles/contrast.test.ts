@@ -130,9 +130,27 @@ const TEXT_PAIRS: Pair[] = [
   ["error-title", "canvas", ".error-panel strong on the page"],
   ["error-text", "paper", ".error-panel p"],
   ["error-text", "canvas", ".error-panel p on the page"],
-  ["danger", "paper", ".danger-button"],
-  ["danger", "canvas", ".danger-button on the page"],
-  ["danger", "danger-surface", ".danger-button:hover"],
+  ["danger", "paper", ".support-pending-file small"],
+  ["danger", "canvas", ".support-pending-file small on the page"],
+  // Danger buttons: the subtle grey fill in the danger colour, at rest and hovered, wherever they sit.
+  ["danger", ["fill", "paper"], ".danger-button in a panel"],
+  ["danger", ["fill", "canvas"], ".danger-button on the page"],
+  ["danger", ["fill", "note"], ".danger-button in a note panel"],
+  ["danger", ["fill-strong", "paper"], ".danger-button:hover in a panel"],
+  ["danger", ["fill-strong", "canvas"], ".danger-button:hover on the page"],
+  ["danger", ["fill-strong", "note"], ".danger-button:hover in a note panel"],
+  ["danger", ["fill", "fill", "paper"], ".danger-button in a panel nested in a panel"],
+  ["danger", ["fill-strong", "fill", "paper"], ".danger-button:hover in a panel nested in a panel"],
+  // A panel nested in a panel (an error panel in a tab) is the grey fill over the outer panel.
+  ["error-title", ["fill", "paper"], ".panel .error-panel strong"],
+  ["error-text", ["fill", "paper"], ".panel .error-panel p"],
+  ["ink", ["fill", "paper"], "text in a nested panel"],
+  ["intro", ["fill", "paper"], ".panel-subtitle in a nested panel"],
+  ["green-dark", ["fill", "fill", "paper"], ".subtle-button in a nested panel"],
+  ["green-dark", ["fill-strong", "fill", "paper"], ".subtle-button:hover in a nested panel"],
+  // The language select on sign-in: the subtle fill on the sign-in panel.
+  ["ink", ["fill", "paper"], ".auth-box .language-switcher select"],
+  ["ink", ["fill-strong", "paper"], ".auth-box .language-switcher select:hover"],
   ["tone-positive", "tone-positive-bg", "positive status pill"],
   ["tone-pending", "tone-pending-bg", "pending status pill"],
   ["tone-blocked", "tone-blocked-bg", "blocked status pill"],
@@ -198,6 +216,11 @@ const ON_THICK: Array<[string, string]> = [
 for (const [text, where] of ON_CHROME) {
   TEXT_PAIRS.push([text, "material-solid", `${where} on solid chrome`]);
   for (const under of UNDER_CHROME) TEXT_PAIRS.push([text, ["material-chrome", under], `${where} on the chrome`]);
+}
+// The top bar's language select: ink on the subtle fill, at rest and hovered, on every chrome backdrop.
+for (const fill of ["fill", "fill-strong"]) {
+  TEXT_PAIRS.push(["ink", [fill, "material-solid"], `.topbar .language-switcher select (${fill}) on solid chrome`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push(["ink", [fill, "material-chrome", under], `.topbar .language-switcher select (${fill}) on the chrome`]);
 }
 for (const [text, where] of ON_THICK) {
   TEXT_PAIRS.push([text, "material-solid", `${where} on the solid fallback`]);

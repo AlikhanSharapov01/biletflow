@@ -91,12 +91,14 @@ describe("buttons", () => {
     expect(hover.map((block) => value(block.body, "background"))).toContain("var(--fill-strong)");
   });
 
-  it("danger keeps its own tokens on the subtle shape", () => {
+  // Danger is always rendered with .subtle-button (components/ui/Button.tsx), so it takes the subtle
+  // fill, hover and edges, and only changes the text colour: a tinted button, not an outlined one.
+  it("danger is the subtle tinted button in the danger colour", () => {
     expect(declared(".danger-button", "color")).toBe("var(--danger)");
-    expect(declared(".danger-button", "border")).toBe("1px solid var(--danger-line)");
-    expect(declared(".danger-button", "background")).toBe("var(--paper)");
-    const hover = all.filter(hoverOnly).filter((block) => selectorsOf(block).some((part) => part.startsWith(".danger-button:hover")));
-    expect(hover.map((block) => value(block.body, "background"))).toContain("var(--danger-surface)");
+    for (const property of ["border", "background", "box-shadow"]) {
+      const rules = all.filter((block) => selectorsOf(block).some((part) => part === ".danger-button" || part.startsWith(".danger-button:")));
+      expect(rules.map((block) => value(block.body, property)).filter(Boolean), property).toEqual([]);
+    }
   });
 
   it("text buttons dim on press instead of scaling", () => {
@@ -311,5 +313,120 @@ describe("radii come from tokens", () => {
   it("the brand mark's shaped corner is a token", () => {
     expect(declared(".brand-mark", "border-radius")).toBe("var(--radius-brand)");
     expect(readFileSync("src/styles/tokens.css", "utf8")).toMatch(/--radius-brand:\s*10px 10px 10px 3px;/);
+  });
+});
+
+const inside = (pattern: RegExp, selector: string) => all.filter((block) => block.context.some((c) => pattern.test(c)) && selectorsOf(block).includes(selector));
+
+describe("language select", () => {
+  it("is a subtle button with a drawn chevron instead of the engine's box", () => {
+    const select = ".language-switcher select";
+    expect(declared(select, "appearance")).toBe("none");
+    expect(declared(select, "-webkit-appearance")).toBe("none");
+    expect(declared(select, "background")).toBe("var(--fill)");
+    expect(declared(select, "border")).toMatch(/^(0|none)$/);
+    expect(declared(select, "border-radius")).toBe("var(--radius-button)");
+    // The chevron is a mask filled with the text colour, so the stylesheet names no colour for it.
+    const chevron = ".language-switcher::after";
+    expect(declared(chevron, "background-color")).toBe("currentColor");
+    expect(declared(chevron, "mask")).toMatch(/^url\("data:image\/svg\+xml,/);
+    expect(declared(chevron, "-webkit-mask")).toBe(declared(chevron, "mask"));
+    expect(declared(chevron, "pointer-events")).toBe("none");
+  });
+
+  it("keeps the field size, so phones never zoom into it", () => {
+    expect(declared(".language-switcher select", "font-size")).toBeUndefined();
+  });
+
+  it("gets an edge with more contrast and the engine's own control in forced colours", () => {
+    expect(inside(/prefers-contrast:\s*more/, ".language-switcher select").map((block) => value(block.body, "box-shadow"))).toContain("inset 0 0 0 1px var(--input-line)");
+    expect(inside(/forced-colors:\s*active/, ".language-switcher select").map((block) => value(block.body, "appearance"))).toContain("auto");
+    expect(inside(/forced-colors:\s*active/, ".language-switcher::after").map((block) => value(block.body, "display"))).toContain("none");
+  });
+
+  it("sits on its own line on sign-in, without an inline gap under it", () => {
+    expect(declared(".auth-box > .language-switcher", "display")).toBe("flex");
+  });
+});
+
+describe("semibold labels", () => {
+  it("form group legends match the field label weight", () => {
+    expect(declared(".form-group legend", "font-weight")).toBe(declared(".field-label", "font-weight"));
+  });
+
+  it.each([".seat-stage", ".stat-label", ".data-table th", ".finance-group-title", ".entry-qr figcaption", ".date-tile span"])("%s uses eyebrow tracking at semibold", (selector) => {
+    for (const block of base(selector)) {
+      const tracking = value(block.body, "letter-spacing");
+      if (tracking) expect(tracking, `${block.file}: ${selector}`).toBe("var(--track-eyebrow)");
+      const weight = value(block.body, "font-weight");
+      if (weight) expect(weight, `${block.file}: ${selector}`).toBe("600");
+    }
+    expect(declared(selector, "letter-spacing"), selector).toBe("var(--track-eyebrow)");
+  });
+
+  it("no uppercase label sets its own tracking", () => {
+    const offenders = all
+      .filter((block) => value(block.body, "text-transform") === "uppercase")
+      .filter((block) => /^[-\d.]/.test(value(block.body, "letter-spacing") ?? "var"))
+      .map((block) => `${block.file}: ${block.selector}`);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("admin navigation", () => {
+  it("is the same segmented control as the tabs", () => {
+    expect(declared(".admin-nav", "padding")).toBe(declared(".tabs", "padding"));
+    expect(declared(".admin-nav", "gap")).toBe(declared(".tabs", "gap"));
+    expect(declared(".admin-nav", "background")).toBe(declared(".tabs", "background"));
+    expect(declared(".admin-nav", "border-radius")).toBe(declared(".tabs", "border-radius"));
+    for (const property of ["background", "box-shadow", "color", "font-weight"]) {
+      expect(declared(".admin-nav-link.active", property), property).toBe(declared(".tab.active", property));
+    }
+    expect(declared(".admin-nav-link", "color")).toBe(declared(".tab", "color"));
+    expect(declared(".admin-nav-link", "font-weight")).toBe(declared(".tab", "font-weight"));
+    expect(declared(".admin-nav-link", "border-radius")).toBe(declared(".tab", "border-radius"));
+  });
+});
+
+describe("motion durations", () => {
+  // The sticky Get tickets bar keeps its own sheet curve and timing (events.css).
+  const EXEMPT = [".get-tickets-bar[data-ready]"];
+  it("every transition duration is a motion token", () => {
+    const offenders: string[] = [];
+    for (const block of all.filter((candidate) => !reducedMotion(candidate) && !EXEMPT.includes(candidate.selector))) {
+      const transition = value(block.body, "transition");
+      if (!transition) continue;
+      for (const item of transition.split(/,(?![^(]*\))/)) {
+        // The first time in an item is its duration; a later one is a delay.
+        const duration = item.trim().split(/\s+/).find((part) => /^(var\(--dur-[\w-]+\)|[\d.]+m?s)$/.test(part));
+        if (duration && !duration.startsWith("var(--dur-") && !/^0m?s$/.test(duration)) offenders.push(`${block.file}: ${block.selector}: ${item.trim()}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("nested panels", () => {
+  it("a panel inside a panel is a grey fill without a second ring or shadow", () => {
+    expect(declared(".panel .panel", "box-shadow")).toBe("none");
+    expect(declared(".panel .panel:not(.panel-note)", "background")).toBe("var(--fill)");
+  });
+
+  it("keeps an edge with more contrast", () => {
+    expect(inside(/prefers-contrast:\s*more/, ".panel .panel").map((block) => value(block.body, "box-shadow"))).toContain("inset 0 0 0 1px var(--input-line)");
+  });
+});
+
+describe("entry panel", () => {
+  it("trades its yellow ring for the input-line edge with more contrast", () => {
+    expect(inside(/prefers-contrast:\s*more/, ".entry-panel").map((block) => value(block.body, "box-shadow"))).toContain("0 0 0 1px var(--input-line), var(--shadow-raised)");
+  });
+});
+
+describe("sign-in story card", () => {
+  it("drops its blur with reduced transparency", () => {
+    const rules = inside(/prefers-reduced-transparency:\s*reduce/, ".story-ticket");
+    expect(rules.map((block) => value(block.body, "backdrop-filter"))).toContain("none");
+    expect(rules.map((block) => value(block.body, "-webkit-backdrop-filter"))).toContain("none");
   });
 });

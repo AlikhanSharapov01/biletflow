@@ -19,7 +19,7 @@
   .get-tickets-bar {
     position: fixed; right: 0; bottom: 0; left: 0; z-index: 19; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
     padding: 10px max(var(--gutter), env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(var(--gutter), env(safe-area-inset-left, 0px));
-    background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator);
+    background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator), inset 0 1px 0 var(--material-edge);
     outline: 1px solid transparent; outline-offset: -1px;
   }
   /* The tab bar (z-index 20) is the floor: the bar rests on it and slides back behind it. */
@@ -124,7 +124,7 @@
   .discover-filters { grid-template-columns: minmax(0, 1fr); }
   .discover-filters .filter-actions > * { flex: 1 1 140px; }
   .discover-filters .more-filters summary { display: flex; min-height: var(--control-height); align-items: center; justify-content: space-between; gap: 8px; color: var(--button-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 700; }
-  .discover-filters .more-filters .chevron { flex: none; transition: transform .15s; }
+  .discover-filters .more-filters .chevron { flex: none; transition: transform var(--dur-fast) var(--ease-out); }
   .discover-filters .more-filters[open] .chevron { transform: rotate(180deg); }
   .discover-filters .more-filters-body { grid-template-columns: minmax(0, 1fr); margin-top: 10px; }
   .discover-filters .price-range { grid-column: auto; }
