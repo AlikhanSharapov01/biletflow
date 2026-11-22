@@ -212,7 +212,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/` | Anyone | Redirects to `/discover`; so does any unknown path |
 | `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google, language |
 | `/verify-email#token=`, `/reset-password#token=` | Anyone | Pages opened from emailed links |
-| `/discover` | Anyone | Published events with search, category, city, date, price and free filters in the URL, Load more paging |
+| `/discover` | Anyone | Published events with search, category, city, date, price and free filters in the URL, Load more paging; skeleton cards on the first load, and a new search keeps every loaded card on screen, dimmed and `aria-busy`, until its first page arrives |
 | `/events/:eventId` | Anyone | Event details, publication label, tickets, seat map, promo code, calendar, report, get help |
 | `/c/:token` | Anyone | Campaign QR link: resolves the promo and opens the event |
 | `/tickets`, `/tickets/:ticketId` | Signed in | Tickets: QR, PDF, delivery, admission status, entry confirmation |
@@ -319,7 +319,7 @@ filtered, empty and with Load more), the event page and the organizer event page
 - every Discover filter control inside the viewport, none overlapping another, and no select
   cutting off its chosen option.
 
-It also attaches a full-page and a viewport screenshot (no image baselines). Defects that are
+It also attaches a full-page and a viewport screenshot (no image baselines). `layout/loading.spec.ts` holds a request open and asserts that the heading, filters and first card (Discover) or back link, heading and columns (event page) do not move when the data replaces the skeleton, and that a filter change keeps the cards in place, dimmed and busy. Defects that are
 still open are listed in `KNOWN_FAILURES` in `layout.spec.ts`, each naming the task that fixes
 it; a case with a known problem still fails on any other problem, and fails when a listed
 problem stops occurring. Text widths depend on the font, so the cases pin DejaVu Sans and Serif

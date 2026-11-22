@@ -1,7 +1,7 @@
 import { categoryName, t, useLocale } from "../../i18n";
 import { useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "../../api/catalog";
-import { ErrorPanel, EventImage, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
+import { ErrorPanel, EventImage, PageHeading, Panel, PanelHeading, SkeletonPage, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { publicationTone } from "../../utils/status";
@@ -36,7 +36,7 @@ export function EventPage() {
     [eventId],
   );
 
-  if (page.loading) return <Loading label={t("event.loading")} />;
+  if (page.loading) return <SkeletonPage label={t("event.loading")} panels={2} back />;
   if (page.error || !page.data) {
     return <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />;
   }

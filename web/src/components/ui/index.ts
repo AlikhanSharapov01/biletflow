@@ -8,6 +8,7 @@ export { FactList } from "./FactList";
 export { EmptyState, ErrorPanel, FormMessage, Loading } from "./Feedback";
 export { CheckboxField, SelectField, TextAreaField, TextField } from "./Field";
 export { ListRow } from "./ListRow";
+export { SkeletonCard, SkeletonGrid, SkeletonPage } from "./Skeleton";
 export { NotAvailableYet } from "./NotAvailableYet";
 export { PageHeading } from "./PageHeading";
 export { Panel, PanelHeading } from "./Panel";

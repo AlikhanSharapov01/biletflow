@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { listCategories, listVenues } from "../../api/catalog";
 import type { Category, Venue } from "../../api/types";
-import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading } from "../../components/ui";
+import { EmptyState, ErrorPanel, EventCard, PageHeading, SkeletonGrid } from "../../components/ui";
 import { Button } from "../../components/ui/Button";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
@@ -17,10 +17,8 @@ interface Lookups {
   venues: Venue[];
 }
 
-// While a new search loads, show the loading state instead of the previous search's
-// cards. With true, the previous search's first page stays on screen until the new one
-// arrives (pages added by Load more are not kept); `loading` tells the two apart.
-const KEEP_PREVIOUS_CARDS = false;
+// Placeholder cards on the first load, before there is anything to keep on screen.
+const FIRST_LOAD_CARDS = 6;
 
 export function DiscoverPage() {
   useLocale();
@@ -63,7 +61,7 @@ export function DiscoverPage() {
   // One live region outside the results, so every search is announced.
   const settled = !lookups.error && !rangeError && !found.error && found.loaded && !found.loading;
   const announcement = !settled
-    ? ""
+    ? !lookups.error && !rangeError && !found.error && found.loaded ? t("discover.loading") : ""
     : found.events.length === 0
       ? hasActiveFilters(query) ? t("discover.empty_filtered") : t("discover.empty")
       : t("discover.shown_count", { count: found.events.length });
@@ -121,11 +119,13 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
 
   const now = new Date();
   if (found.error) return <ErrorPanel title={t("discover.load_error")} message={found.error} onRetry={found.reload} />;
-  if (!lookups || !found.loaded || (found.loading && !KEEP_PREVIOUS_CARDS)) return <Loading label={t("discover.loading")} />;
+  if (!lookups || !found.loaded) return <SkeletonGrid count={FIRST_LOAD_CARDS} label={t("discover.loading")} />;
+  // A reload keeps the previous cards, dimmed and inert, until the new first page arrives.
+  const busy = found.loading;
 
   if (events.length === 0) {
     return (
-      <div className="event-grid">
+      <div className="event-grid" aria-busy={busy || undefined} inert={busy}>
         <EmptyState wide>
           {filtered ? (
             <>
@@ -142,7 +142,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
 
   return (
     <>
-      <div className="event-grid" ref={grid}>
+      <div className="event-grid" ref={grid} aria-busy={busy || undefined} inert={busy}>
         {events.map((event, index) => {
           const venue = maps.venues.get(event.venue_id);
           const categoryLabel = categoryName(maps.categories.get(event.category_id));

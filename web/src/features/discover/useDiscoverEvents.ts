@@ -15,7 +15,11 @@ interface ExtraPages {
 }
 
 export interface DiscoverEvents {
-  /** The first page, then every page loaded after it. Empty until the first page arrives. */
+  /**
+   * The first page, then every page loaded after it. Empty until the first page arrives.
+   * While the next search (or a reload) loads, the cards of the last settled search stay,
+   * every page of them: `loading` tells the two apart.
+   */
   events: EventView[];
   /** True once a first page has arrived, possibly for an earlier search while the next one loads. */
   loaded: boolean;
@@ -32,9 +36,8 @@ export interface DiscoverEvents {
 
 /**
  * Events of a Discover search, paged by offset. The first page comes from useRequest
- * (stale responses are ignored and the previous search's first page stays until the next arrives);
- * later pages are tagged with the search they belong to and only appended while it is
- * still the current one.
+ * (stale responses are ignored); later pages are tagged with the search they belong to and only appended while it is
+ * still the current one. While a new search or a reload loads, the previous cards stay in `events`.
  */
 export function useDiscoverEvents(query: DiscoverQuery, enabled = true): DiscoverEvents {
   const key = discoverSearchParams(query).toString();
@@ -71,7 +74,14 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   const current = extra?.key === key ? extra : null;
   const firstPage = first.data?.events ?? null;
   const stale = first.data !== null && first.data.key !== key;
-  const events = useMemo(() => (firstPage ? [...firstPage, ...(current?.events ?? [])] : []), [firstPage, current]);
+  const loading = first.loading || stale;
+  const settled = useMemo(() => (firstPage ? [...firstPage, ...(current?.events ?? [])] : []), [firstPage, current]);
+  // The last list that belonged to a settled search, kept on screen while the next one loads.
+  const shown = useRef<EventView[]>([]);
+  useEffect(() => {
+    if (!loading) shown.current = settled;
+  }, [loading, settled]);
+  const events = loading ? shown.current : settled;
   const lastSize = current ? current.lastSize : (firstPage?.length ?? 0);
 
   const loadMore = useCallback(() => {
@@ -118,7 +128,7 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   return {
     events,
     loaded: firstPage !== null,
-    loading: first.loading || stale,
+    loading,
     error: first.error,
     reload,
     hasMore: !first.loading && !stale && firstPage !== null && lastSize >= DISCOVER_PAGE_SIZE,

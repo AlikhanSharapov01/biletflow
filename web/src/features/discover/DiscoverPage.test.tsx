@@ -49,7 +49,7 @@ function renderPage(url = "/discover") {
 
 const url = () => screen.getByTestId("url").textContent;
 const lastCall = () => listEventsMock.mock.calls.at(-1)![0]!;
-const cards = () => document.querySelectorAll(".event-card");
+const cards = () => document.querySelectorAll(".event-card:not(.skeleton-card)");
 
 function setPhone(matches: boolean) {
   window.matchMedia = vi.fn().mockImplementation(() => ({ matches, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as never;
@@ -662,5 +662,69 @@ describe("malformed prices", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search events" }));
     expect(details.hasAttribute("open")).toBe(true);
     expect(document.activeElement).toBe(screen.getByLabelText("Price to, ₸"));
+  });
+});
+
+describe("loading", () => {
+  const grid = () => document.querySelector<HTMLElement>(".event-grid")!;
+
+  it("shows skeleton cards in one status region, then the real cards", async () => {
+    const first = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(first.promise);
+    renderPage();
+    const label = await screen.findByText("Loading events…");
+    expect(label.closest("[role=status]")!.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(document.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(cards()).toHaveLength(0);
+    await act(async () => first.resolve(events(3)));
+    expect(cards()).toHaveLength(3);
+    expect(document.querySelector(".skeleton-card")).toBeNull();
+  });
+
+  it("keeps every loaded card, dimmed and busy, while a new search loads, then swaps in the new ones", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(2, 100))
+      .mockReturnValueOnce(next.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2));
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2);
+    expect(document.querySelector(".skeleton-card")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(status()).toBe("Loading events…");
+
+    await act(async () => next.resolve(events(1, 500)));
+    expect(cards()).toHaveLength(1);
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+    expect(status()).toBe("Events shown: 1");
+  });
+
+  it("ignores a late answer to the previous search while the dimmed cards stay", async () => {
+    const jazz = deferred<ReturnType<typeof events>>();
+    const rock = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockReturnValueOnce(jazz.promise).mockReturnValueOnce(rock.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const search = (text: string) => {
+      fireEvent.change(searchBox(), { target: { value: text } });
+      fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    };
+    search("jazz");
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    search("rock");
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(3));
+    await act(async () => jazz.resolve(events(5, 200)));
+    expect(cards()).toHaveLength(3);
+    expect(grid().getAttribute("aria-busy")).toBe("true");
+    await act(async () => rock.resolve(events(2, 300)));
+    expect(cards()).toHaveLength(2);
   });
 });

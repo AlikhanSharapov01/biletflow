@@ -109,6 +109,29 @@
 .fact-list { display: grid; gap: 12px; margin: 0; padding: 0; color: var(--body-soft); font-size: var(--text-body-sm); line-height: 1.5; list-style: none; }
 .fact-list strong { display: block; color: var(--ink); font-size: var(--text-label); }
 
+/* Skeletons: calm placeholders sized like the layout they stand in for */
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.skeleton-shape, .skeleton-art, .skeleton-tile { background: linear-gradient(90deg, var(--line-soft) 30%, var(--canvas) 50%, var(--line-soft) 70%) 100% 0 / 200% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+.skeleton-shape { display: block; box-sizing: content-box; border-radius: 4px; background-clip: content-box; }
+.skeleton-art { aspect-ratio: 2 / 1; }
+.skeleton-tile { width: 48px; height: 50px; flex: none; border-radius: 6px; }
+.skeleton-card:hover { border-color: var(--line); }
+/* Line heights below add up to the loaded text's line boxes (16.5px eyebrow, 25px titles, 18px meta, 31px footer). */
+.skeleton-eyebrow { width: 38%; height: 11px; padding-block: 2.75px; }
+.skeleton-title { width: 82%; height: 17px; padding-block: 4px; }
+.skeleton-meta { width: 64%; height: 12px; padding-block: 3px; }
+.skeleton-foot { width: 30%; height: 21px; margin-top: auto; padding-top: 10px; }
+.skeleton-page { display: grid; gap: var(--heading-gap); }
+.skeleton-back { width: 110px; height: 15px; margin-top: 1px; margin-bottom: 16px; padding-block: 3px; }
+.skeleton-h1 { width: min(360px, 70%); height: 34px; margin-top: 6px; padding-block: 4.25px; }
+.skeleton-subtitle { width: min(520px, 90%); height: 14px; margin-top: 8px; padding-block: 3px; }
+.skeleton-panel { min-height: 320px; align-content: start; }
+.skeleton-panel-title { width: 40%; height: 18px; padding-block: 3px; }
+.skeleton-text { height: 14px; }
+.skeleton-short { width: 55%; }
+/* A reload keeps the previous cards in place: dimmed and not clickable until the new ones arrive. */
+.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity .2s ease; }
+
 /* Loading, error, empty (mobile ui/States) */
 .loading-state { display: flex; min-height: 150px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: var(--text-body-sm); }
 .loading-spinner { width: 18px; height: 18px; border: 2px solid var(--spinner-track); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; }
@@ -170,4 +193,9 @@
 .record-view-row dd .record-view { padding-left: 12px; border-left: 2px solid var(--line-soft); }
 @media (max-width: 640px) {
   .record-view-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shape, .skeleton-art, .skeleton-tile { animation: none; background-image: none; background-color: var(--line-soft); }
+  .event-grid[aria-busy="true"] { transition: none; }
 }

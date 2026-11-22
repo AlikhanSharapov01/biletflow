@@ -1,10 +1,13 @@
 import { t, useLocale } from "../../i18n";
 import { Link } from "react-router";
 import { claimTickets, listTickets } from "../../api/tickets";
-import { Button, EmptyState, ErrorPanel, EventCard, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
+import { Button, EmptyState, ErrorPanel, EventCard, PageHeading, SkeletonGrid, Panel, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel, seatLabel, statusLabel } from "../../utils/format";
 import { ticketTone } from "../../utils/status";
+
+// Placeholder rows on the first load.
+const ROW_SKELETONS = 3;
 
 export function TicketsPage() {
   useLocale();
@@ -22,7 +25,7 @@ export function TicketsPage() {
         subtitle={t("tickets.subtitle")}
         actions={<Button onClick={tickets.reload}>{t("common.refresh")}</Button>}
       />
-      {tickets.loading ? <Loading label={t("tickets.loading")} /> : null}
+      {tickets.loading && !tickets.data ? <SkeletonGrid row count={ROW_SKELETONS} label={t("tickets.loading")} /> : null}
       {tickets.error ? <ErrorPanel title={t("tickets.load_error")} message={tickets.error} onRetry={tickets.reload} /> : null}
       {tickets.data ? (
         tickets.data.length === 0 ? (
@@ -30,7 +33,7 @@ export function TicketsPage() {
             <EmptyState>{t("tickets.empty")}{" "}<Link to="/discover">{t("orders.find_event")}</Link>{" "}{t("tickets.claim_hint")}{" "}</EmptyState>
           </Panel>
         ) : (
-          <div className="event-grid row-grid">
+          <div className="event-grid row-grid" aria-busy={tickets.loading || undefined} inert={tickets.loading}>
             {tickets.data.map((ticket) => {
               const path = `/tickets/${encodeURIComponent(ticket.id)}`;
               return (
