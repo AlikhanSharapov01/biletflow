@@ -69,6 +69,8 @@ export interface EventView extends EventInput {
   time_status: TimeStatus;
   images: EventImage[];
   cover_image_url: string | null;
+  price_from_minor: number | null;
+  sold_out: boolean;
 }
 
 export interface EventFilters {

@@ -34,6 +34,10 @@ Invitation flow: invite by email → worker delivers a link → recipient regist
 
 The implementation uses a seven-day invitation lifetime as a default, not a new user-confirmed requirement. Tokens are purpose-bound, stored as digests, and reconstructed only for delivery. Replaced, revoked, expired, already accepted or wrong-account tokens cannot join the workspace. Acceptance and delivery recheck the inviter's current authority. Invitation creation and acceptance use the existing shared rate limiter. Concurrent acceptance produces one membership and one successful acceptance.
 
+## Event price and availability
+
+Every `EventView` response (Discover, event detail, organizer lists, edits and publish actions) includes `price_from_minor` (integer or `null`) and `sold_out` (boolean). Only visible ticket types count: `is_hidden = false` and `quantity_limit > 0`. Allocations in `held`, `sold` and `refund_quarantine` count, as at checkout. A type is open while `quantity_limit` minus its allocations is above zero. `sold_out` is true when the event has at least one visible type and either the event's `capacity` is used up or no visible type is open. `price_from_minor` is the lowest `price_minor` among open visible types (`0` means free), the lowest among all visible types when sold out, and `null` when the event has no visible types. List endpoints compute both fields for the whole page with two grouped queries.
+
 ## Event images (9 November 2026)
 
 Event responses include ordered `images` and nullable `cover_image_url`. Each image has

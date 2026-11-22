@@ -93,6 +93,8 @@ function eventView(n: number, title: string, overrides: Partial<EventView> = {})
     time_status: "upcoming",
     images: [],
     cover_image_url: null,
+    price_from_minor: 300_000,
+    sold_out: false,
     ...overrides,
   };
 }
@@ -101,15 +103,15 @@ function eventView(n: number, title: string, overrides: Partial<EventView> = {})
 // "Short" has a wide cover and "Almaty Jazz Night" a tall one.
 const id = (n: number) => uuid(100 + n);
 export const events: EventView[] = [
-  eventView(0, LONG_TITLE.en, { capacity: 1_000_000 }),
+  eventView(0, LONG_TITLE.en, { capacity: 1_000_000, price_from_minor: 99_999_999_900 }),
   eventView(1, LONG_TITLE.ru, { capacity: 0 }),
   eventView(2, LONG_TITLE.kk, { capacity: 2_147_483_647 }),
   eventView(3, "Short", cover(id(3), "wide")),
   eventView(4, "Almaty Jazz Night", cover(id(4), "tall")),
   eventView(5, "Весенний марафон «Алматы»", { time_status: "completed", starts_at: at(-5, 14), ends_at: at(-5, 18) }),
-  eventView(6, "Көктемгі кітап жәрмеңкесі"),
+  eventView(6, "Көктемгі кітап жәрмеңкесі", { price_from_minor: 0 }),
   eventView(7, "A_very_long_unbroken_title_" + "without_any_spaces_".repeat(6)),
-  eventView(8, "Tech Summit 2027"),
+  eventView(8, "Tech Summit 2027", { sold_out: true }),
   eventView(9, "Фестиваль уличной еды и музыки под открытым небом"),
 ];
 

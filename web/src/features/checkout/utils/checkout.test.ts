@@ -33,6 +33,8 @@ const event: EventView = {
   refund_cutoff_at: null,
   images: [],
   cover_image_url: null,
+  price_from_minor: 0,
+  sold_out: false,
 };
 
 function type(overrides: Partial<TicketType>): TicketType {

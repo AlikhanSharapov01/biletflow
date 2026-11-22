@@ -9,6 +9,7 @@ from .catalog_models import (
     MemberPermission,
     Organization,
     StaffPermission,
+    TicketType,
 )
 from .models import AuditLog
 from .observability import correlation_id
@@ -19,7 +20,53 @@ def record(row, omit=()):
     return {c.name: getattr(row, c.name) for c in row.__table__.columns if c.name not in omit}
 
 
-def event_record(event, db=None):
+ACTIVE_ALLOCATION_STATES = ["held", "sold", "refund_quarantine"]
+
+
+def event_offers(db, events):
+    """Price-from and sold-out flags per event id, in two grouped queries."""
+    ids = [e.id for e in events]
+    if not ids:
+        return {}
+    types = {}
+    for row in db.execute(
+        select(
+            TicketType.id, TicketType.event_id, TicketType.price_minor, TicketType.quantity_limit
+        )
+        .where(
+            TicketType.event_id.in_(ids),
+            TicketType.is_hidden.is_(False),
+            TicketType.quantity_limit > 0,
+        )
+        .order_by(TicketType.event_id)
+    ):
+        types.setdefault(row.event_id, []).append(row)
+    taken = {}
+    per_type = {}
+    for event_id, type_id, count in db.execute(
+        select(Allocation.event_id, Allocation.ticket_type_id, func.count(Allocation.id))
+        .where(Allocation.event_id.in_(ids), Allocation.state.in_(ACTIVE_ALLOCATION_STATES))
+        .group_by(Allocation.event_id, Allocation.ticket_type_id)
+    ):
+        taken[event_id] = taken.get(event_id, 0) + count
+        per_type[type_id] = count
+    offers = {}
+    for event in events:
+        visible = types.get(event.id, [])
+        if not visible:
+            offers[event.id] = {"price_from_minor": None, "sold_out": False}
+            continue
+        open_types = [t for t in visible if t.quantity_limit - per_type.get(t.id, 0) > 0]
+        sold_out = taken.get(event.id, 0) >= event.capacity or not open_types
+        pool = visible if sold_out else open_types
+        offers[event.id] = {
+            "price_from_minor": min(t.price_minor for t in pool),
+            "sold_out": sold_out,
+        }
+    return offers
+
+
+def event_record(event, db=None, offers=None):
     result = record(event)
     current = now()
     result["time_status"] = (
@@ -34,6 +81,7 @@ def event_record(event, db=None):
 
         result["images"] = image_records(db, event.id)
         result["cover_image_url"] = result["images"][0]["url"] if result["images"] else None
+        result.update((offers or event_offers(db, [event]))[event.id])
     return result
 
 

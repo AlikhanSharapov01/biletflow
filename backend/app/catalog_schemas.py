@@ -166,6 +166,8 @@ class EventView(Record, EventInput):
     time_status: str
     images: list[EventImageView] = Field(default_factory=list)
     cover_image_url: str | None = None
+    price_from_minor: int | None
+    sold_out: bool
 
 
 class TicketView(Record, TicketInput):
