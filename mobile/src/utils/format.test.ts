@@ -54,8 +54,9 @@ describe("Kazakh fallback", () => {
 
   it("keeps Kazakh when the engine supports it", () => {
     const spy = jest.spyOn(Intl, "DateTimeFormat");
-    jest.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
     jest.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    // The spy replaced the constructor, so its static method is stubbed by assignment (restored with the spy).
+    Intl.DateTimeFormat.supportedLocalesOf = () => ["kk"];
     setLocale("kk");
     dateLabel("2026-10-18T13:00:00Z");
     expect(intlLocale("kk")).toBe("kk");
