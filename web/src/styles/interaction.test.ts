@@ -55,6 +55,9 @@ describe("interaction styles", () => {
     const overlay = all.find((b) => b.selector.includes(".skeleton-shape::after"));
     expect(overlay?.body).toMatch(/padding:\s*inherit/);
     expect(overlay?.body).toMatch(/background-clip:\s*content-box/);
+    // A `background:` shorthand would reset background-clip to border-box.
+    expect(overlay?.body).not.toMatch(/(?<![-\w])background\s*:/);
+    expect(overlay?.body).toMatch(/background-image:\s*linear-gradient/);
     expect(all.map((b) => b.body).join("\n")).not.toMatch(/overflow-clip-margin/);
     const shimmer = sheets.flatMap(({ blocks: list }) => list).find((b) => b.selector === "@keyframes shimmer");
     expect(shimmer?.body).toMatch(/transform\s*:\s*translateX\(-100%\)/);

@@ -69,7 +69,7 @@ for (const width of WIDTHS) {
       await expect.poll(async () => (await page.evaluate(activeElementState)).problem).toBe("");
       // The Task 3 contract: focus is on the current step of the indicator.
       await expect(page.locator('.checkout-steps li[aria-current="step"]')).toBeFocused();
-      await expect(page.locator('.checkout-steps li[aria-current="step"]')).toHaveAttribute("aria-label", /\d/);
+      await expect(page.locator('.checkout-steps li[aria-current="step"]')).toHaveAttribute("aria-label", /^Step \d+ of \d+: .+/);
     });
   });
 }
