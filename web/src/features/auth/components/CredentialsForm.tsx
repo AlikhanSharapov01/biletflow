@@ -46,7 +46,7 @@ export function CredentialsForm({ registering, busy, feedback, canResend, onSubm
           <Button variant="text" onClick={(event) => onForgot(event.currentTarget.form)}>{t("auth.forgot_password")}</Button>
         </div>
       )}
-      <Button variant="primary" full type="submit" disabled={busy}>
+      <Button variant="primary" full type="submit" busy={busy}>
         {busy ? (registering ? t("auth.creating") : t("auth.signing_in")) : registering ? t("auth.create_account") : t("auth.sign_in")}
         <span aria-hidden="true">→</span>
       </Button>

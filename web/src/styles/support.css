@@ -26,7 +26,7 @@ a.support-chip:hover { border-color: var(--hover-line); }
 
 .support-files, .support-pending { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .support-file { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-button); background: var(--paper); color: var(--button-ink); cursor: pointer; font-size: var(--text-meta); text-align: left; }
-.support-file:hover:not(:disabled) { border-color: var(--hover-line); }
+.support-file:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--hover-line); }
 .support-file > span[aria-hidden] { color: var(--green); font-size: var(--text-micro); font-weight: 800; }
 .support-file small, .support-pending-file small { color: var(--meta); font-size: var(--text-micro); white-space: nowrap; }
 .support-file-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

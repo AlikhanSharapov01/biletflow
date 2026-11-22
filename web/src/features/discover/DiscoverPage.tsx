@@ -198,15 +198,13 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
       {hasMore || loadingMore || loadMoreFailed ? (
         <div className="load-more">
           {loadMoreFailed ? <p className="form-message" role="alert">{t("discover.load_more_error")}</p> : null}
-          {/* Stays focusable while busy: aria-disabled, not disabled, keeps keyboard focus on it. */}
+          {/* busy keeps the button focusable (not disabled) and ignores clicks while loading. */}
           <Button
+            busy={loadingMore}
             onClick={(event) => {
-              if (loadingMore) return;
               refocusFrom.current = event.currentTarget === document.activeElement ? events.length : null;
               found.loadMore();
             }}
-            aria-disabled={loadingMore || undefined}
-            aria-busy={loadingMore || undefined}
           >
             {loadingMore ? t("common.loading") : loadMoreFailed ? t("common.try_again") : t("discover.load_more")}
           </Button>

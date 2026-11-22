@@ -53,7 +53,7 @@ export function ConflictResolveForm({ conflict, onResolved }: ConflictResolveFor
       {reverse ? <TextField label={t("org.reversal_reason")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required /> : null}
       <FormMessage message={state.message} />
       <div className="form-actions">
-        <Button variant="primary" size="sm" type="submit" disabled={state.busy}>{t("org.resolve_conflict")}</Button>
+        <Button variant="primary" size="sm" type="submit" busy={state.busy}>{t("org.resolve_conflict")}</Button>
       </div>
     </form>
   );

@@ -101,7 +101,7 @@ export function NewCasePage() {
           />
           {error ? <FormMessage message={error} /> : null}
           <div className="form-actions">
-            <Button variant="primary" type="submit" disabled={busy}>
+            <Button variant="primary" type="submit" busy={busy}>
               {busy ? t("support.opening") : t("support.open_case")}
             </Button>
           </div>

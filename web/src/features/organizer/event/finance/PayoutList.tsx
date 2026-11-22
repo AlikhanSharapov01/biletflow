@@ -76,7 +76,7 @@ export function PayoutList({ eventId, version, onChanged }: PayoutListProps) {
                       key={target}
                       size="sm"
                       variant={target === "failed" ? "danger" : "subtle"}
-                      disabled={busyId === payout.id}
+                      busy={busyId === payout.id}
                       onClick={() => void move(payout, target)}
                     >
                       {t(target === "eligible" ? "org.payout_mark_eligible" : target === "sent" ? "org.payout_mark_sent" : "org.payout_mark_failed")}

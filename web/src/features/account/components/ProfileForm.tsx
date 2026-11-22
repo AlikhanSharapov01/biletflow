@@ -66,7 +66,7 @@ export function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (
         </SelectField>
         <CheckboxField label={t("account.analytics_consent")} name="analytics_consent" defaultChecked={profile.analytics_consent} />
         <FormMessage message={message.text} success={message.success} />
-        <Button variant="primary" type="submit" disabled={saving}>{t("account.save")}</Button>
+        <Button variant="primary" type="submit" busy={saving}>{t("account.save")}</Button>
       </form>
     </Panel>
   );

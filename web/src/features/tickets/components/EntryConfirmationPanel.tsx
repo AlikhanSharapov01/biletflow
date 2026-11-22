@@ -59,7 +59,7 @@ export function EntryConfirmationPanel({ ticket }: { ticket: IssuedTicket }) {
       {!usable ? <p className="form-intro">{t("tickets.entry_valid_only")}</p> : null}
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant={confirmation && !expired ? "subtle" : "primary"} disabled={busy || !usable} onClick={() => void request()}>
+        <Button variant={confirmation && !expired ? "subtle" : "primary"} busy={busy} disabled={!usable} onClick={() => void request()}>
           {busy ? t("tickets.requesting") : confirmation ? t("tickets.refresh_confirmation") : t("tickets.confirm_entry")}
         </Button>
       </div>

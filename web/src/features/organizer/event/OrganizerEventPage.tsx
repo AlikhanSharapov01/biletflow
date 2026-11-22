@@ -167,15 +167,15 @@ export function OrganizerEventPage() {
             {!cancelled ? (
               <Button
                 variant="primary"
-                disabled={busy}
+                busy={busy}
                 onClick={() => void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
               >
                 {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button disabled={busy} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
+            <Button busy={busy} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
             {!cancelled ? (
-              <Button variant="danger" disabled={busy} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
+              <Button variant="danger" busy={busy} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
             ) : null}
           </>
         }

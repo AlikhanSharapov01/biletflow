@@ -69,7 +69,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.payout_demo_hint")}
             actions={
               data.payout_profile_verified ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}>{t("org.create_demo_profile")}</Button>
+                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("payout", () => createPayoutProfile(event.organization_id), t("org.payout_profile_created"))}>{t("org.create_demo_profile")}</Button>
               )
             }
           />
@@ -79,7 +79,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.identity_demo_hint")}
             actions={
               data.identity_verified ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}>{t("org.verify_demo")}</Button>
+                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("identity", () => createIdentityVerification(event.organization_id), t("org.identity_approved"))}>{t("org.verify_demo")}</Button>
               )
             }
           />
@@ -89,7 +89,7 @@ export function PaidSalesTab({ event }: { event: EventView }) {
             meta={t("org.terms_hint")}
             actions={
               data.terms.accepted ? done(true) : (
-                <Button size="sm" disabled={Boolean(busy)} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}>{t("org.accept_terms")}</Button>
+                <Button size="sm" busy={Boolean(busy)} onClick={() => void run("terms", () => acceptPaidSalesTerms(event.id, data.terms.version), t("org.terms_accepted"))}>{t("org.accept_terms")}</Button>
               )
             }
           >

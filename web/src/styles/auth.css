@@ -27,7 +27,7 @@
 .auth-message.success { color: var(--green); }
 .resend-row { margin-top: -8px; }
 .google-button { display: flex; width: 100%; min-height: var(--control-height); align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--input-line); border-radius: var(--radius-input); background: var(--paper); cursor: pointer; font-size: 15px; font-weight: 700; }
-.google-button:hover:not(:disabled) { border-color: var(--hover-line); background: var(--raised-surface); }
+.google-button:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--hover-line); background: var(--raised-surface); }
 .google-mark { color: var(--google-blue); font-size: 18px; font-weight: 800; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; color: var(--muted); font-size: 12px; }
 .divider::before, .divider::after { height: 1px; flex: 1; background: var(--line); content: ""; }

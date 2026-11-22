@@ -65,7 +65,7 @@ export function AdminExportsPage() {
         </div>
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy}>
+          <Button variant="primary" type="submit" busy={state.busy}>
             {state.busy ? t("support.preparing") : t("org.csv_download")}
           </Button>
         </div>

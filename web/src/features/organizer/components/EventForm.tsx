@@ -106,7 +106,7 @@ export function EventForm({ initial, categories, venues, submitLabel, busy, mess
       </details>
       <FormMessage message={message} success={success} />
       <div className="form-actions">
-        <Button variant="primary" type="submit" disabled={busy}>
+        <Button variant="primary" type="submit" busy={busy}>
           {submitLabel}
         </Button>
       </div>

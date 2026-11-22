@@ -23,7 +23,7 @@ export function DownloadPdfButton({ ticketId }: { ticketId: string }) {
   };
 
   return (
-    <Button variant="primary" disabled={busy} onClick={() => void download()}>
+    <Button variant="primary" busy={busy} onClick={() => void download()}>
       {busy ? t("tickets.preparing_pdf") : t("tickets.download_pdf")}
     </Button>
   );

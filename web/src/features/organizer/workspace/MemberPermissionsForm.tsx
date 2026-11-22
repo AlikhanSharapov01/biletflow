@@ -54,8 +54,8 @@ export function MemberPermissionsForm({ organizationId, member, onSaved, onCance
       </fieldset>
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" size="sm" type="submit" disabled={busy}>{t("common.save")}</Button>
-        <Button size="sm" disabled={busy} onClick={onCancel}>{t("common.cancel")}</Button>
+        <Button variant="primary" size="sm" type="submit" busy={busy}>{t("common.save")}</Button>
+        <Button size="sm" busy={busy} onClick={onCancel}>{t("common.cancel")}</Button>
       </div>
     </form>
   );

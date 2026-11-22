@@ -102,8 +102,8 @@ describe("PaymentStep", () => {
     simulateMock.mockReturnValue(new Promise(() => undefined));
     render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} />);
     await act(async () => fireEvent.click(button("Simulate successful payment")));
-    expect(button("Sending…").disabled).toBe(true);
-    expect(button("Simulate failed payment").disabled).toBe(true);
+    expect(button("Sending…").getAttribute("aria-busy")).toBe("true");
+    expect(button("Simulate failed payment").getAttribute("aria-busy")).toBe("true");
   });
 
   it("offers to choose again for an expired order", () => {

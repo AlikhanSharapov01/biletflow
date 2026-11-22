@@ -39,12 +39,12 @@ export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) 
       <Button
         size="sm"
         variant="danger"
-        disabled={busy}
+        busy={busy}
         onClick={() => void run(t("org.registration_cancel_confirm", { p0: row.recipient_name }), (reason) => cancelTicket(eventId, row.ticket_id, reason), t("checkout.cancelled"))}
       >{t("checkout.cancel_registration")}</Button>
       <Button
         size="sm"
-        disabled={busy}
+        busy={busy}
         onClick={() => void run(t("org.refund_order_confirm"), (reason) => refundOrder(row.order_id, reason), t("checkout.refund_requested"))}
       >{t("checkout.refund")}</Button>
     </div>

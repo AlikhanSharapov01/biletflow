@@ -59,7 +59,7 @@ export function SeatEditor({ event, seat, types, onSaved, onClose }: SeatEditorP
         {seat.paid_activation_required ? <p className="form-intro">{t("org.paid_seats_hint")}</p> : null}
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={!editable || state.busy}>{t("org.save_seat")}</Button>
+          <Button variant="primary" type="submit" busy={state.busy} disabled={!editable}>{t("org.save_seat")}</Button>
           <Button onClick={onClose}>{t("common.close")}</Button>
         </div>
       </form>

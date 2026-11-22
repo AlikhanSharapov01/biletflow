@@ -131,7 +131,7 @@ describe("TicketSelector", () => {
 
   it("disables reserving while busy and shows the server message", () => {
     render(<Harness busy message="Not enough places are left for that selection." />);
-    expect(button("Reserving…").disabled).toBe(true);
+    expect(button("Reserving…").getAttribute("aria-busy")).toBe("true");
     expect(screen.getByText("Not enough places are left for that selection.")).toBeTruthy();
   });
 
@@ -184,7 +184,7 @@ describe("PromoCodeField", () => {
     fireEvent.change(input(), { target: { value: " spring 10 " } });
     fireEvent.click(button("Apply"));
     expect(previewPromoMock).toHaveBeenCalledWith("e1", "SPRING10");
-    expect(button("Checking…").disabled).toBe(true);
+    expect(button("Checking…").getAttribute("aria-busy")).toBe("true");
 
     await act(async () => pending.resolve(preview));
     expect(onApplied).toHaveBeenLastCalledWith(preview);
@@ -303,12 +303,12 @@ describe("RecipientForm", () => {
 
   it("locks both actions while busy", () => {
     const { unmount } = render(<Harness busy paid message="Each reserved place needs exactly one recipient." />);
-    expect(button("Preparing payment…").disabled).toBe(true);
-    expect(button("Choose again").disabled).toBe(true);
+    expect(button("Preparing payment…").getAttribute("aria-busy")).toBe("true");
+    expect(button("Choose again").getAttribute("aria-busy")).toBe("true");
     expect(screen.getByText("Each reserved place needs exactly one recipient.")).toBeTruthy();
     unmount();
     render(<Harness busy />);
-    expect(button("Confirming…").disabled).toBe(true);
+    expect(button("Confirming…").getAttribute("aria-busy")).toBe("true");
   });
 });
 

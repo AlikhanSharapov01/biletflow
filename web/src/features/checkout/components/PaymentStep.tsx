@@ -100,14 +100,14 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, s
       <div className="form-actions">
         {stage === "awaiting" ? (
           <>
-            <Button variant="primary" disabled={busy} onClick={() => void simulate("succeeded")}>
+            <Button variant="primary" busy={busy} onClick={() => void simulate("succeeded")}>
               {busy ? t("common.sending") : t("checkout.simulate_success")}
             </Button>
-            <Button disabled={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
+            <Button busy={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
           </>
         ) : null}
         {stage === "failed" ? (
-          <Button variant="primary" disabled={busy} onClick={() => void run(() => retryPayment(order.id))}>
+          <Button variant="primary" busy={busy} onClick={() => void run(() => retryPayment(order.id))}>
             {busy ? t("checkout.starting") : t("checkout.retry_payment")}
           </Button>
         ) : null}
@@ -116,7 +116,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, s
         ) : null}
         {stage === "closed" && onClosed ? <Button onClick={onClosed}>{t("checkout.choose_tickets_again")}</Button> : null}
         {onCancel && (stage === "awaiting" || stage === "failed") ? (
-          <Button variant="text" disabled={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
+          <Button variant="text" busy={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
         ) : null}
       </div>
     </div>

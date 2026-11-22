@@ -46,7 +46,7 @@ export function OrganizationProfilePanel({ organization, onSaved }: Organization
         <TextField label={t("org.contact_phone")} hint={t("common.optional")} name="contact_phone" defaultValue={organization.contact_phone ?? ""} maxLength={32} />
         <FormMessage message={state.message} success={state.success} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy}>{t("org.save_changes")}</Button>
+          <Button variant="primary" type="submit" busy={state.busy}>{t("org.save_changes")}</Button>
         </div>
       </form>
     </Panel>

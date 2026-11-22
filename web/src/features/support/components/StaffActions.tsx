@@ -76,11 +76,11 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
         </SelectField>
         <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
         <div className="form-actions">
-          <Button type="submit" disabled={busy || status === supportCase.status}>{t("support.update_status")}{" "}</Button>
+          <Button type="submit" busy={busy} disabled={status === supportCase.status}>{t("support.update_status")}{" "}</Button>
           {assignedToMe ? (
-            <Button disabled={busy} onClick={() => void run(() => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
+            <Button busy={busy} onClick={() => void run(() => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
           ) : (
-            <Button disabled={busy} onClick={() => void run(() => assignCase(supportCase.id, viewerId), t("support.assigned_to_you"))}>{t("support.assign_to_me")}{" "}</Button>
+            <Button busy={busy} onClick={() => void run(() => assignCase(supportCase.id, viewerId), t("support.assigned_to_you"))}>{t("support.assign_to_me")}{" "}</Button>
           )}
         </div>
       </form>
@@ -94,7 +94,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
             onChange={(event) => setEscalation(event.target.value)}
           />
           <div className="form-actions">
-            <Button variant="danger" type="submit" disabled={busy}>{t("support.escalate")}{" "}</Button>
+            <Button variant="danger" type="submit" busy={busy}>{t("support.escalate")}{" "}</Button>
           </div>
         </form>
       ) : null}

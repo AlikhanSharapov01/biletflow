@@ -76,7 +76,7 @@ export function TicketTypeForm({ event, initial, submitLabel, busy, message, onS
       <p className="form-intro">{t("org.sales_window_hint")}</p>
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" type="submit" disabled={busy}>
+        <Button variant="primary" type="submit" busy={busy}>
           {submitLabel}
         </Button>
         {onCancel ? <Button onClick={onCancel}>{t("common.cancel")}</Button> : null}

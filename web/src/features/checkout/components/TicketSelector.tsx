@@ -65,7 +65,7 @@ export function TicketSelector({ event, tickets, quantities, setQuantities, busy
       {promoSlot}
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" disabled={busy || selected === 0} onClick={onReserve}>
+        <Button variant="primary" busy={busy} disabled={selected === 0} onClick={onReserve}>
           {busy ? t("checkout.reserving") : selected > 0 ? t("checkout.reserve_count", { items: quantityLabel("ticket", selected) }) : t("checkout.reserve_tickets")}
         </Button>
         <small className="form-intro">{t("checkout.hold_hint")}</small>

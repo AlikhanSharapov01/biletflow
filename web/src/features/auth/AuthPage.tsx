@@ -138,7 +138,7 @@ export function AuthPage() {
             onResend={() => void handleResend()}
           />
           {!registering ? (
-            <button className="google-button" type="button" disabled={busy} onClick={() => void handleGoogle()}>
+            <button className="google-button" type="button" aria-busy={busy || undefined} aria-disabled={busy || undefined} onClick={() => { if (!busy) void handleGoogle(); }}>
               <span className="google-mark" aria-hidden="true">
                 G
               </span>{t("auth.google")}</button>

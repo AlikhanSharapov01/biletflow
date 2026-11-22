@@ -31,11 +31,11 @@ export function WorkspaceEventCard({ event, venue, busy, onTogglePublish, onDupl
           <div className="row-actions">
             <ButtonLink size="sm" to={path}>{t("org.manage")}{" "}</ButtonLink>
             {event.publication_state !== "cancelled" && event.time_status !== "completed" ? (
-              <Button size="sm" disabled={busy} onClick={onTogglePublish}>
+              <Button size="sm" busy={busy} onClick={onTogglePublish}>
                 {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button size="sm" disabled={busy} onClick={onDuplicate}>{t("organizer.duplicate")}</Button>
+            <Button size="sm" busy={busy} onClick={onDuplicate}>{t("organizer.duplicate")}</Button>
           </div>
         </>
       }

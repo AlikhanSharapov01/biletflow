@@ -28,10 +28,10 @@ export function ImageRow({ image, first, last, busy, onUp, onDown, onCover, onDe
         </span>
       </div>
       <div className="image-actions">
-        <Button size="sm" disabled={busy || first} onClick={onUp} aria-label={t("org.image_move_up", { p0: image.alt_text })}>↑</Button>
-        <Button size="sm" disabled={busy || last} onClick={onDown} aria-label={t("org.image_move_down", { p0: image.alt_text })}>↓</Button>
-        {!image.is_cover ? <Button size="sm" disabled={busy} onClick={onCover}>{t("org.make_cover")}</Button> : null}
-        <Button size="sm" variant="danger" disabled={busy} onClick={onDelete}>{t("common.remove")}</Button>
+        <Button size="sm" busy={busy} disabled={first} onClick={onUp} aria-label={t("org.image_move_up", { p0: image.alt_text })}>↑</Button>
+        <Button size="sm" busy={busy} disabled={last} onClick={onDown} aria-label={t("org.image_move_down", { p0: image.alt_text })}>↓</Button>
+        {!image.is_cover ? <Button size="sm" busy={busy} onClick={onCover}>{t("org.make_cover")}</Button> : null}
+        <Button size="sm" variant="danger" busy={busy} onClick={onDelete}>{t("common.remove")}</Button>
       </div>
     </li>
   );

@@ -66,7 +66,7 @@ export function Ga4ConnectionPanel({ organization }: { organization: Organizatio
           <FormMessage message={message} />
           {platformOff && !data.is_enabled ? null : (
             <div className="form-actions">
-              <Button variant={data.is_enabled ? "subtle" : "primary"} disabled={busy} onClick={() => void toggle(data)}>
+              <Button variant={data.is_enabled ? "subtle" : "primary"} busy={busy} onClick={() => void toggle(data)}>
                 {data.is_enabled ? t("org.ga4_disconnect") : t("org.ga4_connect")}
               </Button>
             </div>

@@ -27,7 +27,9 @@ a { color: var(--green); }
 .action-dialog h2 { font-size: var(--text-panel-title); }
 .language-switcher { display: inline-block; max-width: 9rem; }
 .topbar .language-switcher select { max-width: 100%; }
-button:disabled, button[aria-disabled="true"] { cursor: wait; opacity: .65; }
+button:disabled, button[aria-disabled="true"], a[aria-disabled="true"] { cursor: not-allowed; opacity: .65; }
+/* A request in flight: the control stays focusable but waits. Must follow the disabled rule. */
+button[aria-busy="true"], a[aria-busy="true"] { cursor: wait; }
 code { font-size: 13px; }
 
 .serif { font-family: var(--font-serif); font-weight: 400; }

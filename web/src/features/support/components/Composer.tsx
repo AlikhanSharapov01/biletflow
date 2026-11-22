@@ -113,7 +113,7 @@ export function Composer({ caseId, hint, onSent }: ComposerProps) {
       <PendingFiles files={files} onRemove={removeFile} />
       {error ? <FormMessage message={error} /> : null}
       <div className="form-actions">
-        <Button variant="primary" type="submit" disabled={busy || uploading || checking}>
+        <Button variant="primary" type="submit" busy={busy || uploading || checking}>
           {busy ? t("common.sending") : uploading ? t("support.uploading_files") : checking ? t("support.checking_files") : t("support.send")}
         </Button>
         <Button onClick={() => picker.current?.click()} disabled={busy}>{t("support.attach_file")}{" "}</Button>

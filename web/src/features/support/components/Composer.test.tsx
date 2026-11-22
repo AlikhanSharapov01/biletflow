@@ -36,7 +36,7 @@ describe("composer attachment scan states", () => {
     await pick(container, png());
 
     expect(screen.getByText("Checking file…")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Checking files…" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Checking files…" })).toHaveProperty("ariaBusy", "true");
 
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(screen.getByText("Checking file…")).toBeTruthy();

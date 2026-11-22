@@ -38,7 +38,7 @@ export function ReasonForm({ label, submitLabel, danger = false, maxLength = 500
       <TextAreaField label={label} value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={maxLength} required />
       <FormMessage message={state.message} />
       <div className="form-actions">
-        <Button variant={danger ? "danger" : "primary"} size="sm" type="submit" disabled={state.busy}>
+        <Button variant={danger ? "danger" : "primary"} size="sm" type="submit" busy={state.busy}>
           {submitLabel}
         </Button>
         <Button size="sm" onClick={onCancel}>{t("common.cancel")}</Button>

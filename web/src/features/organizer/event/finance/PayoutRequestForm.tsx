@@ -69,8 +69,8 @@ export function PayoutRequestForm({ finance, onRequested }: PayoutRequestFormPro
       />
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" type="submit" disabled={busy}>{busy ? t("common.sending") : t("org.request_payout")}</Button>
-        <Button variant="text" type="button" disabled={busy} onClick={() => setAmount(String(max / 100))}>{t("org.payout_use_max")}</Button>
+        <Button variant="primary" type="submit" busy={busy}>{busy ? t("common.sending") : t("org.request_payout")}</Button>
+        <Button variant="text" type="button" busy={busy} onClick={() => setAmount(String(max / 100))}>{t("org.payout_use_max")}</Button>
       </div>
     </form>
   );

@@ -28,8 +28,9 @@ export function NotificationRow({ notification, busy, onOpen }: NotificationRowP
       <button
         type="button"
         className={`notification-row ${unread ? "unread" : ""}`}
-        disabled={busy}
-        onClick={() => onOpen(notification)}
+        aria-busy={busy || undefined}
+        aria-disabled={busy || undefined}
+        onClick={() => { if (!busy) onOpen(notification); }}
       >
         <span className="row-icon" aria-hidden="true">
           {KIND_GLYPH[notification.kind] ?? "N"}

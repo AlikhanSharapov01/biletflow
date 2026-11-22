@@ -60,12 +60,12 @@ describe("CredentialsForm", () => {
 
   it("locks the submit button while busy", () => {
     renderForm({ busy: true });
-    expect((screen.getByRole("button", { name: /^Signing in…/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /^Signing in…/ }) as HTMLButtonElement).getAttribute("aria-busy")).toBe("true");
   });
 
   it("shows busy registration text", () => {
     renderForm({ busy: true, registering: true });
-    expect((screen.getByRole("button", { name: /^Creating account…/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: /^Creating account…/ }) as HTMLButtonElement).getAttribute("aria-busy")).toBe("true");
   });
 
   it("announces errors and successes in a status region", () => {

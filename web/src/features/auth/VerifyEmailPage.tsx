@@ -34,7 +34,7 @@ export function VerifyEmailPage() {
           {state.done ? (
             <ButtonLink variant="primary" to="/sign-in">{t("auth.continue_sign_in")}{" "}</ButtonLink>
           ) : (
-            <Button variant="primary" disabled={state.busy} onClick={() => void verify()}>
+            <Button variant="primary" busy={state.busy} onClick={() => void verify()}>
               {state.busy ? t("auth.verifying") : t("auth.verify_email")}
             </Button>
           )}

@@ -51,10 +51,10 @@ export function VerifyEmailPrompt({ email }: { email: string }) {
     <div className="signin-prompt verify-prompt">
       <p>{t("checkout.verify_email_hint")}</p>
       <div className="verify-prompt-actions">
-        <Button aria-disabled={busy !== null} aria-busy={busy === "resend"} onClick={() => void resend()}>
+        <Button busy={busy === "resend"} aria-disabled={busy !== null} onClick={() => void resend()}>
           {busy === "resend" ? t("common.sending") : t("tickets.resend")}
         </Button>
-        <Button variant="text" aria-disabled={busy !== null} aria-busy={busy === "reload"} onClick={() => void reload()}>
+        <Button variant="text" busy={busy === "reload"} aria-disabled={busy !== null} onClick={() => void reload()}>
           {busy === "reload" ? t("common.loading") : t("checkout.verify_email_confirmed")}
         </Button>
       </div>

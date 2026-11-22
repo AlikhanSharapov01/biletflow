@@ -74,7 +74,7 @@ export function PromoCodeField({ eventId, initialCode, applied, onApplied }: Pro
           {applied ? (
             <Button size="sm" onClick={remove}>{t("common.remove")}</Button>
           ) : (
-            <Button size="sm" type="submit" disabled={busy || !code.trim()}>
+            <Button size="sm" type="submit" busy={busy} disabled={!code.trim()}>
               {busy ? t("checkout.checking") : t("common.apply")}
             </Button>
           )}

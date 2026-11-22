@@ -48,7 +48,7 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
         ) : paymentOpen(checklist) ? (
           <StatusPill tone="pending">{t("checkout.payment_pending")}</StatusPill>
         ) : (
-          <Button variant="primary" size="sm" disabled={busy || !canStartActivation(checklist)} onClick={onStart}>
+          <Button variant="primary" size="sm" busy={busy} disabled={!canStartActivation(checklist)} onClick={onStart}>
             {checklist.status === "failed" ? t("org.retry_payment") : t("org.pay_demo_fee")}
           </Button>
         )
@@ -57,8 +57,8 @@ export function ActivationFeeStep({ checklist, busy, onStart, onChanged }: Activ
       {paymentOpen(checklist) ? (
         <div className="simulator-actions">
           <span className="form-intro">{t("org.demo_payment_provider")}</span>
-          <Button size="sm" disabled={simulating} onClick={() => void simulate("succeeded")}>{t("org.simulate_success")}</Button>
-          <Button size="sm" variant="danger" disabled={simulating} onClick={() => void simulate("failed")}>{t("org.simulate_failure")}</Button>
+          <Button size="sm" busy={simulating} onClick={() => void simulate("succeeded")}>{t("org.simulate_success")}</Button>
+          <Button size="sm" variant="danger" busy={simulating} onClick={() => void simulate("failed")}>{t("org.simulate_failure")}</Button>
           <Button size="sm" variant="text" onClick={onChanged}>{t("org.refresh_status")}</Button>
         </div>
       ) : null}
