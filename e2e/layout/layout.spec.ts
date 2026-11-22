@@ -7,6 +7,8 @@ const VIEWPORTS = {
   phone: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
   laptop: { width: 1024, height: 768 },
+  laptopPlus: { width: 1025, height: 768 },
+  wide: { width: 1100, height: 800 },
   desktop: { width: 1440, height: 900 },
 } as const;
 type ViewportName = keyof typeof VIEWPORTS;
@@ -52,37 +54,19 @@ const PAGES: PageCase[] = [
 ];
 
 // Problems that open defects cause today, each with the task that fixes it.
-const TOP_BAR = "Task 10 (top bar)";
 const TAB_BAR = "Task 11 (tab bar labels)";
 type Expected = [pattern: RegExp, task: string];
-const PAGE_SCROLL: Expected = [/^page scrolls horizontally/, TOP_BAR];
-const ACTIONS_EDGE: Expected = [/^div\.topbar-actions .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const SIGN_IN_EDGE: Expected = [/^a\.primary-button .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const AVATAR_EDGE: Expected = [/^(details\.avatar-menu|summary|span\.avatar) .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const TOP_TAB_EDGE: Expected = [/^a\.top-tab .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const TOP_TAB_OVERLAP: Expected = [/^a\.top-tab .* overlaps the top bar actions$/, TOP_BAR];
 const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its box$/, TAB_BAR];
 const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
-const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
 const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin"];
-// checkout-hold runs only on the narrow and phone widths.
-const WIDE_ADMIN_PAGES = ADMIN_PAGES.filter((name) => name !== "checkout-hold");
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
 ];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in

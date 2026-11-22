@@ -4,7 +4,7 @@ import { useAuth } from "../../features/auth/AuthContext";
 import { isSectionActive } from "./navigation";
 import { useNavItems } from "./useNavItems";
 
-// Phone navigation (under 760px): a fixed bottom bar of lettered glyphs, like
+// Phone navigation (up to 1024px): a fixed bottom bar of lettered glyphs, like
 // mobile's tab bar. Visitors only have Discover, which the brand already links.
 export function TabBar() {
   useLocale();
