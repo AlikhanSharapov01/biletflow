@@ -3,31 +3,14 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../api/errors";
 import { listOrders } from "../../api/orders";
-import type { IssuedTicket, Order } from "../../api/types";
-import { deferred, makeOrder, makeOrderItem, makePayment } from "../../../tests/helpers/fixtures";
+import type { Order } from "../../api/types";
+import { deferred, makeIssuedTicket, makeOrder, makeOrderItem, makePayment } from "../../../tests/helpers/fixtures";
 import { OrdersPage } from "./OrdersPage";
 
 vi.mock("../../api/orders", () => ({ listOrders: vi.fn() }));
 const listOrdersMock = vi.mocked(listOrders);
 
-function ticket(title: string): IssuedTicket {
-  return {
-    id: "tk",
-    order_item_id: "i",
-    event_id: "e1",
-    event_title: title,
-    event_starts_at: "2026-11-01T18:00:00Z",
-    venue_name: "Hall",
-    ticket_type_name: "General",
-    recipient_name: "Aida",
-    seat_snapshot: null,
-    status: "valid",
-    recipient_user_id: "u1",
-    claimed_at: null,
-    issued_at: "2026-10-26T12:00:00Z",
-    qr_payload: null,
-  };
-}
+const ticket = (title: string) => makeIssuedTicket({ event_title: title });
 
 function renderPage() {
   return render(

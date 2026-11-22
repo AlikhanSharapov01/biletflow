@@ -2,7 +2,7 @@
 // complete, valid object mirroring the backend schema; tests override only the
 // fields they care about.
 import { vi } from "vitest";
-import type { Allocation, EventImage, EventView, Hold, Order, OrderItem, Profile, TicketType } from "../../src/api/types";
+import type { Allocation, IssuedTicket, EventImage, EventView, Hold, Order, OrderItem, Profile, TicketType } from "../../src/api/types";
 import type { EventAnalytics } from "../../src/api/types/analytics";
 import type { EventFinance, Payout } from "../../src/api/types/finance";
 import type { EventSeat } from "../../src/api/types/checkout";
@@ -244,6 +244,26 @@ export function makePayout(overrides: Partial<Payout> = {}): Payout {
     id: "p1", event_id: "e1", organization_id: "o1", payout_profile_id: "pp1", requested_by_user_id: "u1",
     amount_minor: 664_000, currency: "KZT", environment: "simulation", simulated: true,
     status: "pending", transfer_status: "pending", adjustment_minor: 0, sent_at: null, created_at: "2026-11-09T10:00:00Z",
+    ...overrides,
+  };
+}
+
+export function makeIssuedTicket(overrides: Partial<IssuedTicket> = {}): IssuedTicket {
+  return {
+    id: "tk",
+    order_item_id: "i",
+    event_id: "e1",
+    event_title: "Demo night",
+    event_starts_at: "2026-11-01T18:00:00Z",
+    venue_name: "Hall",
+    ticket_type_name: "General",
+    recipient_name: "Aida",
+    seat_snapshot: null,
+    status: "valid",
+    recipient_user_id: "u1",
+    claimed_at: null,
+    issued_at: "2026-10-26T12:00:00Z",
+    qr_payload: null,
     ...overrides,
   };
 }

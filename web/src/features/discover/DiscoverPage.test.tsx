@@ -367,17 +367,22 @@ describe("event cards", () => {
     ]);
     renderPage();
     await waitFor(() => expect(cards()).toHaveLength(3));
-    for (const card of cards()) {
-      const links = within(card as HTMLElement).getAllByRole("link");
-      expect(links).toHaveLength(1);
-      expect(links[0]!.textContent).toBe(card.querySelector("h3")!.textContent);
+    for (const [index, title] of ["Paid night", "Free night", "Full night"].entries()) {
+      const card = within(cards()[index] as HTMLElement);
+      expect(card.getAllByRole("link")).toHaveLength(1);
+      expect(card.getByRole("link", { name: title })).toBeTruthy();
+      expect(cards()[index]!.classList.contains("event-card-linked")).toBe(true);
     }
     const foot = (index: number) => cards()[index]!.querySelector(".event-card-foot")!;
-    expect(foot(0).textContent).toMatch(/^from ₸5,000/);
+    expect(foot(0).textContent).toBe("from ₸5,000.00");
+    expect(foot(0).querySelector(".event-offer[data-kind=from]")).not.toBeNull();
     expect(foot(1).textContent).toBe("Free");
+    expect(foot(1).querySelector(".event-offer[data-kind=free]")).not.toBeNull();
     expect(foot(2).textContent).toBe("Sold out");
     expect(foot(2).querySelector(".event-offer[data-kind=sold_out]")).not.toBeNull();
     expect(screen.queryByText("Tickets available")).toBeNull();
+    // The offer is read with the link, which keeps the title as its name.
+    expect(screen.getByRole("link", { name: "Full night" }).getAttribute("aria-describedby")).toBe(foot(2).id);
   });
 });
 
@@ -440,6 +445,7 @@ describe("keyboard focus", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
     const active = document.activeElement as HTMLAnchorElement;
     expect(active.getAttribute("href")).toBe(`/events/e${DISCOVER_PAGE_SIZE}`);
+    expect(active.closest("h3")).not.toBeNull();
   });
 
   it("does not move the focus when Load more was not focused", async () => {

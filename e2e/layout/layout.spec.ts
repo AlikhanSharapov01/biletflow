@@ -102,16 +102,6 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.evaluate(() => document.fonts.ready);
-    // A missing pinned font would silently change every text width.
-    const pinned = await page.evaluate(() => {
-      const context = document.createElement("canvas").getContext("2d")!;
-      const sample = "Wiiiiimmmmm 0123456789 Ыы Әә";
-      context.font = '16px "DejaVu Sans", monospace';
-      const withFont = context.measureText(sample).width;
-      context.font = "16px monospace";
-      return withFont !== context.measureText(sample).width;
-    });
-    if (!pinned) throw new Error("install DejaVu fonts (fonts-dejavu-core): the layout checks pin them");
   } catch (failure) {
     if (mocked.unmocked.length === 0 && pageErrors.length === 0) throw failure;
     const details = [
@@ -120,6 +110,17 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     ].filter(Boolean);
     throw new Error(`Page did not load; ${details.join("; ")}`, { cause: failure });
   }
+  // A missing pinned font would silently change every text width.
+  const missing = await page.evaluate(() => {
+    const context = document.createElement("canvas").getContext("2d")!;
+    const sample = "Wiiiiimmmmm 0123456789 Ыы Әә";
+    const width = (font: string) => {
+      context.font = `16px ${font}`;
+      return context.measureText(sample).width;
+    };
+    return ["DejaVu Sans", "DejaVu Serif"].filter((family) => width(`"${family}", monospace`) === width("monospace"));
+  });
+  if (missing.length) throw new Error(`install DejaVu fonts (fonts-dejavu-core): ${missing.join(", ")} not found`);
 }
 
 // Runs in the browser, so it sees the real rendered boxes. Returns one line per problem.
@@ -173,8 +174,8 @@ function measureLayout(): string[] {
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       if (!(node.textContent ?? "").trim()) continue;
       const parent = node.parentElement;
-      if (!parent || !rendered(parent) || parent.closest("option, select")) continue;
-      if (!deep && parent !== element) continue;
+      if (!parent || (!deep && parent !== element)) continue;
+      if (!rendered(parent) || parent.closest("option, select")) continue;
       const range = document.createRange();
       range.selectNodeContents(node);
       for (const rect of range.getClientRects()) {

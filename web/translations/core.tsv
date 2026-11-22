@@ -415,6 +415,7 @@ orders.load_error	We couldn’t load your orders.	Не удалось загру
 orders.empty	No orders yet.	Заказов пока нет.	Әзірге тапсырыс жоқ.
 orders.register_hint	and reserve a ticket.	и забронируйте билет.	және билет брондаңыз.
 orders.find_event	Find an event	Найти мероприятие	Іс-шара табу
+orders.view	View order →	Открыть заказ →	Тапсырысты ашу →
 orders.all	All orders	Все заказы	Барлық тапсырыстар
 orders.loading_one	Loading order…	Загрузка заказа…	Тапсырыс жүктелуде…
 orders.load_one_error	We couldn’t load this order.	Не удалось загрузить этот заказ.	Бұл тапсырысты жүктеу мүмкін болмады.
@@ -439,6 +440,7 @@ tickets.all	All tickets	Все билеты	Барлық билеттер
 tickets.loading_one	Loading ticket…	Загрузка билета…	Билет жүктелуде…
 tickets.load_one_error	We couldn’t load this ticket.	Не удалось загрузить этот билет.	Бұл билетті жүктеу мүмкін болмады.
 tickets.admission_ticket	Admission ticket	Входной билет	Кіру билеті
+tickets.show_qr	Show QR →	Показать QR →	QR көрсету →
 tickets.view	View ticket	Открыть билет	Билетті ашу
 tickets.print	Print ticket	Распечатать билет	Билетті басып шығару
 tickets.download_pdf	Download PDF	Скачать PDF	PDF жүктеп алу

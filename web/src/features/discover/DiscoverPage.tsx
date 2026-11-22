@@ -119,6 +119,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
     (links.find((link) => link.getAttribute("href") === path) ?? links.at(-1))?.focus();
   }, [events, hasMore, loadingMore, loadMoreFailed]);
 
+  const now = new Date();
   if (found.error) return <ErrorPanel title={t("discover.load_error")} message={found.error} onRetry={found.reload} />;
   if (!lookups || !found.loaded || (found.loading && !KEEP_PREVIOUS_CARDS)) return <Loading label={t("discover.loading")} />;
 
@@ -146,7 +147,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
           const venue = maps.venues.get(event.venue_id);
           const categoryLabel = categoryName(maps.categories.get(event.category_id));
           const path = `/events/${encodeURIComponent(event.id)}`;
-          const offer = eventOffer(event);
+          const offer = eventOffer(event, now);
           return (
             <EventCard
               key={event.id}
@@ -155,6 +156,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
               eyebrow={categoryLabel}
               title={event.title}
               to={path}
+              coverLink
               meta={`${dateLabel(event.starts_at)} · ${venue ? `${venue.name} · ${venue.city}` : t("discover.venue_missing")}`}
               footer={<span className="event-offer" data-kind={offer.kind}>{offer.label}</span>}
             />

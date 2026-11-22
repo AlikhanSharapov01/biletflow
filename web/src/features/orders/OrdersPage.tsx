@@ -31,11 +31,17 @@ export function OrdersPage() {
                   date={orderStart(order)}
                   title={orderTitle(order)}
                   to={path}
+                  coverLink
                   meta={[
                     t("orders.summary_meta", { items: quantityLabel("ticket", order.items.length), amount: priceLabel(order.payable_minor), date: dateLabel(order.created_at) }),
                     ...(order.payment ? [paymentLabel(order)] : []),
                   ]}
-                  footer={<StatusPill tone={orderStatusTone(order.status)}>{statusLabel(order.status)}</StatusPill>}
+                  footer={
+                    <>
+                      <StatusPill tone={orderStatusTone(order.status)}>{statusLabel(order.status)}</StatusPill>
+                      <span className="event-cue" aria-hidden="true">{t("orders.view")}</span>
+                    </>
+                  }
                 />
               );
             })}

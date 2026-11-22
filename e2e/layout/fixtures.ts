@@ -16,8 +16,8 @@ export const NOW = new Date("2027-01-15T06:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 // Dates are anchored to local midnight in Almaty (UTC+5, the browser's time zone), so an
 // event "at 14:00" really shows 14:00.
-// Derived from NOW's calendar day (06:00 UTC is 11:00 in Almaty, the same day).
-const ALMATY_MIDNIGHT = Date.parse(`${NOW.toISOString().slice(0, 10)}T00:00:00+05:00`);
+// Derived from NOW's calendar day in Almaty (UTC+5).
+const ALMATY_MIDNIGHT = Date.parse(`${new Date(NOW.getTime() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00+05:00`);
 const at = (days: number, hour = 0) => new Date(ALMATY_MIDNIGHT + days * DAY + hour * 60 * 60 * 1000).toISOString();
 
 const CREATED = at(-90);

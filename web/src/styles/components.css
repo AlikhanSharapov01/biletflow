@@ -80,8 +80,12 @@
 .event-card-linked h3 a::after { content: ""; position: absolute; inset: 0; }
 .event-card-linked:hover { border-color: var(--hover-line); }
 .event-card-linked:hover h3 a { text-decoration: underline; }
-.event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper); }
-.event-card-linked h3 a:focus-visible { outline: none; box-shadow: none; }
+/* Same ring as the global :focus-visible, drawn around the card; without :has() the link keeps its own. */
+@supports selector(:has(*)) {
+  .event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper); }
+  .event-card-linked h3 a:focus-visible { outline: none; box-shadow: none; }
+}
+.event-cue { color: var(--green); font-size: var(--text-meta); font-weight: 700; }
 .event-card-extra { padding: 0 14px 14px; }
 .row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .event-offer { min-width: 0; color: var(--ink); font-size: var(--text-body-sm); font-weight: 700; overflow-wrap: anywhere; }
