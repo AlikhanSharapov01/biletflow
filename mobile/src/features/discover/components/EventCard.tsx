@@ -10,6 +10,9 @@ import { cardShadow, colors, eventArt, fonts, radii, typography, overlays } from
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
 
+// Milliseconds before a touch on a card counts as a press (iOS lists wait about this long).
+const CARD_PRESS_DELAY = 120;
+
 // Discover card (web EventCard with a .live-art block): a coloured art panel
 // with the category initial, then category, title, when/where and a footer
 // row. The whole card opens the event. When the event has a gallery, its
@@ -43,6 +46,8 @@ export function EventCard({
       onPress={onPress}
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
+      // A scroll that starts on the card cancels the press before it shows.
+      unstable_pressDelay={CARD_PRESS_DELAY}
       style={[styles.card, press.style]}
     >
       <View style={[styles.art, { backgroundColor: light }]} accessibilityElementsHidden>

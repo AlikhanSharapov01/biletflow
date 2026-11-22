@@ -5,6 +5,19 @@ import { EventCard } from "@/features/discover/components/EventCard";
 import { cardShadow, colors, motion } from "@/theme";
 
 jest.mock("@/hooks/useEventImage", () => ({ useEventImage: () => null }));
+// Records the props the card gives its pressable (the host tree does not show Pressable's own props).
+const mockPressableProps: Record<string, unknown>[] = [];
+jest.mock("@/components/ui/pressFeedback", () => {
+  const actual = jest.requireActual("@/components/ui/pressFeedback");
+  const React = jest.requireActual("react");
+  return {
+    ...actual,
+    AnimatedPressable: (props: Record<string, unknown>) => {
+      mockPressableProps.push(props);
+      return React.createElement(actual.AnimatedPressable, props);
+    },
+  };
+});
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -24,5 +37,10 @@ describe("EventCard", () => {
     expect(style.borderWidth).toBeUndefined();
     expect(style).toMatchObject(cardShadow);
     expect(StyleSheet.flatten(screen.getByText("Sat, 20:00 · Almaty").props.style).color).toBe(colors.muted);
+  });
+  // A scroll that starts on a card must not flash its press state or start the spring.
+  it("waits before showing the press, so scrolling over a card does not press it", async () => {
+    await render(card());
+    expect(mockPressableProps.at(-1)?.unstable_pressDelay).toBe(120);
   });
 });
