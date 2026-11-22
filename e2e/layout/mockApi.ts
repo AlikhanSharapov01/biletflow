@@ -2,6 +2,7 @@ import { deflateSync } from "node:zlib";
 import type { Page, Route } from "@playwright/test";
 import type { AdminMe } from "../../web/src/api/types/admin";
 import type { CalendarLinks } from "../../web/src/api/types/calendar";
+import type { PromoPreview } from "../../web/src/api/types/promo";
 import {
   ACCESS_TOKEN,
   COVER_SIZES,
@@ -113,6 +114,15 @@ function rules(role: Role, locale: Locale): Rule[] {
   ];
   if (role !== "visitor") {
     table.push(
+      get(`/events/${ID}/promo-codes/${ID}/preview`, (_url, [eventId, code]) =>
+        eventById(eventId) && {
+          event_id: eventId!,
+          code: code!,
+          discount_kind: "percent",
+          discount_value: 10,
+          eligible_ticket_type_ids: ticketTypes(eventId!).map((type) => type.id),
+          valid_until: new Date(NOW.getTime() + 86_400_000).toISOString(),
+        } satisfies PromoPreview),
       { method: "POST", pattern: new RegExp(`^${API}/events/${ID}/holds$`), reply: (_url, [eventId]) => eventById(eventId) && hold(eventId!) },
       get("/me", () => profile(locale)),
       role === "admin"

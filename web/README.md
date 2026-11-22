@@ -321,8 +321,9 @@ filtered, empty and with Load more), the event page and the organizer event page
 - on the event page up to 960 px wide and over 500 px tall, the sticky Get tickets bar resting on the tab bar (or the bottom edge for visitors),
   inside the viewport, its whole offer (amount included) uncut, offer and button not overlapping, the spacer as tall as the bar,
   and the page's last content clear of it; on sold-out and sales-ended events, no bar and no spacer.
+- at every width, the page's top scroll padding at least as tall as the top bar; up to 1024 px, a shown toast (raised by a failed language change on the event page) at least 8 px above the tab bar and the sticky Get tickets bar.
 
-It also attaches a full-page and a viewport screenshot (no image baselines). `layout/loading.spec.ts` holds a request open and asserts that the heading, filters and first card (Discover) or back link, heading and columns (event page) do not move when the data replaces the skeleton, and that a filter change keeps the cards in place, dimmed and busy. Defects that are
+It also attaches a full-page and a viewport screenshot (no image baselines). `layout/focus.spec.ts` drives Discover Load more, a promo code and the checkout step change from the keyboard at 390 and 1440 px and asserts focus stays on a named, visible element, never `<body>`. `layout/loading.spec.ts` holds a request open and asserts that the heading, filters and first card (Discover) or back link, heading and columns (event page) do not move when the data replaces the skeleton, and that a filter change keeps the cards in place, dimmed and busy. Defects that are
 still open are listed in `KNOWN_FAILURES` in `layout.spec.ts`, each naming the task that fixes
 it; a case with a known problem still fails on any other problem, and fails when a listed
 problem stops occurring. Text widths depend on the font, so the cases pin DejaVu Sans and Serif

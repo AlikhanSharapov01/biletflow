@@ -540,6 +540,65 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
   }
 }
 
+// The fixed top bar must not cover a focused control: the page's scroll padding is at least its height.
+function scrollPaddingProblems(): string[] {
+  const bar = document.querySelector(".topbar");
+  if (!bar) return ["no top bar"];
+  const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+  const height = bar.getBoundingClientRect().height;
+  return padding >= height ? [] : [`scroll padding at the top is ${padding}px, less than the ${height}px top bar`];
+}
+
+// A shown toast sits clear above whatever is fixed to the bottom edge: the tab bar and, on event pages, the sticky Get tickets bar.
+function toastProblems(): string[] {
+  const toast = document.querySelector(".toast.visible");
+  if (!toast) return ["no toast is shown"];
+  const toastBox = toast.getBoundingClientRect();
+  const problems: string[] = [];
+  if (toastBox.left < 0 || toastBox.right > window.innerWidth) problems.push(`toast spans ${Math.round(toastBox.left)}..${Math.round(toastBox.right)}`);
+  for (const selector of [".tab-bar", ".get-tickets-bar:not([data-hidden])"]) {
+    const element = document.querySelector(selector);
+    if (!element || getComputedStyle(element).display === "none") continue;
+    const top = element.getBoundingClientRect().top;
+    if (toastBox.bottom > top - 8) problems.push(`toast bottom ${Math.round(toastBox.bottom)} is within 8px of the ${selector} top at ${Math.round(top)}`);
+  }
+  return problems;
+}
+
+for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportName, (typeof VIEWPORTS)[ViewportName]]>) {
+  for (const locale of LOCALES) {
+    test.describe(`chrome offsets ${viewportName} ${locale}`, () => {
+      test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
+
+      test(`scroll padding clears the top bar ${viewportName} ${locale}`, async ({ page }) => {
+        const mocked = await mockApi(page, "visitor", locale);
+        await openPage(page, PAGES[0]!, locale, mocked, []);
+        expect(await page.evaluate(scrollPaddingProblems), "top scroll padding").toEqual([]);
+      });
+
+      // Only widths with a tab bar (up to 1024px); wider screens have nothing fixed to the bottom edge.
+      if (size.width <= 1024) {
+        test(`toast clears the bottom chrome ${viewportName} ${locale}`, async ({ page }) => {
+          const eventPage = PAGES.find((item) => item.name === "event-member")!;
+          const mocked = await mockApi(page, "member", locale);
+          // The language change fails, which is what raises the toast.
+          await page.route((url) => url.pathname === "/api/v1/me", (route) =>
+            route.request().method() === "PATCH" ? route.fulfill({ status: 500, json: { detail: { code: "layout_forced_error" } } }) : route.fallback());
+          await openPage(page, eventPage, locale, mocked, []);
+          await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+          // On phones the sticky Get tickets bar is shown at the end of the page and is part of the chrome;
+          // on a tablet the tickets section stays on screen, so the bar slides away.
+          if (size.width < 768 && size.height > 500) await expect(page.locator(".get-tickets-bar:not([data-hidden])")).toBeVisible();
+          await page.locator(".topbar select").selectOption(LOCALES.find((other) => other !== locale)!);
+          await expect(page.locator(".toast.visible")).toBeVisible();
+          await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+          expect(await page.evaluate(toastProblems), "toast offset").toEqual([]);
+        });
+      }
+    });
+  }
+}
+
 // A renamed page, width or language must not silently turn a known row into a no-op.
 for (const key of KNOWN_FAILURES.keys()) {
   if (!GENERATED.has(key)) throw new Error(`KNOWN_FAILURES has "${key}", which matches no generated case`);
