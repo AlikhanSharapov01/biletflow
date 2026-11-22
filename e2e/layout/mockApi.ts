@@ -84,7 +84,7 @@ function rules(role: Role, locale: Locale): Rule[] {
       const q = param("q")?.toLowerCase();
       const city = param("city")?.toLowerCase();
       const cityOf = (venueId: string) => venues.find((venue) => venue.id === venueId)?.city.toLowerCase();
-      // Date and price filters are not evaluated: the fixtures carry no prices.
+      // Date and price filters are not evaluated: the list is the same whatever the range.
       const matching = events.filter(
         (event) =>
           (!q || event.title.toLowerCase().includes(q)) &&

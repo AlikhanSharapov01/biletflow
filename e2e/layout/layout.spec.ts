@@ -307,7 +307,7 @@ function measureLayout(): string[] {
     if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
   }
 
-  // Tab bar labels: inside their link, at most two lines (three only at 320 with six
+  // Tab bar labels: inside their link, at most two lines (three only below 360 px with six
   // sections), broken only at soft hyphens or spaces, no line shorter than three letters,
   // and every link and the bar at their designed size whatever the language.
   const SOFT_HYPHEN = "\u00ad";
