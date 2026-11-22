@@ -73,6 +73,12 @@ nav.account	Account	Аккаунт	Тіркелгі
 nav.support	Support	Поддержка	Қолдау
 nav.notifications	Notifications	Уведомления	Хабарландырулар
 nav.admin	Admin	Администратор	Әкімші
+nav.tab.discover	Discover	Афиша	Афиша
+nav.tab.tickets	Tickets	Би­леты	Би­лет­тер
+nav.tab.orders	Orders	За­казы	Тап­сы­рыс­тар
+nav.tab.organizer	Or­ga­nizer	Ор­га­ни­за­тор	Ұйым­дас­ты­рушы
+nav.tab.support	Sup­port	Под­держка	Қол­дау
+nav.tab.admin	Admin	Ад­ми­ни­стра­тор	Әкімші
 nav.main	Main navigation	Основная навигация	Негізгі навигация
 nav.skip	Skip to content	Перейти к содержимому	Мазмұнға өту
 nav.browse	Browse events	Смотреть мероприятия	Іс-шараларды қарау
@@ -155,6 +161,11 @@ organizer.cancel_event	Cancel event	Отменить мероприятие	Іс
 organizer.cancel_event_confirm	Cancel this event? This cannot be undone.	Отменить мероприятие? Это действие нельзя отменить.	Іс-шарадан бас тартасыз ба? Бұл әрекетті қайтару мүмкін емес.
 organizer.public_page	Public page	Публичная страница	Ашық бет
 organizer.event_sections	Event sections	Разделы мероприятия	Іс-шара бөлімдері
+organizer.event_stages	Event stages	Этапы мероприятия	Іс-шара кезеңдері
+organizer.group_setup	Setup	Подготовка	Дайындық
+organizer.group_sales	Sales	Продажи	Сатылым
+organizer.group_event_day	Event day	День мероприятия	Іс-шара күні
+organizer.group_results	Results	Итоги	Нәтижелер
 organizer.remove_staff_confirm	Remove this staff assignment?	Удалить это назначение сотрудника?	Қызметкердің осы тағайындауын жоясыз ба?
 organizer.owner	Owner	Владелец	Иесі
 organizer.revoked	Revoked	Отозвано	Күші жойылған

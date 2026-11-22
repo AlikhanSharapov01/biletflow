@@ -25,8 +25,7 @@ test("attendee refund request -> organizer refund", async ({ browser }) => {
   // The organizer finds the registration and refunds the whole order.
   const organizerPage = await newPerson(browser);
   await signIn(organizerPage, organizer.account);
-  await organizerPage.goto(`/organizer/events/${organizer.event.id}`);
-  await organizerPage.getByRole("tab", { name: "Attendees" }).click();
+  await organizerPage.goto(`/organizer/events/${organizer.event.id}?tab=attendees`);
   await organizerPage.getByRole("button", { name: "Refund", exact: true }).click();
   const dialog = organizerPage.getByRole("dialog");
   await dialog.getByLabel(/Reason/).fill("Approved after the request");

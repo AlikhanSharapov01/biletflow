@@ -12,6 +12,7 @@ import {
   events,
   manyEvents,
   hold,
+  NOW,
   organization,
   profile,
   publicSettings,
@@ -21,7 +22,7 @@ import {
   type Locale,
 } from "./fixtures";
 
-export type Role = "visitor" | "admin";
+export type Role = "visitor" | "member" | "admin";
 
 // A handler returns the JSON body, or undefined when the id is not a fixture.
 type Handler = (url: URL, ids: string[]) => unknown;
@@ -74,7 +75,7 @@ function rules(role: Role, locale: Locale): Rule[] {
     {
       method: "POST",
       pattern: new RegExp(`^${API}/auth/refresh$`),
-      reply: role === "admin" ? () => ({ access_token: ACCESS_TOKEN, token_type: "bearer", expires_in: 900, refresh_token: null }) : { status: 401, body: { detail: { code: "invalid_token" } } },
+      reply: role !== "visitor" ? () => ({ access_token: ACCESS_TOKEN, token_type: "bearer", expires_in: 900, refresh_token: null }) : { status: 401, body: { detail: { code: "invalid_token" } } },
     },
     get("/categories", () => categories),
     get("/venues", () => venues),
@@ -100,16 +101,55 @@ function rules(role: Role, locale: Locale): Rule[] {
     get(`/events/${ID}/images/${ID}`, (_url, [eventId, kind]) => (eventById(eventId) && kind! in COVER_SIZES ? { cover: kind } : undefined)),
     get("/settings/public", () => publicSettings),
   ];
-  if (role === "admin") {
+  if (role !== "visitor") {
     table.push(
       { method: "POST", pattern: new RegExp(`^${API}/events/${ID}/holds$`), reply: (_url, [eventId]) => eventById(eventId) && hold(eventId!) },
       get("/me", () => profile(locale)),
-      get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe),
+      role === "admin"
+        ? get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe)
+        : { method: "GET", pattern: new RegExp(`^${API}/admin/me$`), reply: { status: 403, body: { detail: { code: "admin_required" } } } },
       get("/notifications/unread-count", () => ({ unread: UNREAD_NOTIFICATIONS })),
       get("/notifications", () => []),
       get("/organizations", () => [organization]),
       get(`/organizations/${ID}/members`, () => []),
       get(`/organizations/${ID}/invitations`, () => []),
+      get(`/events/${ID}/check-ins`, (url, [eventId]) =>
+        eventById(eventId) && {
+          items: [
+            {
+              check_in_id: "layout-check-in-1",
+              ticket_id: "layout-ticket-1",
+              attendee_name: "Айгерим Сәрсенбекқызы-Нұрмұхамбетова",
+              ticket_type_name: "Бүкіл күнге арналған VIP билеті",
+              seat: { section_label: "A", row_label: "12", seat_label: "7" },
+              source: "online",
+              accepted_at: new Date(NOW.getTime() - 3_600_000).toISOString(),
+              captured_at: null,
+              scanner: { id: "layout-scanner", display_name: "Gate scanner" },
+              device_label: null,
+              operation_id: null,
+              reversed_at: null,
+              reversal: null,
+            },
+          ],
+          total: 1,
+          limit: Number(url.searchParams.get("limit")) || 50,
+          offset: 0,
+        },
+      ),
+      get(`/events/${ID}/staff`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
+      get(`/events/${ID}/finance`, (_url, [eventId]) =>
+        eventById(eventId) && {
+          event_id: eventId, currency: "KZT", simulated: true, simulation_only: true, environments: ["simulation"],
+          gross_minor: 1_200_000, discount_minor: 0, collected_minor: 1_200_000, fulfilled_collected_minor: 1_200_000,
+          charged_fees_minor: 36_000, fee_reversals_minor: 0, fees_minor: 36_000, refunds_minor: 0, pending_refunds_minor: 0,
+          activation_charges_minor: 500_000, activation_refunds_minor: 0, pending_activation_refunds_minor: 0,
+          net_minor: 664_000, balance_minor: 664_000, reserved_minor: 0, sent_minor: 0, estimated_payout_minor: 664_000,
+          payout_eligible_at: NOW.toISOString(), generated_at: NOW.toISOString(),
+        },
+      ),
+      get(`/events/${ID}/finance/payouts`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
+      get(`/events/${ID}/sync-conflicts`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
       get(`/events/${ID}/calendar-links`, (url, [eventId]) =>
         eventById(eventId) && ({
           google: "https://calendar.google.com/",

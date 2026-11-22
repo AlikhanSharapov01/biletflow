@@ -28,7 +28,7 @@ const listOrdersMock = vi.mocked(listOrders);
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location">{location.pathname}</output>;
+  return <output data-testid="location" data-from={(location.state as { from?: string } | null)?.from ?? ""}>{location.pathname}</output>;
 }
 
 function renderAt(path: string, auth: AuthContextValue) {
@@ -81,6 +81,12 @@ describe("route guarding for anonymous visitors", () => {
       expect(getAdminMeMock).not.toHaveBeenCalled();
     },
   );
+
+  it("remembers the query and hash of the page that needed sign-in", async () => {
+    renderAt("/organizer/events/e1?tab=finance#top", makeAuthValue({ status: "anonymous" }));
+    await waitFor(() => expect(currentPath()).toBe("/sign-in"));
+    expect(screen.getByTestId("location").getAttribute("data-from")).toBe("/organizer/events/e1?tab=finance#top");
+  });
 
   it("keeps public pages public", () => {
     renderAt("/sign-in", makeAuthValue({ status: "anonymous" }));

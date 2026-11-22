@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 
 export interface TabItem<T extends string> {
   id: T;
@@ -7,18 +7,53 @@ export interface TabItem<T extends string> {
 
 interface TabsProps<T extends string> {
   label: string;
-  items: Array<TabItem<T>>;
+  items: ReadonlyArray<TabItem<T>>;
   value: T;
   onChange: (id: T) => void;
   // Links each tab to a TabPanel with the same prefix.
   idPrefix?: string;
   // Equal-width segments (the sign-in switch).
   fill?: boolean;
+  // A lighter, underlined row for a second level beneath another tablist.
+  secondary?: boolean;
 }
 
 // A tablist with roving focus: arrow keys, Home and End move between tabs.
-export function Tabs<T extends string>({ label, items, value, onChange, idPrefix, fill = false }: TabsProps<T>) {
+export function Tabs<T extends string>({ label, items, value, onChange, idPrefix, fill = false, secondary = false }: TabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Keeps the selected tab fully visible in a row that scrolls sideways (phones, long labels).
+  // Sets scrollLeft instead of using scrollIntoView so the page never moves vertically.
+  // Some browsers truncate scrollLeft to an integer, so a fractional target is rounded
+  // outwards (up for the end edge, down for the start edge) and the ends snap to 0 and max.
+  const selectedIndex = items.findIndex((item) => item.id === value);
+  useEffect(() => {
+    const selected = refs.current[selectedIndex];
+    const row = selected?.parentElement;
+    if (!selected || !row) return;
+
+    const reveal = () => {
+      const max = row.scrollWidth - row.clientWidth;
+      if (max <= 0) return;
+      let target = row.scrollLeft;
+      if (selectedIndex === 0) target = 0;
+      else if (selectedIndex === items.length - 1) target = max;
+      else {
+        const tab = selected.getBoundingClientRect();
+        const box = row.getBoundingClientRect();
+        if (tab.left < box.left) target = Math.floor(row.scrollLeft - (box.left - tab.left));
+        else if (tab.right > box.right) target = Math.ceil(row.scrollLeft + (tab.right - box.right));
+      }
+      target = Math.min(Math.max(target, 0), max);
+      if (target !== row.scrollLeft) row.scrollLeft = target;
+    };
+
+    reveal();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(reveal);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [selectedIndex, items.length]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = items.length - 1;
@@ -36,7 +71,7 @@ export function Tabs<T extends string>({ label, items, value, onChange, idPrefix
   };
 
   return (
-    <div className={`tabs ${fill ? "tabs-fill" : ""}`} role="tablist" aria-label={label}>
+    <div className={["tabs", fill && "tabs-fill", secondary && "tabs-secondary"].filter(Boolean).join(" ")} role="tablist" aria-label={label}>
       {items.map((item, index) => {
         const selected = item.id === value;
         return (

@@ -5,7 +5,7 @@ import { TabBar } from "./TabBar";
 import { TopBar } from "./TopBar";
 
 // Signed-in and public pages: top bar, a centred content column, and the
-// bottom tab bar on phones.
+// bottom tab bar on phones and tablets (up to 1024px).
 export function AppShell() {
   useLocale();
   const { profile } = useAuth();

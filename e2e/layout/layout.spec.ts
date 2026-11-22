@@ -4,9 +4,19 @@ import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
   narrow: { width: 320, height: 640 },
+  // 344 is a foldable's cover screen; six sections still need three Kazakh lines there.
+  fold: { width: 344, height: 700 },
+  // 360 is the most common Android phone width; the admin case has six tab bar sections.
+  compact: { width: 360, height: 740 },
   phone: { width: 390, height: 844 },
   tablet: { width: 768, height: 1024 },
   laptop: { width: 1024, height: 768 },
+  // 375 is a common phone; 1025 is the first width with the top tabs instead of the bottom
+  // tab bar, 1100 and 1280 sit inside and at the end of the tight 1025-1279 range.
+  small: { width: 375, height: 667 },
+  aboveTabBar: { width: 1025, height: 768 },
+  wide: { width: 1100, height: 800 },
+  desktopMin: { width: 1280, height: 800 },
   desktop: { width: 1440, height: 900 },
 } as const;
 type ViewportName = keyof typeof VIEWPORTS;
@@ -33,6 +43,7 @@ const PAGES: PageCase[] = [
   { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card" },
   { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
+  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card" },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
   {
@@ -49,41 +60,15 @@ const PAGES: PageCase[] = [
     viewports: ["narrow", "phone"],
   },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
+  { name: "organizer-check-ins-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=check-ins`, ready: "[role=tabpanel] .data-table" },
+  { name: "organizer-staff-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=staff`, ready: "#event-section-panel .stack, #event-section-panel form" },
+  { name: "organizer-finance-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=finance`, ready: "#event-section-panel .stat, #event-section-panel dl, #event-section-panel .panel" },
 ];
 
-// Problems that open defects cause today, each with the task that fixes it.
-const TOP_BAR = "Task 10 (top bar)";
-const TAB_BAR = "Task 11 (tab bar labels)";
+// Problems that open defects cause today, each with the task that fixes it. Add a row to
+// KNOWN_ROWS only for a defect another task owns; delete it when that task lands.
 type Expected = [pattern: RegExp, task: string];
-const PAGE_SCROLL: Expected = [/^page scrolls horizontally/, TOP_BAR];
-const ACTIONS_EDGE: Expected = [/^div\.topbar-actions .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const SIGN_IN_EDGE: Expected = [/^a\.primary-button .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const AVATAR_EDGE: Expected = [/^(details\.avatar-menu|summary|span\.avatar) .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const TOP_TAB_EDGE: Expected = [/^a\.top-tab .* spans \d+\.\.\d+ of \d+$/, TOP_BAR];
-const TOP_TAB_OVERLAP: Expected = [/^a\.top-tab .* overlaps the top bar actions$/, TOP_BAR];
-const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its box$/, TAB_BAR];
-const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
-const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
-
-const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
-const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin"];
-// checkout-hold runs only on the narrow and phone widths.
-const WIDE_ADMIN_PAGES = ADMIN_PAGES.filter((name) => name !== "checkout-hold");
-const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: VISITOR_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
-  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
-];
+const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in
 // such a case is still checked: a problem matching no entry fails the case, and so does
@@ -95,13 +80,14 @@ for (const row of KNOWN_ROWS) {
 }
 const GENERATED = new Set<string>();
 
-const NAV_LINKS = { visitor: 1, admin: 6 } as const;
+const NAV_LINKS = { visitor: 1, member: 5, admin: 6 } as const;
 
 // Text widths depend on the font, and the app's font stack falls back to whatever the
 // machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
 // everywhere so a case gives the same answer on every machine. CI installs them
 // (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
-const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; }`;
+// The language select is pinned to 16px, the size form fields get on phones and tablets.
+const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } .topbar select { font-size: 16px; }`;
 
 async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi, pageErrors: string[]) {
   // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
@@ -289,6 +275,99 @@ function measureLayout(): string[] {
     });
   }
 
+  // Top bar children stay inside the bar's padded content box, so the right gutter
+  // matches the left one.
+  const inner = document.querySelector(".topbar-inner");
+  if (inner) {
+    const style = getComputedStyle(inner);
+    const box = inner.getBoundingClientRect();
+    const left = box.left + parseFloat(style.paddingLeft);
+    const right = box.right - parseFloat(style.paddingRight);
+    for (const child of inner.querySelectorAll(".brand, .topbar-actions > *")) {
+      const rect = rendered(child);
+      if (rect && (rect.right > right + TOLERANCE || rect.left < left - TOLERANCE)) {
+        problems.push(`${describe(child)} leaves the top bar content box ${Math.round(left)}..${Math.round(right)}: ${Math.round(rect.left)}..${Math.round(rect.right)}`);
+      }
+    }
+  }
+  // A top tab must end inside the tab strip.
+  const strip = document.querySelector(".top-tabs");
+  const stripBox = strip && rendered(strip);
+  if (stripBox) {
+    for (const tab of document.querySelectorAll(".top-tab")) {
+      const box = tab.getBoundingClientRect();
+      if (box.right > stripBox.right + TOLERANCE) problems.push(`${describe(tab)} runs past the end of the tab strip`);
+    }
+  }
+  // Navigation switches at 1024/1025: bottom tab bar up to 1024, top tabs above.
+  const bar = document.querySelector(".tab-bar");
+  if (bar && document.querySelectorAll(".top-tab").length > 0) {
+    const barShown = getComputedStyle(bar).display !== "none";
+    const tabsShown = getComputedStyle(document.querySelector(".top-tabs")!).display !== "none";
+    if (width <= 1024 && (!barShown || tabsShown)) problems.push(`navigation at ${width}px: bottom tab bar expected, not top tabs`);
+    if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
+  }
+
+  // Tab bar labels: inside their link, at most two lines (three only at 320 with six
+  // sections), broken only at soft hyphens or spaces, no line shorter than three letters,
+  // and every link and the bar at their designed size whatever the language.
+  const SOFT_HYPHEN = "\u00ad";
+  const tabBar = document.querySelector(".tab-bar");
+  const tabBarShown = tabBar && rendered(tabBar);
+  (window as unknown as { tabLabelLines: string[] }).tabLabelLines = [];
+  const links = [...document.querySelectorAll(".tab-bar-link")].filter((link) => rendered(link));
+  for (const link of links) {
+    if (link.scrollWidth > link.clientWidth) problems.push(`${describe(link)} label overflows its link: ${link.scrollWidth} > ${link.clientWidth}`);
+    const minHeight = parseFloat(getComputedStyle(link).minHeight);
+    const height = link.getBoundingClientRect().height;
+    if (!Number.isFinite(minHeight)) problems.push(`${describe(link)} has no pixel min-height`);
+    else if (Math.abs(height - minHeight) > TOLERANCE) problems.push(`${describe(link)} is ${Math.round(height)}px tall, expected ${minHeight}px`);
+    const label = link.querySelector(".tab-bar-label");
+    const node = label?.firstChild;
+    if (!label || !node || node.nodeType !== Node.TEXT_NODE) continue;
+    if (label.scrollWidth > label.clientWidth) problems.push(`${describe(label)} label is wider than its box: ${label.scrollWidth} > ${label.clientWidth}`);
+    const text = node.textContent ?? "";
+    if (!text) continue;
+    const lines: string[] = [];
+    let lastTop: number | null = null;
+    let previous = -1;
+    for (let index = 0; index < text.length; index++) {
+      if (text.charAt(index) === SOFT_HYPHEN || /\s/.test(text.charAt(index))) continue;
+      const range = document.createRange();
+      // The line a character sits on is where the text up to and including it ends.
+      range.setStart(node, 0);
+      range.setEnd(node, index + 1);
+      const rects = range.getClientRects();
+      const top = rects[rects.length - 1]!.top;
+      // Glyphs of one line differ by a pixel or two; the next line is a line height lower.
+      if (lastTop === null || top - lastTop > 5) {
+        if (lastTop !== null && previous >= 0 && !/[\s\u00ad-]/.test(text.slice(previous + 1, index) + (text[previous] === "-" ? "-" : ""))) {
+          problems.push(`${describe(label)} breaks inside a word without a hyphenation point`);
+        }
+        lines.push("");
+        lastTop = top;
+      }
+      lines[lines.length - 1] += text.charAt(index);
+      previous = index;
+    }
+    (window as unknown as { tabLabelLines: string[] }).tabLabelLines.push(`${lines.join("/")}`);
+    if (lines.length > 3 || (lines.length === 3 && !(width < 360 && links.length === 6))) problems.push(`${describe(label)} label wraps to ${lines.length} lines`);
+    if (lines.length > 1) {
+      for (const line of lines) if (line.length < 3) problems.push(`${describe(label)} has a ${line.length}-letter line "${line}"`);
+    }
+  }
+  if (tabBarShown) {
+    const style = getComputedStyle(tabBar);
+    const expected = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tab-bar-height")) + parseFloat(style.borderTopWidth);
+    const actual = tabBar.getBoundingClientRect().height;
+    if (!Number.isFinite(expected)) problems.push("tab bar height token --tab-bar-height is missing");
+    else if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
+  }
+  for (const link of document.querySelectorAll(".tab-bar-link")) {
+    const box = rendered(link);
+    if (box && (box.right - box.left < 44 || box.bottom - box.top < 44)) problems.push(`${describe(link)} is smaller than 44x44`);
+  }
+
   // Labels of sibling tabs must not run into each other.
   for (const selector of [".tab-bar-link", ".top-tab"]) {
     const links = [...document.querySelectorAll(selector)].filter((link) => rendered(link));
@@ -299,6 +378,17 @@ function measureLayout(): string[] {
         }
       }
     });
+  }
+
+  // The selected tab of a scrolling tab row must be fully visible, not scrolled out of sight.
+  for (const tab of document.querySelectorAll('[role="tab"][aria-selected="true"]')) {
+    const row = tab.closest('[role="tablist"]');
+    if (!row) continue;
+    const box = tab.getBoundingClientRect();
+    const view = row.getBoundingClientRect();
+    if (box.left < view.left - TOLERANCE || box.right > view.right + TOLERANCE) {
+      problems.push(`${describe(tab)} selected tab is not fully inside its tab row (${Math.round(box.left)}..${Math.round(box.right)} in ${Math.round(view.left)}..${Math.round(view.right)})`);
+    }
   }
 
   const actions = document.querySelector(".topbar-actions");
@@ -341,6 +431,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
 
           await openPage(page, pageCase, locale, mocked, pageErrors);
           const problems = await page.evaluate(measureLayout);
+          if (process.env.LAYOUT_TRACE) console.log(`TRACE ${key} ${(await page.evaluate(() => (window as unknown as { tabLabelLines?: string[] }).tabLabelLines ?? [])).join(" | ")}`);
 
           // Saved under test-results/ (and uploaded by CI). The full-page shot shows all
           // content; the viewport shot shows the fixed tab bar where it really sits.
