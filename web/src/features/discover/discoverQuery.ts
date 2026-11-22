@@ -1,5 +1,6 @@
 import type { EventFilters } from "../../api/types";
 import type { TranslationKey } from "../../i18n";
+import { intlLocale } from "../../utils/intlLocale";
 
 export const DISCOVER_PAGE_SIZE = 24;
 /** Most pages of results a link can ask to restore (the `pages` URL parameter). */
@@ -151,7 +152,7 @@ export function cityOptions(cities: readonly string[], selected: string, locale:
     // A longer name would be dropped from the URL (see parseDiscoverQuery), so it cannot be a filter.
     if (name && name.length <= MAX_CITY_LENGTH && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
   }
-  const options = [...byKey.values()].sort((a, b) => a.localeCompare(b, locale));
+  const options = [...byKey.values()].sort((a, b) => a.localeCompare(b, intlLocale(locale)));
   return { options, value: byKey.get(selected.trim().toLowerCase()) ?? "" };
 }
 

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { clearIntlLocales } from "../../utils/intlLocale";
 import {
   DISCOVER_PAGE_SIZE,
   cityOptions,
@@ -254,6 +255,17 @@ describe("cityOptions", () => {
 
   it("leaves out a city longer than the URL allows", () => {
     expect(cityOptions(["Almaty", "x".repeat(101)], "", "en").options).toEqual(["Almaty"]);
+  });
+
+  it("sorts Kazakh with the locale Intl can use", () => {
+    clearIntlLocales();
+    vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue([]);
+    const compare = vi.spyOn(String.prototype, "localeCompare");
+    cityOptions(["Шымкент", "Алматы"], "", "kk");
+    expect(compare.mock.calls.every((call) => call[1] === "ru")).toBe(true);
+    expect(compare).toHaveBeenCalled();
+    vi.restoreAllMocks();
+    clearIntlLocales();
   });
 
   it("keeps a city that no venue has, so the active filter stays visible", () => {
