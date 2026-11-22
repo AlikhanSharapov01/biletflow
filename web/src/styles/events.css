@@ -9,6 +9,9 @@
 .checkout-heading { margin-top: 8px; }
 .signin-prompt { padding: 16px; border: 1px dashed var(--line); border-radius: var(--radius-button); color: var(--body-soft); font-size: var(--text-body-sm); }
 .signin-prompt a { font-weight: 700; }
+.verify-prompt { display: grid; justify-items: start; gap: 10px; }
+.verify-prompt p { margin: 0; overflow-wrap: anywhere; }
+.verify-prompt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .checkout { display: grid; gap: 14px; }
 .checkout-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -78,6 +81,3 @@
   .discover-filters .more-filters .chevron { transition: none; }
 }
 
-.verify-prompt { display: grid; justify-items: start; gap: 10px; }
-.verify-prompt p { margin: 0; overflow-wrap: anywhere; }
-.verify-prompt .form-message { margin: 0; }
