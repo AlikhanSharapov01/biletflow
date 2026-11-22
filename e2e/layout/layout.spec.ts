@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, NOW, type Locale } from "./fixtures";
+import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, NOW, type Locale } from "./fixtures";
 import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
@@ -25,6 +25,10 @@ interface PageCase {
 // One line per page. Add a page here and it runs at every width in every language.
 const PAGES: PageCase[] = [
   { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: ".event-card" },
+  // Active filters: "More filters" is open on a phone and its summary counts them.
+  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card" },
+  { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
+  { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
@@ -44,11 +48,12 @@ const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its b
 const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
+const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
 const ADMIN_PAGES = ["discover-admin", "event-admin", "organizer-event-admin"];
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
-  { pages: ["discover-visitor"], viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: ["discover-visitor"], viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: ["discover-visitor"], viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: VISITOR_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
@@ -170,6 +175,19 @@ function measureLayout(): string[] {
     }
     return boxes;
   };
+
+  // Discover filters: every control stays inside the viewport and none covers another.
+  const controls = [...document.querySelectorAll(".discover-filters :is(input, select, button, summary)")]
+    .map((control) => ({ control, box: rendered(control) }))
+    .filter((entry): entry is { control: Element; box: Box } => entry.box !== null);
+  controls.forEach(({ control, box }, index) => {
+    if (box.right > width + TOLERANCE || box.left < -TOLERANCE) {
+      problems.push(`filter ${describe(control)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
+    }
+    for (const other of controls.slice(index + 1)) {
+      if (overlaps(box, other.box)) problems.push(`filter ${describe(control)} overlaps ${describe(other.control)}`);
+    }
+  });
 
   const scroll = document.documentElement.scrollWidth;
   if (scroll > width) problems.push(`page scrolls horizontally: scrollWidth ${scroll} > innerWidth ${width}`);

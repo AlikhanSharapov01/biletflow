@@ -115,6 +115,17 @@ export const events: EventView[] = [
   eventView(9, "Фестиваль уличной еды и музыки под открытым небом"),
 ];
 
+// Filtering Discover by this category returns more events than one page holds.
+export const MANY_EVENTS_CATEGORY = categories[2]!.id;
+export function manyEvents(): EventView[] {
+  return Array.from({ length: 30 }, (_, n) => ({
+    ...events[n % events.length]!,
+    id: uuid(400 + n),
+    category_id: MANY_EVENTS_CATEGORY,
+    title: `${events[n % events.length]!.title} (${n + 1})`,
+  }));
+}
+
 // The event each locale opens on the event pages: its own long title.
 export const FOCUS_EVENT: Record<Locale, string> = {
   en: events[0]!.id,

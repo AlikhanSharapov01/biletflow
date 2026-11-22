@@ -7,8 +7,10 @@ import {
   COVER_SIZES,
   UNREAD_NOTIFICATIONS,
   USER_ID,
+  MANY_EVENTS_CATEGORY,
   categories,
   events,
+  manyEvents,
   organization,
   profile,
   publicSettings,
@@ -76,8 +78,21 @@ function rules(role: Role, locale: Locale): Rule[] {
     get("/categories", () => categories),
     get("/venues", () => venues),
     get("/events", (url) => {
-      const q = url.searchParams.get("q")?.toLowerCase();
-      return events.filter((event) => !q || event.title.toLowerCase().includes(q));
+      const param = (name: string) => url.searchParams.get(name);
+      const q = param("q")?.toLowerCase();
+      const city = param("city")?.toLowerCase();
+      const cityOf = (venueId: string) => venues.find((venue) => venue.id === venueId)?.city.toLowerCase();
+      // Date and price filters are not evaluated: the fixtures carry no prices.
+      const matching = events.filter(
+        (event) =>
+          (!q || event.title.toLowerCase().includes(q)) &&
+          (!param("category_id") || event.category_id === param("category_id")) &&
+          (!city || cityOf(event.venue_id) === city),
+      );
+      // One category has more events than a page, so "Load more" has something to load.
+      const list = param("category_id") === MANY_EVENTS_CATEGORY ? manyEvents() : matching;
+      const offset = Number(param("offset") ?? 0);
+      return list.slice(offset, offset + Number(param("limit") ?? 50));
     }),
     get(`/events/${ID}`, (_url, [eventId]) => eventById(eventId)),
     get(`/events/${ID}/ticket-types`, (_url, [eventId]) => (eventById(eventId) ? ticketTypes(eventId!) : undefined)),
