@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listCategories, listEvents, listVenues } from "../../api/catalog";
@@ -245,6 +245,16 @@ describe("Load more pages in the URL", () => {
     await waitFor(() => expect(cards()).toHaveLength(29));
     expect(listEventsMock).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("corrects a stale count once the list is settled", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(events(5, 24));
+    renderPage("/discover?pages=5");
+    await waitFor(() => expect(url()).toBe("/discover?pages=2"));
+    cleanup();
+    listEventsMock.mockResolvedValue(events(3));
+    renderPage("/discover?pages=4");
+    await waitFor(() => expect(url()).toBe("/discover"));
   });
 
   it("clamps a hand-edited count", async () => {

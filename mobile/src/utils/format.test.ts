@@ -53,6 +53,12 @@ describe("Kazakh fallback", () => {
   });
 
   it("keeps Kazakh when the engine supports it", () => {
-    expect(intlLocale("kk")).toBe(Intl.DateTimeFormat.supportedLocalesOf(["kk"]).length ? "kk" : "ru");
+    const spy = jest.spyOn(Intl, "DateTimeFormat");
+    jest.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    jest.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    setLocale("kk");
+    dateLabel("2026-10-18T13:00:00Z");
+    expect(intlLocale("kk")).toBe("kk");
+    expect(spy.mock.calls[0]![0]).toBe("kk");
   });
 });

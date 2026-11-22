@@ -100,6 +100,8 @@ describe("Kazakh fallback", () => {
   });
 
   it("keeps Kazakh when the engine supports it", () => {
+    vi.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
     const spy = vi.spyOn(Intl, "NumberFormat");
     setLocale("kk");
     priceLabel(300000);

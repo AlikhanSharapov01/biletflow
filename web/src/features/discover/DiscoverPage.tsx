@@ -39,8 +39,10 @@ export function DiscoverPage() {
   // Back to this page shows the same list: the number of pages loaded rides in the URL (replacing, not adding, an entry).
   const { pagesLoaded } = found;
   useEffect(() => {
+    // Written once nothing is in flight, so a restore does not step the URL and a stale count is corrected.
+    if (pagesLoaded === null) return;
     const pages = Math.min(pagesLoaded, MAX_DISCOVER_PAGES);
-    if (pagesLoaded > 1 && pages !== query.pages) setSearchParams(discoverSearchParams({ ...query, pages }), { replace: true });
+    if (pages !== query.pages) setSearchParams(discoverSearchParams({ ...query, pages }), { replace: true });
   }, [pagesLoaded, query, setSearchParams]);
 
   const cities = useMemo(() => lookups.data?.venues.map((venue) => venue.city) ?? [], [lookups.data]);

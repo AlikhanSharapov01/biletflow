@@ -42,8 +42,8 @@ export interface DiscoverEvents {
   reload: () => void;
   hasMore: boolean;
   loadMore: () => void;
-  /** Pages on screen for the current search: the first and every one loaded after it. */
-  pagesLoaded: number;
+  /** Pages on screen once nothing is loading or being restored (the first and every one loaded after it), else null. */
+  pagesLoaded: number | null;
   loadingMore: boolean;
   loadMoreFailed: boolean;
 }
@@ -150,6 +150,9 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   // page. A page that fails leaves the Load more error; Load more then retries from where the list ends.
   const answered = first.data && first.data.key === key ? first.data : null;
   const answeredPage = answered?.events ?? null;
+  // The answer whose restore has run to its end (or that needs none).
+  const [restored, setRestored] = useState<unknown>(null);
+  const restoring = answered !== null && restore >= 2 && (answeredPage?.length ?? 0) >= DISCOVER_PAGE_SIZE && restored !== answered;
   useEffect(() => {
     if (!answeredPage || restore < 2 || answeredPage.length < DISCOVER_PAGE_SIZE) return;
     let cancelled = false;
@@ -173,6 +176,7 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
       if (cancelled || ticket !== generation.current) return;
       busy.current = false;
       setPending(null);
+      setRestored(answered);
     })();
     return () => {
       cancelled = true;
@@ -202,7 +206,7 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
     reload,
     hasMore: !loading && firstPage !== null && lastSize >= DISCOVER_PAGE_SIZE,
     loadMore,
-    pagesLoaded: 1 + (current?.pages ?? 0),
+    pagesLoaded: loading || pending === key || restoring || !firstPage ? null : 1 + (current?.pages ?? 0),
     loadingMore: pending === key,
     loadMoreFailed: failed === key,
   };

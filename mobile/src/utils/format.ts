@@ -25,7 +25,7 @@ export function monthShort(value: string): string {
 // rather than Intl.NumberFormat, whose tenge support varies between phones.
 function money(minor: number): string {
   const amount = (Math.abs(minor) / 100).toFixed(2);
-  if (intlLocale(getLocale()) === "en") return `₸${amount}`;
+  if (getLocale() === "en") return `₸${amount}`;
   const [whole = "0", cents = "00"] = amount.split(".");
   return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0")},${cents}\u00a0₸`;
 }
