@@ -1601,3 +1601,4 @@ org.traffic_event_view	Viewed the event page	Смотрели страницу �
 org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
 org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
 org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар
+discover.price_range_error	Minimum price can't be higher than maximum price.	Минимальная цена не может быть выше максимальной.	Ең төменгі баға ең жоғарғы бағадан көп болмауы керек.

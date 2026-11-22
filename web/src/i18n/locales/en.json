@@ -1600,5 +1600,6 @@
   "org.traffic_event_view": "Viewed the event page",
   "org.traffic_checkout_start": "Started checkout",
   "org.traffic_purchase": "Purchases reported to GA4",
-  "org.traffic_refund": "Refunds reported to GA4"
+  "org.traffic_refund": "Refunds reported to GA4",
+  "discover.price_range_error": "Minimum price can't be higher than maximum price."
 }

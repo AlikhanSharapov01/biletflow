@@ -1600,5 +1600,6 @@
   "org.traffic_event_view": "Смотрели страницу мероприятия",
   "org.traffic_checkout_start": "Начали оформление",
   "org.traffic_purchase": "Покупки, переданные в GA4",
-  "org.traffic_refund": "Возвраты, переданные в GA4"
+  "org.traffic_refund": "Возвраты, переданные в GA4",
+  "discover.price_range_error": "Минимальная цена не может быть выше максимальной."
 }

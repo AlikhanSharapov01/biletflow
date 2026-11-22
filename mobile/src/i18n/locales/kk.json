@@ -1600,5 +1600,6 @@
   "org.traffic_event_view": "Іс-шара бетін қарады",
   "org.traffic_checkout_start": "Тапсырысты бастады",
   "org.traffic_purchase": "GA4-ке жіберілген сатып алулар",
-  "org.traffic_refund": "GA4-ке жіберілген қайтарулар"
+  "org.traffic_refund": "GA4-ке жіберілген қайтарулар",
+  "discover.price_range_error": "Ең төменгі баға ең жоғарғы бағадан көп болмауы керек."
 }
