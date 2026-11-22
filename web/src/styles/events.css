@@ -24,7 +24,7 @@
   /* The tab bar (z-index 20) is the floor: the bar rests on it and slides back behind it. */
   .with-tab-bar .get-tickets-bar { bottom: var(--tab-bar-offset); padding-bottom: 10px; }
   .get-tickets-bar[data-hidden] { visibility: hidden; opacity: 0; transform: translateY(100%); }
-  /* Motion starts after the observer's first report, so the bar never slides on load. */
+  /* Motion starts after the observer's first report: the bar never slides away on load, and slides in when the section is off screen. */
   .get-tickets-bar[data-ready] { transition: transform .3s cubic-bezier(.32, .72, 0, 1), opacity .2s ease, visibility 0s; }
   .get-tickets-bar[data-ready][data-hidden] { transition-delay: 0s, 0s, .3s; }
   /* The amount is never cut: the offer wraps only at spaces, and the button drops below when both do not fit. */

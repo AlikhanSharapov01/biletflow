@@ -18,7 +18,7 @@ export function EventPage() {
   useLocale();
   const { eventId = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const { status } = useAuth();
+  const { status, profile } = useAuth();
   const ticketsSection = useRef<HTMLElement>(null);
 
   const page = useRequest(
@@ -81,7 +81,7 @@ export function EventPage() {
           {status === "authenticated" ? <SupportLink eventId={event.id} /> : null}
         </Panel>
       </div>
-      <GetTicketsBar event={event} tickets={tickets} sectionRef={ticketsSection} />
+      <GetTicketsBar event={event} tickets={tickets} sectionRef={ticketsSection} tabBar={Boolean(profile)} />
     </>
   );
 }

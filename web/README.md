@@ -443,7 +443,7 @@ key when the action or payload changes.
 The public event page displays readable publication labels: Draft, Published,
 Unpublished and Cancelled. On phones and tablets (up to 960 px wide and taller than 500 px) a sticky Get tickets bar shows
 the offer and scrolls to the tickets section, hiding while that section is on screen. It appears
-only when checkout is possible now: the event is published, upcoming or ongoing, not sold out,
+only when checkout is possible now: the event is published and not suspended, upcoming or ongoing, not sold out,
 its sales window is open, and at least one public ticket type can be bought.
 
 ## Optional GA4 traffic collection

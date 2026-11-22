@@ -20,17 +20,14 @@ function buyableOffer(event: EventView, tickets: TicketType[], now: Date): strin
   return tickets.some((type) => ticketAvailability(type, event, now).purchasable) ? offer.label : null;
 }
 
-export function canGetTickets(event: EventView, tickets: TicketType[], now = new Date()): boolean {
-  return buyableOffer(event, tickets, now) !== null;
-}
-
 function pixels(value: string): number {
   return Number.parseFloat(value) || 0;
 }
 
 // Phones only (the stylesheet hides it elsewhere): the offer and a button that jumps to the
 // ticket section. It slides away while that section is really on screen.
-export function GetTicketsBar({ event, tickets, sectionRef }: { event: EventView; tickets: TicketType[]; sectionRef: RefObject<HTMLElement | null> }) {
+// tabBar: the bottom tab bar is shown (signed in); it moves the bar up, so the observer margin changes.
+export function GetTicketsBar({ event, tickets, sectionRef, tabBar }: { event: EventView; tickets: TicketType[]; sectionRef: RefObject<HTMLElement | null>; tabBar: boolean }) {
   useLocale();
   const barRef = useRef<HTMLDivElement>(null);
   // null: the observer has not reported yet. The bar waits hidden so it never flashes on load.
@@ -71,7 +68,7 @@ export function GetTicketsBar({ event, tickets, sectionRef }: { event: EventView
     );
     observer.observe(section);
     return () => observer.disconnect();
-  }, [buyable, observed, sectionRef, height]);
+  }, [buyable, observed, sectionRef, height, tabBar]);
 
   if (!buyable) return null;
 

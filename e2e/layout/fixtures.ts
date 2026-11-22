@@ -139,6 +139,7 @@ export const FOCUS_EVENT: Record<Locale, string> = {
 };
 
 // Event pages with nothing to buy: sold out, and sales closed while the event is still ahead.
+export const FREE_EVENT = events[6]!.id;
 export const SOLD_OUT_EVENT = events[9]!.id;
 export const SALES_ENDED_EVENT = events[11]!.id;
 

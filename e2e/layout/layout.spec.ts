@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, SALES_ENDED_EVENT, SOLD_OUT_EVENT, type Locale } from "./fixtures";
+import { FOCUS_EVENT, FREE_EVENT, LOCALES, MANY_EVENTS_CATEGORY, SALES_ENDED_EVENT, SOLD_OUT_EVENT, type Locale } from "./fixtures";
 import { assertPinnedFonts, prepare } from "./harness";
 import { mockApi, type MockedApi, type Role } from "./mockApi";
 
@@ -16,6 +16,8 @@ const VIEWPORTS = {
   // tab bar, 1100 and 1280 sit inside and at the end of the tight 1025-1279 range.
   small: { width: 375, height: 667 },
   aboveTabBar: { width: 1025, height: 768 },
+  // A landscape phone: the sticky bar is not shown (500px tall or less). Only cases that name it run here.
+  landscape: { width: 844, height: 390 },
   wide: { width: 1100, height: 800 },
   desktopMin: { width: 1280, height: 800 },
   desktop: { width: 1440, height: 900 },
@@ -40,12 +42,15 @@ interface PageCase {
   stickyBar?: boolean;
   /** Nothing can be bought on this page: neither the sticky bar nor its spacer is rendered. */
   noStickyBar?: boolean;
+  /** The offer is a free label, not an amount. */
+  freeOffer?: boolean;
   /** Viewports to run at; all of them when omitted. */
   viewports?: ViewportName[];
 }
 
 // One line per page. Add a page here and it runs at every width in every language.
 // Widths the sticky bar is checked at: 320, 360 and 390 phones, a tablet, and a laptop where it is absent.
+const OPT_IN_VIEWPORTS: ViewportName[] = ["landscape"];
 const STICKY_VIEWPORTS: ViewportName[] = ["narrow", "compact", "phone", "tablet", "laptop"];
 
 const PAGES: PageCase[] = [
@@ -56,9 +61,11 @@ const PAGES: PageCase[] = [
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-member", role: "member", path: () => "/discover", ready: REAL_CARD },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: REAL_CARD },
-  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
   { name: "event-visitor", role: "visitor", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
-  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: [...STICKY_VIEWPORTS, "landscape"] },
+  // A free event: the bar's free label and a buyable free ticket row.
+  { name: "event-free", role: "visitor", path: () => `/events/${FREE_EVENT}`, ready: ".event-description", stickyBar: true, freeOffer: true, viewports: ["phone"] },
   // Nothing to buy: no bar and no spacer under it.
   { name: "event-sold-out", role: "visitor", path: () => `/events/${SOLD_OUT_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
   { name: "event-sales-ended", role: "member", path: () => `/events/${SALES_ENDED_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
@@ -353,10 +360,11 @@ function measureLayout(): string[] {
     // The token is a calc() expression: let the browser resolve it on a probe element.
     const probe = document.body.appendChild(document.createElement("div"));
     probe.style.cssText = "position: absolute; visibility: hidden; height: var(--tab-bar-height)";
-    const expected = probe.getBoundingClientRect().height + parseFloat(style.borderTopWidth);
+    const resolved = probe.getBoundingClientRect().height;
+    const expected = resolved + parseFloat(style.borderTopWidth);
     probe.remove();
     const actual = tabBar.getBoundingClientRect().height;
-    if (!Number.isFinite(expected)) problems.push("tab bar height token --tab-bar-height is missing");
+    if (!(resolved > 0)) problems.push("tab bar height token --tab-bar-height is missing or does not resolve to a length");
     else if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
   }
   for (const link of document.querySelectorAll(".tab-bar-link")) {
@@ -400,12 +408,22 @@ function measureLayout(): string[] {
 
 // The sticky "Get tickets" bar sits on the tab bar (or the bottom edge without one), shows the
 // whole offer, and the page's last content can scroll clear of it. Runs in the browser, scrolled to the end.
-function stickyBarProblems(): string[] {
+function stickyBarProblems(freeOffer: boolean): string[] {
   const problems: string[] = [];
   const bar = document.querySelector(".get-tickets-bar");
   if (!bar) return ["no Get tickets bar"];
   const shown = getComputedStyle(bar).display !== "none";
-  if (window.innerWidth > 960 || window.innerHeight <= 500) return shown ? ["Get tickets bar shows where it should not (over 960px wide or 500px tall or less)"] : [];
+  if (window.innerWidth > 960 || window.innerHeight <= 500) {
+    if (shown) problems.push("Get tickets bar shows where it should not (over 960px wide or 500px tall or less)");
+    const hiddenSpacer = document.querySelector(".get-tickets-spacer");
+    if (hiddenSpacer && getComputedStyle(hiddenSpacer).display !== "none") problems.push("Get tickets spacer takes room where the bar is not shown");
+    // Only the tab bar (if any) and the usual 16px keep focused controls clear: nothing for the absent bar.
+    const tabs = document.querySelector(".tab-bar");
+    const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom) || 0;
+    const allowed = (tabs ? tabs.getBoundingClientRect().height : 0) + 16 + 1;
+    if (padding > allowed) problems.push(`scroll padding at the bottom is ${padding}px, more than the tab bar and 16px (${allowed - 1}px)`);
+    return problems;
+  }
   if (!shown) return ["Get tickets bar is not shown up to 960px"];
   const box = bar.getBoundingClientRect();
   const tabBar = document.querySelector(".tab-bar");
@@ -425,7 +443,9 @@ function stickyBarProblems(): string[] {
   const text = offer.firstChild;
   const content = offer.textContent ?? "";
   const amount = /\d[\d\s\u00a0\u202f.,]*₸|₸[\s\u00a0\u202f]*\d[\d\s\u00a0\u202f.,]*\d/.exec(content);
-  if (!text || !amount) problems.push(`offer "${content}" shows no amount with the ₸ sign`);
+  if (freeOffer) {
+    if (/\d|₸/.test(content)) problems.push(`free offer "${content}" shows an amount`);
+  } else if (!text || !amount) problems.push(`offer "${content}" shows no amount with the ₸ sign`);
   else {
     const range = document.createRange();
     range.setStart(text, amount.index);
@@ -465,7 +485,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
     test.describe(`${viewportName} ${locale}`, () => {
       test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
 
-      for (const pageCase of PAGES.filter((item) => !item.viewports || item.viewports.includes(viewportName))) {
+      for (const pageCase of PAGES.filter((item) => (item.viewports ? item.viewports.includes(viewportName) : !OPT_IN_VIEWPORTS.includes(viewportName)))) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
         GENERATED.add(key);
         test(key, async ({ page }, testInfo) => {
@@ -490,7 +510,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             // Where the tickets section is on screen the bar slides away; measure it in its shown
             // position, as it appears whenever the section scrolls out of view.
             await page.addStyleTag({ content: ".get-tickets-bar { transition: none !important; transform: none !important; visibility: visible !important; opacity: 1 !important; }" });
-            expect(await page.evaluate(stickyBarProblems), "sticky Get tickets bar").toEqual([]);
+            expect(await page.evaluate(stickyBarProblems, pageCase.freeOffer ?? false), "sticky Get tickets bar").toEqual([]);
           }
 
           if (pageCase.noStickyBar) expect(await page.evaluate(noStickyBarProblems), "no sticky Get tickets bar").toEqual([]);
