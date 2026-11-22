@@ -14,7 +14,10 @@ export const LOCALES: readonly Locale[] = ["en", "ru", "kk"];
 // is relative to it, so the pages look the same on any calendar day.
 export const NOW = new Date("2027-01-15T06:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
-const at = (days: number, hour = 0) => new Date(NOW.getTime() + days * DAY + hour * 60 * 60 * 1000).toISOString();
+// Dates are anchored to local midnight in Almaty (UTC+5, the browser's time zone), so an
+// event "at 14:00" really shows 14:00.
+const ALMATY_MIDNIGHT = Date.parse("2027-01-15T00:00:00+05:00");
+const at = (days: number, hour = 0) => new Date(ALMATY_MIDNIGHT + days * DAY + hour * 60 * 60 * 1000).toISOString();
 
 const CREATED = at(-90);
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

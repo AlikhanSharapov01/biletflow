@@ -48,7 +48,8 @@ const ADMIN_PAGES = ["discover-admin", "event-admin", "organizer-event-admin"];
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
   { pages: ["discover-visitor"], viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
   { pages: ["discover-visitor"], viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
-  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL] },
+  { pages: ["discover-visitor"], viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
+  { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
@@ -56,6 +57,8 @@ const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Local
   { pages: ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
+  { pages: ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
 ];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in
@@ -66,15 +69,27 @@ const KNOWN_FAILURES = new Map<string, Expected[]>();
 for (const row of KNOWN_ROWS) {
   for (const page of row.pages) KNOWN_FAILURES.set(`${page} ${row.viewport} ${row.locale}`, row.expected);
 }
+const GENERATED = new Set<string>();
 
 const NAV_LINKS = { visitor: 1, admin: 6 } as const;
 
-async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi) {
+// Text widths depend on the font, and the app's font stack falls back to whatever the
+// machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
+// everywhere so a case gives the same answer on every machine. CI installs them
+// (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
+const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; }`;
+
+async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi, pageErrors: string[]) {
   // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
   await page.clock.setFixedTime(NOW);
   // The app picks its language from this stored preference (web/src/i18n/index.ts);
   // a signed-in profile's own locale takes over once it loads.
   await page.addInitScript((value) => localStorage.setItem("biletflow:locale", value), locale);
+  await page.addInitScript((css) => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  }, PINNED_FONTS);
   try {
     await page.goto(pageCase.path(locale));
     await expect(page.locator(pageCase.ready).first()).toBeVisible();
@@ -83,8 +98,12 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.evaluate(() => document.fonts.ready);
   } catch (failure) {
-    if (mocked.unmocked.length === 0) throw failure;
-    throw new Error(`Page did not load; API calls without a fixture: ${mocked.unmocked.join(", ")}`, { cause: failure });
+    if (mocked.unmocked.length === 0 && pageErrors.length === 0) throw failure;
+    const details = [
+      mocked.unmocked.length ? `API calls without a fixture: ${mocked.unmocked.join(", ")}` : "",
+      pageErrors.length ? `page errors: ${pageErrors.join(" | ")}` : "",
+    ].filter(Boolean);
+    throw new Error(`Page did not load; ${details.join("; ")}`, { cause: failure });
   }
 }
 
@@ -103,9 +122,9 @@ function measureLayout(): string[] {
   interface Box { left: number; right: number; top: number; bottom: number }
   // The part of a box that an ancestor with its own overflow handling (a scrollable
   // strip, a clipped label) actually shows.
-  const clipped = (element: Element, box: Box): Box | null => {
+  const clipped = (element: Element, box: Box, includeSelf = false): Box | null => {
     let result = box;
-    for (let parent = element.parentElement; parent && parent !== document.documentElement; parent = parent.parentElement) {
+    for (let parent: Element | null = includeSelf ? element : element.parentElement; parent && parent !== document.documentElement; parent = parent.parentElement) {
       if (getComputedStyle(parent).overflowX === "visible") continue;
       const outer = parent.getBoundingClientRect();
       result = {
@@ -145,7 +164,7 @@ function measureLayout(): string[] {
       range.selectNodeContents(node);
       for (const rect of range.getClientRects()) {
         if (rect.width <= 0 || rect.height <= 0) continue;
-        const shown = clipped(node.parentElement!, rect);
+        const shown = clipped(parent, rect, true);
         if (shown) boxes.push(shown);
       }
     }
@@ -171,6 +190,16 @@ function measureLayout(): string[] {
           problems.push(`${describe(element)} text spills out of its box`);
         }
       }
+    }
+  }
+
+  // Page content outside the bars: reported separately from the top bar problems, so a
+  // known top bar overflow cannot hide a new one in the page itself.
+  for (const element of document.body.querySelectorAll("*")) {
+    if (element.closest(".topbar, .tab-bar, .skip-link")) continue;
+    const box = rendered(element);
+    if (box && (box.right > width + TOLERANCE || box.left < -TOLERANCE)) {
+      problems.push(`content ${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
     }
   }
 
@@ -204,12 +233,13 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
 
       for (const pageCase of PAGES) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
+        GENERATED.add(key);
         test(key, async ({ page }, testInfo) => {
           const mocked = await mockApi(page, pageCase.role, locale);
           const pageErrors: string[] = [];
           page.on("pageerror", (error) => pageErrors.push(error.message));
 
-          await openPage(page, pageCase, locale, mocked);
+          await openPage(page, pageCase, locale, mocked, pageErrors);
           const problems = await page.evaluate(measureLayout);
 
           // Saved under test-results/ (and uploaded by CI). The full-page shot shows all
@@ -240,4 +270,9 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
       }
     });
   }
+}
+
+// A renamed page, width or language must not silently turn a known row into a no-op.
+for (const key of KNOWN_FAILURES.keys()) {
+  if (!GENERATED.has(key)) throw new Error(`KNOWN_FAILURES has "${key}", which matches no generated case`);
 }

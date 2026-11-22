@@ -1,5 +1,7 @@
 import { deflateSync } from "node:zlib";
 import type { Page, Route } from "@playwright/test";
+import type { AdminMe } from "../../web/src/api/types/admin";
+import type { CalendarLinks } from "../../web/src/api/types/calendar";
 import {
   ACCESS_TOKEN,
   COVER_SIZES,
@@ -85,21 +87,21 @@ function rules(role: Role, locale: Locale): Rule[] {
   if (role === "admin") {
     table.push(
       get("/me", () => profile(locale)),
-      get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true })),
+      get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe),
       get("/notifications/unread-count", () => ({ unread: UNREAD_NOTIFICATIONS })),
       get("/notifications", () => []),
       get("/organizations", () => [organization]),
       get(`/organizations/${ID}/members`, () => []),
       get(`/organizations/${ID}/invitations`, () => []),
       get(`/events/${ID}/calendar-links`, (url, [eventId]) =>
-        eventById(eventId) && {
+        eventById(eventId) && ({
           google: "https://calendar.google.com/",
           outlook: "https://outlook.live.com/",
           office365: "https://outlook.office.com/",
           ics_path: url.pathname.replace("calendar-links", "calendar.ics"),
           ics_requires_sign_in: false,
           calendar_sequence: 0,
-        },
+        } satisfies CalendarLinks),
       ),
     );
   }
