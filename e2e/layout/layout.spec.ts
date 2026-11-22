@@ -38,13 +38,13 @@ interface PageCase {
 
 // One line per page. Add a page here and it runs at every width in every language.
 const PAGES: PageCase[] = [
-  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: ".event-card" },
+  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
   // Active filters: "More filters" is open on a phone and its summary counts them.
-  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card" },
+  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card:not(.skeleton-card)" },
   { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
-  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card" },
-  { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
+  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
+  { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
   {
     name: "checkout-hold",
