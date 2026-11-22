@@ -1628,5 +1628,11 @@
   "org.traffic_event_view": "Viewed the event page",
   "org.traffic_checkout_start": "Started checkout",
   "org.traffic_purchase": "Purchases reported to GA4",
-  "org.traffic_refund": "Refunds reported to GA4"
+  "org.traffic_refund": "Refunds reported to GA4",
+  "checkout.steps_label": "Checkout steps",
+  "checkout.step_tickets": "Tickets",
+  "checkout.step_seats": "Seats",
+  "checkout.step_recipients": "Recipients",
+  "checkout.step_payment": "Payment",
+  "checkout.step_completed": "completed"
 }

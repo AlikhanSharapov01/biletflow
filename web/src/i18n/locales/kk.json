@@ -1628,5 +1628,11 @@
   "org.traffic_event_view": "Іс-шара бетін қарады",
   "org.traffic_checkout_start": "Тапсырысты бастады",
   "org.traffic_purchase": "GA4-ке жіберілген сатып алулар",
-  "org.traffic_refund": "GA4-ке жіберілген қайтарулар"
+  "org.traffic_refund": "GA4-ке жіберілген қайтарулар",
+  "checkout.steps_label": "Рәсімдеу қадамдары",
+  "checkout.step_tickets": "Билеттер",
+  "checkout.step_seats": "Орындар",
+  "checkout.step_recipients": "Алушылар",
+  "checkout.step_payment": "Төлем",
+  "checkout.step_completed": "аяқталды"
 }

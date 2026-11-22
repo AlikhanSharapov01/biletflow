@@ -20,6 +20,10 @@ interface PageCase {
   path: (locale: Locale) => string;
   /** Present once the page has finished loading its data. */
   ready: string;
+  /** Drives the page into the state to measure (runs once `ready` is visible). */
+  prepare?: (page: Page) => Promise<void>;
+  /** Viewports to run at; all of them when omitted. */
+  viewports?: ViewportName[];
 }
 
 // One line per page. Add a page here and it runs at every width in every language.
@@ -31,6 +35,19 @@ const PAGES: PageCase[] = [
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
+  {
+    name: "checkout-hold",
+    role: "admin",
+    path: (locale) => `/events/${FOCUS_EVENT[locale]}`,
+    ready: ".ticket-option",
+    // Reserve the paid ticket: the step list (three steps) and the countdown appear.
+    prepare: async (page) => {
+      await page.locator(".ticket-option", { has: page.locator(".qty-field") }).last().locator("select").selectOption("1");
+      await page.locator(".form-actions .primary-button").click();
+      await expect(page.locator(".checkout-progress .countdown")).toBeVisible();
+    },
+    viewports: ["phone"],
+  },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
 ];
 
@@ -49,7 +66,7 @@ const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of 
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
 const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
-const ADMIN_PAGES = ["discover-admin", "event-admin", "organizer-event-admin"];
+const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin"];
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
@@ -101,6 +118,7 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     await expect(page.locator(".loading-state")).toHaveCount(0);
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await pageCase.prepare?.(page);
     await page.evaluate(() => document.fonts.ready);
   } catch (failure) {
     if (mocked.unmocked.length === 0 && pageErrors.length === 0) throw failure;
@@ -250,6 +268,25 @@ function measureLayout(): string[] {
     }
   }
 
+  // The checkout step list and countdown stay inside the viewport and off each other.
+  for (const row of document.querySelectorAll(".checkout-progress")) {
+    for (const element of [row, ...row.querySelectorAll("*")]) {
+      const box = rendered(element);
+      if (box && (box.right > width + TOLERANCE || box.left < -TOLERANCE)) {
+        problems.push(`${describe(element)} spans ${Math.round(box.left)}..${Math.round(box.right)} of ${width}`);
+      }
+    }
+    const list = row.querySelector(".checkout-steps");
+    const timer = row.querySelector(".countdown");
+    const listBox = list && rendered(list);
+    const timerBox = timer && rendered(timer);
+    if (listBox && timerBox && overlaps(listBox, timerBox)) problems.push("checkout steps overlap the countdown");
+    const marks = [...row.querySelectorAll(".checkout-step")].map((step) => rendered(step));
+    marks.forEach((box, index) => {
+      for (const other of marks.slice(index + 1)) if (box && other && overlaps(box, other)) problems.push("checkout steps overlap each other");
+    });
+  }
+
   // Labels of sibling tabs must not run into each other.
   for (const selector of [".tab-bar-link", ".top-tab"]) {
     const links = [...document.querySelectorAll(selector)].filter((link) => rendered(link));
@@ -278,7 +315,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
     test.describe(`${viewportName} ${locale}`, () => {
       test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
 
-      for (const pageCase of PAGES) {
+      for (const pageCase of PAGES.filter((item) => !item.viewports || item.viewports.includes(viewportName))) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
         GENERATED.add(key);
         test(key, async ({ page }, testInfo) => {

@@ -239,7 +239,6 @@ describe("RecipientForm", () => {
         typeName={(id) => names[id] ?? id}
         recipients={recipients}
         setRecipients={setRecipients}
-        secondsLeft={300}
         busy={props.busy ?? false}
         message={props.message ?? ""}
         paid={props.paid ?? false}
@@ -256,7 +255,6 @@ describe("RecipientForm", () => {
     expect(groups.map((group) => group.querySelector("legend")?.textContent)).toEqual(["Ticket 1 · General", "Ticket 2 · VIP"]);
     expect((within(groups[0]!).getByLabelText("Name") as HTMLInputElement).value).toBe("Aida");
     expect((within(groups[1]!).getByLabelText("Email") as HTMLInputElement).value).toBe("");
-    expect(screen.getByRole("timer").textContent).toBe("Held for 5:00");
   });
 
   it("updates only the edited recipient", () => {

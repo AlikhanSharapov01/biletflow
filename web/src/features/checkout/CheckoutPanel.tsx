@@ -5,6 +5,8 @@ import type { EventView, TicketType } from "../../api/types";
 import type { PromoPreview } from "../../api/types/promo";
 import { EmptyState } from "../../components/ui/Feedback";
 import { useAuth } from "../auth/AuthContext";
+import { CheckoutSteps, type CheckoutStep } from "./components/CheckoutSteps";
+import { HoldCountdown } from "./components/HoldCountdown";
 import { PaymentStep } from "./components/PaymentStep";
 import { PromoCodeField } from "./components/PromoCodeField";
 import { RecipientForm } from "./components/RecipientForm";
@@ -12,7 +14,7 @@ import { SeatPicker } from "./components/SeatPicker";
 import { TicketSelector } from "./components/TicketSelector";
 import { VerifyEmailPrompt } from "./components/VerifyEmailPrompt";
 import { useCheckoutFlow } from "./hooks/useCheckoutFlow";
-import { holdLines, holdSubtotal, type Quantities } from "./utils/checkout";
+import { holdLines, holdSubtotal, isPaidType, type Quantities } from "./utils/checkout";
 import { initialPromo } from "./utils/promo";
 
 interface CheckoutPanelProps {
@@ -57,25 +59,41 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
 
   const typeName = (typeId: string) => tickets.find((type) => type.id === typeId)?.name ?? t("common.ticket");
 
+  // The indicator sits above every step; once tickets are held the countdown
+  // shares its row.
+  const progress = (step: CheckoutStep) => (
+    <div className="checkout-progress">
+      <CheckoutSteps step={step} assigned={event.seating_mode === "assigned"} paid={flow.hold ? flow.paid : tickets.some(isPaidType)} />
+      {flow.hold ? <HoldCountdown secondsLeft={flow.secondsLeft} /> : null}
+    </div>
+  );
+
   if (flow.order && flow.hold) {
-    return <PaymentStep order={flow.order} onConfirmed={flow.finished} onClosed={() => flow.reset()} onCancel={() => void flow.release()} />;
+    return (
+      <>
+        {progress("payment")}
+        <PaymentStep order={flow.order} onConfirmed={flow.finished} onClosed={() => flow.reset()} onCancel={() => void flow.release()} />
+      </>
+    );
   }
 
   if (flow.hold) {
     return (
-      <RecipientForm
-        hold={flow.hold}
-        typeName={typeName}
-        recipients={flow.recipients}
-        setRecipients={flow.setRecipients}
-        secondsLeft={flow.secondsLeft}
-        busy={flow.busy}
-        message={flow.message}
-        paid={flow.paid}
-        subtotalMinor={holdSubtotal(flow.hold.allocations, tickets)}
-        onConfirm={() => void flow.confirm()}
-        onRelease={() => void flow.release()}
-      />
+      <>
+        {progress("recipients")}
+        <RecipientForm
+          hold={flow.hold}
+          typeName={typeName}
+          recipients={flow.recipients}
+          setRecipients={flow.setRecipients}
+          busy={flow.busy}
+          message={flow.message}
+          paid={flow.paid}
+          subtotalMinor={holdSubtotal(flow.hold.allocations, tickets)}
+          onConfirm={() => void flow.confirm()}
+          onRelease={() => void flow.release()}
+        />
+      </>
     );
   }
 
@@ -83,21 +101,27 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
 
   if (event.seating_mode === "assigned") {
     return (
-      <SeatPicker event={event} tickets={tickets} busy={flow.busy} message={flow.message} promoSlot={promoSlot} onReserve={(lines) => void flow.reserve(lines)} />
+      <>
+        {progress("select")}
+        <SeatPicker event={event} tickets={tickets} busy={flow.busy} message={flow.message} promoSlot={promoSlot} onReserve={(lines) => void flow.reserve(lines)} />
+      </>
     );
   }
 
   return (
-    <TicketSelector
-      event={event}
-      tickets={tickets}
-      quantities={quantities}
-      setQuantities={setQuantities}
-      busy={flow.busy}
-      message={flow.message}
-      promo={promo}
-      promoSlot={promoSlot}
-      onReserve={() => void flow.reserve(holdLines(quantities))}
-    />
+    <>
+      {progress("select")}
+      <TicketSelector
+        event={event}
+        tickets={tickets}
+        quantities={quantities}
+        setQuantities={setQuantities}
+        busy={flow.busy}
+        message={flow.message}
+        promo={promo}
+        promoSlot={promoSlot}
+        onReserve={() => void flow.reserve(holdLines(quantities))}
+      />
+    </>
   );
 }

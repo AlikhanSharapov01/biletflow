@@ -11,6 +11,7 @@ import {
   categories,
   events,
   manyEvents,
+  hold,
   organization,
   profile,
   publicSettings,
@@ -101,6 +102,7 @@ function rules(role: Role, locale: Locale): Rule[] {
   ];
   if (role === "admin") {
     table.push(
+      { method: "POST", pattern: new RegExp(`^${API}/events/${ID}/holds$`), reply: (_url, [eventId]) => eventById(eventId) && hold(eventId!) },
       get("/me", () => profile(locale)),
       get("/admin/me", () => ({ user_id: USER_ID, is_platform_admin: true }) satisfies AdminMe),
       get("/notifications/unread-count", () => ({ unread: UNREAD_NOTIFICATIONS })),

@@ -1628,5 +1628,11 @@
   "org.traffic_event_view": "Смотрели страницу мероприятия",
   "org.traffic_checkout_start": "Начали оформление",
   "org.traffic_purchase": "Покупки, переданные в GA4",
-  "org.traffic_refund": "Возвраты, переданные в GA4"
+  "org.traffic_refund": "Возвраты, переданные в GA4",
+  "checkout.steps_label": "Шаги оформления",
+  "checkout.step_tickets": "Билеты",
+  "checkout.step_seats": "Места",
+  "checkout.step_recipients": "Получатели",
+  "checkout.step_payment": "Оплата",
+  "checkout.step_completed": "выполнен"
 }

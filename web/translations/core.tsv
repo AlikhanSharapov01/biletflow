@@ -1629,3 +1629,9 @@ org.traffic_event_view	Viewed the event page	Смотрели страницу �
 org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
 org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
 org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар
+checkout.steps_label	Checkout steps	Шаги оформления	Рәсімдеу қадамдары
+checkout.step_tickets	Tickets	Билеты	Билеттер
+checkout.step_seats	Seats	Места	Орындар
+checkout.step_recipients	Recipients	Получатели	Алушылар
+checkout.step_payment	Payment	Оплата	Төлем
+checkout.step_completed	completed	выполнен	аяқталды
