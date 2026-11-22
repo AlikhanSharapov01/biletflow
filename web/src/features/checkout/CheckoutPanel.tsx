@@ -10,6 +10,7 @@ import { PromoCodeField } from "./components/PromoCodeField";
 import { RecipientForm } from "./components/RecipientForm";
 import { SeatPicker } from "./components/SeatPicker";
 import { TicketSelector } from "./components/TicketSelector";
+import { VerifyEmailPrompt } from "./components/VerifyEmailPrompt";
 import { useCheckoutFlow } from "./hooks/useCheckoutFlow";
 import { holdLines, holdSubtotal, type Quantities } from "./utils/checkout";
 import { initialPromo } from "./utils/promo";
@@ -48,7 +49,7 @@ export function CheckoutPanel({ event, tickets, promoFromUrl = null }: CheckoutP
     return <EmptyState>{t("checkout.event_ended")}</EmptyState>;
   }
   if (!profile.email_verified_at) {
-    return <p className="signin-prompt">{t("checkout.verify_email_hint")}</p>;
+    return <VerifyEmailPrompt email={profile.email} />;
   }
   if (tickets.length === 0) {
     return <EmptyState>{t("checkout.details_unavailable")}</EmptyState>;
