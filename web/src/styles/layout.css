@@ -6,13 +6,13 @@
 .topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; }
 /* The material sits on a layer behind the bar's content: a backdrop-filter on .topbar itself would
    make it the backdrop root of the avatar menu, which could then blur only the bar, not the page. */
-.topbar::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 0.5px 0 var(--separator); pointer-events: none; }
+.topbar::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 0.5px 0 var(--separator); outline: 1px solid transparent; outline-offset: -1px; pointer-events: none; }
 .topbar-inner { display: flex; height: 64px; max-width: calc(var(--content-max) + 2 * var(--gutter)); align-items: center; gap: 24px; margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px)); }
 .brand { display: inline-flex; flex: none; align-items: center; gap: 10px; color: var(--ink); font-size: 18px; font-weight: 700; letter-spacing: -.5px; text-decoration: none; }
 .brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px 10px 10px 3px; background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
 
 .top-tabs { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; }
-.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .12s ease-out; }
+.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .12s ease-out; }
 .top-tab:active { transform: scale(.97); }
 @media (hover: hover) {
   .top-tab:hover { background: var(--hover-surface); color: var(--ink); }
@@ -38,7 +38,7 @@
    unsupported the menu still opens and closes, only without the motion. */
 .avatar-menu-panel {
   position: absolute; top: calc(100% + 10px); right: 0; z-index: 25; display: grid; width: 248px; padding: 6px;
-  border-radius: var(--radius-menu); background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu);
+  border-radius: var(--radius-menu); background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu); outline: 1px solid transparent; outline-offset: -1px;
   transform-origin: top right; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 .avatar-menu:not([open]) .avatar-menu-panel { opacity: 0; transform: scale(.96); pointer-events: none; }
@@ -48,7 +48,7 @@
 .avatar-menu::details-content { transition: content-visibility var(--dur-fast) allow-discrete; }
 .avatar-menu-head { display: grid; gap: 2px; margin-bottom: 4px; padding: 10px 10px 12px; border-bottom: 0.5px solid var(--separator); }
 .avatar-menu-head strong { font-size: 15px; }
-.avatar-menu-head span { overflow: hidden; color: var(--meta); font-size: var(--text-meta); text-overflow: ellipsis; white-space: nowrap; }
+.avatar-menu-head span { overflow: hidden; color: var(--meta-on-thick); font-size: var(--text-meta); text-overflow: ellipsis; white-space: nowrap; }
 .avatar-menu-item { display: flex; min-height: var(--control-height-sm); align-items: center; padding: 0 10px; border: 0; border-radius: calc(var(--radius-menu) - 6px); background: none; color: var(--ink); cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; text-decoration: none; }
 @media (hover: hover) { .avatar-menu-item:hover { background: var(--hover-surface); } }
 
@@ -102,15 +102,16 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
     --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + var(--tab-bar-edge));
   }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
-  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator); }
-  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 500; line-height: 1.15; text-align: center; text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator); outline: 1px solid transparent; outline-offset: -1px; }
+  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: var(--text-micro); font-weight: 500; line-height: 1.15; text-align: center; text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
   /* Press feedback on the icon only, so the label never blurs while it scales. */
   .tab-bar-icon { flex: none; transition: transform var(--dur-press) var(--ease-out); }
   .tab-bar-link:active .tab-bar-icon { transform: scale(.94); }
   /* Long ru/kk labels wrap to at most two lines inside their own column. */
   .tab-bar-label { max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }
-  /* The selected section is tinted, not boxed: icon and label in the brand green. */
-  .tab-bar-link[aria-current="page"] { color: var(--green); font-weight: 600; }
+  /* The selected section is tinted, not boxed, and never by hue alone: the icon is filled (NavIcon) and
+     the label is heavier. Dark green keeps 4.5:1 with black content under the chrome. */
+  .tab-bar-link[aria-current="page"] { color: var(--green-dark); font-weight: 600; }
 }
 
 /* Phones, 5 or 6 sections: the longest ru/kk labels (Администратор, Ұйымдастырушы) wrap at their

@@ -8,6 +8,9 @@ const css = readFileSync("src/styles/tokens.css", "utf8");
 type Rgba = { r: number; g: number; b: number; a: number };
 const declarations = new Map<string, string>();
 for (const [, name, value] of css.matchAll(/(--[\w-]+):\s*([^;]+);/g)) declarations.set(name!, value!.trim());
+// Not a stylesheet token: the darkest content that can scroll under translucent chrome, for worst-case pairs.
+const UNDER_CHROME_WORST = "content-black";
+declarations.set(`--${UNDER_CHROME_WORST}`, "#000000");
 
 function parseColour(value: string, token: string, depth = 0): Rgba {
   if (depth > 8) throw new Error(`Token ${token} aliases too deeply`);
@@ -99,7 +102,6 @@ const TEXT_PAIRS: Pair[] = [
   ["button-ink", "paper", ".form-details summary"],
   ["button-ink", "canvas", ".seat-section h4"],
   ["nav-ink", "tab-track", ".admin-nav-link"],
-  ["nav-ink", "sidebar", "phone .tab-bar-link"],
   ["green-dark", "active-nav", ".top-tab[aria-current] and active tab-bar link"],
   ["hint", "paper", ".field-label small"],
   ["hint", "canvas", ".account-email"],
@@ -164,14 +166,27 @@ for (const text of ROLE_TEXT) {
   TEXT_PAIRS.push([text, "material-solid", "solid chrome fallback"]);
   TEXT_PAIRS.push([text, ["material-chrome", "canvas"], "translucent chrome over the page"]);
 }
-// Text on the chrome materials over the page and over a panel scrolled beneath: the tab bar's selected
-// tint and labels, and the avatar menu and toast on the thick material. Their solid fallback is above.
-TEXT_PAIRS.push(["green", "material-solid", ".tab-bar-link[aria-current] on solid chrome"]);
-for (const surface of ["canvas", "paper"]) {
-  TEXT_PAIRS.push(["green", ["material-chrome", surface], ".tab-bar-link[aria-current] tint"]);
-  TEXT_PAIRS.push(["nav-ink", ["material-chrome", surface], ".tab-bar-link and .top-tab on the chrome"]);
-  TEXT_PAIRS.push(["ink", ["material-chrome", surface], ".brand and .get-tickets-offer on the chrome"]);
-  for (const text of ["ink", "meta"]) TEXT_PAIRS.push([text, ["material-thick", surface], ".avatar-menu-panel and .toast"]);
+// Text drawn straight on the chrome materials: the tab bar and top tab labels, the selected tab bar
+// tint, the brand and sticky offer, and the avatar menu and toast on the thick material. Each is checked
+// on the solid fallback, over the page, over a panel, and over black content scrolled under the chrome
+// (the worst case: these are dark inks, so a darker backdrop only lowers their contrast).
+const UNDER_CHROME = ["canvas", "paper", UNDER_CHROME_WORST];
+const ON_CHROME: Array<[string, string]> = [
+  ["chrome-label", ".tab-bar-link and .top-tab"],
+  ["green-dark", ".tab-bar-link[aria-current]"],
+  ["ink", ".brand and .get-tickets-offer"],
+];
+const ON_THICK: Array<[string, string]> = [
+  ["ink", ".avatar-menu-panel and .toast"],
+  ["meta-on-thick", ".avatar-menu-head span"],
+];
+for (const [text, where] of ON_CHROME) {
+  TEXT_PAIRS.push([text, "material-solid", `${where} on solid chrome`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push([text, ["material-chrome", under], `${where} on the chrome`]);
+}
+for (const [text, where] of ON_THICK) {
+  TEXT_PAIRS.push([text, "material-solid", `${where} on the solid fallback`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push([text, ["material-thick", under], `${where} on the thick material`]);
 }
 
 // Sign-in story panel: the ticket card is --glass laid over the panel and over the ::after art, so

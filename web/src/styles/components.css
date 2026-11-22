@@ -185,9 +185,10 @@
    half the height of one line (padding plus half a line box): a one-line toast is a pill and a longer
    message keeps the same round corners instead of turning into a capsule. Without lh, the pill. */
 .toast {
-  position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 20px;
-  border-radius: var(--radius-pill); border-radius: calc(14px + 0.5lh);
-  background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu);
+  --toast-pad-y: 14px;
+  position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: var(--toast-pad-y) 20px;
+  border-radius: var(--radius-pill); border-radius: calc(var(--toast-pad-y) + 0.5lh);
+  background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu); outline: 1px solid transparent; outline-offset: -1px;
   color: var(--ink); font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px);
   transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
 }
@@ -195,7 +196,9 @@
 
 @media (max-width: 760px) {
   .tabs:not(.tabs-fill) { flex-wrap: nowrap; overflow-x: auto; }
-  .toast { right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: none; }
+  /* A centred pill as wide as its message, not a full-width banner: both insets with auto margins
+     centre it without a transform, which the rise and reduced motion own. */
+  .toast { right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: fit-content; max-width: none; margin-inline: auto; }
 }
 /* Above the bottom tab bar, which spans up to 1024px. */
 @media (width < 1025px) {

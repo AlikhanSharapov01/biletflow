@@ -25,7 +25,6 @@
   --disabled-surface: #f3f3ee;
   --print-surface: #fff;
   --scrim: rgb(0 0 0 / 32%);
-  --topbar-glass: rgb(251 251 253 / 94%);
   --fill: rgb(118 118 128 / 12%);
   --fill-strong: rgb(118 118 128 / 20%);
   --separator: rgb(60 60 67 / 18%);
@@ -35,6 +34,9 @@
   --material-solid: #fbfbfd;
   --material-blur: blur(20px) saturate(180%);
   --material-edge: rgb(255 255 255 / 50%);
+  /* Text drawn straight on a material: dark enough for 4.5:1 even with black content scrolled under it. */
+  --chrome-label: #3a3a3c;
+  --meta-on-thick: #59595e;
 
   /* Brand */
   --green: #236b55;

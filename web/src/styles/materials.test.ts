@@ -123,6 +123,19 @@ describe("translucent materials", () => {
   });
 });
 
+describe("forced colours", () => {
+  // Forced colours drop box-shadow, which draws every chrome edge here; a transparent outline turns into a
+  // visible system-colour line there and is invisible otherwise, without changing the layout.
+  it("gives every chrome surface a transparent outline", () => {
+    for (const selector of [".topbar::before", ".tab-bar", ".get-tickets-bar", ".avatar-menu-panel", ".action-dialog", ".toast"]) {
+      const rule = all.find((block) => !isFallback(block) && selectorsOf(block).includes(selector) && value(block.body, "outline") !== undefined);
+      expect(rule, selector).toBeDefined();
+      expect(value(rule!.body, "outline"), selector).toBe("1px solid transparent");
+      expect(value(rule!.body, "outline-offset"), selector).toBe("-1px");
+    }
+  });
+});
+
 describe("chrome motion", () => {
   it("never transitions all", () => {
     const offenders = all.filter((block) => /(?<![-\w])transition(-property)?\s*:[^;]*\ball\b/.test(block.body)).map((block) => `${block.file}: ${block.selector}`);
@@ -144,6 +157,8 @@ describe("chrome motion", () => {
       expect(value(state.body, "transform")).toBe("scale(.96)");
     }
     expect(starting.some((block) => block.selector === ".action-dialog[open]::backdrop" && value(block.body, "opacity") === "0")).toBe(true);
+    const backdropExit = all.find((block) => block.selector === ".action-dialog:not([open])::backdrop" && block.context.length === 0)!;
+    expect(value(backdropExit.body, "opacity")).toBe("0");
     const sheet = (selector: string, list = all) => list.find((block) => block.selector === selector && block.context.some((c) => /max-width:\s*760px/.test(c)))!;
     expect(value(sheet(".action-dialog").body, "width")).toBe("100%");
     expect(value(sheet(".action-dialog").body, "padding-bottom")).toBe("max(var(--panel-pad), env(safe-area-inset-bottom))");
@@ -151,6 +166,8 @@ describe("chrome motion", () => {
     expect(value(sheet(".action-dialog").body, "transition-timing-function")).toBe("var(--ease-spring)");
     expect(value(sheet(".action-dialog:not([open])").body, "transform")).toBe("translateY(100%)");
     expect(value(sheet(".action-dialog[open]", starting).body, "transform")).toBe("translateY(100%)");
+    // The scrim leaves with the sheet, not before it.
+    expect(value(sheet(".action-dialog::backdrop").body, "transition-duration")).toBe("var(--dur-spring)");
   });
 
   it("the avatar menu materializes from its trigger", () => {
@@ -161,6 +178,9 @@ describe("chrome motion", () => {
     const enter = all.find((block) => block.context.some((c) => c.startsWith("@starting-style")) && block.selector === ".avatar-menu[open] .avatar-menu-panel")!;
     expect(value(enter.body, "opacity")).toBe("0");
     expect(value(enter.body, "transform")).toBe("scale(.96)");
+    // It leaves on the path it came in by.
+    const exit = all.find((block) => block.context.length === 0 && block.selector === ".avatar-menu:not([open]) .avatar-menu-panel")!;
+    for (const property of ["opacity", "transform"]) expect(value(exit.body, property), property).toBe(value(enter.body, property));
   });
 
   it("reduced motion turns every added movement into a cross-fade", () => {

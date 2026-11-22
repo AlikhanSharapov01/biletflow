@@ -29,6 +29,7 @@ a { color: var(--green); }
 .action-dialog {
   width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad);
   border: 0; border-radius: var(--radius-menu); background: var(--paper); color: var(--ink); box-shadow: var(--shadow);
+  outline: 1px solid transparent; outline-offset: -1px;
   transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), overlay var(--dur-base) var(--ease-out) allow-discrete, display var(--dur-base) var(--ease-out) allow-discrete;
 }
 .action-dialog:not([open]) { opacity: 0; transform: scale(.96); }
@@ -47,10 +48,13 @@ a { color: var(--green); }
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
     transition-duration: var(--dur-spring); transition-timing-function: var(--ease-spring);
   }
+  .action-dialog::backdrop { transition-duration: var(--dur-spring); }
   .action-dialog:not([open]) { opacity: 1; transform: translateY(100%); }
   @starting-style {
     .action-dialog[open] { opacity: 1; transform: translateY(100%); }
   }
+  /* Full-width actions stacked in reading order, so the confirming one sits at the bottom, nearest the thumb. */
+  .action-dialog .form-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 .action-dialog h2 { font-size: var(--text-panel-title); }
 .language-switcher { display: inline-block; max-width: 9rem; }
