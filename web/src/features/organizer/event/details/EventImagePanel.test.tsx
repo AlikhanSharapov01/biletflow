@@ -122,4 +122,54 @@ describe("event image gallery", () => {
     expect(target.closest("li")!.previousElementSibling).toBeNull();
     focus.mockRestore();
   });
+  it("moves focus to the new cover's Remove once the cover changes", async () => {
+    vi.mocked(api.setEventCover).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
+    mount();
+    const makeCover = await screen.findByRole("button", { name: "Make cover" });
+    makeCover.focus();
+    fireEvent.click(makeCover);
+    await waitFor(() => expect(screen.getAllByRole("listitem")[0]?.textContent).toContain("Crowd"));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Crowd");
+  });
+
+  async function removeAt(index: number) {
+    const button = (await screen.findAllByRole("button", { name: "Remove" }))[index]!;
+    button.focus();
+    fireEvent.click(button);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+  }
+
+  it("moves focus to the next image's Remove after deleting", async () => {
+    const third = makeImage({ id: "img3", url: "/api/v1/events/e1/images/img3/content", alt_text: "Lights", sort_order: 2, is_cover: false });
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount([cover, second, third]);
+    await removeAt(1);
+    await waitFor(() => expect(screen.queryByText("Crowd")).toBeNull());
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Lights");
+  });
+
+  it("moves focus to the previous image's Remove after deleting the last one", async () => {
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount();
+    await removeAt(1);
+    await waitFor(() => expect(screen.queryByText("Crowd")).toBeNull());
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Main stage");
+  });
+
+  it("moves focus to the upload field after deleting the only image", async () => {
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount([cover]);
+    await removeAt(0);
+    await waitFor(() => expect(screen.queryByText("Main stage")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('input[type="file"]')));
+  });
 });

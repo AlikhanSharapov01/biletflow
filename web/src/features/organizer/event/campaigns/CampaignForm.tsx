@@ -99,7 +99,7 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
         <Button variant="primary" type="submit" busy={busy} disabled={disabled}>
           {submitLabel}
         </Button>
-        {onCancel ? <Button onClick={onCancel}>{t("common.cancel")}</Button> : null}
+        {onCancel ? <Button aria-disabled={busy || undefined} onClick={onCancel}>{t("common.cancel")}</Button> : null}
       </div>
     </form>
   );

@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import event as sa_event
 from test_catalog import add_allocation
 
-from app.catalog_models import Event
+from app.catalog_models import Event, TicketType
 from app.security import now
 
 API = "/api/v1"
@@ -434,3 +434,63 @@ def test_ends_after_hides_finished_events(client, setup, account, factory):
     ids = [f["event"]["id"] for f in (done, running, later)]
     assert discover_ids(client) == ids
     assert discover_ids(client, ends_after=now().isoformat()) == ids[1:]
+
+
+def agree(client, f):
+    """The card's price and the price filter pick the same event, at the same boundary."""
+    price = listed_price(client, f)
+    eid = f["event"]["id"]
+    assert eid in discover_ids(client, min_price=price, max_price=price)
+    if price:
+        assert eid not in discover_ids(client, max_price=price - 1)
+    assert eid not in discover_ids(client, min_price=price + 1)
+    return price
+
+
+def test_filter_and_card_agree_when_a_hold_expired(client, setup, factory):
+    f = setup()
+    hide_default_type(client, f)
+    cheap = add_type(client, f, 1000, 2, name="Cheap")
+    add_type(client, f, 5000, 5, name="Regular")
+    fill(factory, f, cheap, 2, state="held", expired=True)
+    publish(client, f)
+    assert agree(client, f) == 1000
+
+
+def test_filter_and_card_agree_when_a_hold_is_live(client, setup, factory):
+    f = setup()
+    hide_default_type(client, f)
+    cheap = add_type(client, f, 1000, 2, name="Cheap")
+    add_type(client, f, 5000, 5, name="Regular")
+    fill(factory, f, cheap, 2, state="held")
+    publish(client, f)
+    assert agree(client, f) == 5000
+
+
+def test_filter_and_card_agree_when_every_sale_closed(client, setup, factory):
+    f = setup()
+    hide_default_type(client, f)
+    a = add_type(client, f, 1000, 2, name="A")
+    b = add_type(client, f, 3000, 2, name="B")
+    c = add_type(client, f, 500, 2, name="C")
+    publish(client, f)
+    fill(factory, f, c, 2, state="sold")
+    with factory.begin() as db:
+        for type_id in (a, b, c):
+            row = db.get(TicketType, UUID(type_id))
+            row.sales_open_at = now() - timedelta(hours=5)
+            row.sales_close_at = now() - timedelta(hours=1)
+    assert offer(client, f) == (1000, False)
+    assert agree(client, f) == 1000
+
+
+def test_filter_and_card_agree_when_capacity_is_reached(client, setup, factory):
+    f = setup()
+    hide_default_type(client, f)
+    cap = f["data"]["capacity"]
+    a = add_type(client, f, 2000, cap, name="A")
+    add_type(client, f, 6000, cap, name="B")
+    fill(factory, f, a, cap, state="sold")
+    publish(client, f)
+    assert offer(client, f)[1] is True
+    assert agree(client, f) == 2000

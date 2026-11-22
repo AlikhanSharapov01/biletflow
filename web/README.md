@@ -380,7 +380,9 @@ The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 - **Using a string.** Components call `t("area.key", { p0: value })` from `src/i18n` and
   `useLocale()` so they re-render when the language changes. Placeholders such as `{p0}` must be
   identical in all three languages. `quantityLabel()` uses `Intl.PluralRules`, including the
-  Russian one/few/many forms; dates, money and categories follow the chosen locale.
+  Russian one/few/many forms; dates, money and categories follow the chosen locale. A browser
+  without usable Kazakh date or number data (some list `kk` yet print months as `M02`) gets the
+  Russian formats instead (`src/utils/intlLocale.ts`).
 - **Choosing the language.** `LanguageSwitcher` is in the top bar and on the sign-in page. Before
   sign-in the choice is cached in local storage (falling back to the browser language, then
   English); after sign-in the profile language takes precedence, and a signed-in switch is

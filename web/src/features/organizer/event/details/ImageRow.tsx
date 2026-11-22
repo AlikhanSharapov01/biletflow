@@ -38,8 +38,8 @@ export function ImageRow({ image, first, last, pending, locked, onUp, onDown, on
       <div className="image-actions">
         <Button size="sm" data-action="up" {...waits("up", first)} onClick={onUp} aria-label={t("org.image_move_up", { p0: image.alt_text })}>↑</Button>
         <Button size="sm" data-action="down" {...waits("down", last)} onClick={onDown} aria-label={t("org.image_move_down", { p0: image.alt_text })}>↓</Button>
-        {!image.is_cover ? <Button size="sm" {...waits("cover")} onClick={onCover}>{t("org.make_cover")}</Button> : null}
-        <Button size="sm" variant="danger" {...waits("delete")} onClick={onDelete}>{t("common.remove")}</Button>
+        {!image.is_cover ? <Button size="sm" data-action="cover" {...waits("cover")} onClick={onCover}>{t("org.make_cover")}</Button> : null}
+        <Button size="sm" variant="danger" data-action="delete" {...waits("delete")} onClick={onDelete}>{t("common.remove")}</Button>
       </div>
     </li>
   );
