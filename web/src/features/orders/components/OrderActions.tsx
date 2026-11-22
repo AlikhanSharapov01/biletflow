@@ -1,6 +1,6 @@
 import { t, useLocale } from "../../../i18n";
 import { confirmAction } from "../../../components/ui/ActionDialog";
-import { useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { describeError } from "../../../api/errors";
 import { cancelRegistration, requestRefund } from "../../../api/orders";
 import type { Order } from "../../../api/types/checkout";
@@ -19,11 +19,26 @@ export function OrderActions({ order, onChanged }: OrderActionsProps) {
   const [busy, setBusy] = useState(false);
   const [caseId, setCaseId] = useState("");
   const [message, setMessage] = useState({ text: "", success: false });
+  const result = useRef<HTMLParagraphElement>(null);
+  const cancelled = order.status !== "confirmed" && message.success;
+  // The reload after a cancellation removes the form, and the focused button with it:
+  // the result message stays and takes focus.
+  useLayoutEffect(() => {
+    if (cancelled) result.current?.focus();
+  }, [cancelled]);
 
+  if (cancelled) {
+    return (
+      <p ref={result} className="form-message success" role="status" tabIndex={-1}>
+        {t("checkout.cancelled")}
+      </p>
+    );
+  }
   if (order.status !== "confirmed") return null;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy || caseId) return;
     if (!paid && !await confirmAction(t("checkout.cancel_confirm"))) return;
     setBusy(true);
     setMessage({ text: "", success: false });
