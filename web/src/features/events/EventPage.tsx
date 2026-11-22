@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { categoryName, t, useLocale } from "../../i18n";
 import { useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "../../api/catalog";
@@ -18,6 +19,7 @@ export function EventPage() {
   const { eventId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const { status } = useAuth();
+  const ticketsSection = useRef<HTMLElement>(null);
 
   const page = useRequest(
     async () => {
@@ -64,7 +66,7 @@ export function EventPage() {
         <Panel>
           <PanelHeading title={t("event.about")} />
           <p className="event-description">{event.description || t("event.more_details")}</p>
-          <section className="checkout-section" id={TICKETS_SECTION_ID}>
+          <section className="checkout-section" id={TICKETS_SECTION_ID} ref={ticketsSection} aria-labelledby={TICKETS_HEADING_ID}>
             <div className="checkout-heading">
               <PanelHeading title={t("common.tickets")} headingId={TICKETS_HEADING_ID} focusable />
             </div>
@@ -79,7 +81,7 @@ export function EventPage() {
           {status === "authenticated" ? <SupportLink eventId={event.id} /> : null}
         </Panel>
       </div>
-      <GetTicketsBar event={event} tickets={tickets} />
+      <GetTicketsBar event={event} tickets={tickets} sectionRef={ticketsSection} />
     </>
   );
 }

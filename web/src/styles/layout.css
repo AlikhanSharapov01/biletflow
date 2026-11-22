@@ -77,11 +77,17 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
 @media (width < 1025px) {
   html:has(.with-tab-bar) { scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
-  /* Where the tab bar's top edge sits: its content height, the larger of 6px and the bottom inset, and its 1px border. */
-  :root { --tab-bar-height: 70px; --tab-bar-offset: calc(var(--tab-bar-height) - 6px + max(6px, env(safe-area-inset-bottom, 0px)) + 1px); }
+  /* The tab bar's padding and link height are defined once. Its height and the offset of its top edge
+     (padding, link, the larger of the padding and the bottom inset, 1px border) derive from them. */
+  :root {
+    --tab-bar-pad: 6px;
+    --tab-bar-link-height: 58px;
+    --tab-bar-height: calc(var(--tab-bar-pad) * 2 + var(--tab-bar-link-height));
+    --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + 1px);
+  }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
-  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
-  .tab-bar-link { display: flex; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; transition: transform .12s ease-out; }
+  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
+  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; transition: transform .12s ease-out; }
   .tab-bar-link:active { transform: scale(.97); }
   .tab-bar-icon { flex: none; }
   /* Long ru/kk labels wrap to at most two lines inside their own column. */

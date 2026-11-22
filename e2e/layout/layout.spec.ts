@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, type Locale } from "./fixtures";
+import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, SALES_ENDED_EVENT, SOLD_OUT_EVENT, type Locale } from "./fixtures";
 import { assertPinnedFonts, prepare } from "./harness";
 import { mockApi, type MockedApi, type Role } from "./mockApi";
 
@@ -36,13 +36,18 @@ interface PageCase {
   ready: string;
   /** Drives the page into the state to measure (runs once `ready` is visible). */
   prepare?: (page: Page) => Promise<void>;
-  /** The sticky "Get tickets" bar is checked: present up to 960px, absent above. */
+  /** The sticky "Get tickets" bar is checked: present up to 960px (and over 500px tall), absent above. */
   stickyBar?: boolean;
+  /** Nothing can be bought on this page: neither the sticky bar nor its spacer is rendered. */
+  noStickyBar?: boolean;
   /** Viewports to run at; all of them when omitted. */
   viewports?: ViewportName[];
 }
 
 // One line per page. Add a page here and it runs at every width in every language.
+// Widths the sticky bar is checked at: 320, 360 and 390 phones, a tablet, and a laptop where it is absent.
+const STICKY_VIEWPORTS: ViewportName[] = ["narrow", "compact", "phone", "tablet", "laptop"];
+
 const PAGES: PageCase[] = [
   { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: REAL_CARD },
   // Active filters: "More filters" is open on a phone and its summary counts them.
@@ -51,9 +56,12 @@ const PAGES: PageCase[] = [
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
   { name: "discover-member", role: "member", path: () => "/discover", ready: REAL_CARD },
   { name: "discover-admin", role: "admin", path: () => "/discover", ready: REAL_CARD },
-  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
-  { name: "event-visitor", role: "visitor", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
-  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
+  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-visitor", role: "visitor", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  // Nothing to buy: no bar and no spacer under it.
+  { name: "event-sold-out", role: "visitor", path: () => `/events/${SOLD_OUT_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-sales-ended", role: "member", path: () => `/events/${SALES_ENDED_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
   {
     name: "checkout-hold",
     role: "admin",
@@ -342,7 +350,11 @@ function measureLayout(): string[] {
   }
   if (tabBarShown) {
     const style = getComputedStyle(tabBar);
-    const expected = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tab-bar-height")) + parseFloat(style.borderTopWidth);
+    // The token is a calc() expression: let the browser resolve it on a probe element.
+    const probe = document.body.appendChild(document.createElement("div"));
+    probe.style.cssText = "position: absolute; visibility: hidden; height: var(--tab-bar-height)";
+    const expected = probe.getBoundingClientRect().height + parseFloat(style.borderTopWidth);
+    probe.remove();
     const actual = tabBar.getBoundingClientRect().height;
     if (!Number.isFinite(expected)) problems.push("tab bar height token --tab-bar-height is missing");
     else if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
@@ -386,14 +398,14 @@ function measureLayout(): string[] {
   return problems;
 }
 
-// The sticky "Get tickets" bar sits on the tab bar (or the bottom edge without one) and the
-// page's last content can scroll clear of it. Runs in the browser, scrolled to the end.
+// The sticky "Get tickets" bar sits on the tab bar (or the bottom edge without one), shows the
+// whole offer, and the page's last content can scroll clear of it. Runs in the browser, scrolled to the end.
 function stickyBarProblems(): string[] {
   const problems: string[] = [];
   const bar = document.querySelector(".get-tickets-bar");
   if (!bar) return ["no Get tickets bar"];
   const shown = getComputedStyle(bar).display !== "none";
-  if (window.innerWidth > 960) return shown ? ["Get tickets bar shows above 960px"] : [];
+  if (window.innerWidth > 960 || window.innerHeight <= 500) return shown ? ["Get tickets bar shows where it should not (over 960px wide or 500px tall or less)"] : [];
   if (!shown) return ["Get tickets bar is not shown up to 960px"];
   const box = bar.getBoundingClientRect();
   const tabBar = document.querySelector(".tab-bar");
@@ -403,12 +415,35 @@ function stickyBarProblems(): string[] {
   const button = bar.querySelector("button")!.getBoundingClientRect();
   if (button.height < 44 || button.right > box.right || button.left < box.left) problems.push("bar button is under 44px tall or leaves the bar");
   const offer = bar.querySelector(".get-tickets-offer")!;
-  if (offer.getBoundingClientRect().right > button.left + 1) problems.push("offer text runs into the button");
-  if (offer.scrollHeight > offer.clientHeight + 1) problems.push("offer text is cut off");
+  const offerBox = offer.getBoundingClientRect();
+  const sideBySide = offerBox.top < button.bottom && button.top < offerBox.bottom;
+  if (sideBySide && offerBox.right > button.left + 1) problems.push("offer text runs into the button");
+  if (!sideBySide && offerBox.bottom > button.top + 1) problems.push("offer text overlaps the button below it");
+  if (offer.scrollHeight > offer.clientHeight + 1 || offer.scrollWidth > offer.clientWidth + 1) problems.push("offer text is cut off");
+  if (offerBox.left < box.left || offerBox.right > box.right) problems.push("offer text leaves the bar");
+  // The amount (digits and the tenge sign) stays on one visual line, never cut.
+  const text = offer.firstChild;
+  const content = offer.textContent ?? "";
+  const amount = /\d[\d\s\u00a0\u202f.,]*₸|₸[\s\u00a0\u202f]*\d[\d\s\u00a0\u202f.,]*\d/.exec(content);
+  if (!text || !amount) problems.push(`offer "${content}" shows no amount with the ₸ sign`);
+  else {
+    const range = document.createRange();
+    range.setStart(text, amount.index);
+    range.setEnd(text, amount.index + amount[0].length);
+    const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+    if (tops.size > 1) problems.push(`the amount "${amount[0]}" breaks over ${tops.size} lines`);
+  }
+  const spacer = document.querySelector(".get-tickets-spacer");
+  if (!spacer || Math.abs(spacer.getBoundingClientRect().height - box.height) > 1) problems.push(`the spacer is ${Math.round(spacer?.getBoundingClientRect().height ?? 0)}px for a ${Math.round(box.height)}px bar`);
   const last = [...document.querySelector(".page")!.children].filter((child) => !child.classList.contains("get-tickets-bar") && !child.classList.contains("get-tickets-spacer")).at(-1)!;
   const lastBottom = last.getBoundingClientRect().bottom;
   if (lastBottom > box.top + 1) problems.push(`the page's last content ends at ${Math.round(lastBottom)}, under the bar at ${Math.round(box.top)}`);
   return problems;
+}
+
+// Nothing can be bought: no bar and no spacer in the page.
+function noStickyBarProblems(): string[] {
+  return [".get-tickets-bar", ".get-tickets-spacer"].filter((selector) => document.querySelector(selector)).map((selector) => `${selector} is rendered on a page with nothing to buy`);
 }
 
 // iOS Safari zooms the page when a field under 16px gets focus. Runs in the browser.
@@ -457,6 +492,8 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             await page.addStyleTag({ content: ".get-tickets-bar { transition: none !important; transform: none !important; visibility: visible !important; opacity: 1 !important; }" });
             expect(await page.evaluate(stickyBarProblems), "sticky Get tickets bar").toEqual([]);
           }
+
+          if (pageCase.noStickyBar) expect(await page.evaluate(noStickyBarProblems), "no sticky Get tickets bar").toEqual([]);
 
           const fields = viewportName === "phone" ? await page.evaluate(smallFields) : [];
           expect(mocked.unmocked, "API calls without a fixture").toEqual([]);

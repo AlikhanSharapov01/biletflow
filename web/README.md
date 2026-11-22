@@ -318,8 +318,9 @@ filtered, empty and with Load more), the event page and the organizer event page
 - at 390 px, every visible input, select and textarea at least 16px, so iOS does not zoom on focus;
 - every Discover filter control inside the viewport, none overlapping another, and no select
   cutting off its chosen option;
-- on the event page up to 960 px, the sticky Get tickets bar resting on the tab bar (or the bottom edge for visitors),
-  inside the viewport, its offer and button not overlapping, and the page's last content clear of it.
+- on the event page up to 960 px wide and over 500 px tall, the sticky Get tickets bar resting on the tab bar (or the bottom edge for visitors),
+  inside the viewport, its whole offer (amount included) uncut, offer and button not overlapping, the spacer as tall as the bar,
+  and the page's last content clear of it; on sold-out and sales-ended events, no bar and no spacer.
 
 It also attaches a full-page and a viewport screenshot (no image baselines). `layout/loading.spec.ts` holds a request open and asserts that the heading, filters and first card (Discover) or back link, heading and columns (event page) do not move when the data replaces the skeleton, and that a filter change keeps the cards in place, dimmed and busy. Defects that are
 still open are listed in `KNOWN_FAILURES` in `layout.spec.ts`, each naming the task that fixes
@@ -440,9 +441,10 @@ an explicit key: reuse the original key when retrying the same action; use a new
 key when the action or payload changes.
 
 The public event page displays readable publication labels: Draft, Published,
-Unpublished and Cancelled. On phones and tablets (up to 960 px) a sticky Get tickets bar shows the
-offer and scrolls to the tickets section, hiding while that section is on screen; it appears only
-for published, upcoming events that are not sold out and have a public ticket type.
+Unpublished and Cancelled. On phones and tablets (up to 960 px wide and taller than 500 px) a sticky Get tickets bar shows
+the offer and scrolls to the tickets section, hiding while that section is on screen. It appears
+only when checkout is possible now: the event is published, upcoming or ongoing, not sold out,
+its sales window is open, and at least one public ticket type can be bought.
 
 ## Optional GA4 traffic collection
 
