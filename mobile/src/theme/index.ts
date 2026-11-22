@@ -133,7 +133,7 @@ export const overlays = {
 // Colours with no web token: the scanner's outcome panels (drawn on the dark scan
 // screen) and fixed black/white (QR code, camera backdrop).
 export const scanner = {
-  warning: "#a57324",
+  warning: "#805313",
   pending: "#3e5568",
   neutral: "#4f5c55",
   errorOnDark: "#fca5a5",
