@@ -89,6 +89,18 @@ The `migrate` service runs `python -m app.bootstrap` once per start: it applies 
 to every table, and seeds the demo categories, venue and seat layout. The API never creates or
 drops tables itself.
 
+The `api` service runs `API_WORKERS` uvicorn worker processes (root `.env`, default 2, passed to
+uvicorn as `WEB_CONCURRENCY`). The intent (#118) is that check-in is not limited to one process and
+one connection pool while organizer analytics is running; the *Validation* workflow measures
+whether admission p95 recovers. Each process has its own SQLAlchemy pool of up to 15 database
+connections (5 plus 10 overflow), and so does the worker service: 2 API workers use at most 45 of
+PostgreSQL's default 100 connections, and up to 5 stay below that limit. Rate limits, idempotency
+keys, platform settings and support messages live in PostgreSQL, so every process sees the same
+state; a support WebSocket connected to another process picks up a new message when it next polls
+PostgreSQL (every 2 s). Request metrics at `GET /api/v1/admin/operations/metrics` are per
+process (see [OPERATIONS_API.md](OPERATIONS_API.md)). The *Validation* workflow produces the
+comparison: admission p95 with 20 analytics clients on one API process and on two.
+
 After pulling new code, rebuild so new migrations run:
 
 ```bash
@@ -449,6 +461,7 @@ Workflows in `../.github/workflows/`:
 | `backend-auth.yml` (*Backend API*) | Ruff lint and format, full pytest suite with coverage against a PostgreSQL 17 service; every push and pull request |
 | `smoke.yml` (*Smoke*) | Whole Docker stack, then the two smoke scripts below; when backend, web, proxy, Compose or smoke files change |
 | `backup.yml` (*Backup*) | Backup and restore drill of the database and object storage ([backup and restore](../docs/operations/backup.md)) |
+| `validation.yml` (*Validation*) | Full pytest suite with the crash and load harnesses enabled, then three direct load-harness runs (5 and 20 analytics clients on one API process, 20 on two) with their reports in the job summary and as an artifact; started by hand, or on pull requests that touch `tests/crash`, `tests/load` or the workflow |
 
 *Smoke* and *Backup* last succeeded on `main` at `b1b73d0` (PR #102 merged); their runs on
 `cb5a9bd` (PR #104 merged) were cancelled and have not been repeated, since later merges did not
@@ -469,6 +482,9 @@ RUN_LOAD_TESTS=1 uv run pytest -q tests/load -s
 LOAD_DATABASE_URL=postgresql+psycopg://user@127.0.0.1:5432/biletflow_load_test \
   uv run python -m tests.load.load_harness --runs 3 --output-dir /tmp/biletflow-load
 ```
+
+The *Validation* workflow runs both harnesses in CI on one revision (Actions, *Validation*, Run
+workflow, or a pull request that touches `tests/crash`, `tests/load` or the workflow file).
 
 See [VALIDATION.md](VALIDATION.md#worker-crash-recovery-harness--12-november-2026) for the crash
 harness. The last load results (#80, before #102 and #104) are in the
@@ -504,7 +520,8 @@ Open backend work, tracked in #125 (see also the
    full PostgreSQL suite, both opt-in harnesses, the restore drill with SeaweedFS storage, and
    the cancelled *Smoke* and *Backup* workflows (#117).
 2. Keep check-in fast while analytics runs: admission p95 rose from 312 ms to 743 ms with 20
-   analytics clients on one API process (#118). The chosen setup will be documented here.
+   analytics clients on one API process (#118). The setup is described under "With Docker" above;
+   the comparison run is still to be recorded.
 3. Example requests, responses and every error code for the routes added in #104, in
    `ADMIN_API.md`, `OPERATIONS_API.md`, `SUPPORT_API.md` and `ANALYTICS_API.md` (#119).
 4. Compare the web and mobile API types with the backend schemas for analytics, finance,

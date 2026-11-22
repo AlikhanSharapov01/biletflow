@@ -223,6 +223,189 @@ Audit: `support.attachment_uploaded` (file id, size, type, resulting `status`, `
 infected upload the `malware` signature name) and `support.attachment_scanned` (service actor
 `attachment_scanner`: the worker's later verdict, `status` and `malware` when infected).
 
+### Examples and errors
+
+Identifiers, times and the hash are illustrative. Requests carry `Authorization: Bearer <access
+token>` unless stated. Timestamps are ISO 8601 with a UTC offset; parse `Z` and `+00:00` alike.
+Errors are `{"detail": {"code": "..."}}`; the common ones are `401 invalid_credentials` (no or
+invalid token, revoked session, inactive or unverified account), `422 invalid_input` (a malformed
+id, enum or number; the body lists `fields` without echoing the input), `503 database_unavailable`
+and `500 internal_error`.
+
+**List cases** with `GET /cases`. This request is a staff member's queue narrowed to one order:
+
+```text
+GET /api/v1/support/cases?view=queue&status=open&order_id=2e7b6a90-14d8-4f53-b2c1-8a9d05e3f471&limit=20
+Authorization: Bearer <access token>
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "c58a3f12-90be-47d4-a6e1-3b7d92c05f84",
+      "kind": "attendee",
+      "category": "delivery",
+      "subject": "Ticket email missing",
+      "status": "open",
+      "requester": {"id": "e19b4c70-2a5d-4f38-9c61-8d0a7b3e5f12", "display_name": "Aigerim S."},
+      "organization_id": "a3d70c19-5e82-4b46-8f0d-6c1b92e7a350",
+      "event_id": "5a2d8f14-6c3b-4e97-a1d0-3b9e7c4f2a68",
+      "order_id": "2e7b6a90-14d8-4f53-b2c1-8a9d05e3f471",
+      "ticket_id": null,
+      "assigned_to": null,
+      "escalated_at": null,
+      "resolved_at": null,
+      "last_seq": 1,
+      "created_at": "2026-11-17T09:05:41.220Z",
+      "updated_at": "2026-11-17T09:05:41.220Z",
+      "viewer_roles": ["support"]
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+| Status | `code` | When |
+|---|---|---|
+| 422 | `invalid_input` | `view`, `status` or `category` is not one of its values; an id filter is not a UUID; `limit` is outside 1-100 or `offset` is negative |
+
+The filters only narrow the caller's own scope: one that matches nothing, or names someone else's
+case, returns an empty page, never `403` or `404`.
+
+**Upload a file** with `POST /cases/{case_id}/attachments`. The body is the file itself, and
+`Content-Type` is its type:
+
+```text
+POST /api/v1/support/cases/c58a3f12-90be-47d4-a6e1-3b7d92c05f84/attachments?filename=receipt.png
+Authorization: Bearer <access token>
+Content-Type: image/png
+Content-Length: 1234
+
+<1234 bytes of PNG data, no multipart>
+```
+
+Response `201` for a clean file:
+
+```json
+{
+  "file_id": "9d41e7b3-2c58-4a06-b3f9-d07a15e8c624",
+  "mime_type": "image/png",
+  "size_bytes": 1234,
+  "sha256": "99ccb282d215006b2ea4c361273ce1d4666a879961a11c0dacd9c77fa4183253",
+  "status": "clean",
+  "expires_at": "2026-11-17T10:12:08.331Z"
+}
+```
+
+Response `202`, the same fields, when the scanner gave no verdict and the file is quarantined:
+
+```json
+{
+  "file_id": "4b0c8e26-71fa-4d93-8e5b-a2c963d1f705",
+  "mime_type": "image/png",
+  "size_bytes": 1234,
+  "sha256": "99ccb282d215006b2ea4c361273ce1d4666a879961a11c0dacd9c77fa4183253",
+  "status": "quarantined",
+  "expires_at": "2026-11-17T10:12:08.331Z"
+}
+```
+
+| Status | `code` | When |
+|---|---|---|
+| 429 | `rate_limited` | More than 20 uploads per account in the rate window (60 s by default), or 200 per address. `Retry-After` gives the window in seconds |
+| 415 | `unsupported_media_type` | `Content-Type` is not `image/png`, `image/jpeg` or `application/pdf`. Checked before the body is read |
+| 422 | `invalid_input` | `filename` is missing, blank or longer than 200 characters, or `case_id` is not a UUID. Checked before the body is read |
+| 404 | `case_not_found` | The caller is not a participant of the case (also when access is lost during the upload) |
+| 413 | `attachment_too_large` | The declared or streamed size is above the current upload limit (`upload_max_bytes` of `GET /settings/public`) |
+| 422 | `attachment_empty` | The body is empty |
+| 422 | `attachment_rejected` | The content is not a structurally valid file of the declared type |
+| 422 | `attachment_infected` | The malware scanner found a signature |
+| 409 | `attachment_upload_expired` | The cleanup worker fenced the upload before it was finalized; upload again |
+| 503 | `storage_unavailable` | The object store failed or could not be reached; upload again |
+
+**Poll an upload** with `GET /cases/{case_id}/uploads/{file_id}`. Only the uploader sees it. The
+response has the fields of the upload response, with the current `status`:
+
+```text
+GET /api/v1/support/cases/c58a3f12-90be-47d4-a6e1-3b7d92c05f84/uploads/4b0c8e26-71fa-4d93-8e5b-a2c963d1f705
+Authorization: Bearer <access token>
+```
+
+```json
+{
+  "file_id": "4b0c8e26-71fa-4d93-8e5b-a2c963d1f705",
+  "mime_type": "image/png",
+  "size_bytes": 1234,
+  "sha256": "99ccb282d215006b2ea4c361273ce1d4666a879961a11c0dacd9c77fa4183253",
+  "status": "clean",
+  "expires_at": "2026-11-17T10:12:08.331Z"
+}
+```
+
+`status` is `clean` (may be linked), `quarantined` (waiting for the scanner), `rejected` (the
+scanner later found an infection) or `deleted` (never linked, then cleaned up).
+
+| Status | `code` | When |
+|---|---|---|
+| 404 | `case_not_found` | The caller is not a participant of the case |
+| 404 | `attachment_not_found` | No such upload, it belongs to another case, or someone else uploaded it (a case participant who did not upload it gets this too) |
+
+**Download the bytes** with `GET /attachments/{attachment_id}/content?token=`. The `url` returned
+by the existing `download-link` route is this path with its token. Send no `Authorization` header:
+
+```text
+GET /api/v1/support/attachments/6e3f9a21-b058-4c7d-91a4-0d52c8e7b316/content?token=<signed token>
+```
+
+Response `200`: the raw bytes as the body, with these headers (the file name is that of the
+upload):
+
+```text
+Content-Type: image/png
+Content-Disposition: attachment; filename="receipt.png"; filename*=UTF-8''receipt.png
+Cache-Control: no-store
+X-Content-Type-Options: nosniff
+```
+
+| Status | `code` | When |
+|---|---|---|
+| 401 | `download_link_invalid` | The token is malformed, forged, or issued for another attachment |
+| 401 | `download_link_expired` | The token is past its expiry (300 s by default) |
+| 404 | `attachment_not_found` | The token's user lost access to the case or is inactive, the attachment is not `clean`, or the object is missing |
+| 422 | `invalid_input` | `token` is missing, empty or over 512 characters, or the id is not a UUID |
+| 503 | `storage_unavailable` | The object store failed or could not be reached; ask for a new link or retry |
+
+This route does not use the bearer token, so it never returns `401 invalid_credentials`.
+
+### Stability
+
+- **Stable.**
+  - The upload response fields `file_id`, `mime_type`, `size_bytes`, `sha256` (64 hexadecimal
+    characters) and `status`, plus the presence of `expires_at`.
+  - `201` for a clean file and `202` for a quarantined one; `status` values `clean`,
+    `quarantined` and `rejected`.
+  - The `code` strings `unsupported_media_type`, `attachment_too_large`, `attachment_empty`,
+    `attachment_rejected`, `attachment_infected`, `attachment_upload_expired`,
+    `storage_unavailable`, `download_link_invalid`, `download_link_expired` and
+    `attachment_not_found`, the `invalid_input` code (without its `fields`), and the `429` status
+    of the upload limit.
+  - The list envelope (`items`, `total`) and the new identifier filters `case_id`,
+    `requester_user_id`, `order_id` and `ticket_id` (the case view itself is unchanged).
+  - The download headers `Content-Disposition` (`attachment`, with `filename*`),
+    `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- **May change.** Ignore unknown fields and statuses; no test asserts the following yet, so treat
+  them as provisional.
+  - The `expires_at` value (one hour after the upload today) and the exact `Retry-After` and window
+    of the upload limit (a setting).
+  - The `status` values `pending` and `deleted`: they belong to the upload lifecycle, and a client
+    only meets `deleted` after cleanup.
+  - The code `rate_limited` (the tests assert only the `429` status), the `case_not_found` code on
+    the uploads route, and the `fields` list of `invalid_input`.
+  - The exact `filename` fallback characters in `Content-Disposition`.
+
 ## Cursor, polling and ordering
 
 Each case keeps a counter `last_seq`. Every message and history item takes the next number while

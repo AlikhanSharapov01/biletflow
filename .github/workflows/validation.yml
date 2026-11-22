@@ -1,0 +1,136 @@
+name: Validation
+
+# One combined validation run of the backend: the full pytest suite with the two opt-in harnesses
+# switched on (process-kill crash recovery and the load harness), then the load harness run
+# directly to produce the figures quoted in docs/integration/status.md. The Backend API workflow
+# (backend-auth.yml) skips both harnesses, and the process-kill harness needs a POSIX system, so
+# this is where they run together on one revision.
+#
+# It is slow and starts real API and worker processes, so it is not part of every push. Start it
+# by hand (Actions, Validation, Run workflow) on the revision to validate. A pull request runs it
+# only when it touches the harnesses or this file.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/tests/crash/**"
+      - "backend/tests/load/**"
+      - ".github/workflows/validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: biletflow_auth_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d biletflow_auth_test"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_auth_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.4"
+      - run: uv sync --frozen --python 3.12
+
+      # The load harness migrates and fills the database it is given and never truncates it, while
+      # the suite truncates its own database before every test. So each load run gets a database
+      # of its own: the load test inside the full suite, and the three direct runs below. Every one
+      # starts empty and no run sees another's rows. The harness refuses names not ending _test.
+      - name: Create the load databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for name in biletflow_suite_load_test biletflow_load_5_test biletflow_load_20_test \
+            biletflow_load_20_workers_2_test; do
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $name"
+          done
+
+      # Everything in one pytest run. -rs lists each skip with its reason, so a harness that did
+      # not run shows up here instead of passing silently. The load test inside pytest has its own
+      # database (LOAD_DATABASE_URL); the crash tests use the suite database like any other test.
+      # The harnesses stop their API, worker and SMTP sink processes before the step ends.
+      - name: Full suite with the crash and load harnesses
+        env:
+          RUN_CRASH_TESTS: "1"
+          RUN_LOAD_TESTS: "1"
+          LOAD_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_suite_load_test
+        run: uv run pytest -q -rs
+
+      # Admission p95 alone and with 5 analytics clients (scenarios A and B), then with 20, on one
+      # API process; then with 20 on two API processes as Docker Compose runs it (#118). The
+      # recorded #80 figures used the harness defaults for everything else (50 checkouts for 40
+      # tickets, 10 scanners), so only --runs, --analytics-clients and --api-workers are set. The
+      # harness exits with 1 when an invariant fails or the 2 s admission target is missed. The
+      # steps run after a failure above too, so one run reports every figure.
+      - name: Load report, 5 analytics clients
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run python -m tests.load.load_harness
+          --database-url postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_load_5_test
+          --runs 3 --analytics-clients 5
+          --output-dir ${{ runner.temp }}/load-5
+
+      - name: Load report, 20 analytics clients
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run python -m tests.load.load_harness
+          --database-url postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_load_20_test
+          --runs 3 --analytics-clients 20
+          --output-dir ${{ runner.temp }}/load-20
+
+      - name: Load report, 20 analytics clients, 2 API workers
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run python -m tests.load.load_harness
+          --database-url postgresql+psycopg://postgres:postgres@localhost:5432/biletflow_load_20_workers_2_test
+          --runs 3 --analytics-clients 20 --api-workers 2
+          --output-dir ${{ runner.temp }}/load-20-workers-2
+
+      # The harness writes results.md and results.json into a timestamped folder of --output-dir.
+      - name: Load reports in the job summary
+        if: ${{ !cancelled() }}
+        run: |
+          for run in "5:5 analytics clients" "20:20 analytics clients" \
+            "20-workers-2:20 analytics clients, 2 API workers"; do
+            report=$(find "${{ runner.temp }}/load-${run%%:*}" -name results.md 2>/dev/null | head -n 1)
+            {
+              echo "## Load harness, ${run#*:}"
+              echo
+              if [ -n "$report" ]; then
+                cat "$report"
+              else
+                echo "No results.md was written."
+              fi
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload the load reports and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-reports
+          path: |
+            ${{ runner.temp }}/load-5
+            ${{ runner.temp }}/load-20
+            ${{ runner.temp }}/load-20-workers-2
