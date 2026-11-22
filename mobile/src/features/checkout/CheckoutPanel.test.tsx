@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import * as Haptics from "expo-haptics";
+
 import { postMeasurement } from "@/api/analytics";
 import { confirmHold, createHold, startCheckout } from "@/api/checkout";
 import { ApiError } from "@/api/errors";
@@ -23,6 +25,10 @@ jest.mock("@/api/settings");
 jest.mock("@/api/orders");
 jest.mock("@/api/paidCheckout");
 jest.mock("@/api/analytics", () => ({ postMeasurement: jest.fn(async () => ({ status: "accepted", reason: null })) }));
+jest.mock("expo-haptics", () => ({
+  notificationAsync: jest.fn(async () => {}),
+  NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
+}));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "measure-1" }));
 
 const mockProfileRef: {
@@ -62,6 +68,7 @@ describe("CheckoutPanel", () => {
     expect(startCheckout).not.toHaveBeenCalled();
     expect(await screen.findByText("Registration confirmed")).toBeTruthy();
     expect(mockNotify).toHaveBeenCalledWith("Registration confirmed. Your tickets are ready.");
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith("success");
 
     await fireEvent.press(screen.getByText("View order"));
     expect(mockPush).toHaveBeenCalledWith({ pathname: "/orders/[orderId]", params: { orderId: "ord9" } });

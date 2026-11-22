@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import type { EventImage } from "@/api/types";
-import { Eyebrow, SerifText } from "@/components/ui";
+import { Eyebrow } from "@/components/ui";
+import { AnimatedPressable, usePressFeedback } from "@/components/ui/pressFeedback";
 import { useEventImage } from "@/hooks/useEventImage";
-import { colors, eventArt, fonts, radii } from "@/theme";
+import { cardShadow, colors, eventArt, fonts, radii, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
 
@@ -33,13 +34,16 @@ export function EventCard({
   useLocale();
   const [light, dark] = eventArt[index % eventArt.length];
   const image = useEventImage(cover);
+  const press = usePressFeedback();
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${category}. ${meta}`}
       accessibilityHint={t("mobile.events.opens_event")}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      style={[styles.card, press.style]}
     >
       <View style={[styles.art, { backgroundColor: light }]} accessibilityElementsHidden>
         {/* Two flat layers stand in for the web's diagonal gradient. */}
@@ -53,27 +57,24 @@ export function EventCard({
       </View>
       <View style={styles.copy}>
         <Eyebrow style={styles.eyebrow}>{category}</Eyebrow>
-        <SerifText style={styles.title}>{title}</SerifText>
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.meta}>{meta}</Text>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.panel,
     backgroundColor: colors.paper,
-  },
-  pressed: {
-    borderColor: "#aabaae",
+    ...cardShadow,
   },
   art: {
     aspectRatio: 2,
+    borderTopLeftRadius: radii.panel,
+    borderTopRightRadius: radii.panel,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -109,11 +110,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   title: {
-    fontSize: 20,
-    lineHeight: 25,
+    color: colors.ink,
+    fontFamily: fonts.sans,
+    ...typography.cardTitle,
   },
   meta: {
-    color: "#89928b",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 13,
     lineHeight: 18,

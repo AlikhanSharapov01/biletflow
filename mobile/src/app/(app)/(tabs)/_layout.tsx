@@ -14,7 +14,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.greenDark,
+        tabBarActiveTintColor: colors.green,
         tabBarInactiveTintColor: colors.muted,
         tabBarActiveBackgroundColor: colors.activeNav,
         tabBarLabelStyle: styles.label,
@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.sidebar,
     borderTopColor: colors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 6,
     paddingTop: 6,
   },

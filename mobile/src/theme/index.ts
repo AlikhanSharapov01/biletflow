@@ -31,6 +31,9 @@ export const colors = {
   activeNav: "#e8f0e6",
   inputLine: "#86868b",
   placeholder: "#6e6e73",
+  buttonInk: "#636366",
+  onGreen: "#fff",
+  hoverLine: "#a1a1a6",
 } as const;
 
 // .status pills: background + text colour per tone.
@@ -52,20 +55,50 @@ export const eventArt = [
   ["#efdbd2", "#bb796c"],
 ] as const;
 
+// The web --font-sans stack without its multi-word family names (the string audit reads those as copy).
+const webSans = ["system-ui", "-apple-system", "blinkmacsystemfont", "roboto", "arial", "sans-serif"];
+
 export const fonts = {
   // Georgia ships with iOS; Android maps "serif" to its system serif.
   serif: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" }),
+  // The platform system font: SF on iOS, Roboto on Android (undefined selects it).
   sans: Platform.select({
-    ios: "Avenir Next",
+    ios: undefined,
     android: undefined,
-    default: '"Avenir Next", Avenir, "Segoe UI", sans-serif',
+    default: webSans.join(","),
   }),
 };
 
 export const radii = {
-  input: 7,
-  panel: 8,
-  pill: 20,
+  input: 10,
+  button: 12,
+  panel: 16,
+  pill: 999,
+} as const;
+
+// Tracking tightens as size grows; leading is tighter on large text.
+export const typography = {
+  title: { fontSize: 34, fontWeight: "700", letterSpacing: -0.75, lineHeight: 38 },
+  cardTitle: { fontSize: 20, fontWeight: "600", letterSpacing: -0.24, lineHeight: 25 },
+  panelTitle: { fontSize: 17, fontWeight: "600", letterSpacing: -0.14, lineHeight: 22 },
+  body: { fontSize: 15, lineHeight: 22 },
+  micro: { fontSize: 11, letterSpacing: 0.11, lineHeight: 13 },
+} as const;
+
+// Press feedback: a critically damped spring (no bounce), quick in, slower out.
+export const motion = {
+  pressScale: 0.97,
+  pressIn: { speed: 50, bounciness: 0 },
+  pressOut: { speed: 20, bounciness: 0 },
+} as const;
+
+// Card depth: iOS shadow, Android elevation.
+export const cardShadow = {
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 2,
 } as const;
 
 export const spacing = {

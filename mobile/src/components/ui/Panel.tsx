@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 
-import { colors, fonts, radii, spacing } from "@/theme";
+import { cardShadow, colors, fonts, radii, spacing, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 
 // Bordered paper card (web .panel); "note" is the pale green aside variant
@@ -33,10 +33,9 @@ export function PanelHeading({ title, trailing }: { title: string; trailing?: Re
 const styles = StyleSheet.create({
   panel: {
     padding: spacing.panel,
-    borderWidth: 1,
-    borderColor: colors.line,
     borderRadius: radii.panel,
     backgroundColor: colors.paper,
+    ...cardShadow,
   },
   note: {
     backgroundColor: colors.note,
@@ -52,8 +51,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.ink,
     fontFamily: fonts.sans,
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    ...typography.panelTitle,
   },
 });

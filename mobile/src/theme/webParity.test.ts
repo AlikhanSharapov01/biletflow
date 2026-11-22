@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { colors, eventArt, statusTones } from "@/theme";
+import { colors, eventArt, radii, statusTones } from "@/theme";
 
 // The web stylesheet is the source of truth for colours; every mobile colour with a
 // web token of the same role must carry the same value.
@@ -36,12 +36,31 @@ const colorTokens: Record<keyof typeof colors, string> = {
   activeNav: "--active-nav",
   inputLine: "--input-line",
   placeholder: "--placeholder",
+  buttonInk: "--button-ink",
+  onGreen: "--on-green",
+  hoverLine: "--hover-line",
+};
+
+const radiusTokens: Record<keyof typeof radii, string> = {
+  input: "--radius-input",
+  button: "--radius-button",
+  panel: "--radius-panel",
+  pill: "--radius-pill",
 };
 
 describe("theme parity with web tokens", () => {
   it.each(Object.entries(colorTokens))("colors.%s equals %s", (key, token) => {
     expect(tokens.has(token)).toBe(true);
     expect(colors[key as keyof typeof colors].toLowerCase()).toBe(tokens.get(token));
+  });
+
+  it.each(Object.entries(radiusTokens))("radii.%s equals %s", (key, token) => {
+    expect(tokens.has(token)).toBe(true);
+    expect(radii[key as keyof typeof radii]).toBe(Number.parseFloat(tokens.get(token)!));
+  });
+
+  it("pins the radii the restyle depends on", () => {
+    expect(radii).toMatchObject({ input: 10, panel: 16, pill: 999 });
   });
 
   it.each(Object.entries(statusTones))("statusTones.%s equals the --tone tokens", (tone, value) => {

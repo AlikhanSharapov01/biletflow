@@ -285,7 +285,7 @@ src/
   context/              Toast provider
   i18n/                 t(), useLocale(); locales/ holds the web's en/kk/ru catalogs (copied
                           unchanged) and locales/mobile/ the app-only text
-  theme/                Colours, fonts, radii and spacing shared with the web design
+  theme/                Colours, radii and the system font equal to the web tokens (a parity test enforces it); type scale and press-spring motion tokens
   utils/                Formatting, status tones, event times
 ```
 

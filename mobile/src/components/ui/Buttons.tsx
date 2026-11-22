@@ -1,12 +1,12 @@
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
 
+import { AnimatedPressable, usePressFeedback } from "@/components/ui/pressFeedback";
 import { colors, fonts, radii } from "@/theme";
 import { useLocale } from "@/i18n";
 
@@ -22,24 +22,28 @@ type ButtonProps = {
 export function PrimaryButton({ label, onPress, disabled, loading, style }: ButtonProps) {
   useLocale();
   const inactive = disabled || loading;
+  const press = usePressFeedback();
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       onPress={onPress}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       disabled={inactive}
-      style={({ pressed }) => [
+      style={[
         styles.primary,
-        pressed && styles.primaryPressed,
+        press.pressed && styles.primaryPressed,
         inactive && styles.inactive,
         style,
+        press.style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" />
+        <ActivityIndicator color={colors.onGreen} />
       ) : (
         <Text style={styles.primaryText}>{label}</Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -54,17 +58,21 @@ export function SubtleButton({
 }: ButtonProps & { danger?: boolean }) {
   useLocale();
   const inactive = disabled || loading;
+  const press = usePressFeedback();
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       onPress={onPress}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       disabled={inactive}
-      style={({ pressed }) => [
+      style={[
         styles.subtle,
         danger && styles.dangerBorder,
-        pressed && styles.subtlePressed,
+        press.pressed && styles.subtlePressed,
         inactive && styles.inactive,
         style,
+        press.style,
       ]}
     >
       {loading ? (
@@ -72,7 +80,7 @@ export function SubtleButton({
       ) : (
         <Text style={[styles.subtleText, danger && styles.dangerText]}>{label}</Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -87,17 +95,20 @@ export function TextButton({
   accessibilityLabel,
 }: Omit<ButtonProps, "loading"> & { light?: boolean; accessibilityLabel?: string }) {
   useLocale();
+  const press = usePressFeedback();
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       disabled={disabled}
       hitSlop={8}
-      style={[disabled && styles.inactive, style]}
+      style={[disabled && styles.inactive, style, press.style]}
     >
       <Text style={[styles.textButton, light && styles.textButtonLight]}>{label}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -107,14 +118,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
-    borderRadius: radii.input,
+    borderRadius: radii.button,
     backgroundColor: colors.green,
   },
   primaryPressed: {
     backgroundColor: colors.greenDark,
   },
   primaryText: {
-    color: "#fff",
+    color: colors.onGreen,
     fontFamily: fonts.sans,
     fontSize: 15,
     fontWeight: "700",
@@ -126,14 +137,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 6,
+    borderRadius: radii.button,
     backgroundColor: colors.paper,
   },
   subtlePressed: {
-    borderColor: "#aabaae",
+    borderColor: colors.hoverLine,
   },
   subtleText: {
-    color: "#4a5951",
+    color: colors.buttonInk,
     fontFamily: fonts.sans,
     fontSize: 13,
     fontWeight: "600",
