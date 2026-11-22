@@ -55,7 +55,9 @@ const PAGES: PageCase[] = [
     viewports: ["narrow", "phone"],
   },
   { name: "organizer-event-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}`, ready: "[role=tabpanel]" },
-  { name: "organizer-check-ins-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=check-ins`, ready: ".data-table, .empty-state" },
+  { name: "organizer-check-ins-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=check-ins`, ready: "[role=tabpanel] .data-table" },
+  { name: "organizer-staff-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=staff`, ready: "#event-section-panel .stack, #event-section-panel form" },
+  { name: "organizer-finance-admin", role: "admin", path: (locale) => `/organizer/events/${FOCUS_EVENT[locale]}?tab=finance`, ready: "#event-section-panel .stat, #event-section-panel dl, #event-section-panel .panel" },
 ];
 
 // Problems that open defects cause today, each with the task that fixes it.
@@ -65,7 +67,15 @@ const TAB_LABEL_SPILL: Expected = [/^a\.tab-bar-link .* text spills out of its b
 const TAB_LABEL_EDGE: Expected = [/^a\.tab-bar-link .* text spans \d+\.\.\d+ of \d+$/, TAB_BAR];
 const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_BAR];
 
-const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin", "organizer-check-ins-admin"];
+const ADMIN_PAGES = [
+  "discover-admin",
+  "event-admin",
+  "checkout-hold",
+  "organizer-event-admin",
+  "organizer-check-ins-admin",
+  "organizer-staff-admin",
+  "organizer-finance-admin",
+];
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "en", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
@@ -325,6 +335,17 @@ function measureLayout(): string[] {
         }
       }
     });
+  }
+
+  // The selected tab of a scrolling tab row must be fully visible, not scrolled out of sight.
+  for (const tab of document.querySelectorAll('[role="tab"][aria-selected="true"]')) {
+    const row = tab.closest('[role="tablist"]');
+    if (!row) continue;
+    const box = tab.getBoundingClientRect();
+    const view = row.getBoundingClientRect();
+    if (box.left < view.left - TOLERANCE || box.right > view.right + TOLERANCE) {
+      problems.push(`${describe(tab)} selected tab is not fully inside its tab row (${Math.round(box.left)}..${Math.round(box.right)} in ${Math.round(view.left)}..${Math.round(view.right)})`);
+    }
   }
 
   const actions = document.querySelector(".topbar-actions");

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 
 export interface TabItem<T extends string> {
   id: T;
@@ -7,18 +7,32 @@ export interface TabItem<T extends string> {
 
 interface TabsProps<T extends string> {
   label: string;
-  items: Array<TabItem<T>>;
+  items: ReadonlyArray<TabItem<T>>;
   value: T;
   onChange: (id: T) => void;
   // Links each tab to a TabPanel with the same prefix.
   idPrefix?: string;
   // Equal-width segments (the sign-in switch).
   fill?: boolean;
+  // A lighter, underlined row for a second level beneath another tablist.
+  secondary?: boolean;
 }
 
 // A tablist with roving focus: arrow keys, Home and End move between tabs.
-export function Tabs<T extends string>({ label, items, value, onChange, idPrefix, fill = false }: TabsProps<T>) {
+export function Tabs<T extends string>({ label, items, value, onChange, idPrefix, fill = false, secondary = false }: TabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Keeps the selected tab visible in a row that scrolls sideways (phones, long labels).
+  // Sets scrollLeft instead of using scrollIntoView so the page never moves vertically.
+  useEffect(() => {
+    const selected = refs.current[items.findIndex((item) => item.id === value)];
+    const row = selected?.parentElement;
+    if (!selected || !row || row.scrollWidth <= row.clientWidth) return;
+    const tab = selected.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    if (tab.left < box.left) row.scrollLeft -= box.left - tab.left;
+    else if (tab.right > box.right) row.scrollLeft += tab.right - box.right;
+  }, [value]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = items.length - 1;
@@ -36,7 +50,7 @@ export function Tabs<T extends string>({ label, items, value, onChange, idPrefix
   };
 
   return (
-    <div className={`tabs ${fill ? "tabs-fill" : ""}`} role="tablist" aria-label={label}>
+    <div className={["tabs", fill && "tabs-fill", secondary && "tabs-secondary"].filter(Boolean).join(" ")} role="tablist" aria-label={label}>
       {items.map((item, index) => {
         const selected = item.id === value;
         return (

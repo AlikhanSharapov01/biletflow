@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getEvent, listCategories, listVenues } from "../../../api/catalog";
+import { duplicateEvent } from "../../../api/eventAdmin";
 import { makeEvent } from "../../../../tests/helpers/fixtures";
 import { OrganizerEventPage } from "./OrganizerEventPage";
 
@@ -29,13 +30,20 @@ afterEach(() => vi.clearAllMocks());
 
 function Probe() {
   const location = useLocation();
-  return <output data-testid="url">{location.pathname + location.search}</output>;
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="url">{location.pathname + location.search}</output>
+      <button type="button" onClick={() => navigate(-1)}>Back</button>
+    </>
+  );
 }
 
 function renderAt(url: string) {
   return render(
     <MemoryRouter initialEntries={["/start", url]} initialIndex={1}>
       <Routes>
+        <Route path="/start" element={<p>start page</p>} />
         <Route path="/organizer/events/:eventId" element={<OrganizerEventPage />} />
       </Routes>
       <Probe />
@@ -62,6 +70,9 @@ describe("organizer event page tabs", () => {
     fireEvent.click(within(sections()).getByRole("tab", { name: "History" }));
     expect(await screen.findByText("history body")).toBeTruthy();
     expect(url()).toBe("/organizer/events/e1?tab=history&x=1");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByText("start page")).toBeTruthy();
+    expect(url()).toBe("/start");
   });
 
   it("shows details and normalises the URL for a missing or unknown tab", async () => {
@@ -69,6 +80,8 @@ describe("organizer event page tabs", () => {
     await screen.findByText("details body");
     await waitFor(() => expect(url()).toBe("/organizer/events/e1?tab=details&x=1"));
     expect(within(groups()).getByRole("tab", { name: "Setup" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByText("start page")).toBeTruthy();
   });
 
   it("normalises a URL without a tab", async () => {
@@ -88,19 +101,61 @@ describe("organizer event page tabs", () => {
     expect(url()).toBe("/organizer/events/e1?tab=paid-sales");
   });
 
+  it("keeps the section when the current group is chosen again", async () => {
+    renderAt("/organizer/events/e1?tab=finance");
+    await screen.findByText("finance body");
+    fireEvent.click(within(groups()).getByRole("tab", { name: "Results" }));
+    fireEvent.click(within(groups()).getByRole("tab", { name: "Results" }));
+    expect(url()).toBe("/organizer/events/e1?tab=finance");
+    expect(screen.getByText("finance body")).toBeTruthy();
+    fireEvent.keyDown(within(groups()).getByRole("tab", { name: "Results" }), { key: "Home" });
+    expect(await screen.findByText("details body")).toBeTruthy();
+    fireEvent.click(within(sections()).getByRole("tab", { name: "Staff" }));
+    fireEvent.keyDown(within(groups()).getByRole("tab", { name: "Setup" }), { key: "Home" });
+    expect(url()).toBe("/organizer/events/e1?tab=staff");
+  });
+
+  it("goes back to Setup > Details after duplicating", async () => {
+    vi.mocked(duplicateEvent).mockResolvedValue(makeEvent({ id: "copy" }));
+    renderAt("/organizer/events/e1?tab=finance");
+    await screen.findByText("finance body");
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+    await waitFor(() => expect(url()).toBe("/organizer/events/copy?tab=details"));
+    expect(await screen.findByText("details body")).toBeTruthy();
+    expect(within(groups()).getByRole("tab", { name: "Setup" }).getAttribute("aria-selected")).toBe("true");
+  });
+
   it("supports arrow, Home and End keys in both rows", async () => {
     renderAt("/organizer/events/e1?tab=tickets");
     await screen.findByText("tickets body");
-    fireEvent.keyDown(within(sections()).getByRole("tab", { name: "Ticket types" }), { key: "ArrowRight" });
+    const section = (name: string) => within(sections()).getByRole("tab", { name });
+    const group = (name: string) => within(groups()).getByRole("tab", { name });
+    fireEvent.keyDown(section("Ticket types"), { key: "ArrowRight" });
     expect(await screen.findByText("seating body")).toBeTruthy();
-    fireEvent.keyDown(within(sections()).getByRole("tab", { name: "Seating" }), { key: "End" });
+    expect(document.activeElement).toBe(section("Seating"));
+    fireEvent.keyDown(section("Seating"), { key: "End" });
     expect(await screen.findByText("staff body")).toBeTruthy();
-    expect(url()).toBe("/organizer/events/e1?tab=staff");
-    fireEvent.keyDown(within(groups()).getByRole("tab", { name: "Setup" }), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(section("Staff"));
+    fireEvent.keyDown(section("Staff"), { key: "ArrowRight" });
+    expect(await screen.findByText("details body")).toBeTruthy();
+    expect(document.activeElement).toBe(section("Details"));
+    fireEvent.keyDown(section("Details"), { key: "ArrowLeft" });
+    expect(await screen.findByText("staff body")).toBeTruthy();
+    fireEvent.keyDown(section("Staff"), { key: "Home" });
+    expect(await screen.findByText("details body")).toBeTruthy();
+    expect(document.activeElement).toBe(section("Details"));
+    expect(url()).toBe("/organizer/events/e1?tab=details");
+
+    fireEvent.keyDown(group("Setup"), { key: "ArrowRight" });
     expect(await screen.findByText("paid-sales body")).toBeTruthy();
-    fireEvent.keyDown(within(groups()).getByRole("tab", { name: "Sales" }), { key: "End" });
+    expect(document.activeElement).toBe(group("Sales"));
+    fireEvent.keyDown(group("Sales"), { key: "End" });
+    expect(await screen.findByText("analytics body")).toBeTruthy();
+    expect(document.activeElement).toBe(group("Results"));
+    fireEvent.keyDown(group("Results"), { key: "Home" });
+    expect(await screen.findByText("details body")).toBeTruthy();
+    fireEvent.keyDown(group("Setup"), { key: "ArrowLeft" });
     expect(await screen.findByText("analytics body")).toBeTruthy();
     expect(url()).toBe("/organizer/events/e1?tab=analytics");
-    expect(document.activeElement).toBe(within(groups()).getByRole("tab", { name: "Results" }));
   });
 });

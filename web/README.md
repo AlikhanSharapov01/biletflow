@@ -218,7 +218,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/support`, `/support/new`, `/support/cases/:caseId` | Signed in | Support cases and threads with attachments |
 | `/notifications` | Signed in | Notification inbox |
 | `/organizer` | Signed in | Workspaces, organizer profile, events grouped by status, team, permissions and invitations |
-| `/organizer/events/:eventId` | Signed in | Event management tabs |
+| `/organizer/events/:eventId` | Signed in | Event management in four groups (Setup, Sales, Event day, Results), each with its sections; the open section is kept in `?tab=<section>` (for example `?tab=finance`), so refresh, Back and shared links reopen it |
 | `/staff-invitations/accept#token=` | Signed in | Join a workspace from an invitation |
 | `/account` | Signed in | Profile, language preference, traffic-analytics consent, sessions |
 | `/admin` → `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/inspect`, `/jobs`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
@@ -299,7 +299,8 @@ free registration, paid checkout and refund. The `E2E` workflow (`.github/workfl
 them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there yet.
 
 Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover (plain,
-filtered, empty and with Load more), the event page and the organizer event page in Chromium at
+filtered, empty and with Load more), the event page and the organizer event page (also at `?tab=check-ins`, `?tab=staff` and
+`?tab=finance`, where the selected tab must be fully in view in its row) in Chromium at
 320, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px in English, Russian and Kazakh, as a visitor and as a platform
 admin. The API is answered by fixtures in the browser, so they need no backend:
 `cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium and
