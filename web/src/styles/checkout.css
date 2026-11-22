@@ -38,10 +38,13 @@
 .seat, .seat-swatch { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1.5px solid var(--green); border-radius: 6px 6px 3px 3px; background: var(--paper); color: var(--green); font-size: var(--text-micro); font-weight: 700; }
 .seat-swatch { width: 20px; height: 20px; font-size: 10px; }
 .seat { cursor: pointer; }
-.seat:hover:not(:disabled) { background: var(--active-nav); }
 .seat:disabled { cursor: not-allowed; opacity: 1; }
 .seat-selected { border-color: var(--green-dark); background: var(--green); color: var(--paper); }
-.seat.seat-selected:hover { background: var(--green-dark); }
+/* Hover feedback only where hovering exists. */
+@media (hover: hover) {
+  .seat:hover:not(:disabled) { background: var(--active-nav); }
+  .seat.seat-selected:hover { background: var(--green-dark); }
+}
 .seat-held { border-color: var(--tone-pending); background: var(--tone-pending-bg); color: var(--tone-pending); }
 .seat-sold, .seat-refund_pending { border-color: var(--tone-blocked); background: var(--tone-blocked-bg); color: var(--tone-blocked); }
 .seat-unavailable, .seat-blocked { border-color: var(--line); background: var(--tone-neutral-bg); color: var(--faint); }

@@ -84,7 +84,7 @@ function rules(role: Role, locale: Locale): Rule[] {
       const q = param("q")?.toLowerCase();
       const city = param("city")?.toLowerCase();
       const cityOf = (venueId: string) => venues.find((venue) => venue.id === venueId)?.city.toLowerCase();
-      // Date and price filters are not evaluated: the fixtures carry no prices.
+      // Date and price filters are not evaluated: the list is the same whatever the range.
       const matching = events.filter(
         (event) =>
           (!q || event.title.toLowerCase().includes(q)) &&
@@ -100,6 +100,16 @@ function rules(role: Role, locale: Locale): Rule[] {
     get(`/events/${ID}/ticket-types`, (_url, [eventId]) => (eventById(eventId) ? ticketTypes(eventId!) : undefined)),
     get(`/events/${ID}/images/${ID}`, (_url, [eventId, kind]) => (eventById(eventId) && kind! in COVER_SIZES ? { cover: kind } : undefined)),
     get("/settings/public", () => publicSettings),
+    get(`/events/${ID}/calendar-links`, (url, [eventId]) =>
+      eventById(eventId) && ({
+        google: "https://calendar.google.com/",
+        outlook: "https://outlook.live.com/",
+        office365: "https://outlook.office.com/",
+        ics_path: url.pathname.replace("calendar-links", "calendar.ics"),
+        ics_requires_sign_in: false,
+        calendar_sequence: 0,
+      } satisfies CalendarLinks),
+    ),
   ];
   if (role !== "visitor") {
     table.push(
@@ -150,16 +160,6 @@ function rules(role: Role, locale: Locale): Rule[] {
       ),
       get(`/events/${ID}/finance/payouts`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
       get(`/events/${ID}/sync-conflicts`, (_url, [eventId]) => (eventById(eventId) ? [] : undefined)),
-      get(`/events/${ID}/calendar-links`, (url, [eventId]) =>
-        eventById(eventId) && ({
-          google: "https://calendar.google.com/",
-          outlook: "https://outlook.live.com/",
-          office365: "https://outlook.office.com/",
-          ics_path: url.pathname.replace("calendar-links", "calendar.ics"),
-          ics_requires_sign_in: false,
-          calendar_sequence: 0,
-        } satisfies CalendarLinks),
-      ),
     );
   }
   return table;

@@ -21,6 +21,7 @@ export function TabBar() {
           key={item.to}
           className="tab-bar-link"
           to={item.to}
+          aria-label={item.tabLabel.replaceAll("\u00ad", "")}
           aria-current={isSectionActive(item, pathname) ? "page" : undefined}
         >
           <NavIcon id={item.icon} />

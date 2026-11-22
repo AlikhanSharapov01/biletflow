@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, NOW, type Locale } from "./fixtures";
+import { FOCUS_EVENT, FREE_EVENT, LOCALES, MANY_EVENTS_CATEGORY, SALES_ENDED_EVENT, SOLD_OUT_EVENT, type Locale } from "./fixtures";
+import { assertPinnedFonts, prepare } from "./harness";
 import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
@@ -15,6 +16,8 @@ const VIEWPORTS = {
   // tab bar, 1100 and 1280 sit inside and at the end of the tight 1025-1279 range.
   small: { width: 375, height: 667 },
   aboveTabBar: { width: 1025, height: 768 },
+  // A landscape phone: the sticky bar is not shown (500px tall or less). Only cases that name it run here.
+  landscape: { width: 844, height: 390 },
   wide: { width: 1100, height: 800 },
   desktopMin: { width: 1280, height: 800 },
   desktop: { width: 1440, height: 900 },
@@ -24,6 +27,9 @@ type ViewportName = keyof typeof VIEWPORTS;
 // Browser language per UI language, so native controls and Accept-Language follow it.
 const BROWSER_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", kk: "kk-KZ" };
 
+// A card with real content; skeleton cards share the .event-card class.
+const REAL_CARD = ".event-card:not(.skeleton-card)";
+
 interface PageCase {
   name: string;
   role: Role;
@@ -32,20 +38,37 @@ interface PageCase {
   ready: string;
   /** Drives the page into the state to measure (runs once `ready` is visible). */
   prepare?: (page: Page) => Promise<void>;
+  /** The sticky "Get tickets" bar is checked: present up to 960px (and over 500px tall), absent above. */
+  stickyBar?: boolean;
+  /** Nothing can be bought on this page: neither the sticky bar nor its spacer is rendered. */
+  noStickyBar?: boolean;
+  /** The offer is a free label, not an amount. */
+  freeOffer?: boolean;
   /** Viewports to run at; all of them when omitted. */
   viewports?: ViewportName[];
 }
 
 // One line per page. Add a page here and it runs at every width in every language.
+// Widths the sticky bar is checked at: 320, 360 and 390 phones, a tablet, and a laptop where it is absent.
+const OPT_IN_VIEWPORTS: ViewportName[] = ["landscape"];
+const STICKY_VIEWPORTS: ViewportName[] = ["narrow", "compact", "phone", "tablet", "laptop"];
+
 const PAGES: PageCase[] = [
-  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: ".event-card" },
+  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: REAL_CARD },
   // Active filters: "More filters" is open on a phone and its summary counts them.
-  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card" },
+  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: REAL_CARD },
   { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
-  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card" },
-  { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card" },
-  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
+  { name: "discover-member", role: "member", path: () => "/discover", ready: REAL_CARD },
+  { name: "discover-admin", role: "admin", path: () => "/discover", ready: REAL_CARD },
+  { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true },
+  { name: "event-visitor", role: "visitor", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-member", role: "member", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description", stickyBar: true, viewports: [...STICKY_VIEWPORTS, "landscape"] },
+  // A free event: the bar's free label and a buyable free ticket row.
+  { name: "event-free", role: "visitor", path: () => `/events/${FREE_EVENT}`, ready: ".event-description", stickyBar: true, freeOffer: true, viewports: ["phone"] },
+  // Nothing to buy: no bar and no spacer under it.
+  { name: "event-sold-out", role: "visitor", path: () => `/events/${SOLD_OUT_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
+  { name: "event-sales-ended", role: "member", path: () => `/events/${SALES_ENDED_EVENT}`, ready: ".event-description", noStickyBar: true, viewports: STICKY_VIEWPORTS },
   {
     name: "checkout-hold",
     role: "admin",
@@ -82,28 +105,14 @@ const GENERATED = new Set<string>();
 
 const NAV_LINKS = { visitor: 1, member: 5, admin: 6 } as const;
 
-// Text widths depend on the font, and the app's font stack falls back to whatever the
-// machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
-// everywhere so a case gives the same answer on every machine. CI installs them
-// (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
-// The language select is pinned to 16px, the size form fields get on phones and tablets.
-const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } .topbar select { font-size: 16px; }`;
-
 async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi, pageErrors: string[]) {
-  // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
-  await page.clock.setFixedTime(NOW);
-  // The app picks its language from this stored preference (web/src/i18n/index.ts);
-  // a signed-in profile's own locale takes over once it loads.
-  await page.addInitScript((value) => localStorage.setItem("biletflow:locale", value), locale);
-  await page.addInitScript((css) => {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  }, PINNED_FONTS);
+  await prepare(page, locale);
   try {
     await page.goto(pageCase.path(locale));
     await expect(page.locator(pageCase.ready).first()).toBeVisible();
     await expect(page.locator(".loading-state")).toHaveCount(0);
+    // Placeholders are not the page: wait until none is left.
+    await expect(page.locator(".skeleton-card, .skeleton-page, [aria-busy=true]")).toHaveCount(0);
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await pageCase.prepare?.(page);
@@ -116,17 +125,7 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     ].filter(Boolean);
     throw new Error(`Page did not load; ${details.join("; ")}`, { cause: failure });
   }
-  // A missing pinned font would silently change every text width.
-  const missing = await page.evaluate(() => {
-    const context = document.createElement("canvas").getContext("2d")!;
-    const sample = "Wiiiiimmmmm 0123456789 Ыы Әә";
-    const width = (font: string) => {
-      context.font = `16px ${font}`;
-      return context.measureText(sample).width;
-    };
-    return ["DejaVu Sans", "DejaVu Serif"].filter((family) => width(`"${family}", monospace`) === width("monospace"));
-  });
-  if (missing.length) throw new Error(`install DejaVu fonts (fonts-dejavu-core): ${missing.join(", ")} not found`);
+  await assertPinnedFonts(page);
 }
 
 // Runs in the browser, so it sees the real rendered boxes. Returns one line per problem.
@@ -308,7 +307,7 @@ function measureLayout(): string[] {
     if (width >= 1025 && (barShown || !tabsShown)) problems.push(`navigation at ${width}px: top tabs expected, not the bottom tab bar`);
   }
 
-  // Tab bar labels: inside their link, at most two lines (three only at 320 with six
+  // Tab bar labels: inside their link, at most two lines (three only below 360 px with six
   // sections), broken only at soft hyphens or spaces, no line shorter than three letters,
   // and every link and the bar at their designed size whatever the language.
   const SOFT_HYPHEN = "\u00ad";
@@ -358,9 +357,14 @@ function measureLayout(): string[] {
   }
   if (tabBarShown) {
     const style = getComputedStyle(tabBar);
-    const expected = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tab-bar-height")) + parseFloat(style.borderTopWidth);
+    // The token is a calc() expression: let the browser resolve it on a probe element.
+    const probe = document.body.appendChild(document.createElement("div"));
+    probe.style.cssText = "position: absolute; visibility: hidden; height: var(--tab-bar-height)";
+    const resolved = probe.getBoundingClientRect().height;
+    const expected = resolved + parseFloat(style.borderTopWidth);
+    probe.remove();
     const actual = tabBar.getBoundingClientRect().height;
-    if (!Number.isFinite(expected)) problems.push("tab bar height token --tab-bar-height is missing");
+    if (!(resolved > 0)) problems.push("tab bar height token --tab-bar-height is missing or does not resolve to a length");
     else if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
   }
   for (const link of document.querySelectorAll(".tab-bar-link")) {
@@ -402,6 +406,66 @@ function measureLayout(): string[] {
   return problems;
 }
 
+// The sticky "Get tickets" bar sits on the tab bar (or the bottom edge without one), shows the
+// whole offer, and the page's last content can scroll clear of it. Runs in the browser, scrolled to the end.
+function stickyBarProblems(freeOffer: boolean): string[] {
+  const problems: string[] = [];
+  const bar = document.querySelector(".get-tickets-bar");
+  if (!bar) return ["no Get tickets bar"];
+  const shown = getComputedStyle(bar).display !== "none";
+  if (window.innerWidth > 960 || window.innerHeight <= 500) {
+    if (shown) problems.push("Get tickets bar shows where it should not (over 960px wide or 500px tall or less)");
+    const hiddenSpacer = document.querySelector(".get-tickets-spacer");
+    if (hiddenSpacer && getComputedStyle(hiddenSpacer).display !== "none") problems.push("Get tickets spacer takes room where the bar is not shown");
+    // Only the tab bar (if any) and the usual 16px keep focused controls clear: nothing for the absent bar.
+    const tabs = document.querySelector(".tab-bar");
+    const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom) || 0;
+    const allowed = (tabs ? tabs.getBoundingClientRect().height : 0) + 16 + 1;
+    if (padding > allowed) problems.push(`scroll padding at the bottom is ${padding}px, more than the tab bar and 16px (${allowed - 1}px)`);
+    return problems;
+  }
+  if (!shown) return ["Get tickets bar is not shown up to 960px"];
+  const box = bar.getBoundingClientRect();
+  const tabBar = document.querySelector(".tab-bar");
+  const floor = tabBar ? tabBar.getBoundingClientRect().top : window.innerHeight;
+  if (Math.abs(box.bottom - floor) > 1) problems.push(`bar bottom ${Math.round(box.bottom)} is not on the ${tabBar ? "tab bar" : "bottom edge"} at ${Math.round(floor)}`);
+  if (box.left < 0 || box.right > window.innerWidth) problems.push(`bar spans ${Math.round(box.left)}..${Math.round(box.right)}`);
+  const button = bar.querySelector("button")!.getBoundingClientRect();
+  if (button.height < 44 || button.right > box.right || button.left < box.left) problems.push("bar button is under 44px tall or leaves the bar");
+  const offer = bar.querySelector(".get-tickets-offer")!;
+  const offerBox = offer.getBoundingClientRect();
+  const sideBySide = offerBox.top < button.bottom && button.top < offerBox.bottom;
+  if (sideBySide && offerBox.right > button.left + 1) problems.push("offer text runs into the button");
+  if (!sideBySide && offerBox.bottom > button.top + 1) problems.push("offer text overlaps the button below it");
+  if (offer.scrollHeight > offer.clientHeight + 1 || offer.scrollWidth > offer.clientWidth + 1) problems.push("offer text is cut off");
+  if (offerBox.left < box.left || offerBox.right > box.right) problems.push("offer text leaves the bar");
+  // The amount (digits and the tenge sign) stays on one visual line, never cut.
+  const text = offer.firstChild;
+  const content = offer.textContent ?? "";
+  const amount = /\d[\d\s\u00a0\u202f.,]*₸|₸[\s\u00a0\u202f]*\d[\d\s\u00a0\u202f.,]*\d/.exec(content);
+  if (freeOffer) {
+    if (/\d|₸/.test(content)) problems.push(`free offer "${content}" shows an amount`);
+  } else if (!text || !amount) problems.push(`offer "${content}" shows no amount with the ₸ sign`);
+  else {
+    const range = document.createRange();
+    range.setStart(text, amount.index);
+    range.setEnd(text, amount.index + amount[0].length);
+    const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+    if (tops.size > 1) problems.push(`the amount "${amount[0]}" breaks over ${tops.size} lines`);
+  }
+  const spacer = document.querySelector(".get-tickets-spacer");
+  if (!spacer || Math.abs(spacer.getBoundingClientRect().height - box.height) > 1) problems.push(`the spacer is ${Math.round(spacer?.getBoundingClientRect().height ?? 0)}px for a ${Math.round(box.height)}px bar`);
+  const last = [...document.querySelector(".page")!.children].filter((child) => !child.classList.contains("get-tickets-bar") && !child.classList.contains("get-tickets-spacer")).at(-1)!;
+  const lastBottom = last.getBoundingClientRect().bottom;
+  if (lastBottom > box.top + 1) problems.push(`the page's last content ends at ${Math.round(lastBottom)}, under the bar at ${Math.round(box.top)}`);
+  return problems;
+}
+
+// Nothing can be bought: no bar and no spacer in the page.
+function noStickyBarProblems(): string[] {
+  return [".get-tickets-bar", ".get-tickets-spacer"].filter((selector) => document.querySelector(selector)).map((selector) => `${selector} is rendered on a page with nothing to buy`);
+}
+
 // iOS Safari zooms the page when a field under 16px gets focus. Runs in the browser.
 function smallFields(): string[] {
   return [...document.querySelectorAll("input, select, textarea")]
@@ -421,7 +485,7 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
     test.describe(`${viewportName} ${locale}`, () => {
       test.use({ viewport: size, locale: BROWSER_LOCALE[locale] });
 
-      for (const pageCase of PAGES.filter((item) => !item.viewports || item.viewports.includes(viewportName))) {
+      for (const pageCase of PAGES.filter((item) => (item.viewports ? item.viewports.includes(viewportName) : !OPT_IN_VIEWPORTS.includes(viewportName)))) {
         const key = `${pageCase.name} ${viewportName} ${locale}`;
         GENERATED.add(key);
         test(key, async ({ page }, testInfo) => {
@@ -440,6 +504,16 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
             await page.screenshot({ path: file, fullPage });
             await testInfo.attach(name, { path: file, contentType: "image/png" });
           }
+
+          if (pageCase.stickyBar) {
+            await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+            // Where the tickets section is on screen the bar slides away; measure it in its shown
+            // position, as it appears whenever the section scrolls out of view.
+            await page.addStyleTag({ content: ".get-tickets-bar { transition: none !important; transform: none !important; visibility: visible !important; opacity: 1 !important; }" });
+            expect(await page.evaluate(stickyBarProblems, pageCase.freeOffer ?? false), "sticky Get tickets bar").toEqual([]);
+          }
+
+          if (pageCase.noStickyBar) expect(await page.evaluate(noStickyBarProblems), "no sticky Get tickets bar").toEqual([]);
 
           const fields = viewportName === "phone" ? await page.evaluate(smallFields) : [];
           expect(mocked.unmocked, "API calls without a fixture").toEqual([]);

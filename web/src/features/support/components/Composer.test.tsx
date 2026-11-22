@@ -36,14 +36,20 @@ describe("composer attachment scan states", () => {
     await pick(container, png());
 
     expect(screen.getByText("Checking file…")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Checking files…" })).toHaveProperty("disabled", true);
+    const checkingButton = screen.getByRole("button", { name: "Checking files…" });
+    expect(checkingButton.getAttribute("aria-busy")).toBe("true");
+    fireEvent.change(screen.getByLabelText("Reply"), { target: { value: "hello" } });
+    await act(async () => {
+      fireEvent.click(checkingButton);
+    });
+    expect(api.sendMessage).not.toHaveBeenCalled();
 
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(screen.getByText("Checking file…")).toBeTruthy();
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(api.getUpload).toHaveBeenCalledWith("c1", "f1");
     expect(screen.getByText(/^Ready/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty("disabled", false);
+    expect(screen.getByRole("button", { name: "Send" }).hasAttribute("aria-busy")).toBe(false);
   });
 
   it("shows Blocked and never sends a file the scan rejected", async () => {
@@ -79,6 +85,29 @@ describe("composer attachment scan states", () => {
     await pick(container, new File(["gif"], "a.gif", { type: "image/gif" }));
     expect(api.uploadAttachment).toHaveBeenCalled();
     expect(screen.getByText("Only PNG, JPEG and PDF files can be attached.")).toBeTruthy();
+  });
+
+  it("ignores a second send and the attach button while a message is sending", async () => {
+    vi.mocked(api.sendMessage).mockReturnValue(new Promise(() => undefined));
+    const { container } = render(<Composer caseId="c1" onSent={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Reply"), { target: { value: "hello" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+    const sending = screen.getByRole("button", { name: "Sending…" });
+    expect(sending.getAttribute("aria-busy")).toBe("true");
+    const attach = screen.getByRole("button", { name: "Attach file" });
+    expect(attach.hasAttribute("aria-busy")).toBe(false);
+    expect(attach.getAttribute("aria-disabled")).toBe("true");
+    expect(attach.hasAttribute("disabled")).toBe(false);
+    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]') as HTMLInputElement;
+    const openPicker = vi.spyOn(fileInput, "click");
+    fireEvent.click(attach);
+    expect(openPicker).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(sending);
+    });
+    expect(api.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it("stops polling when the file is removed", async () => {

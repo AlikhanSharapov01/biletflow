@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "../../features/auth/AuthContext";
 import { AppShell } from "./AppShell";
@@ -34,7 +34,29 @@ function renderShell(value: AuthContextValue, path = "/discover") {
   );
 }
 
+function SignInProbe() {
+  const state = useLocation().state as { from?: string } | null;
+  return <output data-testid="from">{state?.from}</output>;
+}
+
 describe("AppShell", () => {
+  it("keeps the query and hash of the current page for the sign-in return", () => {
+    render(
+      <AuthContext.Provider value={authValue({ status: "anonymous" })}>
+        <MemoryRouter initialEntries={["/discover?city=Almaty#top"]}>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route path="/discover" element={<p>Discover content</p>} />
+            </Route>
+            <Route path="/sign-in" element={<SignInProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthContext.Provider>,
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Sign in" }));
+    expect(screen.getByTestId("from").textContent).toBe("/discover?city=Almaty#top");
+  });
+
   it("offers sign-in to anonymous visitors and still renders the page", () => {
     renderShell(authValue({ status: "anonymous" }));
     expect(screen.getByRole("link", { name: "Sign in" })).toBeTruthy();

@@ -81,7 +81,7 @@ export function SettingRow({ setting, onSaved }: SettingRowProps) {
           <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
           <FormMessage message={state.message} />
           <div className="form-actions">
-            <Button variant="primary" size="sm" type="submit" disabled={state.busy}>{t("admin.save_setting")}</Button>
+            <Button variant="primary" size="sm" type="submit" busy={state.busy}>{t("admin.save_setting")}</Button>
           </div>
         </form>
       ) : null}

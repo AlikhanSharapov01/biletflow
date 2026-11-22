@@ -51,7 +51,7 @@ export function CheckInsTab({ event }: { event: EventView }) {
           trailing={
             <div className="row-actions">
               <StatusPill tone="neutral">{log.data?.total ?? 0}{" "}{t("word.checkins")}</StatusPill>
-              <Button size="sm" disabled={exporting} onClick={() => void exportCsv()}>
+              <Button size="sm" busy={exporting} onClick={() => void exportCsv()}>
                 {exporting ? t("support.preparing") : t("org.csv_download")}
               </Button>
             </div>

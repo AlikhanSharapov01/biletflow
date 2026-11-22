@@ -1,14 +1,14 @@
 import { categoryName, t, useLocale } from "../../i18n";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { useSearchParams } from "react-router";
 import { listCategories, listVenues } from "../../api/catalog";
 import type { Category, Venue } from "../../api/types";
-import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading } from "../../components/ui";
+import { EmptyState, ErrorPanel, EventCard, PageHeading, SkeletonGrid } from "../../components/ui";
 import { Button } from "../../components/ui/Button";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { DiscoverFilters } from "./components/DiscoverFilters";
-import { discoverSearchParams, hasActiveFilters, parseDiscoverQuery, priceRangeError, type DiscoverQuery } from "./discoverQuery";
+import { discoverSearchParams, parseDiscoverQuery, priceRangeError, type DiscoverQuery } from "./discoverQuery";
 import { eventOffer } from "./eventOffer";
 import { useDiscoverEvents, type DiscoverEvents } from "./useDiscoverEvents";
 
@@ -17,10 +17,8 @@ interface Lookups {
   venues: Venue[];
 }
 
-// While a new search loads, show the loading state instead of the previous search's
-// cards. With true, the previous search's first page stays on screen until the new one
-// arrives (pages added by Load more are not kept); `loading` tells the two apart.
-const KEEP_PREVIOUS_CARDS = false;
+// Placeholder cards on the first load, before there is anything to keep on screen.
+const FIRST_LOAD_CARDS = 6;
 
 export function DiscoverPage() {
   useLocale();
@@ -61,12 +59,15 @@ export function DiscoverPage() {
   };
 
   // One live region outside the results, so every search is announced.
-  const settled = !lookups.error && !rangeError && !found.error && found.loaded && !found.loading;
-  const announcement = !settled
+  // Results are on screen (possibly dimmed): before this, a skeleton or an error is.
+  const ready = !lookups.error && !rangeError && !found.error && lookups.data !== null && found.loaded;
+  const announcement = !ready
     ? ""
-    : found.events.length === 0
-      ? hasActiveFilters(query) ? t("discover.empty_filtered") : t("discover.empty")
-      : t("discover.shown_count", { count: found.events.length });
+    : found.loading
+      ? t("discover.loading")
+      : found.events.length === 0
+        ? found.filtered ? t("discover.empty_filtered") : t("discover.empty")
+        : t("discover.shown_count", { count: found.events.length });
 
   return (
     <>
@@ -80,7 +81,7 @@ export function DiscoverPage() {
       {lookups.error ? (
         <ErrorPanel title={t("discover.load_error")} message={lookups.error} onRetry={lookups.reload} />
       ) : rangeError ? null : (
-        <DiscoverResults found={found} lookups={lookups.data} filtered={hasActiveFilters(query)} onClear={clear} />
+        <DiscoverResults found={found} lookups={lookups.data} searchRef={searchRef} onClear={clear} />
       )}
     </>
   );
@@ -89,13 +90,14 @@ export function DiscoverPage() {
 interface DiscoverResultsProps {
   found: DiscoverEvents;
   lookups: Lookups | null;
-  filtered: boolean;
+  searchRef: RefObject<HTMLInputElement | null>;
   onClear: () => void;
 }
 
-function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsProps) {
+function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResultsProps) {
   useLocale();
   const grid = useRef<HTMLDivElement>(null);
+  // Layout effects below: they run in the commit that shows the new cards, before any later click or test read.
   // Set when Load more had the focus, so it can follow the new cards if the button goes away.
   const refocusFrom = useRef<number | null>(null);
   const maps = useMemo(
@@ -107,7 +109,7 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
   );
 
   const { events, hasMore, loadingMore, loadMoreFailed } = found;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (refocusFrom.current === null || loadingMore) return;
     const from = refocusFrom.current;
     refocusFrom.current = null;
@@ -119,15 +121,33 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
     (links.find((link) => link.getAttribute("href") === path) ?? links.at(-1))?.focus();
   }, [events, hasMore, loadingMore, loadMoreFailed]);
 
+  // The card link that had the focus when a reload began: the dimmed grid is inert, so a browser drops
+  // the focus to the page. Once the results settle it returns to the same card, else to the search box.
+  const focusedCard = useRef<string | null>(null);
+  const wasLoading = useRef(false);
+  useLayoutEffect(() => {
+    const was = wasLoading.current;
+    wasLoading.current = found.loading;
+    if (!was || found.loading) return;
+    const href = focusedCard.current;
+    focusedCard.current = null;
+    // Focus that moved somewhere on purpose stays there.
+    if (!href || (document.activeElement && document.activeElement !== document.body)) return;
+    const link = [...(grid.current?.querySelectorAll<HTMLAnchorElement>("a") ?? [])].find((card) => card.getAttribute("href") === href);
+    (link ?? searchRef.current)?.focus();
+  }, [found.loading, searchRef]);
+
   const now = new Date();
   if (found.error) return <ErrorPanel title={t("discover.load_error")} message={found.error} onRetry={found.reload} />;
-  if (!lookups || !found.loaded || (found.loading && !KEEP_PREVIOUS_CARDS)) return <Loading label={t("discover.loading")} />;
+  if (!lookups || !found.loaded) return <SkeletonGrid count={FIRST_LOAD_CARDS} label={t("discover.loading")} />;
+  // A reload keeps the previous cards, dimmed and inert, until the new first page arrives.
+  const busy = found.loading;
 
   if (events.length === 0) {
     return (
-      <div className="event-grid">
+      <div className="event-grid" aria-busy={busy || undefined} inert={busy}>
         <EmptyState wide>
-          {filtered ? (
+          {found.filtered ? (
             <>
               <p>{t("discover.empty_filtered")}</p>
               <Button className="empty-action" onClick={onClear}>{t("discover.clear_filters")}</Button>
@@ -142,7 +162,19 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
 
   return (
     <>
-      <div className="event-grid" ref={grid}>
+      <div
+        className="event-grid"
+        ref={grid}
+        aria-busy={busy || undefined}
+        inert={busy}
+        onFocus={(event) => {
+          focusedCard.current = event.target instanceof Element ? (event.target.closest("a")?.getAttribute("href") ?? null) : null;
+        }}
+        onBlur={(event) => {
+          // A blur caused by the grid turning inert must not forget the card.
+          if (!event.currentTarget.hasAttribute("inert")) focusedCard.current = null;
+        }}
+      >
         {events.map((event, index) => {
           const venue = maps.venues.get(event.venue_id);
           const categoryLabel = categoryName(maps.categories.get(event.category_id));
@@ -166,15 +198,13 @@ function DiscoverResults({ found, lookups, filtered, onClear }: DiscoverResultsP
       {hasMore || loadingMore || loadMoreFailed ? (
         <div className="load-more">
           {loadMoreFailed ? <p className="form-message" role="alert">{t("discover.load_more_error")}</p> : null}
-          {/* Stays focusable while busy: aria-disabled, not disabled, keeps keyboard focus on it. */}
+          {/* busy keeps the button focusable (not disabled) and ignores clicks while loading. */}
           <Button
+            busy={loadingMore}
             onClick={(event) => {
-              if (loadingMore) return;
               refocusFrom.current = event.currentTarget === document.activeElement ? events.length : null;
               found.loadMore();
             }}
-            aria-disabled={loadingMore || undefined}
-            aria-busy={loadingMore || undefined}
           >
             {loadingMore ? t("common.loading") : loadMoreFailed ? t("common.try_again") : t("discover.load_more")}
           </Button>

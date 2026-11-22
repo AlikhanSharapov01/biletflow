@@ -16,13 +16,14 @@ interface AttendeeActionsProps {
 export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) {
   useLocale();
   const { notify } = useToast();
-  const [busy, setBusy] = useState(false);
+  // Which action's request is running; the other one waits (aria-disabled).
+  const [busy, setBusy] = useState<"cancel" | "refund" | null>(null);
   if (row.status !== "valid") return null;
 
-  const run = async (question: string, action: (reason: string) => Promise<unknown>, done: string) => {
+  const run = async (which: "cancel" | "refund", question: string, action: (reason: string) => Promise<unknown>, done: string) => {
     const reason = (await requestReason(question))?.trim();
     if (!reason) return;
-    setBusy(true);
+    setBusy(which);
     try {
       await action(reason);
       notify(done);
@@ -30,7 +31,7 @@ export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) 
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -39,13 +40,15 @@ export function AttendeeActions({ eventId, row, onDone }: AttendeeActionsProps) 
       <Button
         size="sm"
         variant="danger"
-        disabled={busy}
-        onClick={() => void run(t("org.registration_cancel_confirm", { p0: row.recipient_name }), (reason) => cancelTicket(eventId, row.ticket_id, reason), t("checkout.cancelled"))}
+        busy={busy === "cancel"}
+        aria-disabled={busy === "refund" || undefined}
+        onClick={() => void run("cancel", t("org.registration_cancel_confirm", { p0: row.recipient_name }), (reason) => cancelTicket(eventId, row.ticket_id, reason), t("checkout.cancelled"))}
       >{t("checkout.cancel_registration")}</Button>
       <Button
         size="sm"
-        disabled={busy}
-        onClick={() => void run(t("org.refund_order_confirm"), (reason) => refundOrder(row.order_id, reason), t("checkout.refund_requested"))}
+        busy={busy === "refund"}
+        aria-disabled={busy === "cancel" || undefined}
+        onClick={() => void run("refund", t("org.refund_order_confirm"), (reason) => refundOrder(row.order_id, reason), t("checkout.refund_requested"))}
       >{t("checkout.refund")}</Button>
     </div>
   );

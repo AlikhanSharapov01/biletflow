@@ -54,7 +54,7 @@ export function AdminPaymentsPage() {
       <PanelHeading
         title={t("admin.payments_title")}
         subtitle={t("admin.payments_hint")}
-        trailing={<Button size="sm" disabled={exporting} onClick={() => void exportCsv()}>{t("admin.export_csv")}</Button>}
+        trailing={<Button size="sm" busy={exporting} onClick={() => void exportCsv()}>{t("admin.export_csv")}</Button>}
       />
       <Tabs
         label={t("admin.payments_title")}

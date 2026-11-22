@@ -32,10 +32,7 @@ function authValue(): AuthContextValue {
   };
 }
 
-// The tab bar labels carry soft hyphens for wrapping; they are not visible text.
-const visible = (text: string | null) => (text ?? "").replaceAll("\u00ad", "");
-
-const linkNamed = (name: string) => screen.getAllByRole("link").find((link) => visible(link.textContent) === name)!;
+const linkNamed = (name: string) => screen.getByRole("link", { name });
 
 function renderBar(path = "/orders") {
   return render(
@@ -55,7 +52,8 @@ describe("TabBar", () => {
   it("shows one icon and the full label for each of the five sections", () => {
     renderBar();
     const links = within(screen.getByRole("navigation", { name: "Main navigation" })).getAllByRole("link");
-    expect(links.map((link) => visible(link.textContent))).toEqual(["Discover", "Tickets", "Orders", "Organizer", "Support"]);
+    expect(links.map((link) => link.getAttribute("aria-label"))).toEqual(["Discover", "Tickets", "Orders", "Organizer", "Support"]);
+    for (const link of links) expect(link.getAttribute("aria-label")).not.toContain("\u00ad");
     for (const link of links) {
       const icons = link.querySelectorAll("svg");
       expect(icons).toHaveLength(1);

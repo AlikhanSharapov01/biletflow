@@ -55,11 +55,13 @@ function luminance({ r, g, b }: Rgba): number {
   return lr! * 0.2126 + lg! * 0.7152 + lb! * 0.0722;
 }
 
-function contrast(text: string, surface: string | string[]): number {
+// `alpha` dims the ink further, e.g. the focus ring on a busy (aria-disabled) control is drawn at .75.
+function contrast(text: string, surface: string | string[], alpha = 1): number {
   const layers = Array.isArray(surface) ? surface : [surface];
   const ground = flatten(layers);
   const ink = colourOf(text);
-  const shown = { r: ink.r * ink.a + ground.r * (1 - ink.a), g: ink.g * ink.a + ground.g * (1 - ink.a), b: ink.b * ink.a + ground.b * (1 - ink.a), a: 1 };
+  const a = ink.a * alpha;
+  const shown = { r: ink.r * a + ground.r * (1 - a), g: ink.g * a + ground.g * (1 - a), b: ink.b * a + ground.b * (1 - a), a: 1 };
   const [light, dark] = [luminance(shown), luminance(ground)].sort((x, y) => y - x);
   return (light! + 0.05) / (dark! + 0.05);
 }
@@ -190,6 +192,14 @@ describe("WCAG AA colour tokens", () => {
     ["focus", "tab-track", "focus ring on a tab"],
   ] as const)("boundary: %s on %s (%s)", (token, surface, _where) => {
     expect(contrast(token, surface)).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each([
+    ["canvas", "busy button on the page"],
+    ["paper", "busy button in a panel"],
+    ["note", "busy button in a note panel"],
+  ] as const)("boundary: focus ring at .75 alpha on %s (%s)", (surface, _where) => {
+    expect(contrast("focus", surface, 0.75)).toBeGreaterThanOrEqual(3);
   });
 
   it("parses 8-digit hex and comma-separated rgba()", () => {

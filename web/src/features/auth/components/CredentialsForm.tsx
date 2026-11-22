@@ -10,7 +10,10 @@ export interface AuthFeedback {
 
 interface CredentialsFormProps {
   registering: boolean;
+  // The email request is running.
   busy: boolean;
+  // Another sign-in (Google) is running: the submit waits, without claiming to be busy.
+  locked?: boolean;
   feedback: AuthFeedback;
   // Offer to resend verification after an "email not verified" failure.
   canResend: boolean;
@@ -20,7 +23,7 @@ interface CredentialsFormProps {
 }
 
 // Email/password fields for both sign-in and registration.
-export function CredentialsForm({ registering, busy, feedback, canResend, onSubmit, onForgot, onResend }: CredentialsFormProps) {
+export function CredentialsForm({ registering, busy, locked = false, feedback, canResend, onSubmit, onForgot, onResend }: CredentialsFormProps) {
   useLocale();
   return (
     <form id="auth-form" className="form-stack" noValidate onSubmit={onSubmit}>
@@ -46,7 +49,7 @@ export function CredentialsForm({ registering, busy, feedback, canResend, onSubm
           <Button variant="text" onClick={(event) => onForgot(event.currentTarget.form)}>{t("auth.forgot_password")}</Button>
         </div>
       )}
-      <Button variant="primary" full type="submit" disabled={busy}>
+      <Button variant="primary" full type="submit" busy={busy} aria-disabled={locked || undefined}>
         {busy ? (registering ? t("auth.creating") : t("auth.signing_in")) : registering ? t("auth.create_account") : t("auth.sign_in")}
         <span aria-hidden="true">→</span>
       </Button>

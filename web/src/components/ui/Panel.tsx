@@ -16,14 +16,17 @@ interface PanelHeadingProps {
   title: ReactNode;
   subtitle?: ReactNode;
   trailing?: ReactNode;
+  // Lets a page link to the heading and move focus to it.
+  headingId?: string;
+  focusable?: boolean;
 }
 
 // Panel title row (h2) with optional supporting line and trailing element.
-export function PanelHeading({ title, subtitle, trailing }: PanelHeadingProps) {
+export function PanelHeading({ title, subtitle, trailing, headingId, focusable }: PanelHeadingProps) {
   return (
     <div className="panel-heading">
       <div className="panel-heading-copy">
-        <h2>{title}</h2>
+        <h2 id={headingId} tabIndex={focusable ? -1 : undefined}>{title}</h2>
         {subtitle ? <p className="panel-subtitle">{subtitle}</p> : null}
       </div>
       {trailing}

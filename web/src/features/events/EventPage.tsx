@@ -1,7 +1,8 @@
+import { useRef } from "react";
 import { categoryName, t, useLocale } from "../../i18n";
 import { useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listTicketTypes, listVenues } from "../../api/catalog";
-import { ErrorPanel, EventImage, Loading, PageHeading, Panel, PanelHeading, StatusPill } from "../../components/ui";
+import { ErrorPanel, EventImage, PageHeading, Panel, PanelHeading, SkeletonPage, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { publicationTone } from "../../utils/status";
@@ -10,13 +11,15 @@ import { CheckoutPanel } from "../checkout/CheckoutPanel";
 import { SupportLink } from "../support/components/SupportLink";
 import { CalendarLinks } from "./components/CalendarLinks";
 import { EventFacts } from "./components/EventFacts";
+import { GetTicketsBar, TICKETS_HEADING_ID, TICKETS_SECTION_ID } from "./components/GetTicketsBar";
 import { ReportEventForm } from "./components/ReportEventForm";
 
 export function EventPage() {
   useLocale();
   const { eventId = "" } = useParams();
   const [searchParams] = useSearchParams();
-  const { status } = useAuth();
+  const { status, profile } = useAuth();
+  const ticketsSection = useRef<HTMLElement>(null);
 
   const page = useRequest(
     async () => {
@@ -36,7 +39,7 @@ export function EventPage() {
     [eventId],
   );
 
-  if (page.loading) return <Loading label={t("event.loading")} />;
+  if (page.loading) return <SkeletonPage label={t("event.loading")} />;
   if (page.error || !page.data) {
     return <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />;
   }
@@ -63,10 +66,12 @@ export function EventPage() {
         <Panel>
           <PanelHeading title={t("event.about")} />
           <p className="event-description">{event.description || t("event.more_details")}</p>
-          <div className="checkout-heading">
-            <PanelHeading title={t("common.tickets")} />
-          </div>
-          <CheckoutPanel key={event.id} event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
+          <section className="checkout-section" id={TICKETS_SECTION_ID} ref={ticketsSection} aria-labelledby={TICKETS_HEADING_ID}>
+            <div className="checkout-heading">
+              <PanelHeading title={t("common.tickets")} headingId={TICKETS_HEADING_ID} focusable />
+            </div>
+            <CheckoutPanel key={event.id} event={event} tickets={tickets} promoFromUrl={searchParams.get("promo")} />
+          </section>
         </Panel>
         <Panel as="aside">
           <PanelHeading title={t("common.details")} />
@@ -76,6 +81,7 @@ export function EventPage() {
           {status === "authenticated" ? <SupportLink eventId={event.id} /> : null}
         </Panel>
       </div>
+      <GetTicketsBar event={event} tickets={tickets} sectionRef={ticketsSection} tabBar={Boolean(profile)} />
     </>
   );
 }

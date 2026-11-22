@@ -59,7 +59,7 @@ export function ReportEventForm({ eventId }: { eventId: string }) {
         <TextAreaField label={t("event.report_question")} value={description} maxLength={2000} rows={4} required onChange={(e) => setDescription(e.target.value)} />
         <FormMessage message={message.text} success={message.success} />
         <div className="form-actions">
-          <Button type="submit" variant="danger" disabled={busy}>
+          <Button type="submit" variant="danger" busy={busy}>
             {busy ? t("common.sending") : t("event.send_report")}
           </Button>
         </div>

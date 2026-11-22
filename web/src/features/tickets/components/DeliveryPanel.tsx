@@ -49,7 +49,7 @@ export function DeliveryPanel({ ticketId }: { ticketId: string }) {
           {delivery.status === "failed" ? <p className="form-intro">{t("tickets.email_failed_hint")}</p> : null}
           <FormMessage message={message.text} success={message.success} />
           <div className="form-actions">
-            <Button disabled={busy || !delivery.can_resend} onClick={() => void resend()}>
+            <Button busy={busy} disabled={!delivery.can_resend} onClick={() => void resend()}>
               {busy ? t("common.sending") : t("tickets.resend")}
             </Button>
             <Button variant="text" onClick={() => { setOverride(null); loaded.reload(); }}>{t("common.refresh")}</Button>

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router";
 import { AppShell } from "../components/layout/AppShell";
+import { lazyPage } from "../components/layout/lazyPage";
 import { RequireAuth } from "../components/layout/RequireAuth";
 import { AccountPage } from "../features/account/AccountPage";
 import { AcceptInvitationPage } from "../features/auth/AcceptInvitationPage";
@@ -13,11 +14,18 @@ import { checkoutPublicRoutes } from "../features/checkout/routes";
 import { notificationRoutes } from "../features/notifications/routes";
 import { OrderPage } from "../features/orders/OrderPage";
 import { OrdersPage } from "../features/orders/OrdersPage";
-import { OrganizerEventPage } from "../features/organizer/event/OrganizerEventPage";
-import { OrganizerPage } from "../features/organizer/workspace/OrganizerPage";
 import { supportRoutes } from "../features/support/routes";
 import { TicketPage } from "../features/tickets/TicketPage";
 import { TicketsPage } from "../features/tickets/TicketsPage";
+
+const OrganizerPage = lazyPage(
+  () => import("../features/organizer/workspace/OrganizerPage"),
+  (m) => m.OrganizerPage,
+);
+const OrganizerEventPage = lazyPage(
+  () => import("../features/organizer/event/OrganizerEventPage"),
+  (m) => m.OrganizerEventPage,
+);
 
 export function AppRoutes() {
   return (

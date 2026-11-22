@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import * as authApi from "../../api/auth";
 import { describeError, errorCodeOf } from "../../api/errors";
-import { Button } from "../../components/ui/Button";
+import { Button, busyProps } from "../../components/ui/Button";
 import { Tabs } from "../../components/ui/Tabs";
 import { useAuth } from "./AuthContext";
 import { AuthStory } from "./components/AuthStory";
@@ -28,7 +28,8 @@ export function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState<Mode>("login");
-  const [busy, setBusy] = useState(false);
+  // Which control's request is running: the other one waits (aria-disabled).
+  const [busy, setBusy] = useState<"form" | "google" | null>(null);
   const [feedback, setFeedback] = useState<AuthFeedback>({ text: "", success: false });
   // Set when sign-in failed because the email is unverified, so we can offer a resend.
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
@@ -56,7 +57,7 @@ export function AuthPage() {
     const form = event.currentTarget;
     const email = fieldValue(form, "email").trim();
     const password = fieldValue(form, "password");
-    setBusy(true);
+    setBusy("form");
     setFeedback({ text: "", success: false });
     setUnverifiedEmail("");
     try {
@@ -74,7 +75,7 @@ export function AuthPage() {
       setFeedback({ text: describeError(failure), success: false });
       if (errorCodeOf(failure) === "email_not_verified") setUnverifiedEmail(email);
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -103,14 +104,14 @@ export function AuthPage() {
   };
 
   const handleGoogle = async () => {
-    setBusy(true);
+    setBusy("google");
     setFeedback({ text: t("auth.google_connecting"), success: false });
     try {
       const { authorization_url } = await authApi.startGoogleSignIn();
       window.location.assign(authorization_url);
     } catch (failure) {
       setFeedback({ text: describeError(failure), success: false });
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -130,7 +131,8 @@ export function AuthPage() {
           <Tabs label={t("auth.account_access")} items={MODES} value={mode} onChange={switchMode} fill />
           <CredentialsForm
             registering={registering}
-            busy={busy}
+            busy={busy === "form"}
+            locked={busy === "google"}
             feedback={feedback}
             canResend={Boolean(unverifiedEmail)}
             onSubmit={(event) => void handleSubmit(event)}
@@ -138,7 +140,7 @@ export function AuthPage() {
             onResend={() => void handleResend()}
           />
           {!registering ? (
-            <button className="google-button" type="button" disabled={busy} onClick={() => void handleGoogle()}>
+            <button className="google-button" type="button" {...busyProps(busy === "google", () => void handleGoogle(), busy === "form")}>
               <span className="google-mark" aria-hidden="true">
                 G
               </span>{t("auth.google")}</button>

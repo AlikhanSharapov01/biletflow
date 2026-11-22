@@ -28,6 +28,7 @@ describe("OrdersPage", () => {
     listOrdersMock.mockReturnValue(pending.promise);
     renderPage();
     expect(screen.getByRole("status").textContent).toBe("Loading orders…");
+    expect(document.querySelectorAll(".skeleton-row")).toHaveLength(3);
     await act(async () => pending.resolve([]));
     expect(screen.queryByText("Loading orders…")).toBeNull();
   });

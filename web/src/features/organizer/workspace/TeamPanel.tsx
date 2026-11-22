@@ -126,7 +126,7 @@ export function TeamPanel({ organization, isOwner }: TeamPanelProps) {
             <TextField label={t("organizer.invite_email")} name="email" type="email" required maxLength={254} placeholder="colleague@example.com" />
             <FormMessage message={state.message} />
             <div className="form-actions">
-              <Button type="submit" disabled={state.busy}>{t("organizer.send_invitation")}</Button>
+              <Button type="submit" busy={state.busy}>{t("organizer.send_invitation")}</Button>
             </div>
           </form>
         </>

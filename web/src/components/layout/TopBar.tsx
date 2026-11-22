@@ -41,7 +41,7 @@ export function TopBar() {
               <AvatarMenu profile={profile} onSignOut={() => void signOut()} />
             </>
           ) : (
-            <ButtonLink variant="primary" size="sm" to="/sign-in" state={{ from: location.pathname }}>
+            <ButtonLink variant="primary" size="sm" to="/sign-in" state={{ from: location.pathname + location.search + location.hash }}>
               {status === "restoring" ? t("auth.checking") : t("auth.sign_in")}
             </ButtonLink>
           )}

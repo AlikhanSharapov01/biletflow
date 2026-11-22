@@ -81,7 +81,7 @@ export function CampaignForm({ types, initial, submitLabel, disabled = false, bu
       </fieldset>
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" type="submit" disabled={disabled || busy}>
+        <Button variant="primary" type="submit" busy={busy} disabled={disabled}>
           {submitLabel}
         </Button>
         {onCancel ? <Button onClick={onCancel}>{t("common.cancel")}</Button> : null}

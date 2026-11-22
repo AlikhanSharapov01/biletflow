@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getAdminMe, searchUsers } from "../api/admin";
+import { searchUsers } from "../api/admin";
+import { getAdminMe } from "../api/adminMe";
 import { ApiError } from "../api/errors";
 import { listOrders } from "../api/orders";
 import { AuthContext, type AuthContextValue } from "../features/auth/AuthContext";
@@ -9,10 +10,10 @@ import { makeAuthValue, makeProfile } from "../../tests/helpers/fixtures";
 import { AppRoutes } from "./routes";
 
 vi.mock("../api/admin", () => ({
-  getAdminMe: vi.fn(),
   searchUsers: vi.fn(),
   moderateUser: vi.fn(),
 }));
+vi.mock("../api/adminMe", () => ({ getAdminMe: vi.fn() }));
 vi.mock("../api/notifications", () => ({
   unreadNotificationCount: vi.fn(() => Promise.resolve(0)),
   listNotifications: vi.fn(() => new Promise(() => undefined)),
@@ -21,6 +22,8 @@ vi.mock("../api/orders", () => ({
   listOrders: vi.fn(),
   getOrder: vi.fn(),
 }));
+
+vi.mock("../api/organizations", () => ({ listOrganizations: vi.fn(() => new Promise(() => undefined)) }));
 
 const getAdminMeMock = vi.mocked(getAdminMe);
 const searchUsersMock = vi.mocked(searchUsers);
@@ -106,6 +109,16 @@ describe("route guarding for anonymous visitors", () => {
   });
 });
 
+describe("organizer pages load on demand", () => {
+  it("shows the organizer workspace inside the app shell once its chunk has loaded", async () => {
+    getAdminMeMock.mockReturnValue(new Promise(() => undefined));
+    renderAt("/organizer", signedIn());
+    // The workspace's own loading label, not the generic one from the lazy fallback.
+    expect(await screen.findByText("Loading organizer workspace…")).toBeTruthy();
+    expect(screen.getAllByRole("navigation", { name: "Main navigation" }).length).toBeGreaterThan(0);
+  });
+});
+
 describe("platform admin portal", () => {
   it("shows a permission message, not admin tools, to a signed-in non-admin", async () => {
     getAdminMeMock.mockRejectedValue(new ApiError("This area is for platform administrators.", 403, "admin_required"));
@@ -127,10 +140,10 @@ describe("platform admin portal", () => {
     expect(searchUsersMock).not.toHaveBeenCalled();
   });
 
-  it("shows a neutral check, not admin tools, while the server answer is pending", () => {
+  it("shows a neutral check, not admin tools, while the server answer is pending", async () => {
     getAdminMeMock.mockReturnValue(new Promise(() => undefined));
     renderAt("/admin/users", signedIn());
-    expect(screen.getByText("Checking admin access…")).toBeTruthy();
+    expect(await screen.findByText("Checking admin access…")).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "Admin sections" })).toBeNull();
     expect(searchUsersMock).not.toHaveBeenCalled();
   });

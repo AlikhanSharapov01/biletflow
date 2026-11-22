@@ -7,22 +7,26 @@ import { confirmAction } from "../../../../components/ui/ActionDialog";
 import { EmptyState, FormMessage, Panel, PanelHeading, StatusPill, TextField, useToast } from "../../../../components/ui";
 import { usePublicSettings } from "../../../../hooks/usePublicSettings";
 import { fileSizeLabel } from "../../../support/attachments";
-import { ImageRow } from "./ImageRow";
+import { ImageRow, type ImageAction } from "./ImageRow";
 import { ACCEPTED_IMAGE_TYPES, imageProblem, movedOrder } from "./imageRules";
+
+// The request in flight: an upload, or one action on one image.
+type Busy = "upload" | { id: string; action: ImageAction } | null;
 
 // The event gallery: upload, choose the cover (the first image), reorder and
 // delete. Answers from the server replace the local list, so the panel never
 // guesses the order. Cancelled or suspended events are refused by the server.
+
 export function EventImagePanel({ event }: { event: EventView }) {
   useLocale();
   const { notify } = useToast();
   const maxBytes = usePublicSettings()?.upload_max_bytes ?? null;
   const [images, setImages] = useState<EventImageRecord[]>(event.images);
   const [altText, setAltText] = useState(event.title);
-  const [busy, setBusy] = useState("");
+  const [busy, setBusy] = useState<Busy>(null);
   const [message, setMessage] = useState("");
 
-  const run = async (key: string, action: () => Promise<void>, done: string) => {
+  const run = async (key: NonNullable<Busy>, action: () => Promise<void>, done: string) => {
     setBusy(key);
     setMessage("");
     try {
@@ -31,7 +35,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
     } catch (failure) {
       setMessage(describeError(failure));
     } finally {
-      setBusy("");
+      setBusy(null);
     }
   };
 
@@ -54,15 +58,15 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const move = (image: EventImageRecord, step: -1 | 1) => {
     const order = movedOrder(images.map((item) => item.id), image.id, step);
     if (!order) return;
-    void run(image.id, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
+    void run({ id: image.id, action: step < 0 ? "up" : "down" }, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
   };
 
   const makeCover = (image: EventImageRecord) =>
-    void run(image.id, async () => setImages(await setEventCover(event.id, image.id)), t("org.cover_changed"));
+    void run({ id: image.id, action: "cover" }, async () => setImages(await setEventCover(event.id, image.id)), t("org.cover_changed"));
 
   const remove = async (image: EventImageRecord) => {
     if (!(await confirmAction(t("org.image_delete_confirm", { p0: image.alt_text })))) return;
-    void run(image.id, async () => {
+    void run({ id: image.id, action: "delete" }, async () => {
       await deleteEventImage(event.id, image.id);
       setImages((current) => current.filter((item) => item.id !== image.id));
     }, t("org.image_deleted"));
@@ -83,7 +87,8 @@ export function EventImagePanel({ event }: { event: EventView }) {
               image={image}
               first={index === 0}
               last={index === images.length - 1}
-              busy={busy !== ""}
+              pending={busy !== null && busy !== "upload" && busy.id === image.id ? busy.action : null}
+              locked={busy !== null}
               onUp={() => move(image, -1)}
               onDown={() => move(image, 1)}
               onCover={() => makeCover(image)}
@@ -100,8 +105,17 @@ export function EventImagePanel({ event }: { event: EventView }) {
           maxLength={500}
           onChange={(changeEvent) => setAltText(changeEvent.target.value)}
         />
-        <label className={`upload-area ${busy ? "disabled" : ""}`}>
-          <input type="file" accept={ACCEPTED_IMAGE_TYPES.join(",")} disabled={busy !== ""} onChange={choose} />
+        <label className={`upload-area ${busy !== null ? "disabled" : ""}`}>
+          <input
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES.join(",")}
+            aria-busy={busy === "upload" || undefined}
+            aria-disabled={busy !== null || undefined}
+            onClick={(clickEvent) => {
+              if (busy !== null) clickEvent.preventDefault();
+            }}
+            onChange={choose}
+          />
           <strong>{busy === "upload" ? t("support.uploading") : t("org.choose_image")}</strong>
           <span>{t("org.image_validated")}</span>
         </label>

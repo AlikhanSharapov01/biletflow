@@ -211,10 +211,25 @@ describe("SeatPicker", () => {
     expect(screen.getByRole("button", { name: "Reserve seats" })).toBeTruthy();
   });
 
-  it("disables reserving while busy and shows the server message", async () => {
+  it("ignores reserving while busy and shows the server message", async () => {
     listSeatsMock.mockResolvedValue(layout());
-    await renderPicker({ busy: true, message: "One of the selected seats is no longer available." });
-    expect((screen.getByRole("button", { name: "Reserving…" }) as HTMLButtonElement).disabled).toBe(true);
+    const onReserve = await renderPicker({ busy: true, message: "One of the selected seats is no longer available." });
+    fireEvent.click(seatButton("1"));
+    const reserve = screen.getByRole("button", { name: "Reserving…" }) as HTMLButtonElement;
+    expect(reserve.disabled).toBe(false);
+    expect(reserve.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(reserve);
+    expect(onReserve).not.toHaveBeenCalled();
     expect(screen.getByText("One of the selected seats is no longer available.")).toBeTruthy();
+  });
+
+  it("locks Refresh, without marking it busy, while a reservation runs", async () => {
+    listSeatsMock.mockResolvedValue(layout());
+    await renderPicker({ busy: true });
+    const refresh = screen.getByRole("button", { name: "Refresh seats" });
+    expect(refresh.hasAttribute("aria-busy")).toBe(false);
+    expect(refresh.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(refresh);
+    expect(listSeatsMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,6 +4,7 @@ import { describeError } from "../../../api/errors";
 import { Button } from "../../../components/ui/Button";
 import { FormMessage } from "../../../components/ui/Feedback";
 import { t, useLocale } from "../../../i18n";
+import { TICKETS_HEADING_ID } from "../../events/components/GetTicketsBar";
 import { useAuth } from "../../auth/AuthContext";
 
 type Action = "resend" | "reload";
@@ -44,6 +45,8 @@ export function VerifyEmailPrompt({ email }: { email: string }) {
     run("reload", async () => {
       const profile = await getProfile();
       setProfile(profile);
+      // The prompt is about to unmount; hand focus to the tickets heading so it is not lost to <body>.
+      if (profile.email_verified_at) requestAnimationFrame(() => document.getElementById(TICKETS_HEADING_ID)?.focus());
       return { text: profile.email_verified_at ? "" : t("checkout.verify_email_still_unverified"), success: false };
     });
 
@@ -51,10 +54,10 @@ export function VerifyEmailPrompt({ email }: { email: string }) {
     <div className="signin-prompt verify-prompt">
       <p>{t("checkout.verify_email_hint")}</p>
       <div className="verify-prompt-actions">
-        <Button aria-disabled={busy !== null} aria-busy={busy === "resend"} onClick={() => void resend()}>
+        <Button busy={busy === "resend"} aria-disabled={busy !== null} onClick={() => void resend()}>
           {busy === "resend" ? t("common.sending") : t("tickets.resend")}
         </Button>
-        <Button variant="text" aria-disabled={busy !== null} aria-busy={busy === "reload"} onClick={() => void reload()}>
+        <Button variant="text" busy={busy === "reload"} aria-disabled={busy !== null} onClick={() => void reload()}>
           {busy === "reload" ? t("common.loading") : t("checkout.verify_email_confirmed")}
         </Button>
       </div>

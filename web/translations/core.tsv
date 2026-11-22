@@ -14,6 +14,7 @@ common.disable	Disable	Отключить	Өшіру
 common.download	Download	Скачать	Жүктеп алу
 common.refresh	Refresh	Обновить	Жаңарту
 common.try_again	Try again	Повторить	Қайталау
+common.reload_page	Reload page	Перезагрузить страницу	Бетті қайта жүктеу
 common.loading	Loading…	Загрузка…	Жүктелуде…
 common.not_available	Not available	Недоступно	Қолжетімсіз
 common.not_available_yet	Not available yet	Пока недоступно	Әзірге қолжетімсіз
@@ -190,6 +191,8 @@ errors.not_found	This item could not be found.	Объект не найден.	�
 errors.validation	Some details need attention. Review the form and try again.	Проверьте данные в форме и повторите попытку.	Пішіндегі деректерді тексеріп, қайталап көріңіз.
 errors.session	Your session expired. Sign in again to continue.	Сессия истекла. Войдите снова, чтобы продолжить.	Сеанс аяқталды. Жалғастыру үшін қайта кіріңіз.
 errors.network	Can’t reach BiletFlow right now. Check that the API is running and try again.	Не удаётся связаться с BiletFlow. Проверьте доступность API и повторите попытку.	BiletFlow қызметіне қосылу мүмкін емес. API жұмыс істеп тұрғанын тексеріп, қайталап көріңіз.
+errors.chunk_load_title	Couldn’t load this page	Не удалось загрузить страницу	Бетті жүктеу мүмкін болмады
+errors.chunk_load	The app may have been updated. Reload to get the latest version.	Возможно, приложение обновилось. Перезагрузите страницу, чтобы получить новую версию.	Қолданба жаңартылған болуы мүмкін. Соңғы нұсқаны алу үшін бетті қайта жүктеңіз.
 format.section_row_seat	Section {section} · Row {row} · Seat {seat}	Секция {section} · Ряд {row} · Место {seat}	{section} секторы · {row} қатары · {seat} орны
 format.seat_accessible_label	Section {section}, row {row}, seat {seat}	Секция {section}, ряд {row}, место {seat}	{section} секторы, {row} қатары, {seat} орны
 format.section	Section {section}	Секция {section}	{section} секторы
@@ -296,12 +299,13 @@ discover.more_filters_count	More filters ({count})	Ещё фильтры ({count
 discover.clear_filters	Clear filters	Сбросить фильтры	Сүзгілерді тазалау
 discover.empty_filtered	No events matched your filters.	По вашим фильтрам ничего не найдено.	Сүзгілеріңізге сай іс-шара табылмады.
 discover.load_more	Load more	Показать ещё	Тағы көрсету
-discover.load_more_error	We couldn’t load more events.	Не удалось загрузить ещё мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
+discover.load_more_error	We couldn’t load more events.	Не удалось загрузить следующие мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
 discover.shown_count	Events shown: {count}	Показано мероприятий: {count}	Көрсетілген іс-шаралар: {count}
 event.loading	Loading event details…	Загрузка мероприятия…	Іс-шара мәліметтері жүктелуде…
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.
 event.back	Back to events	К мероприятиям	Іс-шараларға оралу
 event.about	About this event	Об этом мероприятии	Іс-шара туралы
+event.get_tickets	Get tickets	Получить билеты	Билет алу
 event.more_details	More details will be shared by the organizer.	Организатор сообщит подробности позже.	Ұйымдастырушы қосымша мәліметтерді кейін хабарлайды.
 event.capacity	Capacity	Вместимость	Сыйымдылық
 event.doors	Doors	Открытие входа	Кірудің ашылуы

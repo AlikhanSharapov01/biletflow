@@ -14,20 +14,24 @@ type Id = (typeof items)[number]["id"];
 const CONTENT = { a: [0, 70.4], b: [74.4, 150.6], c: [154.6, 220.6], d: [224.6, 290.6] } as const;
 const CLIENT_WIDTH = 200;
 const SCROLL_WIDTH = 291;
+const GROWN_SCROLL_WIDTH = 311;
 const ROW_LEFT = 16;
 
 let scrollLeft = 0;
 let resizeCallbacks: Array<() => void> = [];
+let observed: Element[] = [];
+let disconnects = 0;
+let scrollWidth = SCROLL_WIDTH;
 
 function layout(row: HTMLElement) {
   Object.defineProperty(row, "clientWidth", { configurable: true, value: CLIENT_WIDTH });
-  Object.defineProperty(row, "scrollWidth", { configurable: true, value: SCROLL_WIDTH });
+  Object.defineProperty(row, "scrollWidth", { configurable: true, get: () => scrollWidth });
   // Chromium 131 keeps scrollLeft as an integer.
   Object.defineProperty(row, "scrollLeft", {
     configurable: true,
     get: () => scrollLeft,
     set: (next: number) => {
-      scrollLeft = Math.trunc(Math.min(Math.max(next, 0), SCROLL_WIDTH - CLIENT_WIDTH));
+      scrollLeft = Math.trunc(Math.min(Math.max(next, 0), scrollWidth - CLIENT_WIDTH));
     },
   });
   row.getBoundingClientRect = () => ({ left: ROW_LEFT, right: ROW_LEFT + CLIENT_WIDTH, top: 0, bottom: 40, width: CLIENT_WIDTH, height: 40, x: ROW_LEFT, y: 0, toJSON: () => ({}) });
@@ -51,6 +55,9 @@ const startOf = (id: Id) => CONTENT[id][0] - scrollLeft;
 describe("Tabs scrolling", () => {
   beforeEach(() => {
     scrollLeft = 0;
+    scrollWidth = SCROLL_WIDTH;
+    observed = [];
+    disconnects = 0;
     resizeCallbacks = [];
     vi.stubGlobal(
       "ResizeObserver",
@@ -58,8 +65,12 @@ describe("Tabs scrolling", () => {
         constructor(callback: () => void) {
           resizeCallbacks.push(callback);
         }
-        observe() {}
-        disconnect() {}
+        observe(element: Element) {
+          observed.push(element);
+        }
+        disconnect() {
+          disconnects += 1;
+        }
       },
     );
   });
@@ -81,6 +92,7 @@ describe("Tabs scrolling", () => {
 
   it("fully reveals a middle tab before the start of the row", () => {
     const { rerender } = mount("d");
+    scrollLeft = SCROLL_WIDTH - CLIENT_WIDTH;
     rerender("b");
     expect(startOf("b")).toBeGreaterThanOrEqual(0);
     expect(endOf("b")).toBeLessThanOrEqual(CLIENT_WIDTH);
@@ -88,6 +100,7 @@ describe("Tabs scrolling", () => {
 
   it("scrolls to the start for the first tab", () => {
     const { rerender } = mount("d");
+    scrollLeft = SCROLL_WIDTH - CLIENT_WIDTH;
     rerender("a");
     expect(scrollLeft).toBe(0);
   });
@@ -98,5 +111,20 @@ describe("Tabs scrolling", () => {
     resizeCallbacks.forEach((callback) => callback());
     expect(endOf("d")).toBeLessThanOrEqual(CLIENT_WIDTH);
     expect(scrollLeft).toBe(SCROLL_WIDTH - CLIENT_WIDTH);
+  });
+
+  it("watches every tab, so a longer label realigns the row", () => {
+    const { row } = mount("d");
+    const tabs = Array.from(row.querySelectorAll("[role=tab]"));
+    expect(observed).toEqual(expect.arrayContaining([row, ...tabs]));
+    scrollWidth = GROWN_SCROLL_WIDTH;
+    resizeCallbacks.forEach((callback) => callback());
+    expect(scrollLeft).toBe(GROWN_SCROLL_WIDTH - CLIENT_WIDTH);
+  });
+
+  it("disconnects the observer when it unmounts", () => {
+    const view = render(<Tabs label="Sections" items={items} value="a" onChange={() => {}} />);
+    view.unmount();
+    expect(disconnects).toBeGreaterThan(0);
   });
 });

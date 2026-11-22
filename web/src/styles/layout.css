@@ -1,7 +1,7 @@
 /* App shell: top bar, centred content column, phone tab bar. */
 .app-shell { min-height: 100vh; min-height: 100dvh; }
 .skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 700; text-decoration: none; }
-.skip-link:focus { top: 12px; }
+.skip-link:focus { top: max(12px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
 
 .topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid var(--line); background: var(--topbar-glass); backdrop-filter: blur(8px); }
 .topbar-inner { display: flex; height: 64px; max-width: calc(var(--content-max) + 2 * var(--gutter)); align-items: center; gap: 24px; margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px)); }
@@ -9,14 +9,20 @@
 .brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px 10px 10px 3px; background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
 
 .top-tabs { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; }
-.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; }
-.top-tab:hover { background: var(--hover-surface); color: var(--ink); }
+.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .12s ease-out; }
+.top-tab:active { transform: scale(.97); }
+@media (hover: hover) {
+  .top-tab:hover { background: var(--hover-surface); color: var(--ink); }
+}
 .top-tab[aria-current="page"] { background: var(--active-nav); color: var(--green-dark); }
 
 .topbar-actions { display: flex; flex: none; align-items: center; gap: 12px; margin-left: auto; }
 @media (max-width: 480px) { .topbar-actions { gap: 8px; } }
-.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); }
-.icon-button:hover { border-color: var(--hover-line); color: var(--ink); }
+.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); transition: transform .12s ease-out; }
+.icon-button:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
+@media (hover: hover) {
+  .icon-button:hover { border-color: var(--hover-line); color: var(--ink); }
+}
 .icon-button svg { width: 18px; height: 18px; }
 
 .avatar { display: grid; width: 36px; height: 36px; flex: none; place-items: center; border-radius: 50%; background: var(--avatar); color: var(--avatar-ink); font-size: 12px; font-weight: 800; }
@@ -44,6 +50,9 @@
 .page-subtitle { max-width: 640px; margin-top: 8px; color: var(--subtitle); font-size: var(--text-body-sm); line-height: 20px; }
 .heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
+/* A focused control or anchor target stays clear of the sticky top bar at every width. */
+html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
+
 /* Grids */
 .content-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); align-items: start; gap: var(--gap); }
 .content-grid.account-grid { grid-template-columns: minmax(280px, .75fr) minmax(0, 1.35fr); }
@@ -66,12 +75,20 @@
 
 /* Phone and tablet navigation: the bottom tab bar replaces the top tabs. */
 @media (width < 1025px) {
-  html:has(.with-tab-bar) { scroll-padding-top: 72px; scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
+  html:has(.with-tab-bar) { scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
-  :root { --tab-bar-height: 70px; }
+  /* The tab bar's padding and link height are defined once. Its height and the offset of its top edge
+     (padding, link, the larger of the padding and the bottom inset, 1px border) derive from them. */
+  :root {
+    --tab-bar-pad: 6px;
+    --tab-bar-link-height: 58px;
+    --tab-bar-height: calc(var(--tab-bar-pad) * 2 + var(--tab-bar-link-height));
+    --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + 1px);
+  }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
-  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: 6px max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
-  .tab-bar-link { display: flex; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; }
+  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
+  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; transition: transform .12s ease-out; }
+  .tab-bar-link:active { transform: scale(.97); }
   .tab-bar-icon { flex: none; }
   /* Long ru/kk labels wrap to at most two lines inside their own column. */
   .tab-bar-label { max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }

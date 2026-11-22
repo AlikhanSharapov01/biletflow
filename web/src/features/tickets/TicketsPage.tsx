@@ -1,7 +1,7 @@
 import { t, useLocale } from "../../i18n";
 import { Link } from "react-router";
 import { claimTickets, listTickets } from "../../api/tickets";
-import { Button, EmptyState, ErrorPanel, EventCard, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
+import { Button, EmptyState, ErrorPanel, EventCard, PageHeading, Panel, SkeletonGrid, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel, seatLabel, statusLabel } from "../../utils/format";
 import { ticketTone } from "../../utils/status";
@@ -22,7 +22,9 @@ export function TicketsPage() {
         subtitle={t("tickets.subtitle")}
         actions={<Button onClick={tickets.reload}>{t("common.refresh")}</Button>}
       />
-      {tickets.loading ? <Loading label={t("tickets.loading")} /> : null}
+      {/* Always present, so a Refresh is announced even though the dimmed list is inert. */}
+      <p className="visually-hidden" role="status">{tickets.loading && tickets.data ? t("tickets.loading") : ""}</p>
+      {tickets.loading && !tickets.data ? <SkeletonGrid row label={t("tickets.loading")} /> : null}
       {tickets.error ? <ErrorPanel title={t("tickets.load_error")} message={tickets.error} onRetry={tickets.reload} /> : null}
       {tickets.data ? (
         tickets.data.length === 0 ? (
@@ -30,7 +32,7 @@ export function TicketsPage() {
             <EmptyState>{t("tickets.empty")}{" "}<Link to="/discover">{t("orders.find_event")}</Link>{" "}{t("tickets.claim_hint")}{" "}</EmptyState>
           </Panel>
         ) : (
-          <div className="event-grid row-grid">
+          <div className="event-grid row-grid" aria-busy={tickets.loading || undefined} inert={tickets.loading}>
             {tickets.data.map((ticket) => {
               const path = `/tickets/${encodeURIComponent(ticket.id)}`;
               return (

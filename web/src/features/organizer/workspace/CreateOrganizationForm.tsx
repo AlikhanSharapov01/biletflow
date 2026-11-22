@@ -43,7 +43,7 @@ export function CreateOrganizationForm({ defaultEmail, onCreated }: CreateOrgani
         <TextField label={t("org.contact_phone")} hint={t("common.optional")} name="contact_phone" maxLength={32} placeholder="+7 …" />
         <FormMessage message={state.message} success={state.success} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy}>{t("org.create_workspace")}{" "}</Button>
+          <Button variant="primary" type="submit" busy={state.busy}>{t("org.create_workspace")}{" "}</Button>
         </div>
       </form>
     </Panel>

@@ -55,7 +55,7 @@ export function CalendarLinks({ eventId }: { eventId: string }) {
           Office 365<span className="visually-hidden">{" "}{t("calendar.new_tab")}</span>
         </a>
         {data.ics_requires_sign_in ? (
-          <Button size="sm" disabled={busy} onClick={() => void download()}>
+          <Button size="sm" busy={busy} onClick={() => void download()}>
             {busy ? t("calendar.downloading") : t("calendar.download")}
           </Button>
         ) : (

@@ -80,12 +80,33 @@ describe("localization", () => {
     expect(save).toHaveBeenCalledWith({ ...profile, locale: "ru" });
   });
 
+  it("stays focusable and ignores a second change while the first one saves", async () => {
+    const profile = makeProfile();
+    vi.mocked(useAuth).mockReturnValue({ profile, setProfile: save } as unknown as ReturnType<typeof useAuth>);
+    let finish: (value: typeof profile) => void = () => undefined;
+    vi.mocked(updateProfile).mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    render(<LanguageSwitcher />);
+    const select = screen.getByRole("combobox") as HTMLSelectElement;
+    select.focus();
+    fireEvent.change(select, { target: { value: "ru" } });
+    await waitFor(() => expect(select.getAttribute("aria-busy")).toBe("true"));
+    expect(select.disabled).toBe(false);
+    expect(document.activeElement).toBe(select);
+    fireEvent.change(select, { target: { value: "kk" } });
+    expect(updateProfile).toHaveBeenCalledTimes(1);
+    expect(select.value).toBe("en");
+    finish({ ...profile, locale: "ru" });
+    await waitFor(() => expect(select.hasAttribute("aria-busy")).toBe(false));
+    expect(getLocale()).toBe("ru");
+  });
+
   it("keeps the current language when profile persistence fails", async () => {
     vi.mocked(useAuth).mockReturnValue({ profile: makeProfile(), setProfile: save } as unknown as ReturnType<typeof useAuth>);
     vi.mocked(updateProfile).mockRejectedValue(new Error("offline"));
     render(<LanguageSwitcher />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "kk" } });
-    await waitFor(() => expect((screen.getByRole("combobox") as HTMLSelectElement).disabled).toBe(false));
+    await waitFor(() => expect(screen.getByRole("combobox").hasAttribute("aria-busy")).toBe(false));
+    expect(updateProfile).toHaveBeenCalledTimes(1);
     expect(getLocale()).toBe("en");
     expect(save).not.toHaveBeenCalled();
   });

@@ -21,11 +21,11 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
   const { notify } = useToast();
   const navigate = useNavigate();
   const events = useRequest(() => listOrganizationEvents(organization.id), [organization.id]);
-  const [pendingId, setPendingId] = useState("");
+  const [pending, setPending] = useState<{ id: string; kind: "publish" | "duplicate" } | null>(null);
   const [chosen, setChosen] = useState<EventGroup | null>(null);
 
   const run = async (event: EventView, action: () => Promise<unknown>, done: string) => {
-    setPendingId(event.id);
+    setPending({ id: event.id, kind: "publish" });
     try {
       await action();
       notify(done);
@@ -33,19 +33,19 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setPendingId("");
+      setPending(null);
     }
   };
 
   const duplicate = async (event: EventView) => {
-    setPendingId(event.id);
+    setPending({ id: event.id, kind: "duplicate" });
     try {
       const copy = await duplicateEvent(event.id);
       notify(t("org.draft_copied"));
       navigate(`/organizer/events/${encodeURIComponent(copy.id)}`);
     } catch (failure) {
       notify(describeError(failure));
-      setPendingId("");
+      setPending(null);
     }
   };
 
@@ -82,7 +82,7 @@ export function EventsPanel({ organization, venues }: EventsPanelProps) {
                         key={event.id}
                         event={event}
                         venue={venues.find((item) => item.id === event.venue_id)}
-                        busy={pendingId === event.id}
+                        pending={pending?.id === event.id ? pending.kind : null}
                         onTogglePublish={() =>
                           void run(event, () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))
                         }

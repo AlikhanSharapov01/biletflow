@@ -53,10 +53,10 @@ export function RecipientForm({ hold, typeName, recipients, setRecipients, busy,
       ) : null}
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" disabled={busy} onClick={onConfirm}>
+        <Button variant="primary" busy={busy} onClick={onConfirm}>
           {busy ? (paid ? t("checkout.preparing_payment") : t("checkout.confirming")) : paid ? t("checkout.continue_payment") : t("checkout.confirm_registration")}
         </Button>
-        <Button disabled={busy} onClick={onRelease}>{t("checkout.choose_again")}{" "}</Button>
+        <Button aria-disabled={busy} onClick={onRelease}>{t("checkout.choose_again")}{" "}</Button>
       </div>
     </div>
   );

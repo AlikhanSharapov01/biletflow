@@ -28,8 +28,13 @@ interface EventCardProps {
 // date-tile row variant, used by every event-like list.
 export function EventCard({ title, to, coverLink, eyebrow, meta, art, cover, date, footer, children }: EventCardProps) {
   const lines = Array.isArray(meta) ? meta : meta ? [meta] : [];
-  const footerId = useId();
+  const baseId = useId();
+  const footerId = `${baseId}-offer`;
   const wholeCardLink = Boolean(to) && Boolean(coverLink) && !children;
+  // The cover link reads the offer first, then the date and venue lines.
+  const describedBy = wholeCardLink
+    ? [footer ? footerId : "", ...lines.map((_, index) => `${baseId}-meta-${index}`)].filter(Boolean).join(" ") || undefined
+    : undefined;
   const classes = ["event-card", art ? "" : "event-card-row", wholeCardLink ? "event-card-linked" : ""].filter(Boolean).join(" ");
   return (
     <article className={classes}>
@@ -43,9 +48,9 @@ export function EventCard({ title, to, coverLink, eyebrow, meta, art, cover, dat
         {date !== undefined ? <DateTile at={date} /> : null}
         <div className="event-card-copy">
           {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h3>{to ? <Link to={to} aria-describedby={wholeCardLink && footer ? footerId : undefined}>{title}</Link> : title}</h3>
+          <h3>{to ? <Link to={to} aria-describedby={describedBy}>{title}</Link> : title}</h3>
           {lines.map((line, index) => (
-            <p className="event-card-meta" key={index}>
+            <p className="event-card-meta" key={index} id={wholeCardLink ? `${baseId}-meta-${index}` : undefined}>
               {line}
             </p>
           ))}
