@@ -46,7 +46,11 @@ def price_from_expression(current):
     taken = (
         select(func.count(Allocation.id))
         .join(Hold, Hold.id == Allocation.hold_id)
-        .where(Allocation.ticket_type_id == tt.id, live_allocation())
+        .where(
+            Allocation.event_id == tt.event_id,
+            Allocation.ticket_type_id == tt.id,
+            live_allocation(),
+        )
         .correlate(tt)
         .scalar_subquery()
     )
@@ -58,6 +62,7 @@ def price_from_expression(current):
     free_seats = (
         select(func.count(EventSeat.id))
         .where(
+            EventSeat.event_id == tt.event_id,
             EventSeat.ticket_type_id == tt.id,
             EventSeat.is_blocked.is_(False),
             ~exists(seat_taken),
@@ -95,7 +100,10 @@ def price_from_expression(current):
 
 
 def event_offers(db, events):
-    """Price-from and sold-out flags per event id, in two grouped queries, plus one for assigned seating."""
+    """Price-from and sold-out flags per event id, in two grouped queries, plus one for assigned seating.
+
+    `price_from_expression` is the SQL form of the same rule; keep the two in step.
+    """
     ids = [e.id for e in events]
     if not ids:
         return {}
