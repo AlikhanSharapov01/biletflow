@@ -87,8 +87,8 @@
   .tab-bar-label { max-width: calc(100% - 2px); }
 }
 
-/* At 320px six labels of up to three lines (Ұйымдастырушы) still fit the same 58px link. */
-@media (width < 340px) {
+/* Below 360px six labels of up to three lines (Ұйымдастырушы) still fit the same 58px link. */
+@media (width < 360px) {
   .tab-bar-link { gap: 0; padding-top: 2px; padding-bottom: 2px; line-height: 1.1; }
   .tab-bar-icon { width: 20px; height: 20px; }
 }

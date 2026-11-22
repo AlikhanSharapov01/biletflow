@@ -4,6 +4,8 @@ import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
   narrow: { width: 320, height: 640 },
+  // 344 is a foldable's cover screen; six sections still need three Kazakh lines there.
+  fold: { width: 344, height: 700 },
   // 360 is the most common Android phone width; the admin case has six tab bar sections.
   compact: { width: 360, height: 740 },
   phone: { width: 390, height: 844 },
@@ -318,7 +320,8 @@ function measureLayout(): string[] {
     if (link.scrollWidth > link.clientWidth) problems.push(`${describe(link)} label overflows its link: ${link.scrollWidth} > ${link.clientWidth}`);
     const minHeight = parseFloat(getComputedStyle(link).minHeight);
     const height = link.getBoundingClientRect().height;
-    if (Math.abs(height - minHeight) > TOLERANCE) problems.push(`${describe(link)} is ${Math.round(height)}px tall, expected ${minHeight}px`);
+    if (!Number.isFinite(minHeight)) problems.push(`${describe(link)} has no pixel min-height`);
+    else if (Math.abs(height - minHeight) > TOLERANCE) problems.push(`${describe(link)} is ${Math.round(height)}px tall, expected ${minHeight}px`);
     const label = link.querySelector(".tab-bar-label");
     const node = label?.firstChild;
     if (!label || !node || node.nodeType !== Node.TEXT_NODE) continue;
@@ -348,7 +351,7 @@ function measureLayout(): string[] {
       previous = index;
     }
     (window as unknown as { tabLabelLines: string[] }).tabLabelLines.push(`${lines.join("/")}`);
-    if (lines.length > 3 || (lines.length === 3 && !(width < 340 && links.length === 6))) problems.push(`${describe(label)} label wraps to ${lines.length} lines`);
+    if (lines.length > 3 || (lines.length === 3 && !(width < 360 && links.length === 6))) problems.push(`${describe(label)} label wraps to ${lines.length} lines`);
     if (lines.length > 1) {
       for (const line of lines) if (line.length < 3) problems.push(`${describe(label)} has a ${line.length}-letter line "${line}"`);
     }
@@ -357,7 +360,8 @@ function measureLayout(): string[] {
     const style = getComputedStyle(tabBar);
     const expected = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tab-bar-height")) + parseFloat(style.borderTopWidth);
     const actual = tabBar.getBoundingClientRect().height;
-    if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
+    if (!Number.isFinite(expected)) problems.push("tab bar height token --tab-bar-height is missing");
+    else if (Math.abs(actual - expected) > TOLERANCE) problems.push(`tab bar is ${actual}px tall, expected ${expected}px`);
   }
   for (const link of document.querySelectorAll(".tab-bar-link")) {
     const box = rendered(link);
