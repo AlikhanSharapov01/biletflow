@@ -119,7 +119,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, s
         ) : null}
         {stage === "closed" && onClosed ? <Button onClick={onClosed}>{t("checkout.choose_tickets_again")}</Button> : null}
         {onCancel && (stage === "awaiting" || stage === "failed") ? (
-          <Button variant="text" aria-disabled={pending !== null} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
+          <Button variant="text" aria-disabled={pending !== null} onClick={onCancel}>{t("checkout.cancel_choose_again")}</Button>
         ) : null}
       </div>
     </div>

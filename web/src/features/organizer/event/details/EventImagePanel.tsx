@@ -10,11 +10,12 @@ import { fileSizeLabel } from "../../../support/attachments";
 import { ImageRow, type ImageAction } from "./ImageRow";
 import { ACCEPTED_IMAGE_TYPES, imageProblem, movedOrder } from "./imageRules";
 
+// The request in flight: an upload, or one action on one image.
+type Busy = "upload" | { id: string; action: ImageAction } | null;
+
 // The event gallery: upload, choose the cover (the first image), reorder and
 // delete. Answers from the server replace the local list, so the panel never
 // guesses the order. Cancelled or suspended events are refused by the server.
-// The request in flight: an upload, or one action on one image.
-type Busy = "upload" | { id: string; action: ImageAction } | null;
 
 export function EventImagePanel({ event }: { event: EventView }) {
   useLocale();
@@ -86,7 +87,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
               image={image}
               first={index === 0}
               last={index === images.length - 1}
-              pending={typeof busy === "object" && busy?.id === image.id ? busy.action : null}
+              pending={busy !== null && busy !== "upload" && busy.id === image.id ? busy.action : null}
               locked={busy !== null}
               onUp={() => move(image, -1)}
               onDown={() => move(image, 1)}

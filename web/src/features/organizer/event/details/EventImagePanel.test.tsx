@@ -60,6 +60,30 @@ describe("event image gallery", () => {
     expect(api.uploadEventImage).toHaveBeenCalledWith("e1", file, "Stage");
   });
 
+  it("marks only the running reorder busy and ignores every other action meanwhile", async () => {
+    vi.mocked(api.reorderEventImages).mockReturnValue(new Promise(() => undefined));
+    mount();
+    const move = await screen.findByRole("button", { name: "Move “Crowd” earlier" });
+    move.focus();
+    fireEvent.click(move);
+    expect(api.reorderEventImages).toHaveBeenCalledTimes(1);
+    const busy = document.querySelectorAll('button[aria-busy="true"]');
+    expect(busy.length).toBe(1);
+    expect(busy[0]).toBe(move);
+    expect(document.activeElement).toBe(move);
+    const makeCover = screen.getByRole("button", { name: "Make cover" });
+    expect(makeCover.getAttribute("aria-disabled")).toBe("true");
+    expect(makeCover.hasAttribute("aria-busy")).toBe(false);
+    for (const other of screen.getAllByRole("button", { name: /Remove|Make cover/ })) {
+      expect(other.getAttribute("aria-disabled")).toBe("true");
+    }
+    expect(document.querySelector<HTMLInputElement>('input[type="file"]')!.disabled).toBe(true);
+    fireEvent.click(makeCover);
+    fireEvent.click(move);
+    expect(api.setEventCover).not.toHaveBeenCalled();
+    expect(api.reorderEventImages).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the server's order after moving, choosing a cover and deleting", async () => {
     vi.mocked(api.reorderEventImages).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
     vi.mocked(api.deleteEventImage).mockResolvedValue({});

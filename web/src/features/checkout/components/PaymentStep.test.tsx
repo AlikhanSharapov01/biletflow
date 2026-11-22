@@ -117,7 +117,8 @@ describe("PaymentStep", () => {
 
   it("marks the failed-payment button busy when it is the one running", async () => {
     simulateMock.mockReturnValue(new Promise(() => undefined));
-    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} onCancel={vi.fn()} />);
+    const onCancel = vi.fn();
+    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} onCancel={onCancel} />);
     const failed = button("Simulate failed payment");
     failed.focus();
     await act(async () => fireEvent.click(failed));
@@ -129,8 +130,32 @@ describe("PaymentStep", () => {
     expect(success.hasAttribute("aria-busy")).toBe(false);
     expect(success.getAttribute("aria-disabled")).toBe("true");
     expect(document.activeElement).toBe(failed);
+    const cancel = button("Cancel and choose again");
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(success);
+    fireEvent.click(cancel);
+    fireEvent.click(failed);
     expect(simulateMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("marks only the retry button busy while a retry is in flight", async () => {
+    getOrderMock.mockResolvedValue(pendingOrder("failed"));
+    simulateMock.mockResolvedValue({ provider_event_id: "pe", external_event_id: "ee", attempt: makePayment({ status: "failed" }) });
+    retryMock.mockReturnValue(new Promise(() => undefined));
+    const onCancel = vi.fn();
+    render(<PaymentStep order={pendingOrder("created")} onConfirmed={vi.fn()} onCancel={onCancel} />);
+    await act(async () => fireEvent.click(button("Simulate failed payment")));
+    await act(async () => fireEvent.click(button("Try payment again")));
+    const retry = button("Starting…");
+    expect(retry.getAttribute("aria-busy")).toBe("true");
+    const cancel = button("Cancel and choose again");
+    expect(cancel.getAttribute("aria-disabled")).toBe("true");
+    expect(cancel.hasAttribute("aria-busy")).toBe(false);
+    fireEvent.click(retry);
+    fireEvent.click(cancel);
+    expect(retryMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("offers to choose again for an expired order", () => {
