@@ -118,9 +118,9 @@
 /* The sweep is an overlay moved with transform, so it runs on the compositor and never repaints the card. */
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .skeleton-shape, .skeleton-art, .skeleton-tile { --shimmer-highlight: var(--canvas); position: relative; overflow: hidden; background-color: var(--line-soft); }
-.skeleton-shape::after, .skeleton-art::after, .skeleton-tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--shimmer-highlight), transparent); animation: shimmer 1.6s ease-in-out infinite; will-change: transform; }
-/* Shapes carry padding to match the loaded line boxes; only the content box is painted and swept. */
-.skeleton-shape { display: block; box-sizing: content-box; border-radius: 4px; background-clip: content-box; overflow: clip; overflow-clip-margin: content-box; }
+.skeleton-shape::after, .skeleton-art::after, .skeleton-tile::after { content: ""; position: absolute; inset: 0; box-sizing: border-box; padding: inherit; background-clip: content-box; background: linear-gradient(90deg, transparent, var(--shimmer-highlight), transparent); animation: shimmer 1.6s ease-in-out infinite; will-change: transform; }
+/* Shapes carry padding to match the loaded line boxes; the overlay inherits it and paints only its content box, in every engine. */
+.skeleton-shape { display: block; box-sizing: content-box; border-radius: 4px; background-clip: content-box; }
 .skeleton-art { aspect-ratio: 2 / 1; }
 .skeleton-tile { width: 48px; height: 50px; flex: none; border-radius: 6px; }
 @media (hover: hover) { .skeleton-card:hover { border-color: var(--line); } }

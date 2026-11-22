@@ -589,9 +589,11 @@ for (const [viewportName, size] of Object.entries(VIEWPORTS) as Array<[ViewportN
           // On phones the sticky Get tickets bar is shown at the end of the page and is part of the chrome;
           // on a tablet the tickets section stays on screen, so the bar slides away.
           if (size.width < 768 && size.height > 500) await expect(page.locator(".get-tickets-bar:not([data-hidden])")).toBeVisible();
+          else test.info().annotations.push({ type: "note", description: "no sticky Get tickets bar is shown here: only the tab bar is checked" });
           await page.locator(".topbar select").selectOption(LOCALES.find((other) => other !== locale)!);
           await expect(page.locator(".toast.visible")).toBeVisible();
-          await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+          // Only the toast's own (finite) transitions: the page may run endless animations.
+          await page.evaluate(() => Promise.all(document.querySelector(".toast")!.getAnimations().map((animation) => animation.finished)));
           expect(await page.evaluate(toastProblems), "toast offset").toEqual([]);
         });
       }

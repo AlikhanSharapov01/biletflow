@@ -50,6 +50,12 @@ describe("interaction styles", () => {
     const keyframes = sheets.flatMap(({ name, blocks: list }) => list.filter((b) => b.selector.startsWith("@keyframes")).map((b) => ({ name, ...b })));
     expect(keyframes.length).toBeGreaterThan(0);
     for (const frame of keyframes) expect(frame.body, `${frame.name}: ${frame.selector}`).not.toMatch(/background-position/);
+    // The overlay clips itself to the shape's content box; no engine-specific overflow-clip-margin.
+    const all = sheets.flatMap(({ blocks: list }) => list);
+    const overlay = all.find((b) => b.selector.includes(".skeleton-shape::after"));
+    expect(overlay?.body).toMatch(/padding:\s*inherit/);
+    expect(overlay?.body).toMatch(/background-clip:\s*content-box/);
+    expect(all.map((b) => b.body).join("\n")).not.toMatch(/overflow-clip-margin/);
     const shimmer = sheets.flatMap(({ blocks: list }) => list).find((b) => b.selector === "@keyframes shimmer");
     expect(shimmer?.body).toMatch(/transform\s*:\s*translateX\(-100%\)/);
     expect(shimmer?.body).toMatch(/transform\s*:\s*translateX\(100%\)/);

@@ -43,9 +43,7 @@ for (const width of WIDTHS) {
       await page.locator(".load-more button").focus();
       await page.keyboard.press("Enter");
       await expect(page.locator(".event-card:not(.skeleton-card)")).not.toHaveCount(before);
-      await expect.poll(async () => (await page.evaluate(activeElementState)).problem).toBe("");
-      const state = await page.evaluate(activeElementState);
-      expect(state, "focus moved into the new cards").toMatchObject({ tag: "a", inCard: true });
+      await expect.poll(() => page.evaluate(activeElementState), "focus moves into the new cards").toMatchObject({ problem: "", tag: "a", inCard: true });
     });
 
     test("applying a promo code with Enter keeps the field focused", async ({ page }) => {
@@ -69,6 +67,9 @@ for (const width of WIDTHS) {
       await page.keyboard.press("Enter");
       await expect(page.locator(".checkout-progress .countdown")).toBeVisible();
       await expect.poll(async () => (await page.evaluate(activeElementState)).problem).toBe("");
+      // The Task 3 contract: focus is on the current step of the indicator.
+      await expect(page.locator('.checkout-steps li[aria-current="step"]')).toBeFocused();
+      await expect(page.locator('.checkout-steps li[aria-current="step"]')).toHaveAttribute("aria-label", /\d/);
     });
   });
 }
