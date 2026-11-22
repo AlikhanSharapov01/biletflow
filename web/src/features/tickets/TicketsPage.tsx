@@ -1,13 +1,10 @@
 import { t, useLocale } from "../../i18n";
 import { Link } from "react-router";
 import { claimTickets, listTickets } from "../../api/tickets";
-import { Button, EmptyState, ErrorPanel, EventCard, PageHeading, SkeletonGrid, Panel, StatusPill } from "../../components/ui";
+import { Button, EmptyState, ErrorPanel, EventCard, PageHeading, Panel, SkeletonGrid, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel, seatLabel, statusLabel } from "../../utils/format";
 import { ticketTone } from "../../utils/status";
-
-// Placeholder rows on the first load.
-const ROW_SKELETONS = 3;
 
 export function TicketsPage() {
   useLocale();
@@ -25,7 +22,9 @@ export function TicketsPage() {
         subtitle={t("tickets.subtitle")}
         actions={<Button onClick={tickets.reload}>{t("common.refresh")}</Button>}
       />
-      {tickets.loading && !tickets.data ? <SkeletonGrid row count={ROW_SKELETONS} label={t("tickets.loading")} /> : null}
+      {/* Always present, so a Refresh is announced even though the dimmed list is inert. */}
+      <p className="visually-hidden" role="status">{tickets.loading && tickets.data ? t("tickets.loading") : ""}</p>
+      {tickets.loading && !tickets.data ? <SkeletonGrid row label={t("tickets.loading")} /> : null}
       {tickets.error ? <ErrorPanel title={t("tickets.load_error")} message={tickets.error} onRetry={tickets.reload} /> : null}
       {tickets.data ? (
         tickets.data.length === 0 ? (

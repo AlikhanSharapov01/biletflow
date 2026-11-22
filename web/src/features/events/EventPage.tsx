@@ -36,7 +36,7 @@ export function EventPage() {
     [eventId],
   );
 
-  if (page.loading) return <SkeletonPage label={t("event.loading")} panels={2} back />;
+  if (page.loading) return <SkeletonPage label={t("event.loading")} />;
   if (page.error || !page.data) {
     return <ErrorPanel title={t("event.load_error")} message={page.error ?? t("errors.unknown")} onRetry={page.reload} />;
   }

@@ -121,7 +121,11 @@
 .skeleton-title { width: 82%; height: 17px; padding-block: 4px; }
 .skeleton-meta { width: 64%; height: 12px; padding-block: 3px; }
 .skeleton-foot { width: 30%; height: 21px; margin-top: auto; padding-top: 10px; }
+/* Shapes drawn straight on the page canvas need the darker line colour to stay visible. */
+.skeleton-page .page-heading .skeleton-shape { background-image: linear-gradient(90deg, var(--line) 30%, var(--line-soft) 50%, var(--line) 70%); }
 .skeleton-page { display: grid; gap: var(--heading-gap); }
+.skeleton-page .page-heading { margin-bottom: 0; }
+.skeleton-pill { width: 84px; height: 22.3px; border-radius: var(--radius-pill); }
 .skeleton-back { width: 110px; height: 15px; margin-top: 1px; margin-bottom: 16px; padding-block: 3px; }
 .skeleton-h1 { width: min(360px, 70%); height: 34px; margin-top: 6px; padding-block: 4.25px; }
 .skeleton-subtitle { width: min(520px, 90%); height: 14px; margin-top: 8px; padding-block: 3px; }
@@ -129,8 +133,10 @@
 .skeleton-panel-title { width: 40%; height: 18px; padding-block: 3px; }
 .skeleton-text { height: 14px; }
 .skeleton-short { width: 55%; }
-/* A reload keeps the previous cards in place: dimmed and not clickable until the new ones arrive. */
-.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity .2s ease; }
+/* A reload keeps the previous cards in place: dimmed and not clickable until the new ones arrive.
+   The dim starts after a short delay, so an answer that comes back at once never flashes; it eases back in on the way out. */
+.event-grid { transition: opacity .2s ease; }
+.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity .2s ease .15s; }
 
 /* Loading, error, empty (mobile ui/States) */
 .loading-state { display: flex; min-height: 150px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: var(--text-body-sm); }
@@ -197,5 +203,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shape, .skeleton-art, .skeleton-tile { animation: none; background-image: none; background-color: var(--line-soft); }
-  .event-grid[aria-busy="true"] { transition: none; }
+  .skeleton-page .page-heading .skeleton-shape { background-image: none; background-color: var(--line); }
+  .event-grid, .event-grid[aria-busy="true"] { transition: none; }
 }

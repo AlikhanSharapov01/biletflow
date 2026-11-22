@@ -15,7 +15,8 @@ export function SkeletonCard({ row = false }: SkeletonCardProps) {
       <div className="event-card-body">
         {row ? <div className="skeleton-tile skeleton-shape" /> : null}
         <div className="event-card-copy">
-          <span className="skeleton-eyebrow skeleton-shape" />
+          {/* Row cards (tickets, orders) have no eyebrow line. */}
+          {row ? null : <span className="skeleton-eyebrow skeleton-shape" />}
           <span className="skeleton-title skeleton-shape" />
           <span className="skeleton-meta skeleton-shape" />
           {row ? <span className="skeleton-meta skeleton-shape" /> : null}
@@ -27,12 +28,13 @@ export function SkeletonCard({ row = false }: SkeletonCardProps) {
 }
 
 interface SkeletonGridProps {
-  count: number;
+  // Row grids (tickets, orders) stand in for a short list, so three rows by default.
+  count?: number;
   row?: boolean;
   label: string;
 }
 
-export function SkeletonGrid({ count, row = false, label }: SkeletonGridProps) {
+export function SkeletonGrid({ count = 3, row = false, label }: SkeletonGridProps) {
   return (
     <div className={["event-grid", row ? "row-grid" : ""].filter(Boolean).join(" ")} role="status">
       <span className="visually-hidden">{label}</span>
@@ -43,28 +45,24 @@ export function SkeletonGrid({ count, row = false, label }: SkeletonGridProps) {
   );
 }
 
-interface SkeletonPageProps {
-  label: string;
-  // Panels under the heading: one full-width, or two as the event page lays them out.
-  panels?: 1 | 2;
-  // Room for the "Back" link above the heading.
-  back?: boolean;
-}
-
-// A page heading and its panels, for pages that load as a whole.
-export function SkeletonPage({ label, panels = 1, back = false }: SkeletonPageProps) {
+// The event page while it loads: back link, heading, a status-pill row (it wraps under the heading on a
+// phone) and the two panels.
+export function SkeletonPage({ label }: { label: string }) {
   return (
     <div role="status">
       <span className="visually-hidden">{label}</span>
       <div className="skeleton-page" aria-hidden="true">
-        <div>
-          {back ? <span className="skeleton-back skeleton-shape" /> : null}
-          <span className="skeleton-eyebrow skeleton-shape" />
-          <span className="skeleton-h1 skeleton-shape" />
-          <span className="skeleton-subtitle skeleton-shape" />
+        <div className="page-heading">
+          <div className="page-heading-copy">
+            <span className="skeleton-back skeleton-shape" />
+            <span className="skeleton-eyebrow skeleton-shape" />
+            <span className="skeleton-h1 skeleton-shape" />
+            <span className="skeleton-subtitle skeleton-shape" />
+          </div>
+          <span className="skeleton-pill skeleton-shape" />
         </div>
-        <div className={panels === 2 ? "content-grid" : "stack"}>
-          {Array.from({ length: panels }, (_, index) => (
+        <div className="content-grid">
+          {[0, 1].map((index) => (
             <div className="panel skeleton-panel" key={index}>
               <span className="skeleton-panel-title skeleton-shape" />
               <span className="skeleton-text skeleton-shape" />

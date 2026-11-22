@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listEvents } from "../../api/catalog";
 import type { EventView } from "../../api/types";
 import { useRequest } from "../../hooks/useRequest";
-import { DISCOVER_PAGE_SIZE, discoverSearchParams, eventFilters, type DiscoverQuery } from "./discoverQuery";
+import { DISCOVER_PAGE_SIZE, discoverSearchParams, eventFilters, hasActiveFilters, type DiscoverQuery } from "./discoverQuery";
 
 interface ExtraPages {
   /** The search these pages belong to; pages of another search are ignored. */
@@ -14,6 +14,14 @@ interface ExtraPages {
   lastSize: number;
 }
 
+/** A search that has answered: its first page and the pages loaded after it. */
+interface Settled {
+  key: string;
+  /** Whether the search had active filters, for choosing the empty-state wording. */
+  filtered: boolean;
+  events: EventView[];
+}
+
 export interface DiscoverEvents {
   /**
    * The first page, then every page loaded after it. Empty until the first page arrives.
@@ -21,7 +29,9 @@ export interface DiscoverEvents {
    * every page of them: `loading` tells the two apart.
    */
   events: EventView[];
-  /** True once a first page has arrived, possibly for an earlier search while the next one loads. */
+  /** Whether the search that `events` belongs to had active filters (empty-state wording). */
+  filtered: boolean;
+  /** True once a search has answered, possibly an earlier one while the next one loads. */
   loaded: boolean;
   /** The first page is loading or reloading. */
   loading: boolean;
@@ -34,10 +44,13 @@ export interface DiscoverEvents {
   loadMoreFailed: boolean;
 }
 
+const NO_EVENTS: EventView[] = [];
+
 /**
  * Events of a Discover search, paged by offset. The first page comes from useRequest
  * (stale responses are ignored); later pages are tagged with the search they belong to and only appended while it is
- * still the current one. While a new search or a reload loads, the previous cards stay in `events`.
+ * still the current one. While a new search or a reload loads, the last settled list (every page) stays in `events`.
+ * A disabled search (`enabled` false) asks for nothing and never counts as an answer.
  */
 export function useDiscoverEvents(query: DiscoverQuery, enabled = true): DiscoverEvents {
   const key = discoverSearchParams(query).toString();
@@ -46,6 +59,8 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   const [extra, setExtra] = useState<ExtraPages | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  // Set by reload(): the first-page answer it replaces. Loading from the same render as the click, not from an effect.
+  const [reloading, setReloading] = useState<{ from: unknown } | null>(null);
   // Paging state belongs to one visit of a search: coming back to it (Back) starts from its first page.
   if (clock.key !== key) {
     setClock({ key, now: new Date() });
@@ -55,11 +70,12 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   }
   const now = clock.now;
   // The data carries the search it answers, so a render right after the search changed
-  // is known to hold the previous search's page.
+  // is known to hold the previous search's page. A disabled search answers with no events at all (null).
   const first = useRequest(
     async () => ({
       key,
-      events: enabled ? await listEvents(eventFilters(query, now, { limit: DISCOVER_PAGE_SIZE, offset: 0 })) : ([] as EventView[]),
+      filtered: hasActiveFilters(query),
+      events: enabled ? await listEvents(eventFilters(query, now, { limit: DISCOVER_PAGE_SIZE, offset: 0 })) : null,
     }),
     [key, enabled],
   );
@@ -74,14 +90,17 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
   const current = extra?.key === key ? extra : null;
   const firstPage = first.data?.events ?? null;
   const stale = first.data !== null && first.data.key !== key;
-  const loading = first.loading || stale;
-  const settled = useMemo(() => (firstPage ? [...firstPage, ...(current?.events ?? [])] : []), [firstPage, current]);
-  // The last list that belonged to a settled search, kept on screen while the next one loads.
-  const shown = useRef<EventView[]>([]);
-  useEffect(() => {
-    if (!loading) shown.current = settled;
-  }, [loading, settled]);
-  const events = loading ? shown.current : settled;
+  // A reload is under way until a new answer replaces the one it started from (or fails).
+  const reloadPending = reloading !== null && first.data === reloading.from && !first.error;
+  const loading = first.loading || stale || reloadPending;
+  const settled = useMemo<Settled | null>(
+    () => (first.data && firstPage ? { key: first.data.key, filtered: first.data.filtered, events: [...firstPage, ...(current?.events ?? [])] } : null),
+    [first.data, firstPage, current],
+  );
+  // The last answer of an enabled, settled search, kept on screen while the next one loads.
+  const [kept, setKept] = useState<Settled | null>(null);
+  if (!loading && settled && kept !== settled) setKept(settled);
+  const shown = loading || !settled ? kept : settled;
   const lastSize = current ? current.lastSize : (firstPage?.length ?? 0);
 
   const loadMore = useCallback(() => {
@@ -122,16 +141,18 @@ export function useDiscoverEvents(query: DiscoverQuery, enabled = true): Discove
     setExtra(null);
     setPending(null);
     setFailed(null);
+    setReloading({ from: first.data });
     first.reload();
-  }, [first.reload, key]);
+  }, [first.data, first.reload, key]);
 
   return {
-    events,
-    loaded: firstPage !== null,
+    events: shown?.events ?? NO_EVENTS,
+    filtered: shown?.filtered ?? false,
+    loaded: shown !== null,
     loading,
     error: first.error,
     reload,
-    hasMore: !first.loading && !stale && firstPage !== null && lastSize >= DISCOVER_PAGE_SIZE,
+    hasMore: !loading && firstPage !== null && lastSize >= DISCOVER_PAGE_SIZE,
     loadMore,
     loadingMore: pending === key,
     loadMoreFailed: failed === key,

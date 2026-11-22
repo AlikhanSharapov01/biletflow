@@ -313,7 +313,7 @@ describe("Clear filters", () => {
   it("is absent without filters", async () => {
     renderPage();
     await waitFor(() => expect(cards()).toHaveLength(3));
-    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
   });
 
   it("resets the URL from the form", async () => {
@@ -322,7 +322,7 @@ describe("Clear filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(url()).toBe("/discover");
     await waitFor(() => expect(lastCall()).toEqual({ limit: DISCOVER_PAGE_SIZE, offset: 0 }));
-    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
   });
 
   it("an empty filtered result says nothing matched and offers Clear filters", async () => {
@@ -726,5 +726,128 @@ describe("loading", () => {
     expect(grid().getAttribute("aria-busy")).toBe("true");
     await act(async () => rock.resolve(events(2, 300)));
     expect(cards()).toHaveLength(2);
+  });
+
+  it("shows the skeleton, not an empty state, when a backwards price range is fixed", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(next.promise);
+    renderPage("/discover?min_price=900&max_price=100");
+    expect(listEventsMock).not.toHaveBeenCalled();
+    await screen.findByRole("alert");
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "2000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(1));
+    expect(document.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(screen.queryByText("No events matched your filters.")).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
+    await act(async () => next.resolve(events(2)));
+    expect(cards()).toHaveLength(2);
+  });
+
+  it("does not show a false empty state after a backwards range follows loaded cards", async () => {
+    listEventsMock.mockResolvedValueOnce(events(3));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(next.promise);
+    fireEvent.change(screen.getByLabelText("Price from, ₸"), { target: { value: "900" } });
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "2000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/No events/)).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
+    await act(async () => next.resolve(events(1, 50)));
+    expect(cards()).toHaveLength(1);
+  });
+
+  it("keeps every page, dimmed, in every commit while the same search is submitted again", async () => {
+    const again = deferred<ReturnType<typeof events>>();
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(2, 100))
+      .mockReturnValueOnce(again.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2));
+    // Record what every commit of the grid looks like.
+    const seen: Array<{ cards: number; busy: string | null }> = [];
+    const watch = new MutationObserver(() => {
+      const element = grid();
+      if (element) seen.push({ cards: cards().length, busy: element.getAttribute("aria-busy") });
+    });
+    watch.observe(document.body, { subtree: true, childList: true, attributes: true });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(3));
+    await act(async () => undefined);
+    watch.disconnect();
+    expect(seen.length).toBeGreaterThan(0);
+    for (const commit of seen) expect(commit).toEqual({ cards: DISCOVER_PAGE_SIZE + 2, busy: "true" });
+    expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2);
+    await act(async () => again.resolve(events(4, 300)));
+    expect(cards()).toHaveLength(4);
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+  });
+
+  it("dims the previous empty state with its own wording, not the new search's", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce([]).mockReturnValueOnce(next.promise);
+    renderPage();
+    await waitFor(() => expect(document.querySelector(".empty-state")).not.toBeNull());
+    fireEvent.change(screen.getByLabelText("City"), { target: { value: "Almaty" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    expect(document.querySelector(".empty-state")!.textContent).toMatch(/No events match those filters yet/);
+    expect(document.querySelector(".empty-action")).toBeNull();
+  });
+
+  it("does not claim events are shown while the lookups are still loading", async () => {
+    const lookups = deferred<typeof categories>();
+    listCategoriesMock.mockReturnValue(lookups.promise);
+    listEventsMock.mockResolvedValue(events(12));
+    renderPage();
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(document.querySelector("[role=status]:not(.loading-state)")!.textContent).not.toMatch(/Events shown/);
+    expect(screen.queryByText("Events shown: 12")).toBeNull();
+    await act(async () => lookups.resolve(categories));
+    expect(status()).toBe("Events shown: 12");
+  });
+
+  it("puts the focus back on the same card after a reload that took it away, else on the search box", async () => {
+    const back = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockResolvedValueOnce(events(3, 10)).mockReturnValueOnce(back.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Event 10" })).toBeTruthy());
+    const link = screen.getByRole("link", { name: "Event 11" });
+    link.focus();
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    // A real browser drops the focus when the grid becomes inert.
+    link.blur();
+    await act(async () => back.resolve([...events(3), ...events(1, 11)]));
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Event 11" }));
+  });
+
+  it("focuses the search box when the focused card is gone after the reload", async () => {
+    const back = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockResolvedValueOnce(events(3, 10)).mockReturnValueOnce(back.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Event 10" })).toBeTruthy());
+    const link = screen.getByRole("link", { name: "Event 11" });
+    link.focus();
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    link.blur();
+    await act(async () => back.resolve(events(3)));
+    expect(document.activeElement).toBe(searchBox());
   });
 });

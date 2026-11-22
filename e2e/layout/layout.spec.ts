@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, NOW, type Locale } from "./fixtures";
+import { FOCUS_EVENT, LOCALES, MANY_EVENTS_CATEGORY, type Locale } from "./fixtures";
+import { assertPinnedFonts, prepare } from "./harness";
 import { mockApi, type MockedApi, type Role } from "./mockApi";
 
 const VIEWPORTS = {
@@ -24,6 +25,9 @@ type ViewportName = keyof typeof VIEWPORTS;
 // Browser language per UI language, so native controls and Accept-Language follow it.
 const BROWSER_LOCALE: Record<Locale, string> = { en: "en-US", ru: "ru-RU", kk: "kk-KZ" };
 
+// A card with real content; skeleton cards share the .event-card class.
+const REAL_CARD = ".event-card:not(.skeleton-card)";
+
 interface PageCase {
   name: string;
   role: Role;
@@ -38,13 +42,13 @@ interface PageCase {
 
 // One line per page. Add a page here and it runs at every width in every language.
 const PAGES: PageCase[] = [
-  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
+  { name: "discover-visitor", role: "visitor", path: () => "/discover", ready: REAL_CARD },
   // Active filters: "More filters" is open on a phone and its summary counts them.
-  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: ".event-card:not(.skeleton-card)" },
+  { name: "discover-filtered", role: "visitor", path: () => "/discover?city=Almaty&when=weekend&min_price=1000&max_price=50000", ready: REAL_CARD },
   { name: "discover-empty", role: "visitor", path: () => "/discover?q=zzzz-no-match&city=Almaty", ready: ".empty-state" },
   { name: "discover-load-more", role: "visitor", path: () => `/discover?category=${MANY_EVENTS_CATEGORY}`, ready: ".load-more" },
-  { name: "discover-member", role: "member", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
-  { name: "discover-admin", role: "admin", path: () => "/discover", ready: ".event-card:not(.skeleton-card)" },
+  { name: "discover-member", role: "member", path: () => "/discover", ready: REAL_CARD },
+  { name: "discover-admin", role: "admin", path: () => "/discover", ready: REAL_CARD },
   { name: "event-admin", role: "admin", path: (locale) => `/events/${FOCUS_EVENT[locale]}`, ready: ".event-description" },
   {
     name: "checkout-hold",
@@ -82,28 +86,14 @@ const GENERATED = new Set<string>();
 
 const NAV_LINKS = { visitor: 1, member: 5, admin: 6 } as const;
 
-// Text widths depend on the font, and the app's font stack falls back to whatever the
-// machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
-// everywhere so a case gives the same answer on every machine. CI installs them
-// (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
-// The language select is pinned to 16px, the size form fields get on phones and tablets.
-const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } .topbar select { font-size: 16px; }`;
-
 async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: MockedApi, pageErrors: string[]) {
-  // Fixed clock: sales windows and event dates in fixtures.ts are relative to NOW.
-  await page.clock.setFixedTime(NOW);
-  // The app picks its language from this stored preference (web/src/i18n/index.ts);
-  // a signed-in profile's own locale takes over once it loads.
-  await page.addInitScript((value) => localStorage.setItem("biletflow:locale", value), locale);
-  await page.addInitScript((css) => {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-  }, PINNED_FONTS);
+  await prepare(page, locale);
   try {
     await page.goto(pageCase.path(locale));
     await expect(page.locator(pageCase.ready).first()).toBeVisible();
     await expect(page.locator(".loading-state")).toHaveCount(0);
+    // Placeholders are not the page: wait until none is left.
+    await expect(page.locator(".skeleton-card, .skeleton-page, [aria-busy=true]")).toHaveCount(0);
     await expect(page.locator(".top-tabs a")).toHaveCount(NAV_LINKS[pageCase.role]);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await pageCase.prepare?.(page);
@@ -116,17 +106,7 @@ async function openPage(page: Page, pageCase: PageCase, locale: Locale, mocked: 
     ].filter(Boolean);
     throw new Error(`Page did not load; ${details.join("; ")}`, { cause: failure });
   }
-  // A missing pinned font would silently change every text width.
-  const missing = await page.evaluate(() => {
-    const context = document.createElement("canvas").getContext("2d")!;
-    const sample = "Wiiiiimmmmm 0123456789 Ыы Әә";
-    const width = (font: string) => {
-      context.font = `16px ${font}`;
-      return context.measureText(sample).width;
-    };
-    return ["DejaVu Sans", "DejaVu Serif"].filter((family) => width(`"${family}", monospace`) === width("monospace"));
-  });
-  if (missing.length) throw new Error(`install DejaVu fonts (fonts-dejavu-core): ${missing.join(", ")} not found`);
+  await assertPinnedFonts(page);
 }
 
 // Runs in the browser, so it sees the real rendered boxes. Returns one line per problem.
