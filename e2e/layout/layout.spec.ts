@@ -67,6 +67,8 @@ const TAB_LABEL_OVERLAP: Expected = [/^a\.tab-bar-link .* labels overlap$/, TAB_
 
 const VISITOR_PAGES = ["discover-visitor", "discover-filtered", "discover-empty", "discover-load-more"];
 const ADMIN_PAGES = ["discover-admin", "event-admin", "checkout-hold", "organizer-event-admin"];
+// checkout-hold runs only on the narrow and phone widths.
+const WIDE_ADMIN_PAGES = ADMIN_PAGES.filter((name) => name !== "checkout-hold");
 const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Locale; expected: Expected[] }> = [
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "en", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
   { pages: VISITOR_PAGES, viewport: "narrow", locale: "ru", expected: [PAGE_SCROLL, ACTIONS_EDGE, SIGN_IN_EDGE] },
@@ -76,11 +78,11 @@ const KNOWN_ROWS: Array<{ pages: string[]; viewport: ViewportName; locale: Local
   { pages: ADMIN_PAGES, viewport: "narrow", locale: "kk", expected: [PAGE_SCROLL, ACTIONS_EDGE, AVATAR_EDGE, TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "ru", expected: [TAB_LABEL_SPILL, TAB_LABEL_EDGE, TAB_LABEL_OVERLAP] },
   { pages: ADMIN_PAGES, viewport: "phone", locale: "kk", expected: [TAB_LABEL_SPILL, TAB_LABEL_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
-  { pages: ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "en", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "ru", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "tablet", locale: "kk", expected: [PAGE_SCROLL, TOP_TAB_EDGE, TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "ru", expected: [TOP_TAB_OVERLAP] },
+  { pages: WIDE_ADMIN_PAGES, viewport: "laptop", locale: "kk", expected: [TOP_TAB_OVERLAP] },
 ];
 
 // Cases whose layout is broken today by a defect another task fixes. Everything else in
