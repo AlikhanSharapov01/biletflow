@@ -121,3 +121,17 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+test("skeleton shimmer overlay paints only the content box of a padded shape", async ({ page }) => {
+  await setUp(page, 390);
+  await hold(page, /^\/api\/v1\/events$/);
+  await page.goto("/discover");
+  await expect(page.locator(".skeleton-eyebrow").first()).toBeVisible();
+  const overlay = await page.locator(".skeleton-eyebrow").first().evaluate((shape) => {
+    const style = getComputedStyle(shape, "::after");
+    return { clip: style.backgroundClip, padding: style.paddingTop, shapePadding: getComputedStyle(shape).paddingTop };
+  });
+  expect(overlay.clip).toBe("content-box");
+  expect(overlay.padding).toBe(overlay.shapePadding);
+  expect(parseFloat(overlay.padding)).toBeGreaterThan(0);
+});
