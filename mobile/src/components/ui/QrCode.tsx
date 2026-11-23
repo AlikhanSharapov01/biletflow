@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
 import { useLocale } from "@/i18n";
+import { fixed } from "@/theme";
 
 // Draws a QR code for `value` locally (no network): ticket QR payloads and
 // entry confirmations. The quiet zone is part of the drawing.
@@ -25,8 +26,8 @@ export function QrCode({ value, size = 220, label }: { value: string; size?: num
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={label}>
       <Svg width={size} height={size} viewBox={`0 0 ${cells} ${cells}`}>
-        <Rect width={cells} height={cells} fill="#ffffff" />
-        <Path d={path} fill="#111111" />
+        <Rect width={cells} height={cells} fill={fixed.white} />
+        <Path d={path} fill={fixed.qrInk} />
       </Svg>
     </View>
   );

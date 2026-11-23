@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   note: {
     marginTop: -6,
-    color: "#818b84",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 12,
   },

@@ -60,8 +60,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   cardPressed: {
-    borderColor: "#9bb9a5",
-    backgroundColor: "#f0f5eb",
+    borderColor: colors.line,
+    backgroundColor: colors.note,
   },
   cardDisabled: {
     opacity: 0.55,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   meta: {
-    color: "#929b94",
+    color: colors.placeholder,
     fontFamily: fonts.sans,
     fontSize: 13,
   },

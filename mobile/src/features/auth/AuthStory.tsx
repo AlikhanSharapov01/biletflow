@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { Brand, Eyebrow, SerifText } from "@/components/ui";
-import { colors, fonts } from "@/theme";
+import { Brand, Eyebrow, DisplayText } from "@/components/ui";
+import { colors, fonts, overlays } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 // Dark-green brand header above the sign-in panel (web .auth-story).
@@ -12,9 +12,9 @@ export function AuthStory({ topInset }: { topInset: number }) {
       <View style={styles.ring} pointerEvents="none" />
       <Brand inverted />
       <Eyebrow style={styles.storyEyebrow}>{t("auth.city_together")}</Eyebrow>
-      <SerifText style={styles.storyTitle}>
+      <DisplayText style={styles.storyTitle}>
         {t("auth.make_room")} <Text style={styles.storyAccent}>{t("auth.what_matters")}</Text>
-      </SerifText>
+      </DisplayText>
       <Text style={styles.storyCopy}>
         {t("auth.story_copy")}
       </Text>
@@ -37,12 +37,12 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderWidth: 1,
-    borderColor: "rgba(226,244,191,0.17)",
+    borderColor: overlays.storyRing,
     borderRadius: 160,
   },
   storyEyebrow: {
     marginTop: 34,
-    color: "#bbd5b3",
+    color: colors.storyEyebrow,
   },
   storyTitle: {
     marginTop: 14,
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   storyCopy: {
     maxWidth: 350,
     marginTop: 14,
-    color: "#d1ddd2",
+    color: colors.storySoft,
     fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 22,

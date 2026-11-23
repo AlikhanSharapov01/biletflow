@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 
-import { Eyebrow, SerifText } from "@/components/ui/Text";
-import { fonts } from "@/theme";
+import { Eyebrow } from "@/components/ui/Text";
+import { colors, fonts, typography } from "@/theme";
 import { useLocale } from "@/i18n";
 
-// Eyebrow, serif title and a short line of copy (web .page-heading).
+// Phones narrower than this get the compact title (web drops --text-title the same way).
+const COMPACT_WIDTH = 360;
+
+// Eyebrow, system-font title and a short line of copy (web .page-heading).
 export function PageHeading({
   eyebrow,
   title,
@@ -18,10 +21,11 @@ export function PageHeading({
   actions?: ReactNode;
 }) {
   useLocale();
+  const compact = useWindowDimensions().width < COMPACT_WIDTH;
   return (
     <View style={styles.heading}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <SerifText style={styles.title}>{title}</SerifText>
+      <Text accessibilityRole="header" style={[styles.title, compact && styles.titleCompact]}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {actions ? <View style={styles.actions}>{actions}</View> : null}
     </View>
@@ -34,13 +38,14 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 6,
-    fontSize: 30,
-    letterSpacing: -1,
-    lineHeight: 34,
+    color: colors.ink,
+    fontFamily: fonts.sans,
+    ...typography.title,
   },
+  titleCompact: typography.titleCompact,
   subtitle: {
     marginTop: 8,
-    color: "#79847d",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,

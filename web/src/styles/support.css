@@ -17,7 +17,7 @@
 .support-message.own .support-bubble { border-color: var(--active-nav); background: var(--tone-positive-bg); }
 .support-message-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--meta); font-size: var(--text-micro); }
 .support-message-meta strong { color: var(--ink); font-size: var(--text-meta); }
-.support-role { padding: 1px 6px; border-radius: var(--radius-pill); background: var(--tone-neutral-bg); color: var(--tone-neutral); font-weight: 700; }
+.support-role { padding: 1px 6px; border-radius: var(--radius-pill); background: var(--tone-neutral-bg); color: var(--tone-neutral); font-weight: 600; letter-spacing: var(--track-micro); }
 .support-message-body { color: var(--ink); font-size: var(--text-body-sm); line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
 .support-change { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; color: var(--meta); font-size: var(--text-meta); text-align: center; }
 .support-change q { color: var(--body-soft); font-style: italic; }

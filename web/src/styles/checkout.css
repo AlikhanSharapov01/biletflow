@@ -29,13 +29,13 @@
 .seat-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; padding: 0; color: var(--body-soft); font-size: var(--text-meta); list-style: none; }
 .seat-legend li { display: flex; align-items: center; gap: 6px; }
 .seat-map { display: grid; gap: 16px; padding: 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--canvas); }
-.seat-stage { justify-self: center; width: min(320px, 80%); padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: 1.3px; text-align: center; text-transform: uppercase; }
+.seat-stage { justify-self: center; width: min(320px, 80%); padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-align: center; text-transform: uppercase; }
 .seat-section { display: grid; gap: 6px; }
 .seat-section h4 { color: var(--button-ink); font-size: var(--text-label); }
 .seat-row { display: flex; align-items: center; gap: 8px; }
 .seat-row-label { width: 24px; flex: none; color: var(--meta); font-size: var(--text-micro); font-weight: 700; text-align: right; }
 .seat-row-seats { display: flex; flex-wrap: nowrap; gap: 4px; }
-.seat, .seat-swatch { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1.5px solid var(--green); border-radius: 6px 6px 3px 3px; background: var(--paper); color: var(--green); font-size: var(--text-micro); font-weight: 700; }
+.seat, .seat-swatch { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1.5px solid var(--green); border-radius: var(--radius-seat); background: var(--paper); color: var(--green); font-size: var(--text-micro); font-weight: 700; }
 .seat-swatch { width: 20px; height: 20px; font-size: 10px; }
 .seat { cursor: pointer; }
 .seat:disabled { cursor: not-allowed; opacity: 1; }

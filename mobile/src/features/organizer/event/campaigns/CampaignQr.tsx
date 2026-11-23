@@ -10,7 +10,7 @@ import { safeFilename, saveFile } from "@/api/files";
 import type { Campaign } from "@/api/types/campaigns";
 import { ErrorPanel, LoadingState, StatusPill, SubtleButton } from "@/components/ui";
 import { useToast } from "@/context/ToastContext";
-import { colors, fonts } from "@/theme";
+import { colors, fixed, fonts } from "@/theme";
 
 import { formStyles } from "../../components/formStyles";
 import { t, useLocale } from "@/i18n";
@@ -82,6 +82,6 @@ export function CampaignQr({ eventId, campaign }: { eventId: string; campaign: C
 }
 
 const styles = StyleSheet.create({
-  qr: { alignSelf: "center", padding: 8, backgroundColor: "#fff" },
+  qr: { alignSelf: "center", padding: 8, backgroundColor: fixed.white },
   link: { color: colors.muted, fontFamily: fonts.sans, fontSize: 12 },
 });

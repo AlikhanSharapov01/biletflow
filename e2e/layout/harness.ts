@@ -4,9 +4,10 @@ import { NOW, type Locale } from "./fixtures";
 // Text widths depend on the font, and the app's font stack falls back to whatever the
 // machine has (Inter here, DejaVu Sans on a CI runner). Pin the same installed fonts
 // everywhere so a case gives the same answer on every machine. CI installs them
-// (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css.
+// (fonts-dejavu-core); the stylesheet below overrides the tokens in web/src/styles/tokens.css, headings
+// --font-display included.
 // The language select is pinned to 16px below 1025px, the widths where form fields get that size on phones and tablets.
-export const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } @media (width < 1025px) { .topbar select { font-size: 16px; } }`;
+export const PINNED_FONTS = `html:root { --font-sans: "DejaVu Sans"; --font-display: "DejaVu Sans"; --font-serif: "DejaVu Serif"; } @media (width < 1025px) { .topbar select { font-size: 16px; } }`;
 
 /** Fixed clock, stored UI language and pinned fonts: call before `page.goto`. */
 export async function prepare(page: Page, locale: Locale) {

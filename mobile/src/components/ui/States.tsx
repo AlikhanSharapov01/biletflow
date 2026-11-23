@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     paddingVertical: 24,
-    color: "#87928a",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,
@@ -67,13 +67,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorTitle: {
-    color: "#745247",
+    color: colors.errorTitle,
     fontFamily: fonts.sans,
     fontSize: 16,
     fontWeight: "700",
   },
   errorMessage: {
-    color: "#8d7067",
+    color: colors.errorText,
     fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,

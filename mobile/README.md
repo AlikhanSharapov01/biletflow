@@ -277,7 +277,7 @@ src/
   components/
     ui/                 Buttons, Panel, PageHeading, FactList, ListRow, SegmentedTabs, StatusPill,
                         QrCode, ReasonDialog, confirmAction, FormMessage, States, fields…
-    layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, NavIcon (tab bar line icons)
+    layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, NavIcon (tab bar icons, filled when selected)
   features/             One folder per area, like the web
     auth/ discover/ events/ checkout/ tickets/ orders/ support/ notifications/
     account/ organizer/ admin/ scanner/
@@ -285,7 +285,7 @@ src/
   context/              Toast provider
   i18n/                 t(), useLocale(); locales/ holds the web's en/kk/ru catalogs (copied
                           unchanged) and locales/mobile/ the app-only text
-  theme/                Colours, fonts, radii and spacing shared with the web design
+  theme/                Colours, overlays, radii and the system font equal to the web tokens (a parity test enforces it); type scale and press-spring motion tokens
   utils/                Formatting, status tones, event times
 ```
 

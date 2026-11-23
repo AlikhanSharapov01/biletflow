@@ -16,18 +16,21 @@ export function TabBar() {
 
   return (
     <nav className="tab-bar" aria-label={t("nav.main")} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
-      {items.map((item) => (
-        <Link
-          key={item.to}
-          className="tab-bar-link"
-          to={item.to}
-          aria-label={item.tabLabel.replaceAll("\u00ad", "")}
-          aria-current={isSectionActive(item, pathname) ? "page" : undefined}
-        >
-          <NavIcon id={item.icon} />
-          <span className="tab-bar-label">{item.tabLabel}</span>
-        </Link>
-      ))}
+      {items.map((item) => {
+        const current = isSectionActive(item, pathname);
+        return (
+          <Link
+            key={item.to}
+            className="tab-bar-link"
+            to={item.to}
+            aria-label={item.tabLabel.replaceAll("\u00ad", "")}
+            aria-current={current ? "page" : undefined}
+          >
+            <NavIcon id={item.icon} filled={current} />
+            <span className="tab-bar-label">{item.tabLabel}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

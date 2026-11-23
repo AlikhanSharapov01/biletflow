@@ -5,7 +5,7 @@
 .org-heading strong { font-size: 16px; }
 .org-heading span { color: var(--intro); font-size: var(--text-body-sm); }
 .organizer-note { gap: 10px; }
-.organizer-note h2 { font-family: var(--font-serif); font-size: 24px; font-weight: 400; line-height: 1.15; }
+.organizer-note h2 { font-family: var(--font-display); font-size: var(--text-card-title); font-weight: 600; letter-spacing: var(--track-card); line-height: var(--leading-card); }
 .organizer-note p:last-child { color: var(--note-ink); font-size: var(--text-body-sm); line-height: 1.65; }
 .invite-form { padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .inline-form { margin-top: 14px; padding-top: 16px; border-top: 1px dashed var(--line); }
@@ -18,8 +18,9 @@
 .capability small { color: var(--meta); font-size: var(--text-meta); }
 
 .timeline { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.timeline li { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 12px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
-.timeline li:first-child { padding-top: 0; border-top: 0; }
+.timeline li { position: relative; display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 12px; padding-top: 14px; }
+.timeline li:first-child { padding-top: 0; }
+.timeline li + li::before { position: absolute; top: 0; left: 0; right: 0; border-top: 0.5px solid var(--separator); content: ""; pointer-events: none; }
 .timeline time { color: var(--meta); font-size: var(--text-meta); }
 .timeline strong { display: block; font-size: 15px; }
 .timeline span { display: block; margin-top: 3px; color: var(--timeline-ink); font-size: var(--text-body-sm); line-height: 1.5; }
@@ -41,7 +42,7 @@
 .filter-bar .form-message { grid-column: 1 / -1; }
 .plain-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .plain-fieldset:disabled { opacity: .6; }
-.form-group legend { padding: 0; margin-bottom: 6px; font-size: var(--text-label); font-weight: 700; }
+.form-group legend { padding: 0; margin-bottom: 6px; font-size: var(--text-label); font-weight: 600; }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .pagination-count { margin-right: auto; color: var(--meta); font-size: var(--text-meta); }
 .cell-note { display: block; margin-top: 2px; color: var(--meta); font-size: 12px; }
@@ -61,15 +62,15 @@
 /* Seat map */
 .seat-summary { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; padding: 0; color: var(--body-soft); font-size: var(--text-meta); list-style: none; }
 .seat-summary li { display: inline-flex; align-items: center; gap: 6px; }
-.seat-dot { width: 12px; height: 12px; border: 1px solid var(--line); border-radius: 3px; }
+.seat-dot { width: 12px; height: 12px; border: 1px solid var(--line); border-radius: var(--radius-line); }
 .seat-dot.available, .seat-available { border-color: var(--tone-positive); background: var(--tone-positive-bg); color: var(--tone-positive); }
 .seat-dot.unavailable, .seat-unavailable { border-color: var(--input-line); background: var(--tone-neutral-bg); color: var(--tone-neutral); }
 .seat-dot.blocked, .seat-blocked { border-color: var(--danger-line); background: var(--tone-blocked-bg); color: var(--tone-blocked); }
 .seat-dot.sold, .seat-sold, .seat-held, .seat-refund_pending { border-color: var(--muted); background: var(--muted); color: var(--paper); }
 .seat-map-wrap { display: grid; gap: 8px; overflow-x: auto; }
-.seat-stage { padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: 1.3px; text-align: center; text-transform: uppercase; }
+.seat-stage { padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-align: center; text-transform: uppercase; }
 .seat-map { position: relative; min-width: 320px; width: 100%; }
-.seat { position: absolute; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid; border-radius: 7px 7px 4px 4px; cursor: pointer; font-size: 12px; font-weight: 700; transform: translate(-50%, -50%); }
+.seat { position: absolute; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid; border-radius: var(--radius-seat); cursor: pointer; font-size: 12px; font-weight: 700; transform: translate(-50%, -50%); }
 @media (hover: hover) { .seat:hover { box-shadow: var(--shadow-raised); } }
 .seat.selected { outline: 3px solid var(--focus); outline-offset: 2px; }
 
@@ -92,15 +93,17 @@
 }
 
 /* Event gallery (details tab) and the finance/payout panels. */
-.image-gallery { display: grid; gap: 10px; margin: 0 0 14px; padding: 0; list-style: none; }
-.image-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-panel); }
+/* A grouped list inside the panel: hairlines inset by the row padding, no box around each image. */
+.image-gallery { display: grid; gap: 0; margin: 0 0 14px; padding: 0; list-style: none; }
+.image-row { position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px; }
+.image-row + .image-row::before { position: absolute; top: 0; left: 8px; right: 0; border-top: 0.5px solid var(--separator); content: ""; pointer-events: none; }
 .image-thumb { width: 96px; height: 64px; border-radius: var(--radius-input); object-fit: cover; background: var(--line-soft); }
 .image-copy { display: grid; min-width: 0; gap: 4px; }
 .image-copy strong { overflow-wrap: anywhere; font-size: var(--text-body-sm); }
 .image-copy span { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--meta); font-size: var(--text-meta); }
 .image-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .finance-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--gap); }
-.finance-group-title { margin-bottom: 6px; color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.finance-group-title { margin-bottom: 6px; color: var(--meta); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-transform: uppercase; }
 .payout-form { margin-bottom: 14px; }
 
 @media (max-width: 520px) {

@@ -5,32 +5,48 @@ import { Button } from "./Button";
 import { TextAreaField } from "./Field";
 
 interface DialogRequest {
+  id: number;
   message: string;
   reason: boolean;
+  /** Focused when the request was made: focus goes back here when the dialog closes. */
+  opener: Element | null;
+  /** Answered: the dialog is playing its exit and takes no more input. */
+  closing: boolean;
   resolve: (value: string | null) => void;
 }
 
-let pending: DialogRequest | null = null;
+let current: DialogRequest | null = null;
+let nextId = 1;
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 };
-const snapshot = () => pending;
-function finish(value: string | null) {
-  const request = pending;
-  pending = null;
+const snapshot = () => current;
+function publish(request: DialogRequest | null) {
+  current = request;
   listeners.forEach((listener) => listener());
-  request?.resolve(value);
 }
 
-/** One destructive action at a time; a second request never replaces the first. */
+/** Answers the open request at once; the dialog stays mounted while it leaves. */
+function finish(value: string | null) {
+  const request = current;
+  if (!request || request.closing) return;
+  publish({ ...request, closing: true });
+  request.resolve(value);
+}
+
+/** The exit has played: the dialog leaves the document, unless a newer request replaced it. */
+function closed(id: number) {
+  if (current?.id === id) publish(null);
+}
+
+/** One destructive action at a time; a second request never replaces an open one, only one that is leaving. */
 function ask(message: string, reason: boolean): Promise<string | null> {
-  if (pending) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    pending = { message, reason, resolve };
-    listeners.forEach((listener) => listener());
-  });
+  if (current && !current.closing) return Promise.resolve(null);
+  // Read before the dialog mounts, so effects that run twice (StrictMode) cannot record a control inside it.
+  const opener = document.activeElement;
+  return new Promise((resolve) => publish({ id: nextId++, message, reason, opener, closing: false, resolve }));
 }
 
 export async function confirmAction(message: string): Promise<boolean> {
@@ -41,6 +57,23 @@ export function requestReason(message: string): Promise<string | null> {
   return ask(message, true);
 }
 
+function returnFocus(opener: Element | null) {
+  if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+}
+
+/** The longest of the element's transition durations plus delays, in milliseconds (0 without transitions). */
+function longestTransition(element: Element): number {
+  const style = getComputedStyle(element);
+  const times = (list: string) => list.split(",").map((part) => {
+    const value = parseFloat(part);
+    if (!Number.isFinite(value)) return 0;
+    return part.trim().endsWith("ms") ? value : value * 1000;
+  });
+  const durations = times(style.transitionDuration || "0s");
+  const delays = times(style.transitionDelay || "0s");
+  return Math.max(0, ...durations.map((duration, index) => duration + (delays[index % delays.length] ?? 0)));
+}
+
 function Dialog({ request }: { request: DialogRequest }) {
   useLocale();
   const ref = useRef<HTMLDialogElement>(null);
@@ -48,17 +81,41 @@ function Dialog({ request }: { request: DialogRequest }) {
   const descriptionId = useId();
   const [reason, setReason] = useState("");
 
+  // Open on mount; an open dialog that unmounts (the host going away) is closed first.
   useEffect(() => {
-    const opener = document.activeElement;
-    ref.current?.showModal();
+    const dialog = ref.current;
+    if (!dialog) return;
+    dialog.showModal();
     return () => {
-      ref.current?.close();
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+      if (dialog.open) dialog.close();
     };
   }, []);
 
+  // Answered: close now (the CSS plays the exit on the same path as the entry), give focus back, and
+  // unmount once the exit transitions end. A timer at the longest transition covers engines that report
+  // none, and reduced motion.
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!request.closing || !dialog) return;
+    if (dialog.open) dialog.close();
+    returnFocus(request.opener);
+    let done = false;
+    const unmount = () => {
+      if (done) return;
+      done = true;
+      closed(request.id);
+    };
+    const timer = setTimeout(unmount, longestTransition(dialog) + 50);
+    const running = typeof dialog.getAnimations === "function" ? dialog.getAnimations() : [];
+    if (running.length) void Promise.all(running.map((animation) => animation.finished)).then(unmount, unmount);
+    return () => {
+      done = true;
+      clearTimeout(timer);
+    };
+  }, [request.closing, request.id, request.opener]);
+
   return createPortal(
-    <dialog ref={ref} className="action-dialog" aria-labelledby={titleId} aria-describedby={descriptionId}
+    <dialog ref={ref} className="action-dialog" aria-labelledby={titleId} aria-describedby={descriptionId} inert={request.closing}
       onCancel={(event) => { event.preventDefault(); finish(null); }}>
       <form className="form-stack" onSubmit={(event) => {
         event.preventDefault();
@@ -81,6 +138,11 @@ function Dialog({ request }: { request: DialogRequest }) {
 export function ActionDialogHost() {
   useLocale();
   const request = useSyncExternalStore(subscribe, snapshot, () => null);
-  useEffect(() => () => finish(null), []);
-  return request ? <Dialog request={request} /> : null;
+  useEffect(() => () => {
+    const open = current && !current.closing ? current : null;
+    finish(null);
+    publish(null);
+    if (open) returnFocus(open.opener);
+  }, []);
+  return request ? <Dialog key={request.id} request={request} /> : null;
 }

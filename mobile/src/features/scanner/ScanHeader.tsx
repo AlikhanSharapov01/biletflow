@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import type { AdmissionCounts, AssignedEvent } from "@/api/types/scanner";
-import { Eyebrow, SerifText, TextButton } from "@/components/ui";
+import { Eyebrow, DisplayText, TextButton } from "@/components/ui";
 import { CountsBar } from "@/features/scanner/CountsBar";
-import { fonts } from "@/theme";
+import { fonts, colors } from "@/theme";
 import { formatEventWindow } from "@/utils/eventTime";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
@@ -23,9 +23,9 @@ export function ScanHeader({
     <View style={styles.header}>
       <TextButton label={t("mobile.scan.change_event")} onPress={onBack} style={styles.back} light />
       <Eyebrow style={styles.eyebrow}>{t("mobile.scan.your_event")}</Eyebrow>
-      <SerifText style={styles.title} numberOfLines={1}>
+      <DisplayText style={styles.title} numberOfLines={1}>
         {event.title}
-      </SerifText>
+      </DisplayText>
       <Text style={styles.subtitle} numberOfLines={1}>
         {event.venue.name} · {formatEventWindow(event.starts_at, event.ends_at, event.time_zone)}
       </Text>
@@ -45,16 +45,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eyebrow: {
-    color: "#c0d6c4",
+    color: colors.storyFoot,
   },
   title: {
     marginTop: 4,
-    color: "#fff",
+    color: colors.onGreen,
     fontSize: 24,
     lineHeight: 28,
   },
   subtitle: {
-    color: "#d5e2d5",
+    color: colors.storySoft,
     fontFamily: fonts.sans,
     fontSize: 13,
   },

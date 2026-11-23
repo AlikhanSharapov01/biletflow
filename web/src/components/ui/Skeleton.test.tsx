@@ -71,8 +71,8 @@ describe("skeleton styles", () => {
   });
 
   it("dims a reload after a short delay and eases back in, with no animation under reduced motion", () => {
-    expect(css).toMatch(/\.event-grid \{ transition: opacity \.2s ease; \}/);
-    expect(css).toMatch(/\.event-grid\[aria-busy="true"\] \{[^}]*transition: opacity \.2s ease \.15s/);
+    expect(css).toMatch(/\.event-grid \{ transition: opacity var\(--dur-base\) var\(--ease-out\); \}/);
+    expect(css).toMatch(/\.event-grid\[aria-busy="true"\] \{[^}]*transition: opacity var\(--dur-base\) var\(--ease-out\) \.15s/);
     expect(reducedMotion(css)).toMatch(/\.event-grid\[aria-busy="true"\] \{ transition: opacity 0s \.15s; \}/);
   });
 });

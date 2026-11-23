@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { Eyebrow, Panel, SerifText } from "@/components/ui";
+import { Eyebrow, Panel, DisplayText } from "@/components/ui";
 
 import { Intro } from "../components/Intro";
 import { useLocale } from "@/i18n";
@@ -11,7 +11,7 @@ export function OrganizerNote({ eyebrow, title, children }: { eyebrow: string; t
   return (
     <Panel tone="note" style={styles.note}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <SerifText style={styles.title}>{title}</SerifText>
+      <DisplayText style={styles.title}>{title}</DisplayText>
       <Intro>{children}</Intro>
     </Panel>
   );

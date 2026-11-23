@@ -5,7 +5,7 @@ import { describeError } from "@/api/errors";
 import { searchAttendees } from "@/api/scanner";
 import type { AttendeeHit } from "@/api/types/scanner";
 import { panelStyles } from "@/features/scanner/panelStyles";
-import { colors, fonts } from "@/theme";
+import { colors, fonts, overlays } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 function seatText(hit: AttendeeHit): string {
@@ -59,13 +59,13 @@ export function AttendeeSearchPanel({
         value={query}
         onChangeText={setQuery}
         placeholder={t("mobile.scan.name_or_email")}
-        placeholderTextColor="rgba(255,255,255,0.6)"
+        placeholderTextColor={overlays.onDark6}
         autoCapitalize="none"
         autoCorrect={false}
         autoFocus
         accessibilityLabel={t("mobile.scan.search_guests")}
       />
-      {loading ? <ActivityIndicator color="#fff" /> : null}
+      {loading ? <ActivityIndicator color={colors.onGreen} /> : null}
       {error ? <Text style={styles.message}>{error}</Text> : null}
       {hits && hits.length === 0 && !loading ? <Text style={styles.message}>{t("mobile.scan.no_guests")}</Text> : null}
       <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
@@ -110,12 +110,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: overlays.onDark4,
     borderRadius: 8,
-    color: "#fff",
+    color: colors.onGreen,
     fontSize: 16,
   },
-  message: { color: "#fff", fontFamily: fonts.sans, fontSize: 14, paddingVertical: 6 },
+  message: { color: colors.onGreen, fontFamily: fonts.sans, fontSize: 14, paddingVertical: 6 },
   results: { flex: 1, marginTop: 6 },
   hit: {
     flexDirection: "row",
@@ -123,10 +123,10 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.15)",
+    borderBottomColor: overlays.onDark15,
   },
   hitInfo: { flex: 1, gap: 2 },
-  hitName: { color: "#fff", fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
-  hitMeta: { color: "rgba(255,255,255,0.8)", fontFamily: fonts.sans, fontSize: 13 },
+  hitName: { color: colors.onGreen, fontFamily: fonts.sans, fontSize: 16, fontWeight: "700" },
+  hitMeta: { color: overlays.onDark8, fontFamily: fonts.sans, fontSize: 13 },
   hitButton: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.green },
 });

@@ -10,14 +10,20 @@
 .story-copy h1 { max-width: 500px; margin: 18px 0; font-size: clamp(42px, 5vw, 68px); letter-spacing: -2px; line-height: 1.02; }
 .story-copy h1 em { color: var(--lime); font-style: normal; }
 .story-copy > p:last-of-type { max-width: 380px; color: var(--story-soft); font-size: 16px; line-height: 1.7; }
-.story-ticket { position: relative; display: flex; width: min(360px, 100%); min-height: 114px; align-items: center; gap: 18px; margin-top: 38px; padding: 20px; border: 1px solid var(--glass-line); border-radius: 12px; background: var(--glass); backdrop-filter: blur(8px); }
+.story-ticket { position: relative; display: flex; width: min(360px, 100%); min-height: 114px; align-items: center; gap: 18px; margin-top: 38px; padding: 20px; border: 1px solid var(--glass-line); border-radius: var(--radius-panel); background: var(--glass); backdrop-filter: blur(8px); }
 .ticket-stamp { display: grid; width: 66px; height: 66px; flex: 0 0 auto; place-items: center; border: 1px dashed var(--lime); border-radius: 50%; color: var(--lime); font-size: 11px; font-weight: 800; line-height: 1.2; text-align: center; transform: rotate(-12deg); }
+@media (prefers-reduced-transparency: reduce) {
+  .story-ticket { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 .story-ticket strong { display: block; font-size: 15px; }
 .story-ticket span { display: block; margin-top: 5px; color: var(--story-soft); font-size: 13px; }
 .auth-foot { z-index: 1; color: var(--story-foot); font-size: 12px; }
 
 .auth-panel { display: grid; min-height: 100vh; min-height: 100dvh; place-items: center; padding: 40px max(clamp(24px, 6vw, 90px), env(safe-area-inset-right, 0px)) 40px max(clamp(24px, 6vw, 90px), env(safe-area-inset-left, 0px)); }
 .auth-box { width: min(100%, 420px); animation: rise-in .45s ease both; }
+/* The language select gets its own row with clear space above the eyebrow (inline, it sat on the text
+   line and left a strut-sized gap of a couple of pixels). */
+.auth-box > .language-switcher { display: flex; width: fit-content; margin-bottom: 24px; }
 .auth-box > .eyebrow { margin-bottom: 8px; }
 .auth-box h2, .token-title { margin: 0 0 10px; font-size: 34px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
 .auth-subtitle { margin: 0 0 28px; color: var(--subtitle); font-size: 15px; line-height: 1.5; }

@@ -9,7 +9,7 @@ export function CheckingPanel() {
   useLocale();
   return (
     <View style={[panelStyles.panel, styles.panelChecking]}>
-      <ActivityIndicator color="#fff" />
+      <ActivityIndicator color={colors.onGreen} />
       <Text style={panelStyles.panelTitle}>{t("checkout.checking")}</Text>
     </View>
   );

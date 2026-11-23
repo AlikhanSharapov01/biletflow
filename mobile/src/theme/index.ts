@@ -5,14 +5,14 @@
 import { Platform } from "react-native";
 
 export const colors = {
-  ink: "#172724",
-  muted: "#58655d",
-  faint: "#626e66",
-  line: "#e4e7df",
-  lineSoft: "#eef0ea",
-  paper: "#fffefa",
-  canvas: "#f6f5f0",
-  sidebar: "#fbfaf6",
+  ink: "#1d1d1f",
+  muted: "#68686d",
+  faint: "#68686d",
+  line: "#d2d2d7",
+  lineSoft: "#e8e8ed",
+  paper: "#ffffff",
+  canvas: "#f5f5f7",
+  sidebar: "#fbfbfd",
   green: "#236b55",
   greenDark: "#174a3b",
   greenStory: "#173c32",
@@ -20,17 +20,25 @@ export const colors = {
   coral: "#e9755d",
   yellow: "#f4c96b",
   error: "#a44735",
-  danger: "#a85443",
+  danger: "#90483a",
   dangerLine: "#f0d8d2",
   note: "#eef3e6",
   dateTile: "#f3eee1",
   dateTileInk: "#726044",
   avatar: "#e6d7b9",
   avatarInk: "#604b2e",
-  tabTrack: "#ebece6",
+  tabTrack: "#e8e8ed",
   activeNav: "#e8f0e6",
-  inputLine: "#818d84",
-  placeholder: "#626e66",
+  inputLine: "#86868b",
+  placeholder: "#6e6e73",
+  buttonInk: "#636366",
+  onGreen: "#fff",
+  errorTitle: "#745247",
+  errorText: "#79594f",
+  storyEyebrow: "#bbd5b3",
+  storyFoot: "#bed0c5",
+  storySoft: "#e4e9de",
+  hoverLine: "#a1a1a6",
 } as const;
 
 // .status pills: background + text colour per tone.
@@ -38,7 +46,7 @@ export const statusTones = {
   positive: { background: "#eef5e9", color: "#4a7151" },
   pending: { background: "#fff3dd", color: "#805313" },
   blocked: { background: "#f9e9e4", color: "#984432" },
-  neutral: { background: "#edf0ef", color: "#58655d" },
+  neutral: { background: "#e8e8ed", color: "#68686d" },
 } as const;
 
 export type StatusTone = keyof typeof statusTones;
@@ -55,21 +63,85 @@ export const eventArt = [
 export const fonts = {
   // Georgia ships with iOS; Android maps "serif" to its system serif.
   serif: Platform.select({ ios: "Georgia", android: "serif", default: "Georgia, serif" }),
+  // The platform system font: SF on iOS, Roboto on Android (undefined selects it); the web --font-sans stack on web.
   sans: Platform.select({
-    ios: "Avenir Next",
+    ios: undefined,
     android: undefined,
-    default: '"Avenir Next", Avenir, "Segoe UI", sans-serif',
+    default: "system-ui, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
   }),
 };
 
 export const radii = {
-  input: 7,
-  panel: 8,
-  pill: 20,
+  input: 10,
+  button: 12,
+  menu: 14,
+  panel: 16,
+  pill: 999,
+} as const;
+
+// Tracking tightens as size grows; leading is tighter on large text.
+export const typography = {
+  title: { fontSize: 34, fontWeight: "700", letterSpacing: -0.75, lineHeight: 38 },
+  // The page title on phones under 360 wide, where long kk/ru words do not fit at 34.
+  titleCompact: { fontSize: 26, fontWeight: "700", letterSpacing: -0.57, lineHeight: 30 },
+  cardTitle: { fontSize: 20, fontWeight: "600", letterSpacing: -0.24, lineHeight: 25 },
+  panelTitle: { fontSize: 17, fontWeight: "600", letterSpacing: -0.14, lineHeight: 22 },
+  body: { fontSize: 15, lineHeight: 22 },
+  micro: { fontSize: 11, letterSpacing: 0.11, lineHeight: 13 },
+} as const;
+
+// Press feedback: a critically damped spring (no bounce), quick in, slower out.
+export const motion = {
+  pressScale: 0.97,
+  pressIn: { speed: 50, bounciness: 0 },
+  pressOut: { speed: 20, bounciness: 0 },
+} as const;
+
+// Card depth: iOS shadow, Android elevation.
+export const cardShadow = {
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 2,
 } as const;
 
 export const spacing = {
   gutter: 16,
   panel: 16,
   gap: 12,
+} as const;
+
+// Translucent overlays. scrim, storyRing, artRing and artInk equal the web tokens of
+// the same name (webParity.test.ts); the rest have no web token.
+export const overlays = {
+  scrim: "rgba(0,0,0,0.32)",
+  storyRing: "rgba(226,244,191,0.17)",
+  artRing: "rgba(255,255,255,0.65)",
+  artInk: "rgba(255,255,255,0.85)",
+  onDark9: "rgba(255,255,255,0.9)",
+  onDark8: "rgba(255,255,255,0.8)",
+  onDark6: "rgba(255,255,255,0.6)",
+  onDark5: "rgba(255,255,255,0.5)",
+  onDark4: "rgba(255,255,255,0.4)",
+  onDark25: "rgba(255,255,255,0.25)",
+  onDark15: "rgba(255,255,255,0.15)",
+  shade25: "rgba(0,0,0,0.25)",
+  shade60: "rgba(0,0,0,0.6)",
+} as const;
+
+// Colours with no web token: the scanner's outcome panels (drawn on the dark scan
+// screen) and fixed black/white (QR code, camera backdrop).
+export const scanner = {
+  warning: "#805313",
+  pending: "#3e5568",
+  neutral: "#4f5c55",
+  errorOnDark: "#fca5a5",
+} as const;
+
+export const fixed = {
+  white: "#fff",
+  black: "#000",
+  qrInk: "#111111",
+  shadowInk: "#1f332b",
 } as const;

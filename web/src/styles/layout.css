@@ -3,13 +3,16 @@
 .skip-link { position: absolute; top: -60px; left: 16px; z-index: 40; padding: 10px 14px; border-radius: var(--radius-input); background: var(--green); color: var(--on-green); font-size: 14px; font-weight: 700; text-decoration: none; }
 .skip-link:focus { top: max(12px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
 
-.topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 1px solid var(--line); background: var(--topbar-glass); backdrop-filter: blur(8px); }
+.topbar { position: sticky; top: 0; padding-top: env(safe-area-inset-top, 0px); z-index: 20; }
+/* The material sits on a layer behind the bar's content: a backdrop-filter on .topbar itself would
+   make it the backdrop root of the avatar menu, which could then blur only the bar, not the page. */
+.topbar::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 0.5px 0 var(--separator); outline: 1px solid transparent; outline-offset: -1px; pointer-events: none; }
 .topbar-inner { display: flex; height: 64px; max-width: calc(var(--content-max) + 2 * var(--gutter)); align-items: center; gap: 24px; margin: 0 auto; padding: 0 max(var(--gutter), env(safe-area-inset-right, 0px)) 0 max(var(--gutter), env(safe-area-inset-left, 0px)); }
 .brand { display: inline-flex; flex: none; align-items: center; gap: 10px; color: var(--ink); font-size: 18px; font-weight: 700; letter-spacing: -.5px; text-decoration: none; }
-.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px 10px 10px 3px; background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
+.brand-mark { display: grid; width: 32px; height: 32px; place-items: center; border-radius: var(--radius-brand); background: var(--green); color: var(--on-green); font-family: var(--font-serif); font-size: 19px; font-weight: 400; letter-spacing: 0; }
 
 .top-tabs { display: flex; min-width: 0; flex: 1; align-items: center; gap: 4px; }
-.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform .12s ease-out; }
+.top-tab { display: inline-flex; min-height: var(--control-height-sm); align-items: center; padding: 0 14px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; transition: transform var(--dur-press) var(--ease-out); }
 .top-tab:active { transform: scale(.97); }
 @media (hover: hover) {
   .top-tab:hover { background: var(--hover-surface); color: var(--ink); }
@@ -18,7 +21,7 @@
 
 .topbar-actions { display: flex; flex: none; align-items: center; gap: 12px; margin-left: auto; }
 @media (max-width: 480px) { .topbar-actions { gap: 8px; } }
-.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); transition: transform .12s ease-out; }
+.icon-button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--paper); color: var(--button-ink); transition: transform var(--dur-press) var(--ease-out); }
 .icon-button:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
 @media (hover: hover) {
   .icon-button:hover { border-color: var(--hover-line); color: var(--ink); }
@@ -30,11 +33,23 @@
 .avatar-menu > summary { display: block; border-radius: 50%; cursor: pointer; list-style: none; }
 .avatar-menu > summary::-webkit-details-marker { display: none; }
 .avatar-menu[open] > summary .avatar { box-shadow: 0 0 0 3px var(--active-nav); }
-.avatar-menu-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 25; display: grid; width: 248px; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--paper); box-shadow: var(--shadow-menu); }
-.avatar-menu-head { display: grid; gap: 2px; margin-bottom: 4px; padding: 10px 10px 12px; border-bottom: 1px solid var(--line-soft); }
+/* The menu grows out of the avatar (top right) and shrinks back into it. @starting-style plays the
+   entry; ::details-content keeps the closing panel rendered while it fades. Where either is
+   unsupported the menu still opens and closes, only without the motion. */
+.avatar-menu-panel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 25; display: grid; width: 248px; padding: 6px;
+  border-radius: var(--radius-menu); background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu); outline: 1px solid transparent; outline-offset: -1px;
+  transform-origin: top right; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.avatar-menu:not([open]) .avatar-menu-panel { opacity: 0; transform: scale(.96); pointer-events: none; }
+@starting-style {
+  .avatar-menu[open] .avatar-menu-panel { opacity: 0; transform: scale(.96); }
+}
+.avatar-menu::details-content { transition: content-visibility var(--dur-fast) allow-discrete; }
+.avatar-menu-head { display: grid; gap: 2px; margin-bottom: 4px; padding: 10px 10px 12px; border-bottom: 0.5px solid var(--separator); }
 .avatar-menu-head strong { font-size: 15px; }
-.avatar-menu-head span { overflow: hidden; color: var(--meta); font-size: var(--text-meta); text-overflow: ellipsis; white-space: nowrap; }
-.avatar-menu-item { display: flex; min-height: var(--control-height-sm); align-items: center; padding: 0 10px; border: 0; border-radius: var(--radius-button); background: none; color: var(--ink); cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; text-decoration: none; }
+.avatar-menu-head span { overflow: hidden; color: var(--meta-on-thick); font-size: var(--text-meta); text-overflow: ellipsis; white-space: nowrap; }
+.avatar-menu-item { display: flex; min-height: var(--control-height-sm); align-items: center; padding: 0 10px; border: 0; border-radius: calc(var(--radius-menu) - 6px); background: none; color: var(--ink); cursor: pointer; font-size: 14px; font-weight: 600; text-align: left; text-decoration: none; }
 @media (hover: hover) { .avatar-menu-item:hover { background: var(--hover-surface); } }
 
 .page { max-width: calc(var(--content-max) + 2 * var(--gutter)); margin: 0 auto; padding: var(--topbar-gap) max(var(--gutter), env(safe-area-inset-right, 0px)) 56px max(var(--gutter), env(safe-area-inset-left, 0px)); }
@@ -46,7 +61,7 @@
 @media (hover: hover) { .back-link:hover { text-decoration: underline; } }
 .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: var(--heading-gap); }
 .page-heading-copy { min-width: 0; }
-.page-heading h1 { margin-top: 6px; font-family: var(--font-serif); font-size: var(--text-title); font-weight: 400; letter-spacing: -1px; line-height: 1.12; overflow-wrap: anywhere; }
+.page-heading h1 { margin-top: 6px; font-family: var(--font-display); font-size: var(--text-title); font-weight: 700; letter-spacing: var(--track-title); line-height: var(--leading-title); overflow-wrap: anywhere; }
 .page-subtitle { max-width: 640px; margin-top: 8px; color: var(--subtitle); font-size: var(--text-body-sm); line-height: 20px; }
 .heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 
@@ -58,8 +73,8 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
 .content-grid.account-grid { grid-template-columns: minmax(280px, .75fr) minmax(0, 1.35fr); }
 .stack { display: grid; min-width: 0; align-content: start; gap: var(--gap); }
 .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--gap); }
-.event-grid.row-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
-.card-list { display: grid; gap: 10px; }
+/* Tickets and orders are one grouped list (components.css); the workspace event list is grouped inside its panel. */
+.card-list { display: grid; gap: 0; }
 
 @media (max-width: 960px) {
   .content-grid, .content-grid.account-grid { grid-template-columns: minmax(0, 1fr); }
@@ -77,21 +92,26 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
   html:has(.with-tab-bar) { scroll-padding-bottom: calc(var(--tab-bar-height) + 16px + env(safe-area-inset-bottom)); }
   .top-tabs { display: none; }
   /* The tab bar's padding and link height are defined once. Its height and the offset of its top edge
-     (padding, link, the larger of the padding and the bottom inset, 1px border) derive from them. */
+     (padding, link, the larger of the padding and the bottom inset, the top edge) derive from them.
+     The edge is a hairline shadow (no width) unless more contrast draws a 1px border. */
   :root {
     --tab-bar-pad: 6px;
     --tab-bar-link-height: 58px;
+    --tab-bar-edge: 0px;
     --tab-bar-height: calc(var(--tab-bar-pad) * 2 + var(--tab-bar-link-height));
-    --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + 1px);
+    --tab-bar-offset: calc(var(--tab-bar-pad) + var(--tab-bar-link-height) + max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) + var(--tab-bar-edge));
   }
   .with-tab-bar { padding-bottom: calc(var(--tab-bar-height) + 8px + env(safe-area-inset-bottom)); }
-  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); background: var(--sidebar); }
-  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--nav-ink); font-size: var(--text-micro); font-weight: 600; line-height: 1.15; text-align: center; text-decoration: none; transition: transform .12s ease-out; }
-  .tab-bar-link:active { transform: scale(.97); }
-  .tab-bar-icon { flex: none; }
+  .tab-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; padding: var(--tab-bar-pad) max(var(--tab-bar-pad), env(safe-area-inset-right, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-bottom, 0px)) max(var(--tab-bar-pad), env(safe-area-inset-left, 0px)); background: var(--material-chrome); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: 0 -0.5px 0 var(--separator), inset 0 1px 0 var(--material-edge); outline: 1px solid transparent; outline-offset: -1px; }
+  .tab-bar-link { display: flex; min-height: var(--tab-bar-link-height); flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 1px; border-radius: var(--radius-button); color: var(--chrome-label); font-size: var(--text-micro); font-weight: 500; line-height: 1.15; text-align: center; text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+  /* Press feedback on the icon only, so the label never blurs while it scales. */
+  .tab-bar-icon { flex: none; transition: transform var(--dur-press) var(--ease-out); }
+  .tab-bar-link:active .tab-bar-icon { transform: scale(.94); }
   /* Long ru/kk labels wrap to at most two lines inside their own column. */
   .tab-bar-label { max-width: 100%; hyphens: auto; overflow-wrap: anywhere; }
-  .tab-bar-link[aria-current="page"] { background: var(--active-nav); color: var(--green-dark); box-shadow: inset 0 2px 0 var(--green-dark); }
+  /* The selected section is tinted, not boxed, and never by hue alone: the icon is filled (NavIcon) and
+     the label is heavier. Dark green keeps 4.5:1 with black content under the chrome. */
+  .tab-bar-link[aria-current="page"] { color: var(--green-dark); font-weight: 600; }
 }
 
 /* Phones, 5 or 6 sections: the longest ru/kk labels (Администратор, Ұйымдастырушы) wrap at their
@@ -113,7 +133,7 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
   .topbar-inner { height: 60px; justify-content: space-between; }
   .page-heading { flex-direction: column; align-items: stretch; gap: 14px; }
   .heading-actions { justify-content: flex-start; }
-  .event-grid, .event-grid.row-grid { grid-template-columns: minmax(0, 1fr); }
+  .event-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Narrow phones (320-389px): brand, language, bell and avatar (or sign-in) share one row
@@ -125,4 +145,21 @@ html { scroll-padding-top: calc(72px + env(safe-area-inset-top, 0px)); }
   .topbar .brand-mark { width: 26px; height: 26px; font-size: 16px; }
   .topbar .icon-button { width: 36px; height: 36px; }
   .topbar .primary-button.compact-action { padding: 0 10px; }
+  .topbar .language-switcher select { min-height: 36px; padding: 0 19px 0 8px; }
+  .topbar .language-switcher::after { right: 7px; }
+}
+
+/* Materials fall back to solid chrome: without backdrop-filter (also checked with the -webkit- prefix
+   older Safari ships), with reduced transparency, and with more contrast, which also draws a 1px edge. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar::before, .tab-bar, .avatar-menu-panel { background: var(--material-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar::before, .tab-bar, .avatar-menu-panel { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --tab-bar-edge: 1px; }
+  .topbar::before { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-bottom: 1px solid var(--input-line); }
+  .tab-bar { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-top: 1px solid var(--input-line); }
+  .avatar-menu-panel { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid var(--input-line); }
 }
