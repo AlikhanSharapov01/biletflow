@@ -1,5 +1,9 @@
 /* Design tokens. Values match mobile/src/theme/index.ts so both clients read
-   as one product; components use these names instead of hex literals. */
+   as one product; components use these names instead of hex literals.
+   Tokens added here are web-only unless mobile's theme has the same value
+   (--text-field, the --tap-highlight tokens and the role tokens below).
+   Colour literals are allowed in this file only; contrast.test.ts fails
+   when another stylesheet contains one. */
 :root {
   --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
@@ -16,6 +20,11 @@
   --note: #eef3e6;
   --hover-surface: #f0f1eb;
   --hover-line: #aabaae;
+  --raised-surface: #fff;
+  --disabled-surface: #f3f3ee;
+  --print-surface: #fff;
+  --scrim: rgb(23 39 36 / 55%);
+  --topbar-glass: rgb(251 250 246 / 94%);
 
   /* Brand */
   --green: #236b55;
@@ -24,6 +33,19 @@
   --lime: #d8f06a;
   --coral: #e9755d;
   --yellow: #f4c96b;
+  /* Sign-in story panel, drawn on --green-story */
+  --story-ink: #f7f4e9;
+  --story-soft: #e4e9de;
+  --story-eyebrow: #bbd5b3;
+  --story-foot: #bed0c5;
+  --story-ring: rgb(226 244 191 / 17%);
+  --story-halo: rgb(226 244 191 / 4%);
+  --story-art-from: #2a5f4b;
+  --story-art-to: #214e3e;
+  --glass-line: rgb(255 255 255 / 24%);
+  --glass: rgb(255 255 255 / 9%);
+  /* Google's logotype blue; the brand mark is exempt from contrast rules */
+  --google-blue: #4285f4;
 
   /* Text roles */
   --subtitle: #58655d;
@@ -32,11 +54,26 @@
   --intro: #58655d;
   --button-ink: #4a5951;
   --nav-ink: #58655d;
+  --hint: #686f6a;
+  --field-note: var(--hint);
+  --table-head: var(--hint);
+  --tab-ink: #646c67;
+  --price-ink: #52645a;
+  --timeline-ink: #5c6961;
+  --note-ink: #606d5e;
+  --on-green: #fff;
+  /* Dark count on the coral badge; white on --coral is 2.9:1 and --coral is shared with mobile */
+  --badge-ink: var(--ink);
+  --print-ink: #000;
 
   /* Controls */
+  --tap-highlight: rgb(35 107 85 / 14%);
+  --tap-highlight-on-green: rgb(255 255 255 / 22%);
   --input-line: #818d84;
   --placeholder: #626e66;
   --tab-track: #ebece6;
+  --spinner-track: #dfe6dc;
+  --card-hover-line: #cfd8cc;
   --active-nav: #e8f0e6;
   --row-icon: #edf3e8;
   --date-tile: #f3eee1;
@@ -51,6 +88,8 @@
   --error-text: #79594f;
   --danger: #a85443;
   --danger-line: #f0d8d2;
+  --danger-line-hover: #d5a69c;
+  --danger-surface: #fff8f5;
 
   /* Status pill tones (background / text) */
   --tone-positive-bg: #eef5e9;
@@ -67,12 +106,15 @@
   --art-1: #eee0bf, #c38b66;
   --art-2: #d4dbea, #7b8faf;
   --art-3: #efdbd2, #bb796c;
+  --art-ink: rgb(255 255 255 / 85%);
+  --art-ring: rgb(255 255 255 / 65%);
 
   /* Type scale (mobile theme) */
   --text-title: clamp(30px, 1.6vw + 18px, 38px);
   --text-card-title: 20px;
   --text-panel-title: 16px;
   --text-body: 15px;
+  --text-field: var(--text-body);
   --text-body-sm: 14px;
   --text-meta: 13px;
   --text-label: 13px;
@@ -102,4 +144,9 @@
     --gutter: 32px;
     --panel-pad: 20px;
   }
+}
+
+/* iOS Safari zooms into fields under 16px; desktop keeps the body size. */
+@media (max-width: 1024px), (pointer: coarse) {
+  :root { --text-field: 16px; }
 }

@@ -6,7 +6,6 @@ import { FormMessage } from "../../../components/ui/Feedback";
 import { TextField } from "../../../components/ui/Field";
 import { priceLabel } from "../../../utils/format";
 import type { RecipientValues } from "../utils/checkout";
-import { HoldCountdown } from "./HoldCountdown";
 import { PriceSummary } from "./PriceSummary";
 
 interface RecipientFormProps {
@@ -14,7 +13,6 @@ interface RecipientFormProps {
   typeName: (typeId: string) => string;
   recipients: RecipientValues;
   setRecipients: Dispatch<SetStateAction<RecipientValues>>;
-  secondsLeft: number;
   busy: boolean;
   message: string;
   // Paid baskets continue to the simulated payment instead of confirming.
@@ -25,13 +23,12 @@ interface RecipientFormProps {
 }
 
 // Step two: one name and email per held place, then confirm.
-export function RecipientForm({ hold, typeName, recipients, setRecipients, secondsLeft, busy, message, paid, subtotalMinor, onConfirm, onRelease }: RecipientFormProps) {
+export function RecipientForm({ hold, typeName, recipients, setRecipients, busy, message, paid, subtotalMinor, onConfirm, onRelease }: RecipientFormProps) {
   useLocale();
   return (
     <div className="checkout">
       <div className="checkout-head">
         <h3>{t("checkout.who_coming")}</h3>
-        <HoldCountdown secondsLeft={secondsLeft} />
       </div>
       <p className="form-intro">{t("checkout.recipient_hint")}</p>
       <div className="recipient-list">
@@ -56,10 +53,10 @@ export function RecipientForm({ hold, typeName, recipients, setRecipients, secon
       ) : null}
       <FormMessage message={message} />
       <div className="form-actions">
-        <Button variant="primary" disabled={busy} onClick={onConfirm}>
+        <Button variant="primary" busy={busy} onClick={onConfirm}>
           {busy ? (paid ? t("checkout.preparing_payment") : t("checkout.confirming")) : paid ? t("checkout.continue_payment") : t("checkout.confirm_registration")}
         </Button>
-        <Button disabled={busy} onClick={onRelease}>{t("checkout.choose_again")}{" "}</Button>
+        <Button aria-disabled={busy} onClick={onRelease}>{t("checkout.choose_again")}{" "}</Button>
       </div>
     </div>
   );

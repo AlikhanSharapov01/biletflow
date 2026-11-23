@@ -56,7 +56,6 @@ export function CasePage() {
           <CaseHeader supportCase={supportCase} />
           {staff ? (
             <StaffActions
-              key={`${supportCase.status}-${supportCase.assigned_to?.id ?? ""}-${supportCase.escalated_at ?? ""}`}
               supportCase={supportCase}
               viewerId={viewerId}
               onUpdated={(change) => {

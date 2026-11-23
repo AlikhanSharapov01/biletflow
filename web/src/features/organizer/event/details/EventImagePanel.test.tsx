@@ -60,6 +60,34 @@ describe("event image gallery", () => {
     expect(api.uploadEventImage).toHaveBeenCalledWith("e1", file, "Stage");
   });
 
+  it("marks only the running reorder busy and ignores every other action meanwhile", async () => {
+    vi.mocked(api.reorderEventImages).mockReturnValue(new Promise(() => undefined));
+    mount();
+    const move = await screen.findByRole("button", { name: "Move “Crowd” earlier" });
+    move.focus();
+    fireEvent.click(move);
+    expect(api.reorderEventImages).toHaveBeenCalledTimes(1);
+    const busy = document.querySelectorAll('button[aria-busy="true"]');
+    expect(busy.length).toBe(1);
+    expect(busy[0]).toBe(move);
+    expect(document.activeElement).toBe(move);
+    const makeCover = screen.getByRole("button", { name: "Make cover" });
+    expect(makeCover.getAttribute("aria-disabled")).toBe("true");
+    expect(makeCover.hasAttribute("aria-busy")).toBe(false);
+    for (const other of screen.getAllByRole("button", { name: /Remove|Make cover/ })) {
+      expect(other.getAttribute("aria-disabled")).toBe("true");
+    }
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+    expect(input.disabled).toBe(false);
+    expect(input.getAttribute("aria-disabled")).toBe("true");
+    expect(input.hasAttribute("aria-busy")).toBe(false);
+    expect(fireEvent.click(input)).toBe(false);
+    fireEvent.click(makeCover);
+    fireEvent.click(move);
+    expect(api.setEventCover).not.toHaveBeenCalled();
+    expect(api.reorderEventImages).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the server's order after moving, choosing a cover and deleting", async () => {
     vi.mocked(api.reorderEventImages).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
     vi.mocked(api.deleteEventImage).mockResolvedValue({});
@@ -79,5 +107,69 @@ describe("event image gallery", () => {
     mount();
     fireEvent.click(await screen.findByRole("button", { name: "Make cover" }));
     await waitFor(() => expect(api.setEventCover).toHaveBeenCalledWith("e1", "img2"));
+  });
+
+  it("refocuses the moved image's arrow once the new order is rendered", async () => {
+    vi.mocked(api.reorderEventImages).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
+    mount();
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    fireEvent.click(await screen.findByRole("button", { name: "Move “Crowd” earlier" }));
+    await waitFor(() => expect(api.reorderEventImages).toHaveBeenCalled());
+    await waitFor(() => expect(focus).toHaveBeenCalled());
+    const target = focus.mock.contexts.at(-1) as HTMLElement;
+    expect(target.getAttribute("aria-label")).toBe("Move “Crowd” earlier");
+    expect(target.getAttribute("aria-disabled")).toBe("true");
+    expect(target.closest("li")!.previousElementSibling).toBeNull();
+    focus.mockRestore();
+  });
+  it("moves focus to the new cover's Remove once the cover changes", async () => {
+    vi.mocked(api.setEventCover).mockResolvedValue([{ ...second, sort_order: 0, is_cover: true }, { ...cover, sort_order: 1, is_cover: false }]);
+    mount();
+    const makeCover = await screen.findByRole("button", { name: "Make cover" });
+    makeCover.focus();
+    fireEvent.click(makeCover);
+    await waitFor(() => expect(screen.getAllByRole("listitem")[0]?.textContent).toContain("Crowd"));
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Crowd");
+  });
+
+  async function removeAt(index: number) {
+    const button = (await screen.findAllByRole("button", { name: "Remove" }))[index]!;
+    button.focus();
+    fireEvent.click(button);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+  }
+
+  it("moves focus to the next image's Remove after deleting", async () => {
+    const third = makeImage({ id: "img3", url: "/api/v1/events/e1/images/img3/content", alt_text: "Lights", sort_order: 2, is_cover: false });
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount([cover, second, third]);
+    await removeAt(1);
+    await waitFor(() => expect(screen.queryByText("Crowd")).toBeNull());
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Lights");
+  });
+
+  it("moves focus to the previous image's Remove after deleting the last one", async () => {
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount();
+    await removeAt(1);
+    await waitFor(() => expect(screen.queryByText("Crowd")).toBeNull());
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Remove");
+    expect(active.closest("li")?.textContent).toContain("Main stage");
+  });
+
+  it("moves focus to the upload field after deleting the only image", async () => {
+    vi.mocked(api.deleteEventImage).mockResolvedValue({});
+    mount([cover]);
+    await removeAt(0);
+    await waitFor(() => expect(screen.queryByText("Main stage")).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(document.querySelector('input[type="file"]')));
   });
 });

@@ -79,6 +79,8 @@ export interface EventFilters {
   city?: string;
   date_from?: string;
   date_to?: string;
+  /** Only events that have not ended by this instant. */
+  ends_after?: string;
   min_price?: number;
   max_price?: number;
   free?: boolean;

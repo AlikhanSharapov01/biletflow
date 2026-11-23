@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAdminMe } from "../../api/admin";
+import { getAdminMe } from "../../api/adminMe";
 import { ApiError } from "../../api/errors";
 import { useAuth } from "../auth/AuthContext";
 

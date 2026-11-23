@@ -14,7 +14,6 @@ import type {
   AdminPaymentRow,
   AdminRefundRow,
   CommerceFilters,
-  AdminMe,
   AdminOrderRow,
   AdminSearch,
   AdminTicketRow,
@@ -33,10 +32,6 @@ const ADMIN = "/api/v1/admin";
 
 // Platform administration (backend/ADMIN_API.md). Non-admins get 403
 // admin_required on every call.
-
-export function getAdminMe(): Promise<AdminMe> {
-  return request<AdminMe>(`${ADMIN}/me`);
-}
 
 function search<T>(kind: string, params: AdminSearch & Record<string, string | number | undefined>): Promise<Page<T>> {
   return request<Page<T>>(`${ADMIN}/${kind}`, { query: { ...params, q: params.q?.trim() || undefined } });

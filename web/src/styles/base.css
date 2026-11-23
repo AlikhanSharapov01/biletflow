@@ -6,10 +6,14 @@ html {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: var(--tap-highlight);
 }
-body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--canvas); font-size: var(--text-body); line-height: 1.5; }
+body { min-width: 320px; min-height: 100vh; min-height: 100dvh; margin: 0; background: var(--canvas); font-size: var(--text-body); line-height: 1.5; }
 h1, h2, h3, p { margin: 0; }
 button, input, select, textarea { font: inherit; }
+input, select, textarea { font-size: var(--text-field); }
+a, button, summary, label, [role="tab"] { touch-action: manipulation; }
+.primary-button, .seat-selected, .skip-link { -webkit-tap-highlight-color: var(--tap-highlight-on-green); }
 button { color: inherit; }
 a { color: var(--green); }
 :focus-visible {
@@ -19,10 +23,15 @@ a { color: var(--green); }
 }
 
 .action-dialog { width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: var(--panel-pad); border: 1px solid var(--green); border-radius: var(--radius-panel); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
-.action-dialog::backdrop { background: rgb(23 39 36 / 55%); }
+.action-dialog::backdrop { background: var(--scrim); }
 .action-dialog h2 { font-size: var(--text-panel-title); }
-.language-switcher { max-width: 9rem; }
-button:disabled { cursor: wait; opacity: .65; }
+.language-switcher { display: inline-block; max-width: 9rem; }
+.topbar .language-switcher select { max-width: 100%; }
+button:disabled, button[aria-disabled="true"], a[aria-disabled="true"] { cursor: not-allowed; opacity: .65; }
+/* A request in flight: the control stays focusable but waits. Must follow the disabled rule. */
+button[aria-busy="true"], a[aria-busy="true"] { cursor: wait; }
+/* Dimmed controls keep a focus ring that still reads at 3:1. */
+button[aria-disabled="true"]:focus-visible, a[aria-disabled="true"]:focus-visible { opacity: .75; }
 code { font-size: 13px; }
 
 .serif { font-family: var(--font-serif); font-weight: 400; }
@@ -34,4 +43,7 @@ code { font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  /* No press or lift movement; the colour change stays as the cue. */
+  .primary-button:hover, .primary-button:active, .subtle-button:active, .text-button:active, .tab:active,
+  .top-tab:active, .icon-button:active, .tab-bar-link:active { transform: none !important; }
 }

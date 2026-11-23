@@ -6,8 +6,8 @@ import { Platform } from "react-native";
 
 export const colors = {
   ink: "#172724",
-  muted: "#7b8580",
-  faint: "#a0a7a1",
+  muted: "#58655d",
+  faint: "#626e66",
   line: "#e4e7df",
   lineSoft: "#eef0ea",
   paper: "#fffefa",
@@ -29,16 +29,16 @@ export const colors = {
   avatarInk: "#604b2e",
   tabTrack: "#ebece6",
   activeNav: "#e8f0e6",
-  inputLine: "#dfe3dc",
-  placeholder: "#a3aaa5",
+  inputLine: "#818d84",
+  placeholder: "#626e66",
 } as const;
 
 // .status pills: background + text colour per tone.
 export const statusTones = {
   positive: { background: "#eef5e9", color: "#4a7151" },
-  pending: { background: "#fff3dd", color: "#a57324" },
-  blocked: { background: "#f9e9e4", color: "#b25845" },
-  neutral: { background: "#edf0ef", color: "#68756d" },
+  pending: { background: "#fff3dd", color: "#805313" },
+  blocked: { background: "#f9e9e4", color: "#984432" },
+  neutral: { background: "#edf0ef", color: "#58655d" },
 } as const;
 
 export type StatusTone = keyof typeof statusTones;

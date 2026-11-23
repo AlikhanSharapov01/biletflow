@@ -71,7 +71,7 @@ export function SeatMappingForm({ event, layout, types, onConfigured }: SeatMapp
         <p className="form-intro">{t("org.seats_fit_limits")}</p>
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy || types.length === 0}>{t("org.create_seats")}</Button>
+          <Button variant="primary" type="submit" busy={state.busy} disabled={types.length === 0}>{t("org.create_seats")}</Button>
         </div>
       </form>
     </Panel>

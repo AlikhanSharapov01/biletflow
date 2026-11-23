@@ -1,8 +1,8 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { claimTickets, listTickets } from "../../api/tickets";
-import { makeIssuedTicket } from "../../../tests/helpers/fixtures";
+import { deferred, makeIssuedTicket } from "../../../tests/helpers/fixtures";
 import { TicketsPage } from "./TicketsPage";
 
 vi.mock("../../api/tickets", () => ({ claimTickets: vi.fn(), listTickets: vi.fn() }));
@@ -28,5 +28,55 @@ describe("TicketsPage", () => {
     expect(first.getByRole("link", { name: "Jazz night" }).closest(".event-card")!.classList.contains("event-card-linked")).toBe(true);
     // The cue is visual only; it is not a second link or part of the name.
     expect(first.queryByRole("link", { name: /Show QR/ })).toBeNull();
+  });
+
+  it("shows row skeletons while the first load runs, then the tickets", async () => {
+    const pending = deferred<{ claimed: number }>();
+    vi.mocked(claimTickets).mockReturnValue(pending.promise);
+    vi.mocked(listTickets).mockResolvedValue([makeIssuedTicket({ id: "t1", event_title: "Jazz night" })]);
+    const { container } = render(
+      <MemoryRouter>
+        <TicketsPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByRole("status").map((region) => region.textContent)).toContain("Loading tickets…");
+    expect(container.querySelectorAll(".skeleton-row")).toHaveLength(3);
+    await act(async () => pending.resolve({ claimed: 0 }));
+    expect(await screen.findByRole("link", { name: "Jazz night" })).toBeTruthy();
+    expect(container.querySelector(".skeleton-card")).toBeNull();
+  });
+
+  const renderTickets = () =>
+    render(
+      <MemoryRouter>
+        <TicketsPage />
+      </MemoryRouter>,
+    );
+  const announced = () => screen.getAllByRole("status").map((region) => region.textContent).join("|");
+
+  it("announces a Refresh while the list stays, then clears the message", async () => {
+    vi.mocked(claimTickets).mockResolvedValue({ claimed: 0 });
+    const again = deferred<ReturnType<typeof makeIssuedTicket>[]>();
+    vi.mocked(listTickets).mockResolvedValueOnce([makeIssuedTicket({ id: "t1", event_title: "Jazz night" })]).mockReturnValueOnce(again.promise);
+    renderTickets();
+    await screen.findByRole("link", { name: "Jazz night" });
+    expect(announced()).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(announced()).toBe("Loading tickets…"));
+    expect(document.querySelector(".event-grid")!.getAttribute("aria-busy")).toBe("true");
+    await act(async () => again.resolve([makeIssuedTicket({ id: "t1", event_title: "Jazz night" })]));
+    expect(announced()).toBe("");
+  });
+
+  it("announces a Refresh of an empty list too", async () => {
+    vi.mocked(claimTickets).mockResolvedValue({ claimed: 0 });
+    const again = deferred<ReturnType<typeof makeIssuedTicket>[]>();
+    vi.mocked(listTickets).mockResolvedValueOnce([]).mockReturnValueOnce(again.promise);
+    renderTickets();
+    await screen.findByText(/No tickets yet/);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(announced()).toBe("Loading tickets…"));
+    await act(async () => again.resolve([]));
+    expect(announced()).toBe("");
   });
 });

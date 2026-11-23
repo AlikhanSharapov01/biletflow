@@ -17,14 +17,17 @@ interface PaymentStepProps {
   // Shown when the quote lapsed or the order was cancelled.
   onClosed?: () => void;
   onCancel?: () => void;
+  // False when a hold countdown for the same deadline is already on screen.
+  showQuoteTimer?: boolean;
 }
 
 // Simulated payment for a pending paid order: the buyer plays the payment
 // provider (success or failure), then the order is reloaded until it settles.
-export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }: PaymentStepProps) {
+export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel, showQuoteTimer = true }: PaymentStepProps) {
   useLocale();
   const [order, setOrder] = useState(initial);
-  const [busy, setBusy] = useState(false);
+  // The action in flight; the other buttons wait (aria-disabled) so focus stays put.
+  const [pending, setPending] = useState<SimulatedOutcome | "retry" | null>(null);
   const [message, setMessage] = useState("");
   const [polls, setPolls] = useState(0);
   const stage = paymentStage(order);
@@ -51,8 +54,8 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
     return () => clearTimeout(timer);
   }, [stage, polls, order.id]);
 
-  const run = async (action: () => Promise<Order>) => {
-    setBusy(true);
+  const run = async (kind: SimulatedOutcome | "retry", action: () => Promise<Order>) => {
+    setPending(kind);
     setMessage("");
     try {
       setOrder(await action());
@@ -60,12 +63,12 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
     } catch (failure) {
       setMessage(describeError(failure));
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const simulate = (outcome: SimulatedOutcome) =>
-    run(async () => {
+    run(outcome, async () => {
       if (order.payment) await simulatePayment(order.payment.id, outcome);
       return getOrder(order.id);
     });
@@ -81,7 +84,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
         <span>{t("checkout.demo_provider")}</span>
       </div>
       <PriceSummary order={order} />
-      {stage === "awaiting" && order.quote_expires_at ? (
+      {showQuoteTimer && stage === "awaiting" && order.quote_expires_at ? (
         <small className="form-intro" role="timer">{t("checkout.price_held_for")}{" "}{formatCountdown(quoteSeconds)}
         </small>
       ) : null}
@@ -98,15 +101,17 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
       <div className="form-actions">
         {stage === "awaiting" ? (
           <>
-            <Button variant="primary" disabled={busy} onClick={() => void simulate("succeeded")}>
-              {busy ? t("common.sending") : t("checkout.simulate_success")}
+            <Button variant="primary" busy={pending === "succeeded"} aria-disabled={pending !== null && pending !== "succeeded"} onClick={() => void simulate("succeeded")}>
+              {pending === "succeeded" ? t("common.sending") : t("checkout.simulate_success")}
             </Button>
-            <Button disabled={busy} onClick={() => void simulate("failed")}>{t("checkout.simulate_failure")}{" "}</Button>
+            <Button busy={pending === "failed"} aria-disabled={pending !== null && pending !== "failed"} onClick={() => void simulate("failed")}>
+              {pending === "failed" ? t("common.sending") : t("checkout.simulate_failure")}
+            </Button>
           </>
         ) : null}
         {stage === "failed" ? (
-          <Button variant="primary" disabled={busy} onClick={() => void run(() => retryPayment(order.id))}>
-            {busy ? t("checkout.starting") : t("checkout.retry_payment")}
+          <Button variant="primary" busy={pending === "retry"} onClick={() => void run("retry", () => retryPayment(order.id))}>
+            {pending === "retry" ? t("checkout.starting") : t("checkout.retry_payment")}
           </Button>
         ) : null}
         {stage === "processing" && polls >= POLL_LIMIT ? (
@@ -114,7 +119,7 @@ export function PaymentStep({ order: initial, onConfirmed, onClosed, onCancel }:
         ) : null}
         {stage === "closed" && onClosed ? <Button onClick={onClosed}>{t("checkout.choose_tickets_again")}</Button> : null}
         {onCancel && (stage === "awaiting" || stage === "failed") ? (
-          <Button variant="text" disabled={busy} onClick={onCancel}>{t("checkout.cancel_choose_again")}{" "}</Button>
+          <Button variant="text" aria-disabled={pending !== null} onClick={onCancel}>{t("checkout.cancel_choose_again")}</Button>
         ) : null}
       </div>
     </div>

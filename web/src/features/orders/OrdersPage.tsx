@@ -1,7 +1,7 @@
 import { quantityLabel, t, useLocale } from "../../i18n";
 import { Link } from "react-router";
 import { listOrders } from "../../api/orders";
-import { EmptyState, ErrorPanel, EventCard, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
+import { EmptyState, ErrorPanel, EventCard, PageHeading, Panel, SkeletonGrid, StatusPill } from "../../components/ui";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel, priceLabel, statusLabel } from "../../utils/format";
 import { orderStatusTone, paymentLabel } from "../checkout/utils/payment";
@@ -14,7 +14,7 @@ export function OrdersPage() {
   return (
     <>
       <PageHeading eyebrow={t("orders.eyebrow")} title={t("orders.title")} subtitle={t("orders.subtitle")} />
-      {orders.loading ? <Loading label={t("orders.loading")} /> : null}
+      {orders.loading && !orders.data ? <SkeletonGrid row label={t("orders.loading")} /> : null}
       {orders.error ? <ErrorPanel title={t("orders.load_error")} message={orders.error} onRetry={orders.reload} /> : null}
       {orders.data ? (
         orders.data.length === 0 ? (

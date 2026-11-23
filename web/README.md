@@ -69,7 +69,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   transfer, an `Idempotency-Key` on holds, confirmations, checkout, activation and payment
   retries, and readable publication labels on the event page. See
   [Downloads and idempotency](#downloads-and-idempotency).
-- **Kazakh, Russian and English** interface catalogs with 1,602 shared keys, profile language
+- **Kazakh, Russian and English** interface catalogs with 1,652 shared keys, profile language
   selection and localized dates, money, plurals, categories, statuses and notifications. See
   [Localization](#localization).
 - **GA4 through the backend** (#131, PR #143), off unless the backend enables it: consenting
@@ -77,7 +77,7 @@ Checked against `main` at `636f512` on 21 November 2026.
   (no Google script in the browser), owners connect the organization in the workspace, and the
   Analytics tab shows a Traffic section. See
   [Optional GA4 traffic collection](#optional-ga4-traffic-collection).
-- **461 tests in 70 files** and a **Web CI workflow** (type check, tests, production build), plus
+- **822 tests in 95 files** and a **Web CI workflow** (type check, tests, production build), plus
   Playwright browser tests in the repository's `e2e/` folder (#120). See [Tests](#tests).
 - **Accessibility fixes** include contrast, visible focus, labelled controls, keyboard seating
   and native modal action dialogs. Browser and screen-reader acceptance is still outstanding;
@@ -151,7 +151,7 @@ src/
     ui/                 Shared building blocks: Button, PageHeading, Panel, StatusPill, EventCard,
                         DateTile, EventImage (authorized image loader), Field, Tabs,
                         Feedback (Loading/ErrorPanel/EmptyState), Toast, ActionDialog, NotAvailableYet
-    layout/             AppShell, TopBar, AvatarMenu, phone TabBar, navigation, RequireAuth
+    layout/             AppShell, TopBar, AvatarMenu, TabBar (bottom bar up to 1024px), navigation, RequireAuth
   features/             One folder per area, each with its pages, components, hooks and helpers
     auth/  discover/  events/  checkout/  tickets/  orders/  account/
     support/  notifications/  organizer/  admin/
@@ -194,7 +194,9 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 7. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours
    or pixel font sizes. Add feature styles to that feature's stylesheet.
 8. **Register routes** in `app/routes.tsx` (or the feature's `routes.tsx`), and add primary
-   sections to `components/layout/navigation.ts`.
+   sections to `components/layout/navigation.ts`. Admin and organizer pages load on demand:
+   wrap them with `lazyPage(() => import("./Page"), (m) => m.Page)` from
+   `components/layout/lazyPage.tsx`; attendee pages stay in the main bundle.
 9. **Planned endpoints.** The backend serves every endpoint the web uses, so new screens should
    be built on the documented contract (see [Backend contracts](#backend-contracts)). No screen
    uses the `NotAvailableYet` fallback (`isNotImplemented(error)` in `api/errors.ts`) any more;
@@ -210,7 +212,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/` | Anyone | Redirects to `/discover`; so does any unknown path |
 | `/sign-in` | Anyone | Sign in, create account, forgot password, resend verification, Google, language |
 | `/verify-email#token=`, `/reset-password#token=` | Anyone | Pages opened from emailed links |
-| `/discover` | Anyone | Published events with search, category, city, date, price and free filters in the URL, Load more paging |
+| `/discover` | Anyone | Upcoming published events only (finished ones are hidden, with or without a date filter; the request carries `ends_after`) with search, category, city, date, price and free filters in the URL, Load more paging that records the number of pages in `pages` (2 to 10, replacing the history entry) so Back reopens the same list; skeleton cards on the first load, and a new search keeps every loaded card on screen, dimmed and `aria-busy`, until its first page arrives |
 | `/events/:eventId` | Anyone | Event details, publication label, tickets, seat map, promo code, calendar, report, get help |
 | `/c/:token` | Anyone | Campaign QR link: resolves the promo and opens the event |
 | `/tickets`, `/tickets/:ticketId` | Signed in | Tickets: QR, PDF, delivery, admission status, entry confirmation |
@@ -218,7 +220,7 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 | `/support`, `/support/new`, `/support/cases/:caseId` | Signed in | Support cases and threads with attachments |
 | `/notifications` | Signed in | Notification inbox |
 | `/organizer` | Signed in | Workspaces, organizer profile, events grouped by status, team, permissions and invitations |
-| `/organizer/events/:eventId` | Signed in | Event management tabs |
+| `/organizer/events/:eventId` | Signed in | Event management in four groups (Setup, Sales, Event day, Results), each with its sections; the open section is kept in `?tab=<section>` (for example `?tab=finance`), so refresh, Back and shared links reopen it |
 | `/staff-invitations/accept#token=` | Signed in | Join a workspace from an invitation |
 | `/account` | Signed in | Profile, language preference, traffic-analytics consent, sessions |
 | `/admin` → `/admin/users`, `/events`, `/orders`, `/tickets`, `/payments`, `/inspect`, `/jobs`, `/reports`, `/moderation`, `/settings`, `/exports` | Platform admins | Admin portal (the Admin tab is shown only to admins) |
@@ -280,7 +282,7 @@ See [CONTRACT_REVIEW.md](CONTRACT_REVIEW.md) for the promo, campaign, checkout a
 npm test
 ```
 
-There are 461 tests in 70 files (all passing on 21 November 2026), next to the code they test
+There are 822 tests in 95 files (all passing on 22 November 2026), next to the code they test
 (`*.test.ts(x)`); shared fixtures are in `tests/helpers/` and the jsdom setup in `src/test/`.
 They cover the API client, file downloads, idempotency keys and error messages, formatting,
 checkout rules and components (steps, seating, payment) and the checkout flow hook, seat and
@@ -299,20 +301,29 @@ free registration, paid checkout and refund. The `E2E` workflow (`.github/workfl
 them when `e2e/`, `backend/` or `web/` change. Downloads are not covered there yet.
 
 Layout checks (`e2e/layout/`, the `layout` job in the Web workflow) open Discover (plain,
-filtered, empty and with Load more), the event page and the organizer event page in Chromium at
-320, 390, 768, 1024 and 1440 px in English, Russian and Kazakh, as a visitor and as a platform
-admin. The API is answered by fixtures in the browser, so they need no backend:
+filtered, empty and with Load more), the event page and the organizer event page (also at `?tab=check-ins`, `?tab=staff` and
+`?tab=finance`, where the selected tab must be fully in view in its row) in Chromium at
+320, 344, 360, 375, 390, 768, 1024, 1025, 1100, 1280 and 1440 px (plus an 844×390 landscape phone for the sticky Get tickets bar) in English, Russian and Kazakh, as a visitor, a signed-in member (five sections) and a platform admin (six). The API is answered by fixtures in the browser, so they need no backend:
 `cd e2e && npm run test:layout` (set `PW_CHROMIUM_PATH` to use an installed Chromium and
-`LAYOUT_PORT` to move the dev server off port 5180). Each case asserts:
+`LAYOUT_PORT` to move the dev server off port 5180). CI's Chromium 131 (Playwright 1.49.1) is the layout gate; a different local Chromium can render a pixel differently. Each case asserts:
 
 - no horizontal page scroll;
-- no top bar or tab bar element, or its text, outside the viewport or spilling out of its box,
-  no overlapping tab labels, and no top tab overlapping the top bar actions;
+- no top bar or tab bar element, or its text, outside the viewport (or the top bar's padded content box)
+  or spilling out of its box, no overlapping tab labels, and no top tab overlapping the top bar actions;
+- the bottom tab bar shown up to 1024 px and the top tabs from 1025 px;
+- each tab bar label fitting its link in at most two lines (three only below 360 px with six sections),
+  breaking only at hyphenation points with no fragment under three letters, every link the same
+  height and at least 44x44 px;
 - no page content, or text in it, outside the viewport;
+- at 390 px, every visible input, select and textarea at least 16px, so iOS does not zoom on focus;
 - every Discover filter control inside the viewport, none overlapping another, and no select
-  cutting off its chosen option.
+  cutting off its chosen option;
+- on the event page up to 960 px wide and over 500 px tall, the sticky Get tickets bar resting on the tab bar (or the bottom edge for visitors),
+  inside the viewport, its whole offer (amount included) uncut, offer and button not overlapping, the spacer as tall as the bar,
+  and the page's last content clear of it; on sold-out and sales-ended events, no bar and no spacer.
+- at every width, the page's top scroll padding at least as tall as the top bar; up to 1024 px, a shown toast (raised by a failed language change on the event page) at least 8 px above the tab bar and the sticky Get tickets bar.
 
-It also attaches a full-page and a viewport screenshot (no image baselines). Defects that are
+The suite is 530 cases (layout, offsets, focus and loading). It also attaches a full-page and a viewport screenshot (no image baselines). `layout/focus.spec.ts` drives Discover Load more, a promo code and the checkout step change from the keyboard at 390 and 1440 px and asserts focus stays on a named, visible element, never `<body>`. `layout/loading.spec.ts` holds a request open and asserts that the heading, filters and first card (Discover) or back link, heading and columns (event page) do not move when the data replaces the skeleton, and that a filter change keeps the cards in place, dimmed and busy. Defects that are
 still open are listed in `KNOWN_FAILURES` in `layout.spec.ts`, each naming the task that fixes
 it; a case with a known problem still fails on any other problem, and fails when a listed
 problem stops occurring. Text widths depend on the font, so the cases pin DejaVu Sans and Serif
@@ -350,7 +361,7 @@ and screen-reader acceptance remain unverified; see
 The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 
 - **Source of truth.** [translations/core.tsv](translations/core.tsv) holds every interface
-  string: one row per stable key, with English, Russian and Kazakh wording (1,602 keys). It is
+  string: one row per stable key, with English, Russian and Kazakh wording (1,652 keys). It is
   shared with the mobile app; see the [translation handoff](translations/README.md).
 - **Generated catalogs.** `npm run translations:build` turns the TSV into
   `src/i18n/locales/{en,ru,kk}.json`. It fails on a missing language or a duplicate key. Do not
@@ -358,7 +369,9 @@ The interface is available in Kazakh (`kk`), Russian (`ru`) and English (`en`).
 - **Using a string.** Components call `t("area.key", { p0: value })` from `src/i18n` and
   `useLocale()` so they re-render when the language changes. Placeholders such as `{p0}` must be
   identical in all three languages. `quantityLabel()` uses `Intl.PluralRules`, including the
-  Russian one/few/many forms; dates, money and categories follow the chosen locale.
+  Russian one/few/many forms; dates, money and categories follow the chosen locale. A browser
+  without usable Kazakh date or number data (some list `kk` yet print months as `M02`) gets the
+  Russian formats instead (`src/utils/intlLocale.ts`).
 - **Choosing the language.** `LanguageSwitcher` is in the top bar and on the sign-in page. Before
   sign-in the choice is cached in local storage (falling back to the browser language, then
   English); after sign-in the profile language takes precedence, and a signed-in switch is
@@ -431,7 +444,10 @@ an explicit key: reuse the original key when retrying the same action; use a new
 key when the action or payload changes.
 
 The public event page displays readable publication labels: Draft, Published,
-Unpublished and Cancelled.
+Unpublished and Cancelled. On phones and tablets (up to 960 px wide and taller than 500 px) a sticky Get tickets bar shows
+the offer and scrolls to the tickets section, hiding while that section is on screen. It appears
+only when checkout is possible now: the event is published and not suspended, upcoming or ongoing, not sold out,
+its sales window is open, and at least one public ticket type can be bought.
 
 ## Optional GA4 traffic collection
 

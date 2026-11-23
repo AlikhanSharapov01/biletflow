@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listCategories, listEvents, listVenues } from "../../api/catalog";
@@ -38,9 +38,10 @@ function Probe() {
   );
 }
 
-function renderPage(url = "/discover") {
+function renderPage(url: string | string[] = "/discover") {
+  const entries = Array.isArray(url) ? url : [url];
   return render(
-    <MemoryRouter initialEntries={[url]}>
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
       <DiscoverPage />
       <Probe />
     </MemoryRouter>,
@@ -49,7 +50,7 @@ function renderPage(url = "/discover") {
 
 const url = () => screen.getByTestId("url").textContent;
 const lastCall = () => listEventsMock.mock.calls.at(-1)![0]!;
-const cards = () => document.querySelectorAll(".event-card");
+const cards = () => document.querySelectorAll(".event-card:not(.skeleton-card)");
 
 function setPhone(matches: boolean) {
   window.matchMedia = vi.fn().mockImplementation(() => ({ matches, addEventListener: vi.fn(), removeEventListener: vi.fn() })) as never;
@@ -75,7 +76,7 @@ describe("URL to request", () => {
     renderPage();
     await waitFor(() => expect(cards()).toHaveLength(3));
     expect(listEventsMock).toHaveBeenCalledTimes(1);
-    expect(lastCall()).toEqual({ limit: DISCOVER_PAGE_SIZE, offset: 0 });
+    expect(lastCall()).toEqual({ ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 });
   });
 
   it("maps every filter, with the date window from the clock", async () => {
@@ -86,6 +87,7 @@ describe("URL to request", () => {
       category_id: MUSIC,
       city: "almaty",
       ...dateRange("weekend", NOW),
+      ends_after: NOW.toISOString(),
       min_price: 50000,
       max_price: 900000,
       limit: DISCOVER_PAGE_SIZE,
@@ -109,7 +111,7 @@ describe("URL to request", () => {
   it("free replaces the price range", async () => {
     renderPage("/discover?free=1&min_price=5&max_price=9");
     await waitFor(() => expect(cards()).toHaveLength(3));
-    expect(lastCall()).toEqual({ free: true, limit: DISCOVER_PAGE_SIZE, offset: 0 });
+    expect(lastCall()).toEqual({ free: true, ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 });
   });
 
   it("lists the distinct venue cities once, sorted", async () => {
@@ -209,6 +211,99 @@ describe("filter form", () => {
   });
 });
 
+describe("Load more pages in the URL", () => {
+  const full = (from: number) => events(DISCOVER_PAGE_SIZE, from);
+  const loadMore = () => fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+  it("records the page count by replacing the history entry", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24)).mockResolvedValueOnce(full(48));
+    renderPage(["/before", "/discover?q=jazz"]);
+    await waitFor(() => expect(cards()).toHaveLength(24));
+    expect(url()).toBe("/discover?q=jazz");
+    loadMore();
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz&pages=2"));
+    expect(cards()).toHaveLength(48);
+    loadMore();
+    await waitFor(() => expect(url()).toBe("/discover?q=jazz&pages=3"));
+    expect(cards()).toHaveLength(72);
+    fireEvent.click(screen.getByTestId("back"));
+    expect(url()).toBe("/before");
+  });
+
+  it("restores every page in order at ?pages=3", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24)).mockResolvedValueOnce(full(48));
+    renderPage("/discover?pages=3");
+    await waitFor(() => expect(cards()).toHaveLength(72));
+    expect(listEventsMock.mock.calls.map(([filters]) => filters!.offset)).toEqual([0, 24, 48]);
+    expect(url()).toBe("/discover?pages=3");
+    expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy();
+  });
+
+  it("stops restoring at a short page", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(events(5, 24));
+    renderPage("/discover?pages=5");
+    await waitFor(() => expect(cards()).toHaveLength(29));
+    expect(listEventsMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("corrects a stale count once the list is settled", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(events(5, 24));
+    renderPage("/discover?pages=5");
+    await waitFor(() => expect(url()).toBe("/discover?pages=2"));
+    cleanup();
+    listEventsMock.mockResolvedValue(events(3));
+    renderPage("/discover?pages=4");
+    await waitFor(() => expect(url()).toBe("/discover"));
+  });
+
+  it("clamps a hand-edited count", async () => {
+    listEventsMock.mockResolvedValue(events(3));
+    renderPage("/discover?pages=abc");
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    expect(listEventsMock).toHaveBeenCalledTimes(1);
+    expect(lastCall().offset).toBe(0);
+  });
+
+  it("caps a huge count at ten pages", async () => {
+    listEventsMock.mockImplementation(async (filters) => events(DISCOVER_PAGE_SIZE, filters!.offset ?? 0));
+    renderPage("/discover?pages=999");
+    await waitFor(() => expect(cards()).toHaveLength(240));
+    expect(listEventsMock).toHaveBeenCalledTimes(10);
+  });
+
+  it("shows the Load more error when a restore page fails, and retries it", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockRejectedValueOnce(new Error("Boom")).mockResolvedValueOnce(full(24));
+    renderPage("/discover?pages=2");
+    await screen.findByRole("alert");
+    expect(cards()).toHaveLength(24);
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(cards()).toHaveLength(48));
+    expect(listEventsMock.mock.calls.map(([filters]) => filters!.offset)).toEqual([0, 24, 24]);
+  });
+
+  it("drops the count when a filter changes", async () => {
+    listEventsMock.mockImplementation(async (filters) => events(filters!.offset ? 2 : DISCOVER_PAGE_SIZE, filters!.offset ?? 0));
+    renderPage("/discover?pages=2");
+    await waitFor(() => expect(cards()).toHaveLength(26));
+    fireEvent.change(searchBox(), { target: { value: "rock" } });
+    fireEvent.submit(searchBox().closest("form")!);
+    await waitFor(() => expect(url()).toBe("/discover?q=rock"));
+  });
+
+  it("moves the focus to the first new card while more remain", async () => {
+    listEventsMock.mockResolvedValueOnce(full(0)).mockResolvedValueOnce(full(24));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(24));
+    const button = screen.getByRole("button", { name: "Load more" });
+    button.focus();
+    fireEvent.click(button);
+    await waitFor(() => expect(cards()).toHaveLength(48));
+    expect(screen.getByRole("button", { name: "Load more" })).toBeTruthy();
+    expect((document.activeElement as HTMLAnchorElement).getAttribute("href")).toBe("/events/e24");
+  });
+});
+
 describe("Load more", () => {
   it("appends the next page by offset, then hides on a short page", async () => {
     listEventsMock.mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE)).mockResolvedValueOnce(events(5, DISCOVER_PAGE_SIZE));
@@ -248,7 +343,7 @@ describe("Load more", () => {
     expect(listEventsMock).toHaveBeenCalledTimes(2);
     await act(async () => next.resolve(events(DISCOVER_PAGE_SIZE, DISCOVER_PAGE_SIZE)));
     await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE * 2));
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Load more" }));
+    expect((document.activeElement as HTMLAnchorElement).getAttribute("href")).toBe(`/events/e${DISCOVER_PAGE_SIZE}`);
   });
 
   it("keeps the loaded cards when a page fails and can retry", async () => {
@@ -313,7 +408,7 @@ describe("Clear filters", () => {
   it("is absent without filters", async () => {
     renderPage();
     await waitFor(() => expect(cards()).toHaveLength(3));
-    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
   });
 
   it("resets the URL from the form", async () => {
@@ -321,8 +416,8 @@ describe("Clear filters", () => {
     await waitFor(() => expect(cards()).toHaveLength(3));
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(url()).toBe("/discover");
-    await waitFor(() => expect(lastCall()).toEqual({ limit: DISCOVER_PAGE_SIZE, offset: 0 }));
-    expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
+    await waitFor(() => expect(lastCall()).toEqual({ ends_after: NOW.toISOString(), limit: DISCOVER_PAGE_SIZE, offset: 0 }));
+    expect(document.querySelector(".empty-action")).toBeNull();
   });
 
   it("an empty filtered result says nothing matched and offers Clear filters", async () => {
@@ -381,8 +476,11 @@ describe("event cards", () => {
     expect(foot(2).textContent).toBe("Sold out");
     expect(foot(2).querySelector(".event-offer[data-kind=sold_out]")).not.toBeNull();
     expect(screen.queryByText("Tickets available")).toBeNull();
-    // The offer is read with the link, which keeps the title as its name.
-    expect(screen.getByRole("link", { name: "Full night" }).getAttribute("aria-describedby")).toBe(foot(2).id);
+    // The offer is read with the link (which keeps the title as its name), then the date and venue.
+    const describedBy = screen.getByRole("link", { name: "Full night" }).getAttribute("aria-describedby")!.split(" ");
+    expect(describedBy[0]).toBe(foot(2).id);
+    expect(describedBy).toHaveLength(2);
+    expect(document.getElementById(describedBy[1]!)).toBe(cards()[2]!.querySelector(".event-card-meta"));
   });
 });
 
@@ -662,5 +760,192 @@ describe("malformed prices", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search events" }));
     expect(details.hasAttribute("open")).toBe(true);
     expect(document.activeElement).toBe(screen.getByLabelText("Price to, ₸"));
+  });
+});
+
+describe("loading", () => {
+  const grid = () => document.querySelector<HTMLElement>(".event-grid")!;
+
+  it("shows skeleton cards in one status region, then the real cards", async () => {
+    const first = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(first.promise);
+    renderPage();
+    const label = await screen.findByText("Loading events…");
+    expect(label.closest("[role=status]")!.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(document.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(cards()).toHaveLength(0);
+    await act(async () => first.resolve(events(3)));
+    expect(cards()).toHaveLength(3);
+    expect(document.querySelector(".skeleton-card")).toBeNull();
+  });
+
+  it("keeps every loaded card, dimmed and busy, while a new search loads, then swaps in the new ones", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(2, 100))
+      .mockReturnValueOnce(next.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2));
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2);
+    expect(document.querySelector(".skeleton-card")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(status()).toBe("Loading events…");
+
+    await act(async () => next.resolve(events(1, 500)));
+    expect(cards()).toHaveLength(1);
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+    expect(status()).toBe("Events shown: 1");
+  });
+
+  it("ignores a late answer to the previous search while the dimmed cards stay", async () => {
+    const jazz = deferred<ReturnType<typeof events>>();
+    const rock = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockReturnValueOnce(jazz.promise).mockReturnValueOnce(rock.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const search = (text: string) => {
+      fireEvent.change(searchBox(), { target: { value: text } });
+      fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    };
+    search("jazz");
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    search("rock");
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(3));
+    await act(async () => jazz.resolve(events(5, 200)));
+    expect(cards()).toHaveLength(3);
+    expect(grid().getAttribute("aria-busy")).toBe("true");
+    await act(async () => rock.resolve(events(2, 300)));
+    expect(cards()).toHaveLength(2);
+  });
+
+  it("shows the skeleton, not an empty state, when a backwards price range is fixed", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(next.promise);
+    renderPage("/discover?min_price=900&max_price=100");
+    expect(listEventsMock).not.toHaveBeenCalled();
+    await screen.findByRole("alert");
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "2000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(1));
+    expect(document.querySelectorAll(".skeleton-card")).toHaveLength(6);
+    expect(screen.queryByText("No events matched your filters.")).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
+    await act(async () => next.resolve(events(2)));
+    expect(cards()).toHaveLength(2);
+  });
+
+  it("does not show a false empty state after a backwards range follows loaded cards", async () => {
+    listEventsMock.mockResolvedValueOnce(events(3));
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockReturnValue(next.promise);
+    fireEvent.change(screen.getByLabelText("Price from, ₸"), { target: { value: "900" } });
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "100" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    fireEvent.change(screen.getByLabelText("Price to, ₸"), { target: { value: "2000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByText(/No events/)).toBeNull();
+    expect(document.querySelector(".empty-action")).toBeNull();
+    await act(async () => next.resolve(events(1, 50)));
+    expect(cards()).toHaveLength(1);
+  });
+
+  it("keeps every page, dimmed, in every commit while the same search is submitted again", async () => {
+    const again = deferred<ReturnType<typeof events>>();
+    listEventsMock
+      .mockResolvedValueOnce(events(DISCOVER_PAGE_SIZE))
+      .mockResolvedValueOnce(events(2, 100))
+      .mockReturnValueOnce(again.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() => expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2));
+    // Record what every commit of the grid looks like.
+    const seen: Array<{ cards: number; busy: string | null }> = [];
+    const watch = new MutationObserver(() => {
+      const element = grid();
+      if (element) seen.push({ cards: cards().length, busy: element.getAttribute("aria-busy") });
+    });
+    watch.observe(document.body, { subtree: true, childList: true, attributes: true });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalledTimes(3));
+    await act(async () => undefined);
+    watch.disconnect();
+    expect(seen.length).toBeGreaterThan(0);
+    for (const commit of seen) expect(commit).toEqual({ cards: DISCOVER_PAGE_SIZE + 2, busy: "true" });
+    expect(cards()).toHaveLength(DISCOVER_PAGE_SIZE + 2);
+    await act(async () => again.resolve(events(4, 300)));
+    expect(cards()).toHaveLength(4);
+    expect(grid().getAttribute("aria-busy")).toBeNull();
+  });
+
+  it("dims the previous empty state with its own wording, not the new search's", async () => {
+    const next = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce([]).mockReturnValueOnce(next.promise);
+    renderPage();
+    await waitFor(() => expect(document.querySelector(".empty-state")).not.toBeNull());
+    fireEvent.change(screen.getByLabelText("City"), { target: { value: "Almaty" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    expect(document.querySelector(".empty-state")!.textContent).toMatch(/No events match those filters yet/);
+    expect(document.querySelector(".empty-action")).toBeNull();
+  });
+
+  it("does not claim events are shown while the lookups are still loading", async () => {
+    const lookups = deferred<typeof categories>();
+    listCategoriesMock.mockReturnValue(lookups.promise);
+    listEventsMock.mockResolvedValue(events(12));
+    renderPage();
+    await waitFor(() => expect(listEventsMock).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(document.querySelector("[role=status]:not(.loading-state)")!.textContent).not.toMatch(/Events shown/);
+    expect(screen.queryByText("Events shown: 12")).toBeNull();
+    await act(async () => lookups.resolve(categories));
+    expect(status()).toBe("Events shown: 12");
+  });
+
+  it("puts the focus back on the same card after a reload that took it away, else on the search box", async () => {
+    const back = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockResolvedValueOnce(events(3, 10)).mockReturnValueOnce(back.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Event 10" })).toBeTruthy());
+    const link = screen.getByRole("link", { name: "Event 11" });
+    link.focus();
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    // A real browser drops the focus when the grid becomes inert.
+    link.blur();
+    await act(async () => back.resolve([...events(3), ...events(1, 11)]));
+    expect(document.activeElement).toBe(screen.getByRole("link", { name: "Event 11" }));
+  });
+
+  it("focuses the search box when the focused card is gone after the reload", async () => {
+    const back = deferred<ReturnType<typeof events>>();
+    listEventsMock.mockResolvedValueOnce(events(3)).mockResolvedValueOnce(events(3, 10)).mockReturnValueOnce(back.promise);
+    renderPage();
+    await waitFor(() => expect(cards()).toHaveLength(3));
+    fireEvent.change(searchBox(), { target: { value: "jazz" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search events" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Event 10" })).toBeTruthy());
+    const link = screen.getByRole("link", { name: "Event 11" });
+    link.focus();
+    fireEvent.click(screen.getByTestId("back"));
+    await waitFor(() => expect(grid().getAttribute("aria-busy")).toBe("true"));
+    link.blur();
+    await act(async () => back.resolve(events(3)));
+    expect(document.activeElement).toBe(searchBox());
   });
 });

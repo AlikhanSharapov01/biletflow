@@ -11,6 +11,6 @@ export function RequireAuth() {
   const location = useLocation();
 
   if (status === "restoring") return <Loading label={t("auth.checking_active")} />;
-  if (status === "anonymous") return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;
+  if (status === "anonymous") return <Navigate to="/sign-in" replace state={{ from: `${location.pathname}${location.search}${location.hash}` }} />;
   return <Outlet />;
 }

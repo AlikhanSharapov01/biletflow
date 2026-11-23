@@ -3,7 +3,7 @@
 // layouts: very long titles and venue names in every language, events with and
 // without a cover image, zero and very large counts, and more events than fit on one
 // row of the grid.
-import type { Category, EventView, Profile, TicketType, Venue } from "../../web/src/api/types";
+import type { Category, EventView, Hold, Profile, TicketType, Venue } from "../../web/src/api/types";
 import type { PublicSettings } from "../../web/src/api/types/settings";
 import type { Organization } from "../../web/src/api/types/organizations";
 
@@ -105,15 +105,17 @@ function eventView(n: number, title: string, overrides: Partial<EventView> = {})
 const id = (n: number) => uuid(100 + n);
 export const events: EventView[] = [
   eventView(0, LONG_TITLE.en, { capacity: 1_000_000, price_from_minor: 99_999_999_900 }),
-  eventView(1, LONG_TITLE.ru, { capacity: 0, price_from_minor: 0, sold_out: true }),
-  eventView(2, LONG_TITLE.kk, { capacity: 2_147_483_647, price_from_minor: 0 }),
+  eventView(1, LONG_TITLE.ru, { capacity: 10_000_000, price_from_minor: 99_999_999_900 }),
+  eventView(2, LONG_TITLE.kk, { capacity: 2_147_483_647, price_from_minor: 99_999_999_900 }),
   eventView(3, "Short", cover(id(3), "wide")),
   eventView(4, "Almaty Jazz Night", cover(id(4), "tall")),
   eventView(5, "Весенний марафон «Алматы»", { time_status: "completed", starts_at: at(-5, 14), ends_at: at(-5, 18) }),
   eventView(6, "Көктемгі кітап жәрмеңкесі", { price_from_minor: 0 }),
   eventView(7, "A_very_long_unbroken_title_" + "without_any_spaces_".repeat(6), { price_from_minor: null }),
   eventView(8, "Tech Summit 2027", { sold_out: true }),
-  eventView(9, "Фестиваль уличной еды и музыки под открытым небом"),
+  // Sold out, in Russian: the long "Распродано" label on a card.
+  // Zero capacity is only possible when nothing is left to sell.
+  eventView(9, "Фестиваль уличной еды и музыки под открытым небом", { sold_out: true, capacity: 0 }),
   // Offer labels: no public tickets yet, and sales closed while the event is still ahead.
   eventView(10, "Pop-up night market with no tickets on sale yet", { price_from_minor: null }),
   eventView(11, "Late registration workshop", { registration_closes_at: at(-1) }),
@@ -137,11 +139,16 @@ export const FOCUS_EVENT: Record<Locale, string> = {
   kk: events[2]!.id,
 };
 
+// Event pages with nothing to buy: sold out, and sales closed while the event is still ahead.
+export const FREE_EVENT = events[6]!.id;
+export const SOLD_OUT_EVENT = events[9]!.id;
+export const SALES_ENDED_EVENT = events[11]!.id;
+
 // Ticket types agree with each event's price_from_minor and sold_out above. The three
 // focus events (en, ru, kk) carry the worst-case rows: a limit-0 type (never counted
-// as visible), a free type and a very expensive one, so the purchase controls render.
-// The first sells the limit-0 and expensive types only, the seventh (price null) offers
-// nothing public, and the rest sell one ordinary paid type.
+// as visible) and a very expensive one, so the purchase controls render and the sticky
+// bar shows the longest price. Those three (indexes 0 to 2) sell those two only, indexes 7 and
+// 10 (price null) offer nothing public, index 6 is free, and the rest sell one ordinary paid type.
 export function ticketTypes(eventId: string): TicketType[] {
   const base = {
     created_at: CREATED,
@@ -163,10 +170,9 @@ export function ticketTypes(eventId: string): TicketType[] {
   };
   const free: TicketType = { ...base, id: uuid(202), name: "Free admission", kind: "free", price_minor: 0, quantity_limit: 100, per_order_limit: 4 };
   const standard: TicketType = { ...base, id: uuid(203), name: "Standard", kind: "paid", price_minor: 300_000, quantity_limit: 500, per_order_limit: 10 };
-  if (eventId === id(0)) return [limitZero, premium];
-  if (eventId === id(1) || eventId === id(2)) return [limitZero, free, premium];
+  if (eventId === id(0) || eventId === id(1) || eventId === id(2)) return [limitZero, premium];
   if (eventId === id(6)) return [free];
-  if (eventId === id(7)) return [limitZero];
+  if (eventId === id(7) || eventId === id(10)) return [limitZero];
   return [standard];
 }
 
@@ -200,3 +206,20 @@ export const publicSettings: PublicSettings = {
 // A large unread count makes the notification badge as wide as it can get.
 export const UNREAD_NOTIFICATIONS = 12_345;
 export const ACCESS_TOKEN = "layout-check-token";
+
+// The very expensive paid type from ticketTypes() held for ten minutes (the clock is
+// pinned, so the countdown reads 10:00). Paid, so the step list is at its longest.
+export function hold(eventId: string): Hold {
+  const payable = 99_999_999_900;
+  return {
+    id: uuid(500),
+    event_id: eventId,
+    buyer_user_id: USER_ID,
+    status: "active",
+    expires_at: new Date(NOW.getTime() + 10 * 60 * 1000).toISOString(),
+    created_at: NOW.toISOString(),
+    allocations: [{ id: uuid(501), ticket_type_id: uuid(201), event_seat_id: null, state: "held" }],
+    pricing: { gross: payable, discount: 0, subtotal: payable, processing_fee: 0, payable, lines: [] },
+    promo: null,
+  };
+}

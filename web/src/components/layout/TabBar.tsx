@@ -1,11 +1,12 @@
 import { t, useLocale } from "../../i18n";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../../features/auth/AuthContext";
+import { NavIcon } from "./NavIcon";
 import { isSectionActive } from "./navigation";
 import { useNavItems } from "./useNavItems";
 
-// Phone navigation (under 760px): a fixed bottom bar of lettered glyphs, like
-// mobile's tab bar. Visitors only have Discover, which the brand already links.
+// Phone navigation (up to 1024px): a fixed bottom bar of icons above full labels.
+// Visitors only have Discover, which the brand already links.
 export function TabBar() {
   useLocale();
   const { profile } = useAuth();
@@ -20,12 +21,11 @@ export function TabBar() {
           key={item.to}
           className="tab-bar-link"
           to={item.to}
+          aria-label={item.tabLabel.replaceAll("\u00ad", "")}
           aria-current={isSectionActive(item, pathname) ? "page" : undefined}
         >
-          <span className="nav-glyph" aria-hidden="true">
-            {item.glyph}
-          </span>
-          {item.label}
+          <NavIcon id={item.icon} />
+          <span className="tab-bar-label">{item.tabLabel}</span>
         </Link>
       ))}
     </nav>

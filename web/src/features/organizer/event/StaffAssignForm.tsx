@@ -74,7 +74,7 @@ export function StaffAssignForm({ event, assignable, onAssigned }: StaffAssignFo
         <p className="form-intro">{t("org.assignment_replace_hint")}</p>
         <FormMessage message={state.message} />
         <div className="form-actions">
-          <Button variant="primary" type="submit" disabled={state.busy || assignable.length === 0}>{t("org.save_assignment")}</Button>
+          <Button variant="primary" type="submit" busy={state.busy} disabled={assignable.length === 0}>{t("org.save_assignment")}</Button>
         </div>
       </form>
     </Panel>

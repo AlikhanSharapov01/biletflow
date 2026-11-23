@@ -4,7 +4,7 @@
 .printable-ticket-copy h2 { font-family: var(--font-serif); font-size: 26px; font-weight: 400; line-height: 1.15; }
 .printable-ticket-copy code { word-break: break-all; }
 .ticket-footnote { margin-top: 4px; color: var(--meta); font-size: var(--text-meta); line-height: 1.5; }
-.qr-box { display: grid; place-items: center; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: #fff; }
+.qr-box { display: grid; place-items: center; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--print-surface); }
 .qr-box svg { display: block; width: 232px; height: 232px; }
 .qr-missing { width: 256px; min-height: 256px; color: var(--intro); font-size: var(--text-meta); text-align: center; }
 .qr-missing p { padding: 0 16px; }
@@ -14,14 +14,14 @@
 }
 
 @media print {
-  html, body, .page { background: #fff; }
+  html, body, .page { background: var(--print-surface); }
   .topbar, .tab-bar, .skip-link, .back-link, .heading-actions, .toast { display: none !important; }
   .app-shell, .with-tab-bar { padding: 0; }
   .page { max-width: none; padding: 0; }
-  .printable-ticket { border: 1px solid #000; border-radius: 0; box-shadow: none; }
+  .printable-ticket { border: 1px solid var(--print-ink); border-radius: 0; box-shadow: none; }
   .qr-box { border: 0; }
   .qr-box svg { width: 70mm; height: 70mm; }
-  .status { border: 1px solid #000; background: none; color: #000; }
+  .status { border: 1px solid var(--print-ink); background: none; color: var(--print-ink); }
 }
 
 /* Ticket side panels: entry confirmation, admission and delivery. */

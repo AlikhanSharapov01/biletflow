@@ -70,7 +70,7 @@ export function AnalyticsTab({ event }: { event: EventView }) {
           }}
         />
         <div className="form-actions">
-          <Button onClick={() => void exportCsv()} disabled={exporting}>
+          <Button onClick={() => void exportCsv()} busy={exporting}>
             {exporting ? t("org.analytics_exporting") : t("org.analytics_export")}
           </Button>
           <span className="field-note">{t("org.analytics_export_note")}</span>

@@ -14,6 +14,7 @@ common.disable	Disable	Отключить	Өшіру
 common.download	Download	Скачать	Жүктеп алу
 common.refresh	Refresh	Обновить	Жаңарту
 common.try_again	Try again	Повторить	Қайталау
+common.reload_page	Reload page	Перезагрузить страницу	Бетті қайта жүктеу
 common.loading	Loading…	Загрузка…	Жүктелуде…
 common.not_available	Not available	Недоступно	Қолжетімсіз
 common.not_available_yet	Not available yet	Пока недоступно	Әзірге қолжетімсіз
@@ -73,6 +74,12 @@ nav.account	Account	Аккаунт	Тіркелгі
 nav.support	Support	Поддержка	Қолдау
 nav.notifications	Notifications	Уведомления	Хабарландырулар
 nav.admin	Admin	Администратор	Әкімші
+nav.tab.discover	Discover	Афиша	Афиша
+nav.tab.tickets	Tickets	Би­леты	Би­лет­тер
+nav.tab.orders	Orders	За­казы	Тап­сы­рыс­тар
+nav.tab.organizer	Or­ga­nizer	Ор­га­ни­за­тор	Ұйым­дас­ты­рушы
+nav.tab.support	Sup­port	Под­держка	Қол­дау
+nav.tab.admin	Admin	Ад­ми­ни­стра­тор	Әкімші
 nav.main	Main navigation	Основная навигация	Негізгі навигация
 nav.skip	Skip to content	Перейти к содержимому	Мазмұнға өту
 nav.browse	Browse events	Смотреть мероприятия	Іс-шараларды қарау
@@ -155,6 +162,11 @@ organizer.cancel_event	Cancel event	Отменить мероприятие	Іс
 organizer.cancel_event_confirm	Cancel this event? This cannot be undone.	Отменить мероприятие? Это действие нельзя отменить.	Іс-шарадан бас тартасыз ба? Бұл әрекетті қайтару мүмкін емес.
 organizer.public_page	Public page	Публичная страница	Ашық бет
 organizer.event_sections	Event sections	Разделы мероприятия	Іс-шара бөлімдері
+organizer.event_stages	Event stages	Этапы мероприятия	Іс-шара кезеңдері
+organizer.group_setup	Setup	Подготовка	Дайындық
+organizer.group_sales	Sales	Продажи	Сатылым
+organizer.group_event_day	Event day	День мероприятия	Іс-шара күні
+organizer.group_results	Results	Итоги	Нәтижелер
 organizer.remove_staff_confirm	Remove this staff assignment?	Удалить это назначение сотрудника?	Қызметкердің осы тағайындауын жоясыз ба?
 organizer.owner	Owner	Владелец	Иесі
 organizer.revoked	Revoked	Отозвано	Күші жойылған
@@ -179,6 +191,8 @@ errors.not_found	This item could not be found.	Объект не найден.	�
 errors.validation	Some details need attention. Review the form and try again.	Проверьте данные в форме и повторите попытку.	Пішіндегі деректерді тексеріп, қайталап көріңіз.
 errors.session	Your session expired. Sign in again to continue.	Сессия истекла. Войдите снова, чтобы продолжить.	Сеанс аяқталды. Жалғастыру үшін қайта кіріңіз.
 errors.network	Can’t reach BiletFlow right now. Check that the API is running and try again.	Не удаётся связаться с BiletFlow. Проверьте доступность API и повторите попытку.	BiletFlow қызметіне қосылу мүмкін емес. API жұмыс істеп тұрғанын тексеріп, қайталап көріңіз.
+errors.chunk_load_title	Couldn’t load this page	Не удалось загрузить страницу	Бетті жүктеу мүмкін болмады
+errors.chunk_load	The app may have been updated. Reload to get the latest version.	Возможно, приложение обновилось. Перезагрузите страницу, чтобы получить новую версию.	Қолданба жаңартылған болуы мүмкін. Соңғы нұсқаны алу үшін бетті қайта жүктеңіз.
 format.section_row_seat	Section {section} · Row {row} · Seat {seat}	Секция {section} · Ряд {row} · Место {seat}	{section} секторы · {row} қатары · {seat} орны
 format.seat_accessible_label	Section {section}, row {row}, seat {seat}	Секция {section}, ряд {row}, место {seat}	{section} секторы, {row} қатары, {seat} орны
 format.section	Section {section}	Секция {section}	{section} секторы
@@ -285,12 +299,13 @@ discover.more_filters_count	More filters ({count})	Ещё фильтры ({count
 discover.clear_filters	Clear filters	Сбросить фильтры	Сүзгілерді тазалау
 discover.empty_filtered	No events matched your filters.	По вашим фильтрам ничего не найдено.	Сүзгілеріңізге сай іс-шара табылмады.
 discover.load_more	Load more	Показать ещё	Тағы көрсету
-discover.load_more_error	We couldn’t load more events.	Не удалось загрузить ещё мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
+discover.load_more_error	We couldn’t load more events.	Не удалось загрузить следующие мероприятия.	Қосымша іс-шараларды жүктеу мүмкін болмады.
 discover.shown_count	Events shown: {count}	Показано мероприятий: {count}	Көрсетілген іс-шаралар: {count}
 event.loading	Loading event details…	Загрузка мероприятия…	Іс-шара мәліметтері жүктелуде…
 event.load_error	We couldn’t load this event.	Не удалось загрузить это мероприятие.	Бұл іс-шараны жүктеу мүмкін болмады.
 event.back	Back to events	К мероприятиям	Іс-шараларға оралу
 event.about	About this event	Об этом мероприятии	Іс-шара туралы
+event.get_tickets	Get tickets	Получить билеты	Билет алу
 event.more_details	More details will be shared by the organizer.	Организатор сообщит подробности позже.	Ұйымдастырушы қосымша мәліметтерді кейін хабарлайды.
 event.capacity	Capacity	Вместимость	Сыйымдылық
 event.doors	Doors	Открытие входа	Кірудің ашылуы
@@ -358,6 +373,9 @@ checkout.sales_closed	Sales closed	Продажи закрыты	Сатылым 
 checkout.sales_open	Sales open {p0}	Продажи откроются {p0}	Сатылым {p0} ашылады
 checkout.event_ended	This event has ended.	Это мероприятие завершилось.	Бұл іс-шара аяқталды.
 checkout.verify_email_hint	Verify your email address before reserving tickets. Check your inbox for the verification link.	Подтвердите почту перед бронированием билетов. Ссылка подтверждения находится в письме.	Билет брондамас бұрын поштаңызды растаңыз. Растау сілтемесін поштадан қараңыз.
+checkout.verify_email_sent	We sent a new link to {email}.	Мы отправили новую ссылку на {email}.	{email} мекенжайына жаңа сілтеме жібердік.
+checkout.verify_email_confirmed	I’ve confirmed my email	Я подтвердил(а) почту	Поштаны растадым
+checkout.verify_email_still_unverified	Your email isn’t confirmed yet.	Почта пока не подтверждена.	Пошта әлі расталған жоқ.
 checkout.details_unavailable	Ticket details are not available yet.	Информация о билетах пока недоступна.	Билеттер туралы мәліметтер әзірге жоқ.
 checkout.sign_in_hint	to reserve tickets for this event.	чтобы забронировать билеты на это мероприятие.	осы іс-шараның билеттерін брондау үшін.
 checkout.quantity_for	Quantity for	Количество для	Мына билет саны:
@@ -792,6 +810,10 @@ org.amount_kzt	Amount (KZT)	Сумма (KZT)	Сома (KZT)
 org.redemption_limit	Redemption limit	Лимит применений	Қолдану шегі
 org.blank_no_limit	Blank = no limit	Пусто = без ограничений	Бос = шектеусіз
 org.eligible_types	Eligible ticket types (none selected = all)	Подходящие типы билетов (не выбрано = все)	Жарамды билет түрлері (таңдалмаса = барлығы)
+campaign.form.discount	Discount	Скидка	Жеңілдік
+campaign.form.discount_type	Discount type	Тип скидки	Жеңілдік түрі
+campaign.form.schedule	Schedule	Сроки	Мерзім
+campaign.form.limits	Limits and code	Лимиты и код	Шектеулер мен код
 org.validation_campaign_name	Give the campaign a name.	Укажите название кампании.	Науқан атауын көрсетіңіз.
 org.validation_percent	A percent discount must be a whole number from 1 to 100.	Процент скидки должен быть целым числом от 1 до 100.	Жеңілдік пайызы 1 мен 100 арасындағы бүтін сан болуы тиіс.
 org.validation_fixed_discount	A fixed discount must be more than ₸0.	Фиксированная скидка должна быть больше ₸0.	Тұрақты жеңілдік ₸0 сомасынан жоғары болуы тиіс.
@@ -1626,3 +1648,11 @@ org.traffic_event_view	Viewed the event page	Смотрели страницу �
 org.traffic_checkout_start	Started checkout	Начали оформление	Тапсырысты бастады
 org.traffic_purchase	Purchases reported to GA4	Покупки, переданные в GA4	GA4-ке жіберілген сатып алулар
 org.traffic_refund	Refunds reported to GA4	Возвраты, переданные в GA4	GA4-ке жіберілген қайтарулар
+checkout.steps_label	Checkout steps	Шаги оформления	Рәсімдеу қадамдары
+checkout.step_tickets	Tickets	Билеты	Билеттер
+checkout.step_seats	Seats	Места	Орындар
+checkout.step_recipients	Recipients	Получатели	Алушылар
+checkout.step_completed	step completed	шаг пройден	қадам аяқталды
+checkout.step.announce	Step {current} of {total}: {label}	Шаг {current} из {total}: {label}	{total} қадамның {current}-қадамы: {label}
+checkout.hold_five_minutes	Less than 5 minutes left on your reservation	До конца брони осталось меньше 5 минут	Бронь аяқталуына 5 минуттан аз уақыт қалды
+checkout.hold_one_minute	Less than 1 minute left on your reservation	До конца брони осталось меньше минуты	Бронь аяқталуына 1 минуттан аз уақыт қалды

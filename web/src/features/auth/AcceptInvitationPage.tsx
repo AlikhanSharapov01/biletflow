@@ -33,7 +33,7 @@ export function AcceptInvitationPage() {
           {state.done ? (
             <ButtonLink variant="primary" to="/organizer">{t("auth.open_workspace")}{" "}</ButtonLink>
           ) : (
-            <Button variant="primary" disabled={state.busy} onClick={() => void accept()}>
+            <Button variant="primary" busy={state.busy} onClick={() => void accept()}>
               {state.busy ? t("auth.joining") : t("auth.accept_invitation")}
             </Button>
           )}

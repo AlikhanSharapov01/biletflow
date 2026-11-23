@@ -277,7 +277,7 @@ src/
   components/
     ui/                 Buttons, Panel, PageHeading, FactList, ListRow, SegmentedTabs, StatusPill,
                         QrCode, ReasonDialog, confirmAction, FormMessage, States, fields…
-    layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, TabGlyph
+    layout/             Screen, ScrollScreen, TopBar (bell + avatar), BackHeader, NavIcon (tab bar line icons)
   features/             One folder per area, like the web
     auth/ discover/ events/ checkout/ tickets/ orders/ support/ notifications/
     account/ organizer/ admin/ scanner/

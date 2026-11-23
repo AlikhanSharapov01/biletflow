@@ -12,6 +12,7 @@ export function LanguageSwitcher() {
   const change = async (next: string) => {
     if (!isLocale(next)) return;
     if (!profile) { setLocale(next); return; }
+    if (busy) return;
     setBusy(true);
     try {
       const updated = await updateProfile({ locale: next });
@@ -23,7 +24,7 @@ export function LanguageSwitcher() {
   return (
     <label className="language-switcher">
       <span className="visually-hidden">{t("account.language")}</span>
-      <select value={locale} disabled={busy} onChange={(event) => void change(event.target.value)}>
+      <select value={locale} aria-busy={busy || undefined} onChange={(event) => void change(event.target.value)}>
         <option value="kk" lang="kk">Қазақша</option>
         <option value="ru" lang="ru">Русский</option>
         <option value="en" lang="en">English</option>

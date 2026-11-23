@@ -45,7 +45,7 @@ export function ResetPasswordPage() {
         <form className="form-stack" noValidate onSubmit={(event) => void submit(event)}>
           <TextField id="new-password" label={t("auth.new_password")} name="password" type="password" autoComplete="new-password" required minLength={12} maxLength={128} placeholder={t("auth.minimum_password")} />
           <TextField id="confirm-password" label={t("auth.repeat_password")} name="confirmation" type="password" autoComplete="new-password" required minLength={12} maxLength={128} />
-          <Button variant="primary" full type="submit" disabled={state.busy}>
+          <Button variant="primary" full type="submit" busy={state.busy}>
             {state.busy ? t("common.saving") : t("auth.set_password")}
           </Button>
           <p className="auth-message" role="status">

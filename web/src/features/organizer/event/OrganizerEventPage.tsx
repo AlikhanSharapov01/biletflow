@@ -1,11 +1,11 @@
 import { t, useLocale } from "../../../i18n";
 import { confirmAction } from "../../../components/ui/ActionDialog";
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { getEvent, listCategories, listVenues } from "../../../api/catalog";
 import { cancelEvent, duplicateEvent, publishEvent, unpublishEvent } from "../../../api/eventAdmin";
 import { describeError } from "../../../api/errors";
-import { Button, ButtonLink, ErrorPanel, Loading, PageHeading, StatusPill, TabPanel, Tabs, useToast, type TabItem } from "../../../components/ui";
+import { Button, ButtonLink, ErrorPanel, Loading, PageHeading, StatusPill, TabPanel, Tabs, useToast } from "../../../components/ui";
 import { useRequest } from "../../../hooks/useRequest";
 import { dateLabel, statusLabel } from "../../../utils/format";
 import { publicationTone } from "../../../utils/status";
@@ -21,40 +21,90 @@ import { SeatingTab } from "./SeatingTab";
 import { StaffTab } from "./StaffTab";
 import { TicketTypesTab } from "./TicketTypesTab";
 
-type Tab =
-  | "details"
-  | "tickets"
-  | "seating"
-  | "paid-sales"
-  | "attendees"
-  | "check-ins"
-  | "staff"
-  | "campaigns"
-  | "analytics"
-  | "finance"
-  | "history";
+// Every section lives in exactly one group; the `Tab` ids are derived from here, so a
+// section added elsewhere without a group is a type error.
+const GROUPS = [
+  {
+    id: "setup",
+    get label() { return t("organizer.group_setup"); },
+    tabs: [
+      { id: "details", get label() { return t("common.details"); } },
+      { id: "tickets", get label() { return t("organizer.ticket_types"); } },
+      { id: "seating", get label() { return t("organizer.seating"); } },
+      { id: "staff", get label() { return t("organizer.staff"); } },
+    ],
+  },
+  {
+    id: "sales",
+    get label() { return t("organizer.group_sales"); },
+    tabs: [
+      { id: "paid-sales", get label() { return t("organizer.paid_sales"); } },
+      { id: "campaigns", get label() { return t("organizer.campaigns"); } },
+    ],
+  },
+  {
+    id: "event-day",
+    get label() { return t("organizer.group_event_day"); },
+    tabs: [
+      { id: "attendees", get label() { return t("organizer.attendees"); } },
+      { id: "check-ins", get label() { return t("organizer.check_ins"); } },
+    ],
+  },
+  {
+    id: "results",
+    get label() { return t("organizer.group_results"); },
+    tabs: [
+      { id: "analytics", get label() { return t("organizer.analytics"); } },
+      { id: "finance", get label() { return t("organizer.finance"); } },
+      { id: "history", get label() { return t("organizer.history"); } },
+    ],
+  },
+] as const;
 
-const TABS: Array<TabItem<Tab>> = [
-  { id: "details", get label() { return t("common.details"); } },
-  { id: "tickets", get label() { return t("organizer.ticket_types"); } },
-  { id: "seating", get label() { return t("organizer.seating"); } },
-  { id: "paid-sales", get label() { return t("organizer.paid_sales"); } },
-  { id: "attendees", get label() { return t("organizer.attendees"); } },
-  { id: "check-ins", get label() { return t("organizer.check_ins"); } },
-  { id: "staff", get label() { return t("organizer.staff"); } },
-  { id: "campaigns", get label() { return t("organizer.campaigns"); } },
-  { id: "analytics", get label() { return t("organizer.analytics"); } },
-  { id: "finance", get label() { return t("organizer.finance"); } },
-  { id: "history", get label() { return t("organizer.history"); } },
-];
+type Group = (typeof GROUPS)[number];
+type Tab = Group["tabs"][number]["id"];
+
+const DEFAULT_TAB: Tab = "details";
+
+function parseTab(value: string | null): Tab | null {
+  for (const group of GROUPS) {
+    for (const section of group.tabs) if (section.id === value) return section.id;
+  }
+  return null;
+}
+
+// The current query with `tab` set, so other params survive.
+function withTab(current: URLSearchParams, next: Tab): URLSearchParams {
+  const params = new URLSearchParams(current);
+  params.set("tab", next);
+  return params;
+}
 
 export function OrganizerEventPage() {
   useLocale();
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
-  const [tab, setTab] = useState<Tab>("details");
-  const [busy, setBusy] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const parsedTab = parseTab(requestedTab);
+  const tab = parsedTab ?? DEFAULT_TAB;
+  const group = GROUPS.find((item) => item.tabs.some((section) => section.id === tab)) ?? GROUPS[0];
+
+  // The URL is the single source of truth; a missing or unknown value is rewritten in place.
+  useEffect(() => {
+    if (parsedTab) return;
+    setSearchParams((current) => withTab(current, DEFAULT_TAB), { replace: true });
+  }, [parsedTab, requestedTab, setSearchParams]);
+
+  const selectTab = (next: Tab) => setSearchParams((current) => withTab(current, next), { replace: true });
+  const selectGroup = (id: Group["id"]) => {
+    if (id === group.id) return;
+    const first = GROUPS.find((item) => item.id === id)?.tabs[0];
+    if (first) selectTab(first.id);
+  };
+  // Which header action is running; the others wait (aria-disabled) until it settles.
+  const [pending, setPending] = useState<"publish" | "duplicate" | "cancel" | null>(null);
 
   const page = useRequest(
     async () => {
@@ -73,8 +123,8 @@ export function OrganizerEventPage() {
   const published = event.publication_state === "published";
   const cancelled = event.publication_state === "cancelled";
 
-  const act = async (action: () => Promise<unknown>, done: string) => {
-    setBusy(true);
+  const act = async (kind: "publish" | "cancel", action: () => Promise<unknown>, done: string) => {
+    setPending(kind);
     try {
       await action();
       notify(done);
@@ -82,26 +132,25 @@ export function OrganizerEventPage() {
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
   const cancel = async () => {
     if (!await confirmAction(t("organizer.cancel_event_confirm"))) return;
-    await act(() => cancelEvent(event.id), t("org.event_cancelled"));
+    await act("cancel", () => cancelEvent(event.id), t("org.event_cancelled"));
   };
 
   const duplicate = async () => {
-    setBusy(true);
+    setPending("duplicate");
     try {
       const copy = await duplicateEvent(event.id);
       notify(t("org.draft_copied"));
       navigate(`/organizer/events/${encodeURIComponent(copy.id)}`);
-      setTab("details");
     } catch (failure) {
       notify(describeError(failure));
     } finally {
-      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -119,32 +168,36 @@ export function OrganizerEventPage() {
             {!cancelled ? (
               <Button
                 variant="primary"
-                disabled={busy}
-                onClick={() => void act(() => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
+                busy={pending === "publish"}
+                aria-disabled={pending !== null && pending !== "publish"}
+                onClick={() => void act("publish", () => (published ? unpublishEvent(event.id) : publishEvent(event.id)), published ? t("org.event_unpublished") : t("org.event_published"))}
               >
                 {published ? t("organizer.unpublish") : t("organizer.publish")}
               </Button>
             ) : null}
-            <Button disabled={busy} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
+            <Button busy={pending === "duplicate"} aria-disabled={pending !== null && pending !== "duplicate"} onClick={() => void duplicate()}>{t("organizer.duplicate")}</Button>
             {!cancelled ? (
-              <Button variant="danger" disabled={busy} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
+              <Button variant="danger" busy={pending === "cancel"} aria-disabled={pending !== null && pending !== "cancel"} onClick={() => void cancel()}>{t("organizer.cancel_event")}</Button>
             ) : null}
           </>
         }
       />
-      <Tabs label={t("organizer.event_sections")} items={TABS} value={tab} onChange={setTab} idPrefix="event-section" />
-      <TabPanel idPrefix="event-section" active={tab}>
-        {tab === "details" ? <DetailsTab key={event.updated_at} event={event} categories={categories} venues={venues} onSaved={page.reload} /> : null}
-        {tab === "tickets" ? <TicketTypesTab event={event} /> : null}
-        {tab === "seating" ? <SeatingTab event={event} /> : null}
-        {tab === "paid-sales" ? <PaidSalesTab event={event} /> : null}
-        {tab === "attendees" ? <AttendeesTab event={event} /> : null}
-        {tab === "check-ins" ? <CheckInsTab event={event} /> : null}
-        {tab === "staff" ? <StaffTab event={event} /> : null}
-        {tab === "campaigns" ? <CampaignsTab event={event} /> : null}
-        {tab === "analytics" ? <AnalyticsTab event={event} /> : null}
-        {tab === "finance" ? <FinanceTab event={event} /> : null}
-        {tab === "history" ? <HistoryTab event={event} /> : null}
+      <Tabs label={t("organizer.event_stages")} items={GROUPS} value={group.id} onChange={selectGroup} idPrefix="event-group" />
+      <TabPanel idPrefix="event-group" active={group.id}>
+        <Tabs label={t("organizer.event_sections")} items={group.tabs} value={tab} onChange={selectTab} idPrefix="event-section" secondary />
+        <TabPanel idPrefix="event-section" active={tab}>
+          {tab === "details" ? <DetailsTab key={event.updated_at} event={event} categories={categories} venues={venues} onSaved={page.reload} /> : null}
+          {tab === "tickets" ? <TicketTypesTab event={event} /> : null}
+          {tab === "seating" ? <SeatingTab event={event} /> : null}
+          {tab === "paid-sales" ? <PaidSalesTab event={event} /> : null}
+          {tab === "attendees" ? <AttendeesTab event={event} /> : null}
+          {tab === "check-ins" ? <CheckInsTab event={event} /> : null}
+          {tab === "staff" ? <StaffTab event={event} /> : null}
+          {tab === "campaigns" ? <CampaignsTab event={event} /> : null}
+          {tab === "analytics" ? <AnalyticsTab event={event} /> : null}
+          {tab === "finance" ? <FinanceTab event={event} /> : null}
+          {tab === "history" ? <HistoryTab event={event} /> : null}
+        </TabPanel>
       </TabPanel>
     </>
   );

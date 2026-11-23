@@ -65,7 +65,7 @@ export function SessionList({ sessions, onChanged }: SessionListProps) {
             note={lifecycle}
             actions={
               active && !current ? (
-                <Button variant="danger" size="sm" disabled={revoking === item.id} onClick={() => void revoke(item.id)}>{t("organizer.revoke")}</Button>
+                <Button variant="danger" size="sm" busy={revoking === item.id} onClick={() => void revoke(item.id)}>{t("organizer.revoke")}</Button>
               ) : null
             }
           />

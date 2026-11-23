@@ -4,7 +4,7 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 
 import { listCategories, listEvents, listVenues } from "@/api/catalog";
 import { Screen, TopBar } from "@/components/layout";
-import { EmptyState, ErrorPanel, LoadingState, PageHeading, TextButton } from "@/components/ui";
+import { EmptyState, ErrorPanel, LoadingState, PageHeading } from "@/components/ui";
 import { useRequest } from "@/hooks/useRequest";
 import { colors, fonts, spacing } from "@/theme";
 import { dateLabel } from "@/utils/format";
@@ -92,7 +92,7 @@ export function DiscoverScreen() {
               footer={
                 <>
                   <Text style={styles.price}>{event.time_status === "completed" ? t("common.completed") : t("discover.tickets_available")}</Text>
-                  <TextButton label={t("discover.view_event")} onPress={() => openEvent(event.id)} />
+                  <Text style={styles.view}>{t("discover.view_event")}</Text>
                 </>
               }
             />
@@ -105,5 +105,7 @@ export function DiscoverScreen() {
 
 const styles = StyleSheet.create({
   list: { padding: spacing.gutter, paddingBottom: 32, gap: spacing.gap },
+  // Looks like the old link but is plain text: the card is the one button.
+  view: { color: colors.greenDark, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
   price: { color: colors.green, fontFamily: fonts.sans, fontSize: 13, fontWeight: "700" },
 });

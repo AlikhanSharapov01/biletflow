@@ -1,5 +1,5 @@
 import { t, useLocale } from "../../../i18n";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { describeError } from "../../../api/errors";
 import { getDelivery, resendDelivery } from "../../../api/tickets";
 import type { TicketDelivery } from "../../../api/types/checkout";
@@ -11,6 +11,7 @@ import { deliveryLook, resendHint } from "../utils/ticketStatus";
 // Email delivery of this ticket, with a rate-limited "Resend email".
 export function DeliveryPanel({ ticketId }: { ticketId: string }) {
   useLocale();
+  const hintId = useId();
   const loaded = useRequest(() => getDelivery(ticketId), [ticketId]);
   const [override, setOverride] = useState<TicketDelivery | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,12 +50,12 @@ export function DeliveryPanel({ ticketId }: { ticketId: string }) {
           {delivery.status === "failed" ? <p className="form-intro">{t("tickets.email_failed_hint")}</p> : null}
           <FormMessage message={message.text} success={message.success} />
           <div className="form-actions">
-            <Button disabled={busy || !delivery.can_resend} onClick={() => void resend()}>
+            <Button busy={busy} aria-disabled={!delivery.can_resend} aria-describedby={resendHint(delivery) ? hintId : undefined} onClick={() => void resend()}>
               {busy ? t("common.sending") : t("tickets.resend")}
             </Button>
             <Button variant="text" onClick={() => { setOverride(null); loaded.reload(); }}>{t("common.refresh")}</Button>
           </div>
-          {resendHint(delivery) ? <small className="form-intro">{resendHint(delivery)}</small> : null}
+          {resendHint(delivery) ? <small id={hintId} className="form-intro">{resendHint(delivery)}</small> : null}
         </>
       ) : null}
     </Panel>

@@ -23,6 +23,7 @@ export function NotificationsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [offset, setOffset] = useState(0);
   const [busyId, setBusyId] = useState("");
+  const [markingAll, setMarkingAll] = useState(false);
   const inbox = useRequest(
     () => listNotifications({ unread_only: filter === "unread", limit: PAGE_SIZE, offset }),
     [filter, offset],
@@ -48,6 +49,7 @@ export function NotificationsPage() {
   };
 
   const markAll = async () => {
+    setMarkingAll(true);
     try {
       const updated = await markAllNotificationsRead();
       announceNotificationsChanged();
@@ -55,6 +57,8 @@ export function NotificationsPage() {
       inbox.reload();
     } catch (failure) {
       notify(describeError(failure));
+    } finally {
+      setMarkingAll(false);
     }
   };
 
@@ -70,7 +74,7 @@ export function NotificationsPage() {
         title={t("notifications.title")}
         subtitle={t("notifications.subtitle")}
         actions={
-          <Button onClick={() => void markAll()} disabled={!hasUnread}>{t("notifications.mark_all")}{" "}</Button>
+          <Button onClick={() => void markAll()} busy={markingAll} disabled={!hasUnread && !markingAll}>{t("notifications.mark_all")}{" "}</Button>
         }
       />
       <Tabs label={t("notifications.filter")} idPrefix="notifications" items={FILTERS} value={filter} onChange={changeFilter} />

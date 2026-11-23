@@ -7,6 +7,7 @@ import { CheckboxField, SelectField, TextField } from "../../../components/ui/Fi
 import {
   cityOptions,
   discoverSearchParams,
+  searchKey,
   hasActiveFilters,
   moreFiltersCount,
   parseDiscoverQuery,
@@ -57,7 +58,7 @@ interface DiscoverFiltersProps {
 export function DiscoverFilters({ query, categories, cities, searchRef, onSearch, onClear }: DiscoverFiltersProps) {
   useLocale();
   const phone = useSyncExternalStore(subscribePhone, isPhone, () => false);
-  const key = discoverSearchParams(query).toString();
+  const key = searchKey(query);
   const [seenKey, setSeenKey] = useState(key);
   const [epoch, setEpoch] = useState(0);
   const [ownKey, setOwnKey] = useState<string | null>(null);

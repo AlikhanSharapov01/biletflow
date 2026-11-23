@@ -209,6 +209,7 @@ describe("useCheckoutFlow release and expiry", () => {
     expect(releaseHoldMock).toHaveBeenCalledWith("h9");
     expect(result.current.flow.hold).toBeNull();
     expect(result.current.flow.message).toBe("");
+    expect(result.current.flow.expired).toBe(false);
   });
 
   it("drops the hold with a message once the countdown reaches zero", async () => {
@@ -226,6 +227,24 @@ describe("useCheckoutFlow release and expiry", () => {
     act(() => vi.advanceTimersByTime(3000));
     expect(result.current.flow.hold).toBeNull();
     expect(result.current.flow.message).toBe("Your reservation expired. Choose your tickets again.");
+  });
+
+  it("flags the expiry until the next reservation", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"] });
+    vi.setSystemTime(new Date("2026-11-01T12:00:00Z"));
+    createHoldMock.mockResolvedValue(makeHold({ expires_at: "2026-11-01T12:00:03Z" }));
+    const { result } = renderFlow();
+    await act(() => result.current.flow.reserve([{ ticket_type_id: "free", quantity: 1 }]));
+    expect(result.current.flow.expired).toBe(false);
+
+    act(() => vi.advanceTimersByTime(4000));
+    expect(result.current.flow.hold).toBeNull();
+    expect(result.current.flow.expired).toBe(true);
+
+    createHoldMock.mockResolvedValue(makeHold({ id: "h2", expires_at: "2026-11-01T12:10:00Z" }));
+    await act(() => result.current.flow.reserve([{ ticket_type_id: "free", quantity: 1 }]));
+    expect(result.current.flow.hold).not.toBeNull();
+    expect(result.current.flow.expired).toBe(false);
   });
 
   it("does not expire a freshly created ten-minute hold", async () => {

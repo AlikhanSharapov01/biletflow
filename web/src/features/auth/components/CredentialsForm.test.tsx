@@ -58,14 +58,29 @@ describe("CredentialsForm", () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
-  it("locks the submit button while busy", () => {
-    renderForm({ busy: true });
-    expect((screen.getByRole("button", { name: /^Signing in…/ }) as HTMLButtonElement).disabled).toBe(true);
+  it("locks the submit button without marking it busy while another sign-in runs", () => {
+    const props = renderForm({ locked: true });
+    const submit = screen.getByRole("button", { name: /^Sign in/ });
+    expect(submit.hasAttribute("aria-busy")).toBe(false);
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(submit);
+    expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
-  it("shows busy registration text", () => {
-    renderForm({ busy: true, registering: true });
-    expect((screen.getByRole("button", { name: /^Creating account…/ }) as HTMLButtonElement).disabled).toBe(true);
+  it("marks the submit button busy and does not submit again", () => {
+    const props = renderForm({ busy: true });
+    const submit = screen.getByRole("button", { name: /^Signing in…/ });
+    expect(submit.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(submit);
+    expect(props.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows busy registration text and does not submit again", () => {
+    const props = renderForm({ busy: true, registering: true });
+    const submit = screen.getByRole("button", { name: /^Creating account…/ });
+    expect(submit.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(submit);
+    expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
   it("announces errors and successes in a status region", () => {

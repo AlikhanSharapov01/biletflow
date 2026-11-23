@@ -1,4 +1,5 @@
 import { getLocale, t } from "../i18n";
+import { intlLocale } from "./intlLocale";
 import { localizedStatus } from "../i18n/status";
 import type { SeatSnapshot } from "../api/types";
 
@@ -8,7 +9,7 @@ export function dateLabel(value: string | null | undefined, options: Intl.DateTi
   if (!value) return t("common.not_available");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t("common.not_available");
-  return new Intl.DateTimeFormat(getLocale(), options).format(date);
+  return new Intl.DateTimeFormat(intlLocale(getLocale()), options).format(date);
 }
 
 export function dayNumber(value: string): string {
@@ -22,18 +23,18 @@ export function monthShort(value: string): string {
 // Prices are stored in tiyn (minor units of KZT).
 export function priceLabel(priceMinor: number): string {
   if (priceMinor === 0) return t("common.free");
-  return new Intl.NumberFormat(getLocale(), { style: "currency", currency: "KZT", currencyDisplay: "narrowSymbol" }).format(priceMinor / 100);
+  return new Intl.NumberFormat(intlLocale(getLocale()), { style: "currency", currency: "KZT", currencyDisplay: "narrowSymbol" }).format(priceMinor / 100);
 }
 
 // Accounting amounts (analytics, finance, payouts) in the currency the server
 // reports: zero stays a number and a negative balance keeps its sign.
 export function moneyLabel(amountMinor: number, currency: string): string {
-  return new Intl.NumberFormat(getLocale(), { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(amountMinor / 100);
+  return new Intl.NumberFormat(intlLocale(getLocale()), { style: "currency", currency, currencyDisplay: "narrowSymbol" }).format(amountMinor / 100);
 }
 
 // Server percentages are on a 0-100 scale.
 export function percentLabel(value: number): string {
-  return new Intl.NumberFormat(getLocale(), { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
+  return new Intl.NumberFormat(intlLocale(getLocale()), { style: "percent", maximumFractionDigits: 1 }).format(value / 100);
 }
 
 export function tengeToMinor(tenge: string | number): number {

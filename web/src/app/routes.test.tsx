@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getAdminMe, searchUsers } from "../api/admin";
+import { searchUsers } from "../api/admin";
+import { getAdminMe } from "../api/adminMe";
 import { ApiError } from "../api/errors";
 import { listOrders } from "../api/orders";
 import { AuthContext, type AuthContextValue } from "../features/auth/AuthContext";
@@ -9,10 +10,10 @@ import { makeAuthValue, makeProfile } from "../../tests/helpers/fixtures";
 import { AppRoutes } from "./routes";
 
 vi.mock("../api/admin", () => ({
-  getAdminMe: vi.fn(),
   searchUsers: vi.fn(),
   moderateUser: vi.fn(),
 }));
+vi.mock("../api/adminMe", () => ({ getAdminMe: vi.fn() }));
 vi.mock("../api/notifications", () => ({
   unreadNotificationCount: vi.fn(() => Promise.resolve(0)),
   listNotifications: vi.fn(() => new Promise(() => undefined)),
@@ -22,13 +23,15 @@ vi.mock("../api/orders", () => ({
   getOrder: vi.fn(),
 }));
 
+vi.mock("../api/organizations", () => ({ listOrganizations: vi.fn(() => new Promise(() => undefined)) }));
+
 const getAdminMeMock = vi.mocked(getAdminMe);
 const searchUsersMock = vi.mocked(searchUsers);
 const listOrdersMock = vi.mocked(listOrders);
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location">{location.pathname}</output>;
+  return <output data-testid="location" data-from={(location.state as { from?: string } | null)?.from ?? ""}>{location.pathname}</output>;
 }
 
 function renderAt(path: string, auth: AuthContextValue) {
@@ -82,6 +85,12 @@ describe("route guarding for anonymous visitors", () => {
     },
   );
 
+  it("remembers the query and hash of the page that needed sign-in", async () => {
+    renderAt("/organizer/events/e1?tab=finance#top", makeAuthValue({ status: "anonymous" }));
+    await waitFor(() => expect(currentPath()).toBe("/sign-in"));
+    expect(screen.getByTestId("location").getAttribute("data-from")).toBe("/organizer/events/e1?tab=finance#top");
+  });
+
   it("keeps public pages public", () => {
     renderAt("/sign-in", makeAuthValue({ status: "anonymous" }));
     expect(currentPath()).toBe("/sign-in");
@@ -97,6 +106,16 @@ describe("route guarding for anonymous visitors", () => {
   it("sends unknown paths to Discover", async () => {
     renderAt("/no-such-page", makeAuthValue({ status: "restoring" }));
     await waitFor(() => expect(currentPath()).toBe("/discover"));
+  });
+});
+
+describe("organizer pages load on demand", () => {
+  it("shows the organizer workspace inside the app shell once its chunk has loaded", async () => {
+    getAdminMeMock.mockReturnValue(new Promise(() => undefined));
+    renderAt("/organizer", signedIn());
+    // The workspace's own loading label, not the generic one from the lazy fallback.
+    expect(await screen.findByText("Loading organizer workspace…")).toBeTruthy();
+    expect(screen.getAllByRole("navigation", { name: "Main navigation" }).length).toBeGreaterThan(0);
   });
 });
 
@@ -121,10 +140,10 @@ describe("platform admin portal", () => {
     expect(searchUsersMock).not.toHaveBeenCalled();
   });
 
-  it("shows a neutral check, not admin tools, while the server answer is pending", () => {
+  it("shows a neutral check, not admin tools, while the server answer is pending", async () => {
     getAdminMeMock.mockReturnValue(new Promise(() => undefined));
     renderAt("/admin/users", signedIn());
-    expect(screen.getByText("Checking admin access…")).toBeTruthy();
+    expect(await screen.findByText("Checking admin access…")).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "Admin sections" })).toBeNull();
     expect(searchUsersMock).not.toHaveBeenCalled();
   });

@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "../i18n";
+import { clearIntlLocales, intlLocale } from "./intlLocale";
 import { consumeHashToken, dateLabel, firstName, formatCountdown, initials, isoToLocalInput, localInputToIso, priceLabel, seatLabel, tengeToMinor } from "./format";
 
 describe("dateLabel", () => {
@@ -77,5 +79,64 @@ describe("consumeHashToken", () => {
     const history = { replaceState: vi.fn() } as unknown as History;
     expect(consumeHashToken({ href: "http://localhost:5173/verify-email", hash: "" } as Location, history)).toBe("");
     expect(history.replaceState).not.toHaveBeenCalled();
+  });
+});
+
+describe("Kazakh fallback", () => {
+  beforeEach(() => clearIntlLocales());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearIntlLocales();
+    setLocale("en");
+  });
+
+  // Some engines list "kk" as supported but have no month names for it, and print
+  // "2027 M02 4" for a date.
+  function monthNamesFor(locale: string, value: string) {
+    const real = Intl.DateTimeFormat.prototype.formatToParts;
+    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockImplementation(function (this: Intl.DateTimeFormat, date) {
+      const parts = real.call(this, date);
+      if (!this.resolvedOptions().locale.startsWith(locale)) return parts;
+      return parts.map((part) => (part.type === "month" ? { ...part, value } : part));
+    });
+  }
+
+  it("uses the Russian formats when the engine lists Kazakh without month names", () => {
+    monthNamesFor("kk", "M02");
+    expect(intlLocale("kk")).toBe("ru");
+  });
+
+  it("uses the Russian formats when Kazakh months come out as numbers", () => {
+    monthNamesFor("kk", "02");
+    expect(intlLocale("kk")).toBe("ru");
+  });
+
+  it("checks each locale once", () => {
+    const check = vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf");
+    intlLocale("kk");
+    intlLocale("kk");
+    intlLocale("ru");
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the Russian formats when the engine has no Kazakh data", () => {
+    setLocale("ru");
+    const russian = priceLabel(300000);
+    vi.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue([]);
+    vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue([]);
+    setLocale("kk");
+    expect(intlLocale("kk")).toBe("ru");
+    expect(priceLabel(300000)).toBe(russian);
+    expect(intlLocale("en")).toBe("en");
+  });
+
+  it("keeps Kazakh when the engine supports it", () => {
+    vi.spyOn(Intl.NumberFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    vi.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue(["kk"]);
+    const spy = vi.spyOn(Intl, "NumberFormat");
+    setLocale("kk");
+    priceLabel(300000);
+    expect(intlLocale("kk")).toBe("kk");
+    expect(spy.mock.calls[0]![0]).toBe("kk");
   });
 });

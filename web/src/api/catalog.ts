@@ -22,6 +22,7 @@ export function listEvents(filters: EventFilters = {}): Promise<EventView[]> {
       city: filters.city,
       date_from: filters.date_from,
       date_to: filters.date_to,
+      ends_after: filters.ends_after,
       min_price: filters.min_price,
       max_price: filters.max_price,
       free: filters.free ? "true" : undefined,
