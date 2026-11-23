@@ -73,14 +73,12 @@ describe("Kazakh fallback", () => {
     expect(check).toHaveBeenCalledTimes(2);
   });
 
-  it("formats dates in Russian when the engine has no Kazakh data", () => {
-    setLocale("ru");
-    const russian = dateLabel("2026-10-18T13:00:00Z", { month: "long", timeZone: "UTC" });
+  it("falls back to Russian formatting but keeps Kazakh month names when the engine has no Kazakh data", () => {
     jest.spyOn(Intl.DateTimeFormat, "supportedLocalesOf").mockReturnValue([]);
     setLocale("kk");
     expect(intlLocale("kk")).toBe("ru");
     expect(intlLocale("en")).toBe("en");
-    expect(dateLabel("2026-10-18T13:00:00Z", { month: "long", timeZone: "UTC" })).toBe(russian);
+    expect(dateLabel("2026-10-18T13:00:00Z", { month: "long", timeZone: "UTC" })).toBe("Қазан");
   });
 
   it("keeps Kazakh when the engine supports it", () => {

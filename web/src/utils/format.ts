@@ -1,5 +1,6 @@
 import { getLocale, t } from "../i18n";
 import { intlLocale } from "./intlLocale";
+import { formatDateTime } from "./kazakhDate";
 import { localizedStatus } from "../i18n/status";
 import type { SeatSnapshot } from "../api/types";
 
@@ -9,7 +10,7 @@ export function dateLabel(value: string | null | undefined, options: Intl.DateTi
   if (!value) return t("common.not_available");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t("common.not_available");
-  return new Intl.DateTimeFormat(intlLocale(getLocale()), options).format(date);
+  return formatDateTime(getLocale(), date, options);
 }
 
 export function dayNumber(value: string): string {
