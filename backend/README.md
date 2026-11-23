@@ -331,6 +331,10 @@ that queued the job; backlog, retry and dead counts are in the protected metrics
   keep it in the device's secure storage.
 - Passwords are hashed with Argon2id. Registration requires 12–128 characters. Verification links
   last 24 hours, password-reset links 30 minutes; a reset revokes every session.
+- `POST /auth/login` answers `401 invalid_credentials` for an unknown email, a wrong password or a
+  suspended account. Only when the password is right but the email is not verified yet does it
+  answer `403 email_not_verified`, so clients can offer `POST /auth/verification/resend`; it creates
+  no session.
 
 Try it in Swagger: `POST /auth/register` → open the email in Mailpit and send the `#token=` value
 to `POST /auth/verify-email` → `POST /auth/login` → paste `access_token` into **Authorize**.
