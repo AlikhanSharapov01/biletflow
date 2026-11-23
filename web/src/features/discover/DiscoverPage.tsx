@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/Button";
 import { useRequest } from "../../hooks/useRequest";
 import { dateLabel } from "../../utils/format";
 import { DiscoverFilters } from "./components/DiscoverFilters";
-import { discoverSearchParams, parseDiscoverQuery, priceRangeError, type DiscoverQuery } from "./discoverQuery";
+import { MAX_DISCOVER_PAGES, discoverSearchParams, parseDiscoverQuery, priceRangeError, searchKey, type DiscoverQuery } from "./discoverQuery";
 import { eventOffer } from "./eventOffer";
 import { useDiscoverEvents, type DiscoverEvents } from "./useDiscoverEvents";
 
@@ -26,7 +26,7 @@ export function DiscoverPage() {
   // Parsed from the URL, so a hand-edited link is cleaned the same way as a submitted form.
   const urlKey = searchParams.toString();
   const query = useMemo(() => parseDiscoverQuery(new URLSearchParams(urlKey)), [urlKey]);
-  const key = discoverSearchParams(query).toString();
+  const key = searchKey(query);
   const rangeError = priceRangeError(query);
 
   // Categories and venues are loaded once per visit, not per search or page.
@@ -35,6 +35,15 @@ export function DiscoverPage() {
     return { categories, venues };
   }, []);
   const found = useDiscoverEvents(query, !rangeError);
+
+  // Back to this page shows the same list: the number of pages loaded rides in the URL (replacing, not adding, an entry).
+  const { pagesLoaded } = found;
+  useEffect(() => {
+    // Written once nothing is in flight, so a restore does not step the URL and a stale count is corrected.
+    if (pagesLoaded === null) return;
+    const pages = Math.min(pagesLoaded, MAX_DISCOVER_PAGES);
+    if (pages !== query.pages) setSearchParams(discoverSearchParams({ ...query, pages }), { replace: true });
+  }, [pagesLoaded, query, setSearchParams]);
 
   const cities = useMemo(() => lookups.data?.venues.map((venue) => venue.city) ?? [], [lookups.data]);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -98,7 +107,7 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
   useLocale();
   const grid = useRef<HTMLDivElement>(null);
   // Layout effects below: they run in the commit that shows the new cards, before any later click or test read.
-  // Set when Load more had the focus, so it can follow the new cards if the button goes away.
+  // Set when Load more had the focus, so it can follow the new cards.
   const refocusFrom = useRef<number | null>(null);
   const maps = useMemo(
     () => ({
@@ -113,13 +122,13 @@ function DiscoverResults({ found, lookups, searchRef, onClear }: DiscoverResults
     if (refocusFrom.current === null || loadingMore) return;
     const from = refocusFrom.current;
     refocusFrom.current = null;
-    if (hasMore || loadMoreFailed) return;
+    if (loadMoreFailed) return;
     const cards = grid.current?.querySelectorAll<HTMLAnchorElement>("a");
     const links = [...(cards ?? [])];
     const target = events[from] ?? events.at(-1);
     const path = target ? `/events/${encodeURIComponent(target.id)}` : "";
     (links.find((link) => link.getAttribute("href") === path) ?? links.at(-1))?.focus();
-  }, [events, hasMore, loadingMore, loadMoreFailed]);
+  }, [events, loadingMore, loadMoreFailed]);
 
   // The card link that had the focus when a reload began: the dimmed grid is inert, so a browser drops
   // the focus to the page. Once the results settle it returns to the same card, else to the search box.

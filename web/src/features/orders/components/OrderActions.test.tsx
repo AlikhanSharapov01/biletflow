@@ -26,10 +26,16 @@ describe("refund requests and cancellations", () => {
     vi.mocked(requestRefund).mockResolvedValue({ order_id: "ord1", status: "requested", case_id: "case/1" });
     const changed = mount(true);
     fireEvent.change(screen.getByRole("textbox"), { target: { value: " Wrong date " } });
+    screen.getByRole("button", { name: "Request refund" }).focus();
     fireEvent.click(screen.getByRole("button", { name: "Request refund" }));
     expect((await screen.findByRole("link", { name: "View refund request" })).getAttribute("href")).toBe("/support/cases/case%2F1");
     expect(requestRefund).toHaveBeenCalledWith("ord1", { reason: "Wrong date" });
-    expect((screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement).disabled).toBe(true);
+    const submit = screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement;
+    expect(submit.getAttribute("aria-disabled")).toBe("true");
+    expect(submit.matches(":disabled")).toBe(false);
+    expect(document.activeElement).toBe(submit);
+    fireEvent.click(submit);
+    expect(requestRefund).toHaveBeenCalledTimes(1);
     expect(changed).not.toHaveBeenCalled();
   });
 
@@ -55,5 +61,30 @@ describe("refund requests and cancellations", () => {
     expect((screen.getByRole("button", { name: "Request refund" }) as HTMLButtonElement).disabled).toBe(false);
     expect(changed).not.toHaveBeenCalled();
     expect(screen.queryByText("Not available yet")).toBeNull();
+  });
+  it("ignores a second form submission once the refund request exists", async () => {
+    vi.mocked(requestRefund).mockResolvedValue({ order_id: "ord1", status: "requested", case_id: "case1" });
+    mount(true);
+    fireEvent.click(screen.getByRole("button", { name: "Request refund" }));
+    await screen.findByRole("link", { name: "View refund request" });
+    fireEvent.submit(screen.getByRole("button", { name: "Request refund" }).closest("form")!);
+    await act(async () => {});
+    expect(requestRefund).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the cancellation result on screen and focused once the order reloads", async () => {
+    vi.mocked(cancelRegistration).mockResolvedValue(makeOrder({ status: "cancelled" }));
+    const onChanged = vi.fn();
+    const view = render(<MemoryRouter><OrderActions order={makeOrder()} onChanged={onChanged} /><ActionDialogHost /></MemoryRouter>);
+    fireEvent.click(screen.getByText("Cancel registration", { selector: "summary" }));
+    const submit = screen.getByRole("button", { name: "Cancel registration" });
+    submit.focus();
+    fireEvent.click(submit);
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    view.rerender(<MemoryRouter><OrderActions order={makeOrder({ status: "cancelled" })} onChanged={onChanged} /><ActionDialogHost /></MemoryRouter>);
+    const result = await screen.findByText("Registration cancelled.");
+    expect(result.getAttribute("role")).toBe("status");
+    await waitFor(() => expect(document.activeElement).toBe(result));
   });
 });

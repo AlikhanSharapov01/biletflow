@@ -61,13 +61,13 @@ describe("skeleton styles", () => {
     expect(skeleton).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
     const reduced = reducedMotion(css);
     expect(reduced).toMatch(/\.skeleton[^{]*\{[^}]*animation: none/);
-    expect(reduced).toMatch(/\.skeleton-page \.page-heading \.skeleton-shape \{[^}]*background-image: none/);
+    expect(reduced).toMatch(/\.skeleton-shape::after[^{]*\{[^}]*display: none/);
     expect(reduced.trim().endsWith("}")).toBe(true);
     expect(reduced).not.toMatch(/Loading, error/);
   });
 
   it("draws shapes that sit on the canvas in the darker line colour", () => {
-    expect(css).toMatch(/\.skeleton-page \.page-heading \.skeleton-shape \{[^}]*var\(--line\) 30%/);
+    expect(css).toMatch(/\.skeleton-page \.page-heading \.skeleton-shape \{[^}]*background-color: var\(--line\)/);
   });
 
   it("dims a reload after a short delay and eases back in, with no animation under reduced motion", () => {

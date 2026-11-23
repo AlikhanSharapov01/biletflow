@@ -1,4 +1,5 @@
 import { getLocale, t } from "../../i18n";
+import { intlLocale } from "../../utils/intlLocale";
 // Client-side pre-checks for support attachments. The size limit is the
 // platform's current `upload_max_bytes` (GET /settings/public), passed in by
 // the caller. The per-message count is fixed by the backend (SUPPORT_API.md).
@@ -12,7 +13,7 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 export function fileSizeLabel(bytes: number): string {
   if (bytes < 1024) return t("support.bytes", { p0: bytes });
   if (bytes < 1024 * 1024) return t("support.kilobytes", { p0: Math.round(bytes / 1024) });
-  return t("support.megabytes", { p0: new Intl.NumberFormat(getLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(bytes / (1024 * 1024)) });
+  return t("support.megabytes", { p0: new Intl.NumberFormat(intlLocale(getLocale()), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(bytes / (1024 * 1024)) });
 }
 
 // Returns a message when the file cannot be sent, or null when it looks fine.

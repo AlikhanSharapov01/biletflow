@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 
 import { listCategories, listEvents, listVenues } from "@/api/catalog";
 import { ApiError } from "@/api/errors";
@@ -36,6 +36,17 @@ describe("DiscoverScreen", () => {
 
     await fireEvent.press(screen.getAllByText("View event →")[0]!);
     expect(mockPush).toHaveBeenCalledWith({ pathname: "/events/[eventId]", params: { eventId: "e1" } });
+  });
+
+  it("keeps one button per card so the card is not a button inside a button", async () => {
+    jest.mocked(listEvents).mockResolvedValue([sampleEvent, { ...sampleEvent, id: "e2", title: "Second" }]);
+    await render(<DiscoverScreen />);
+    await screen.findByText("Almaty Jazz Night");
+    const cards = screen.getAllByLabelText(/Almaty Jazz Night\.|Second\./);
+    expect(cards).toHaveLength(2);
+    for (const card of cards) {
+      expect(within(card).queryAllByRole("button")).toHaveLength(0);
+    }
   });
 
   it("searches by title when the form is applied", async () => {

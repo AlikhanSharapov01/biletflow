@@ -66,7 +66,7 @@
 
 /* Event card (mobile EventCard) */
 .event-card { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--paper); transition: border-color .18s; }
-.event-card:hover { border-color: var(--card-hover-line); }
+@media (hover: hover) { .event-card:hover { border-color: var(--card-hover-line); } }
 .event-card-art { display: grid; aspect-ratio: 2 / 1; place-items: center; overflow: hidden; background: linear-gradient(135deg, var(--art-0)); color: var(--art-ink); }
 .event-card-art.art-1 { background: linear-gradient(135deg, var(--art-1)); }
 .event-card-art.art-2 { background: linear-gradient(135deg, var(--art-2)); }
@@ -78,13 +78,13 @@
 .event-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
 .event-card h3 { font-family: var(--font-serif); font-size: var(--text-card-title); font-weight: 400; line-height: 25px; overflow-wrap: anywhere; }
 .event-card h3 a { color: inherit; text-decoration: none; }
-.event-card h3 a:hover { text-decoration: underline; }
+@media (hover: hover) { .event-card h3 a:hover { text-decoration: underline; } }
 .event-card-meta { color: var(--meta); font-size: var(--text-meta); line-height: 18px; }
 .event-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; }
 .event-card-linked { position: relative; }
 .event-card-linked h3 a::after { content: ""; position: absolute; inset: 0; }
-.event-card-linked:hover { border-color: var(--hover-line); }
-.event-card-linked:hover h3 a { text-decoration: underline; }
+@media (hover: hover) { .event-card-linked:hover { border-color: var(--hover-line); } }
+@media (hover: hover) { .event-card-linked:hover h3 a { text-decoration: underline; } }
 /* Same ring as the global :focus-visible, drawn around the card; without :has() the link keeps its own. */
 @supports selector(:has(*)) {
   .event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper); }
@@ -115,19 +115,22 @@
 .fact-list strong { display: block; color: var(--ink); font-size: var(--text-label); }
 
 /* Skeletons: calm placeholders sized like the layout they stand in for */
-@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-.skeleton-shape, .skeleton-art, .skeleton-tile { background: linear-gradient(90deg, var(--line-soft) 30%, var(--canvas) 50%, var(--line-soft) 70%) 100% 0 / 200% 100%; animation: shimmer 1.6s ease-in-out infinite; }
+/* The sweep is an overlay moved with transform, so it runs on the compositor and never repaints the card. */
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.skeleton-shape, .skeleton-art, .skeleton-tile { --shimmer-highlight: var(--canvas); position: relative; overflow: hidden; background-color: var(--line-soft); }
+.skeleton-shape::after, .skeleton-art::after, .skeleton-tile::after { content: ""; position: absolute; inset: 0; box-sizing: border-box; padding: inherit; background-clip: content-box; background-image: linear-gradient(90deg, transparent, var(--shimmer-highlight), transparent); animation: shimmer 1.6s ease-in-out infinite; will-change: transform; }
+/* Shapes carry padding to match the loaded line boxes; the overlay inherits it and paints only its content box, in every engine. */
 .skeleton-shape { display: block; box-sizing: content-box; border-radius: 4px; background-clip: content-box; }
 .skeleton-art { aspect-ratio: 2 / 1; }
 .skeleton-tile { width: 48px; height: 50px; flex: none; border-radius: 6px; }
-.skeleton-card:hover { border-color: var(--line); }
+@media (hover: hover) { .skeleton-card:hover { border-color: var(--line); } }
 /* Line heights below add up to the loaded text's line boxes (16.5px eyebrow, 25px titles, 18px meta, 31px footer). */
 .skeleton-eyebrow { width: 38%; height: 11px; padding-block: 2.75px; }
 .skeleton-title { width: 82%; height: 17px; padding-block: 4px; }
 .skeleton-meta { width: 64%; height: 12px; padding-block: 3px; }
 .skeleton-foot { width: 30%; height: 21px; margin-top: auto; padding-top: 10px; }
 /* Shapes drawn straight on the page canvas need the darker line colour to stay visible. */
-.skeleton-page .page-heading .skeleton-shape { background-image: linear-gradient(90deg, var(--line) 30%, var(--line-soft) 50%, var(--line) 70%); }
+.skeleton-page .page-heading .skeleton-shape { --shimmer-highlight: var(--line-soft); background-color: var(--line); }
 .skeleton-page { display: grid; gap: var(--heading-gap); }
 .skeleton-page .page-heading { margin-bottom: 0; }
 /* 22.3px is the measured height of a StatusPill (11px micro text at 1.3 line height plus 4px padding twice). */
@@ -209,8 +212,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-shape, .skeleton-art, .skeleton-tile { animation: none; background-image: none; background-color: var(--line-soft); }
-  .skeleton-page .page-heading .skeleton-shape { background-image: none; background-color: var(--line); }
+  .skeleton-shape::after, .skeleton-art::after, .skeleton-tile::after { display: none; animation: none; }
   .event-grid { transition: none; }
   /* No animation, but the same 150 ms delay, so a quick answer never flashes the dim. */
   .event-grid[aria-busy="true"] { transition: opacity 0s .15s; }

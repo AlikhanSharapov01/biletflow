@@ -1,5 +1,5 @@
 import { t, useLocale } from "../../../i18n";
-import { useState, type FormEvent } from "react";
+import { useId, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { describeError } from "../../../api/errors";
 import { assignCase, changeStatus, escalateCase } from "../../../api/support";
 import { SUPPORT_STATUSES, type SupportCase, type SupportChange, type SupportStatus } from "../../../api/types/support";
@@ -25,11 +25,29 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
   const [pending, setPending] = useState<"status" | "assign" | "escalate" | null>(null);
   const [error, setError] = useState("");
   const assignedToMe = supportCase.assigned_to?.id === viewerId;
+  // The panel stays mounted across the page's re-read, so a button that survives the
+  // change keeps focus. When the re-read removes the focused control (the escalation
+  // form, or every action once resolved), the panel heading takes focus instead.
+  const headingId = useId();
+  const refocusHeading = useRef(false);
+  const [shownStatus, setShownStatus] = useState(supportCase.status);
+  if (shownStatus !== supportCase.status) {
+    setShownStatus(supportCase.status);
+    setStatus(supportCase.status);
+  }
+  const escalatable = canEscalate(supportCase);
+  useLayoutEffect(() => {
+    if (!refocusHeading.current) return;
+    if (escalatable) return;
+    refocusHeading.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body) document.getElementById(headingId)?.focus();
+  }, [escalatable, supportCase.status, headingId]);
 
   if (supportCase.status === "resolved") {
     return (
       <Panel tone="note">
-        <PanelHeading title={t("support.staff_actions")} subtitle={t("support.closed_staff")} />
+        <PanelHeading title={t("support.staff_actions")} subtitle={t("support.closed_staff")} headingId={headingId} focusable />
       </Panel>
     );
   }
@@ -52,7 +70,11 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
 
   const handleStatus = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void run("status", () => changeStatus(supportCase.id, status, reason.trim()), t("support.status_updated"));
+    if (status === supportCase.status) return;
+    refocusHeading.current = status === "resolved";
+    void run("status", () => changeStatus(supportCase.id, status, reason.trim()), t("support.status_updated")).then((done) => {
+      if (!done) refocusHeading.current = false;
+    });
   };
 
   const handleEscalate = async (event: FormEvent<HTMLFormElement>) => {
@@ -61,12 +83,14 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
       setError(t("support.escalate_reason"));
       return;
     }
+    refocusHeading.current = true;
     if (await run("escalate", () => escalateCase(supportCase.id, escalation.trim()), t("support.escalated_success"))) setEscalation("");
+    else refocusHeading.current = false;
   };
 
   return (
     <Panel>
-      <PanelHeading title={t("support.staff_actions")} subtitle={supportCase.assigned_to ? t("support.assigned_name", { p0: supportCase.assigned_to.display_name }) : t("support.not_assigned")} />
+      <PanelHeading headingId={headingId} focusable title={t("support.staff_actions")} subtitle={supportCase.assigned_to ? t("support.assigned_name", { p0: supportCase.assigned_to.display_name }) : t("support.not_assigned")} />
       <form className="form-stack" onSubmit={handleStatus}>
         <SelectField label={t("common.status")} value={status} onChange={(event) => setStatus(event.target.value as SupportStatus)}>
           {SUPPORT_STATUSES.map((value) => (
@@ -77,7 +101,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
         </SelectField>
         <TextField label={t("common.reason")} hint={t("common.optional")} value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} />
         <div className="form-actions">
-          <Button type="submit" busy={pending === "status"} aria-disabled={pending !== null && pending !== "status"} disabled={status === supportCase.status}>{t("support.update_status")}{" "}</Button>
+          <Button type="submit" busy={pending === "status"} aria-disabled={(pending !== null && pending !== "status") || status === supportCase.status}>{t("support.update_status")}{" "}</Button>
           {assignedToMe ? (
             <Button busy={pending === "assign"} aria-disabled={pending !== null && pending !== "assign"} onClick={() => void run("assign", () => assignCase(supportCase.id, null), t("support.unassigned"))}>{t("support.unassign_me")}{" "}</Button>
           ) : (
@@ -85,7 +109,7 @@ export function StaffActions({ supportCase, viewerId, onUpdated }: StaffActionsP
           )}
         </div>
       </form>
-      {canEscalate(supportCase) ? (
+      {escalatable ? (
         <form className="form-stack" onSubmit={(event) => void handleEscalate(event)}>
           <TextField
             label={t("support.escalate_to_platform")}

@@ -5,7 +5,7 @@
 
 .support-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .support-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--note); color: var(--green-dark); font-size: var(--text-meta); font-weight: 600; text-decoration: none; }
-a.support-chip:hover { border-color: var(--hover-line); }
+@media (hover: hover) { a.support-chip:hover { border-color: var(--hover-line); } }
 
 .support-case-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: var(--gap); }
 .support-case-side { display: grid; gap: var(--gap); }
@@ -26,7 +26,7 @@ a.support-chip:hover { border-color: var(--hover-line); }
 
 .support-files, .support-pending { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .support-file { display: flex; width: 100%; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-button); background: var(--paper); color: var(--button-ink); cursor: pointer; font-size: var(--text-meta); text-align: left; }
-.support-file:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--hover-line); }
+@media (hover: hover) { .support-file:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--hover-line); } }
 .support-file > span[aria-hidden] { color: var(--green); font-size: var(--text-micro); font-weight: 800; }
 .support-file small, .support-pending-file small { color: var(--meta); font-size: var(--text-micro); white-space: nowrap; }
 .support-file-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

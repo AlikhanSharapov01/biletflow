@@ -1,5 +1,5 @@
 import { t, useLocale } from "../../../../i18n";
-import { useState, type ChangeEvent } from "react";
+import { useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
 import { deleteEventImage, reorderEventImages, setEventCover, uploadEventImage } from "../../../../api/eventAdmin";
 import { describeError } from "../../../../api/errors";
 import type { EventImage as EventImageRecord, EventView } from "../../../../api/types";
@@ -25,6 +25,23 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const [altText, setAltText] = useState(event.title);
   const [busy, setBusy] = useState<Busy>(null);
   const [message, setMessage] = useState("");
+  const gallery = useRef<HTMLOListElement>(null);
+  const upload = useRef<HTMLInputElement>(null);
+  // The control to focus once the new list is rendered: reordering moves the row's DOM
+  // node, and a browser blurs a focused element whose node is re-inserted or removed
+  // (the cover button goes away on the new cover, the whole row on delete).
+  const refocus = useRef<{ id: string; action: ImageAction } | "upload" | null>(null);
+  useLayoutEffect(() => {
+    const target = refocus.current;
+    if (!target) return;
+    refocus.current = null;
+    if (target === "upload") {
+      upload.current?.focus();
+      return;
+    }
+    const rows = Array.from(gallery.current?.querySelectorAll<HTMLElement>("[data-image-id]") ?? []);
+    rows.find((row) => row.dataset.imageId === target.id)?.querySelector<HTMLElement>(`[data-action="${target.action}"]`)?.focus();
+  }, [images]);
 
   const run = async (key: NonNullable<Busy>, action: () => Promise<void>, done: string) => {
     setBusy(key);
@@ -58,16 +75,30 @@ export function EventImagePanel({ event }: { event: EventView }) {
   const move = (image: EventImageRecord, step: -1 | 1) => {
     const order = movedOrder(images.map((item) => item.id), image.id, step);
     if (!order) return;
-    void run({ id: image.id, action: step < 0 ? "up" : "down" }, async () => setImages(await reorderEventImages(event.id, order)), t("org.images_reordered"));
+    const action = step < 0 ? "up" : "down";
+    void run({ id: image.id, action }, async () => {
+      const reordered = await reorderEventImages(event.id, order);
+      refocus.current = { id: image.id, action };
+      setImages(reordered);
+    }, t("org.images_reordered"));
   };
 
+  // The new cover has no Make cover button, so its Remove takes the focus.
   const makeCover = (image: EventImageRecord) =>
-    void run({ id: image.id, action: "cover" }, async () => setImages(await setEventCover(event.id, image.id)), t("org.cover_changed"));
+    void run({ id: image.id, action: "cover" }, async () => {
+      const updated = await setEventCover(event.id, image.id);
+      refocus.current = { id: image.id, action: "delete" };
+      setImages(updated);
+    }, t("org.cover_changed"));
 
+  // Focus moves to the next image's Remove, else the previous one's, else the upload field.
   const remove = async (image: EventImageRecord) => {
     if (!(await confirmAction(t("org.image_delete_confirm", { p0: image.alt_text })))) return;
     void run({ id: image.id, action: "delete" }, async () => {
       await deleteEventImage(event.id, image.id);
+      const index = images.findIndex((item) => item.id === image.id);
+      const neighbour = images[index + 1] ?? images[index - 1];
+      refocus.current = neighbour ? { id: neighbour.id, action: "delete" } : "upload";
       setImages((current) => current.filter((item) => item.id !== image.id));
     }, t("org.image_deleted"));
   };
@@ -80,7 +111,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
       {images.length === 0 ? (
         <EmptyState>{t("org.no_images")}</EmptyState>
       ) : (
-        <ol className="image-gallery">
+        <ol className="image-gallery" ref={gallery}>
           {images.map((image, index) => (
             <ImageRow
               key={image.id}
@@ -107,6 +138,7 @@ export function EventImagePanel({ event }: { event: EventView }) {
         />
         <label className={`upload-area ${busy !== null ? "disabled" : ""}`}>
           <input
+            ref={upload}
             type="file"
             accept={ACCEPTED_IMAGE_TYPES.join(",")}
             aria-busy={busy === "upload" || undefined}

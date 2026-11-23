@@ -810,6 +810,10 @@
   "org.redemption_limit": "Лимит применений",
   "org.blank_no_limit": "Пусто = без ограничений",
   "org.eligible_types": "Подходящие типы билетов (не выбрано = все)",
+  "campaign.form.discount": "Скидка",
+  "campaign.form.discount_type": "Тип скидки",
+  "campaign.form.schedule": "Сроки",
+  "campaign.form.limits": "Лимиты и код",
   "org.validation_campaign_name": "Укажите название кампании.",
   "org.validation_percent": "Процент скидки должен быть целым числом от 1 до 100.",
   "org.validation_fixed_discount": "Фиксированная скидка должна быть больше ₸0.",
@@ -1649,6 +1653,7 @@
   "checkout.step_seats": "Места",
   "checkout.step_recipients": "Получатели",
   "checkout.step_completed": "шаг пройден",
+  "checkout.step.announce": "Шаг {current} из {total}: {label}",
   "checkout.hold_five_minutes": "До конца брони осталось меньше 5 минут",
   "checkout.hold_one_minute": "До конца брони осталось меньше минуты"
 }

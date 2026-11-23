@@ -41,6 +41,7 @@
 .filter-bar .form-message { grid-column: 1 / -1; }
 .plain-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .plain-fieldset:disabled { opacity: .6; }
+.form-group legend { padding: 0; margin-bottom: 6px; font-size: var(--text-label); font-weight: 700; }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .pagination-count { margin-right: auto; color: var(--meta); font-size: var(--text-meta); }
 .cell-note { display: block; margin-top: 2px; color: var(--meta); font-size: 12px; }
@@ -69,7 +70,7 @@
 .seat-stage { padding: 6px; border-radius: var(--radius-button); background: var(--tab-track); color: var(--meta); font-size: var(--text-micro); font-weight: 700; letter-spacing: 1.3px; text-align: center; text-transform: uppercase; }
 .seat-map { position: relative; min-width: 320px; width: 100%; }
 .seat { position: absolute; display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid; border-radius: 7px 7px 4px 4px; cursor: pointer; font-size: 12px; font-weight: 700; transform: translate(-50%, -50%); }
-.seat:hover { box-shadow: var(--shadow-raised); }
+@media (hover: hover) { .seat:hover { box-shadow: var(--shadow-raised); } }
 .seat.selected { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* Campaigns */

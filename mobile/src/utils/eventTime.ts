@@ -1,4 +1,5 @@
 import { getLocale } from "@/i18n";
+import { intlLocale } from "@/utils/intlLocale";
 
 // Event times are always shown in the event's own time zone, never the
 // device's (docs/BiletFlow_Backend_Requirements.md §2.2 rule 6). Only the
@@ -7,18 +8,18 @@ export function formatEventWindow(startsAt: string, endsAt: string, timeZone: st
   try {
     const start = new Date(startsAt);
     const end = new Date(endsAt);
-    const day = new Intl.DateTimeFormat(getLocale(), {
+    const day = new Intl.DateTimeFormat(intlLocale(getLocale()), {
       timeZone,
       weekday: "short",
       day: "numeric",
       month: "short",
     });
-    const time = new Intl.DateTimeFormat(getLocale(), {
+    const time = new Intl.DateTimeFormat(intlLocale(getLocale()), {
       timeZone,
       hour: "2-digit",
       minute: "2-digit",
     });
-    const zone = new Intl.DateTimeFormat(getLocale(), { timeZone, timeZoneName: "short" })
+    const zone = new Intl.DateTimeFormat(intlLocale(getLocale()), { timeZone, timeZoneName: "short" })
       .formatToParts(start)
       .find((part) => part.type === "timeZoneName")?.value;
 
@@ -39,7 +40,7 @@ export function formatEventMoment(at: string, timeZone: string): string {
   try {
     const moment = new Date(at);
     const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone, dateStyle: "short" });
-    const time = new Intl.DateTimeFormat(getLocale(), {
+    const time = new Intl.DateTimeFormat(intlLocale(getLocale()), {
       timeZone,
       hour: "2-digit",
       minute: "2-digit",
@@ -47,7 +48,7 @@ export function formatEventMoment(at: string, timeZone: string): string {
     if (dayKey.format(moment) === dayKey.format(new Date())) {
       return time;
     }
-    const day = new Intl.DateTimeFormat(getLocale(), {
+    const day = new Intl.DateTimeFormat(intlLocale(getLocale()), {
       timeZone,
       weekday: "short",
       day: "numeric",
@@ -64,8 +65,8 @@ export function formatEventMoment(at: string, timeZone: string): string {
 export function formatDateTile(at: string, timeZone: string): { day: string; month: string } {
   try {
     const moment = new Date(at);
-    const day = new Intl.DateTimeFormat(getLocale(), { timeZone, day: "2-digit" }).format(moment);
-    const month = new Intl.DateTimeFormat(getLocale(), { timeZone, month: "short" })
+    const day = new Intl.DateTimeFormat(intlLocale(getLocale()), { timeZone, day: "2-digit" }).format(moment);
+    const month = new Intl.DateTimeFormat(intlLocale(getLocale()), { timeZone, month: "short" })
       .format(moment)
       .replace(".", "")
       .toUpperCase();

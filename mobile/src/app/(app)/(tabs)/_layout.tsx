@@ -1,12 +1,11 @@
 import { Tabs } from "expo-router";
 import { StyleSheet } from "react-native";
 
-import { TabGlyph } from "@/components/layout";
+import { NavIcon } from "@/components/layout/NavIcon";
 import { colors, fonts } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
-// Bottom navigation, matching the web's phone tab bar in structure. The web draws SVG icons; mobile
-// still shows lettered glyph buttons for now.
+// Bottom navigation, matching the web's phone tab bar: the same line icons, drawn in the tab colour.
 // Orders, Support, Notifications and Admin are reached from Account, as the
 // web reaches Account from the avatar menu.
 export default function TabsLayout() {
@@ -16,7 +15,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.greenDark,
-        tabBarInactiveTintColor: "#6e7972",
+        tabBarInactiveTintColor: colors.muted,
         tabBarActiveBackgroundColor: colors.activeNav,
         tabBarLabelStyle: styles.label,
         tabBarStyle: styles.bar,
@@ -27,35 +26,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t("nav.discover"),
-          tabBarIcon: ({ color }) => <TabGlyph letter="D" color={color} />,
+          tabBarIcon: ({ color }) => <NavIcon id="discover" color={color} />,
         }}
       />
       <Tabs.Screen
         name="tickets"
         options={{
           title: t("common.tickets"),
-          tabBarIcon: ({ color }) => <TabGlyph letter="T" color={color} />,
+          tabBarIcon: ({ color }) => <NavIcon id="tickets" color={color} />,
         }}
       />
       <Tabs.Screen
         name="organizer"
         options={{
           title: t("nav.organizer"),
-          tabBarIcon: ({ color }) => <TabGlyph letter="O" color={color} />,
+          tabBarIcon: ({ color }) => <NavIcon id="organizer" color={color} />,
         }}
       />
       <Tabs.Screen
         name="check-in"
         options={{
           title: t("support.check_in"),
-          tabBarIcon: ({ color }) => <TabGlyph letter="C" color={color} />,
+          tabBarIcon: ({ color }) => <NavIcon id="checkin" color={color} />,
         }}
       />
       <Tabs.Screen
         name="account"
         options={{
           title: t("nav.account"),
-          tabBarIcon: ({ color }) => <TabGlyph letter="A" color={color} />,
+          tabBarIcon: ({ color }) => <NavIcon id="account" color={color} />,
         }}
       />
     </Tabs>

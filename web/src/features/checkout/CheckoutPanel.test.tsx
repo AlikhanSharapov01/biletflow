@@ -51,7 +51,7 @@ describe("CheckoutPanel email verification", () => {
     expect(screen.queryByText(/Verify your email address/)).toBeNull();
     expect(screen.getByRole("button", { name: "Reserve tickets" })).toBeTruthy();
     expect(screen.getByLabelText("Quantity for General")).toBeTruthy();
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Tickets" })));
+    await waitFor(() => expect(document.activeElement).toBe(document.getElementById("tickets")));
   });
 
   it("says so when the reloaded profile is still unverified", async () => {
