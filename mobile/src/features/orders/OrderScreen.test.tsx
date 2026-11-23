@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import * as Haptics from "expo-haptics";
 
 import { ApiError } from "@/api/errors";
 import { cancelRegistration, getOrder, requestRefund } from "@/api/orders";
-import { retryPayment } from "@/api/paidCheckout";
+import { retryPayment, simulatePayment } from "@/api/paidCheckout";
 import type { Order } from "@/api/types/checkout";
 import { confirmAction } from "@/components/ui/dialogs";
 import { OrderScreen } from "@/features/orders/OrderScreen";
@@ -16,6 +17,10 @@ jest.mock("@/features/auth/AuthContext", () => ({
   useAuth: () => ({ status: "signedIn", profile: { id: "u1", email: "aida@example.com", display_name: "Aida Nur" } }),
 }));
 jest.mock("@/components/ui/dialogs", () => ({ confirmAction: jest.fn() }));
+jest.mock("expo-haptics", () => ({
+  notificationAsync: jest.fn(async () => {}),
+  NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
+}));
 jest.mock("@/api/orders");
 jest.mock("@/api/paidCheckout");
 
@@ -133,6 +138,17 @@ describe("OrderScreen", () => {
     await fireEvent.press(screen.getByText("Request refund"));
     expect(await screen.findByText("The refund deadline for this order has passed.")).toBeTruthy();
     expect(screen.queryByText("View refund request")).toBeNull();
+  });
+
+  it("gives a success haptic when a pending order is paid", async () => {
+    const pending: Order = { ...failedPaidOrder, payment: { ...failedPaidOrder.payment!, status: "created" } };
+    jest.mocked(getOrder).mockResolvedValue(pending);
+    await render(<OrderScreen />);
+    jest.mocked(getOrder).mockResolvedValue({ ...pending, status: "confirmed", payment: { ...pending.payment!, status: "succeeded" } });
+    await fireEvent.press(await screen.findByText("Simulate successful payment"));
+    expect(simulatePayment).toHaveBeenCalledWith("pay-1", "succeeded");
+    expect(await screen.findByText("Almaty Jazz Night")).toBeTruthy();
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith("success");
   });
 
   it("retries a failed payment", async () => {

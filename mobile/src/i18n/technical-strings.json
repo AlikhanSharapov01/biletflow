@@ -1,10 +1,8 @@
 [
-  "\"Avenir Next\", Avenir, \"Segoe UI\", sans-serif",
   "0 0 {p0} {p1}",
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
   "ApiError",
   "Asia/Almaty",
-  "Avenir Next",
   "Bearer {p0}",
   "BiletFlow member",
   "Courier",
@@ -24,6 +22,7 @@
   "aru@example.com",
   "colleague@example.com",
   "not base64url",
+  "system-ui, -apple-system, BlinkMacSystemFont, \"SF Pro Text\", \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
   "useAuth must be used within an AuthProvider",
   "useToast must be used within a ToastProvider",
   "v{p0}",

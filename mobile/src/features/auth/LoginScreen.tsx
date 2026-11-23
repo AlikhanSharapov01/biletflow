@@ -76,13 +76,13 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 6,
     marginBottom: 22,
-    color: "#75817b",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 14,
   },
   legal: {
     marginTop: 26,
-    color: "#9ba29c",
+    color: colors.muted,
     fontFamily: fonts.sans,
     fontSize: 11,
     lineHeight: 17,

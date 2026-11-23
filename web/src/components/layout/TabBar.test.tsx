@@ -72,4 +72,10 @@ describe("TabBar", () => {
     expect(linkNamed("Orders").getAttribute("aria-current")).toBe("page");
     expect(linkNamed("Tickets").getAttribute("aria-current")).toBeNull();
   });
+
+  it("fills the current section's icon, so it is marked by shape and not by colour alone", () => {
+    renderBar("/orders/42");
+    expect(linkNamed("Orders").querySelector("svg")!.dataset.variant).toBe("filled");
+    for (const name of ["Discover", "Tickets", "Organizer", "Support"]) expect(linkNamed(name).querySelector("svg")!.dataset.variant, name).toBe("outline");
+  });
 });

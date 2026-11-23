@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import type { IssuedTicket } from "@/api/types/checkout";
-import { Eyebrow, FactList, Panel, QrCode, SerifText } from "@/components/ui";
+import { Eyebrow, FactList, Panel, QrCode, DisplayText } from "@/components/ui";
 import { colors, fonts, radii } from "@/theme";
 import { dateLabel, seatLabel, statusLabel } from "@/utils/format";
 import { t, useLocale } from "@/i18n";
@@ -22,7 +22,7 @@ export function TicketPass({ ticket }: { ticket: IssuedTicket }) {
         )}
       </View>
       <Eyebrow>BiletFlow</Eyebrow>
-      <SerifText style={styles.title}>{ticket.event_title}</SerifText>
+      <DisplayText style={styles.title}>{ticket.event_title}</DisplayText>
       <FactList
         items={[
           { label: t("tickets.when"), value: dateLabel(ticket.event_starts_at) },

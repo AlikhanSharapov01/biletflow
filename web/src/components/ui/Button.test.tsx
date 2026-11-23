@@ -147,23 +147,24 @@ describe("button states in CSS", () => {
     expect(base).toMatch(/button\[aria-disabled="true"\]:focus-visible[^{]*\{[^}]*opacity: \.75/);
   });
 
-  it("hover lift and hover colours live only inside the hover-capable media block", () => {
+  it("hover colours live only inside the hover-capable media block, and nothing lifts", () => {
     const hoverBlock = /@media \(hover: hover\) \{([\s\S]*?)\n\}/.exec(components);
     expect(hoverBlock).not.toBeNull();
     const inside = hoverBlock?.[1] ?? "";
-    expect(inside).toMatch(/primary-button:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)[^}]*translateY\(-1px\)/);
-    expect(inside).toMatch(/primary-button:hover[^}]*background: var\(--green-dark\)/);
+    expect(inside).toMatch(/primary-button:hover:not\(:disabled\):not\(\[aria-disabled="true"\]\)[^}]*background: var\(--green-dark\)/);
+    expect(inside).toMatch(/subtle-button:hover[^}]*background: var\(--fill-strong\)/);
+    expect(inside).not.toMatch(/translateY/);
     const outside = components.replace(hoverBlock?.[0] ?? "", "");
     expect(outside).not.toMatch(/:hover[^{]*\{[^}]*translateY/);
     expect(outside).not.toMatch(/(primary|subtle|danger|text)-button:hover/);
   });
 
-  it("reduced motion drops the press and lift transforms but keeps colour changes", () => {
+  it("reduced motion drops the press transforms but keeps colour changes", () => {
     const block = /@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/.exec(base);
     const reduced = block?.[1] ?? "";
     const selectors = /([^{}]*)\{[^}]*transform: none/.exec(reduced)?.[1] ?? "";
     expect(selectors).not.toBe("");
-    for (const selector of [".primary-button:hover", ".primary-button:active", ".subtle-button:active", ".text-button:active", ".tab:active", ".top-tab:active", ".icon-button:active", ".tab-bar-link:active"]) {
+    for (const selector of [".primary-button:active", ".subtle-button:active", ".event-card-linked:active", ".tab:active", ".top-tab:active", ".icon-button:active", ".tab-bar-link:active"]) {
       expect(selectors).toContain(selector);
     }
   });

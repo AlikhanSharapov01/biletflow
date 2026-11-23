@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     overflow: "hidden",
     backgroundColor: colors.coral,
-    color: "#fff",
+    color: colors.onGreen,
     fontFamily: fonts.sans,
     fontSize: 10,
     fontWeight: "700",

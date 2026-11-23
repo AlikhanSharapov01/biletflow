@@ -2,7 +2,7 @@ import { useState } from "react";
 import { InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { panelStyles } from "@/features/scanner/panelStyles";
-import { colors } from "@/theme";
+import { colors, overlays, scanner } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 // The ticket is valid but the event requires the guest's entry confirmation
@@ -39,7 +39,7 @@ export function ConfirmationPanel({
           if (digits.length === 8) Keyboard.dismiss();
         }}
         placeholder={t("mobile.scan.eight_digit_code")}
-        placeholderTextColor="rgba(255,255,255,0.6)"
+        placeholderTextColor={overlays.onDark6}
         keyboardType="number-pad"
         maxLength={8}
         accessibilityLabel={t("tickets.entry_code")}
@@ -82,15 +82,15 @@ export function ConfirmationPanel({
 }
 
 const styles = StyleSheet.create({
-  panel: { backgroundColor: "#a57324" },
+  panel: { backgroundColor: scanner.warning },
   input: {
     marginTop: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: overlays.onDark5,
     borderRadius: 8,
-    color: "#fff",
+    color: colors.onGreen,
     fontSize: 22,
     letterSpacing: 4,
   },

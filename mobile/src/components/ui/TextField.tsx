@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   label: fieldStyles.label,
   hint: {
-    color: "#929b94",
+    color: colors.placeholder,
     fontSize: 12,
     fontWeight: "400",
   },

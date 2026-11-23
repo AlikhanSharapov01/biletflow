@@ -1,29 +1,41 @@
 /* Shared UI primitives (components/ui). */
 
 /* Buttons */
+/* Apple-style buttons: filled or tinted, no lift. Hover changes the colour (where hovering exists); pressing
+   scales down at once on pointer-down and springs back on release. */
 .primary-button, .subtle-button { display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
-.primary-button { min-height: var(--control-height); gap: 9px; padding: 0 18px; border: 0; border-radius: var(--radius-input); background: var(--green); color: var(--on-green); font-size: 15px; font-weight: 700; transition: background .18s, transform .12s ease-out; }
-.subtle-button { min-height: var(--control-height-sm); gap: 7px; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius-button); background: var(--paper); color: var(--button-ink); font-size: 13px; font-weight: 600; transition: border-color .18s, background .18s, transform .12s ease-out; }
-.danger-button { border-color: var(--danger-line); color: var(--danger); }
-.text-button { padding: 0; border: 0; background: none; color: var(--green); cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: none; transition: transform .12s ease-out; }
-/* Hover feedback only where hovering exists, so touch screens never keep a stuck hover colour or lift. */
+.primary-button {
+  min-height: var(--control-height); gap: 9px; padding: 0 18px; border: 0; border-radius: var(--radius-button); background: var(--green); color: var(--on-green);
+  font-size: var(--text-body); font-weight: 600; letter-spacing: var(--track-panel);
+  transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.subtle-button {
+  min-height: var(--control-height-sm); gap: 7px; padding: 0 14px; border: 0; border-radius: var(--radius-button); background: var(--fill); color: var(--green-dark);
+  font-size: var(--text-meta); font-weight: 600;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+/* Destructive: always rendered with .subtle-button (ui/Button.tsx), so it is the same tinted grey fill, hover and
+   contrast edges, with the text in the danger colour. */
+.danger-button { color: var(--danger); }
+.text-button { padding: 0; border: 0; background: none; color: var(--green); cursor: pointer; font-size: var(--text-meta); font-weight: 600; text-decoration: none; transition: opacity var(--dur-press) var(--ease-out); }
+/* Hover feedback only where hovering exists, so touch screens never keep a stuck hover colour. */
 @media (hover: hover) {
-  .primary-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--green-dark); transform: translateY(-1px); }
-  .subtle-button:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--hover-line); }
-  .danger-button:hover:not(:disabled):not([aria-disabled="true"]) { border-color: var(--danger-line-hover); background: var(--danger-surface); }
+  .primary-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--green-dark); }
+  .subtle-button:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--fill-strong); }
   .text-button:hover:not(:disabled):not([aria-disabled="true"]) { text-decoration: underline; }
 }
-/* Pressed: a short scale-down that also cancels the hover lift. Not on disabled or busy controls. */
-.primary-button:active:not(:disabled):not([aria-disabled="true"]), .subtle-button:active:not(:disabled):not([aria-disabled="true"]), .text-button:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
-.compact-action { min-height: 34px; padding: 0 12px; font-size: 13px; }
-.primary-button.compact-action { min-height: var(--control-height-sm); padding: 0 16px; font-size: 14px; }
+/* Pressed: a short scale-down (a dim for text buttons). Not on disabled or busy controls. */
+.primary-button:active:not(:disabled):not([aria-disabled="true"]), .subtle-button:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
+.text-button:active:not(:disabled):not([aria-disabled="true"]) { opacity: .55; }
+.compact-action { min-height: 34px; padding: 0 12px; font-size: var(--text-meta); }
+.primary-button.compact-action { min-height: var(--control-height-sm); padding: 0 16px; font-size: var(--text-body-sm); }
 .full { width: 100%; }
 
 /* Fields (mobile ui/TextField) */
 .form-stack { display: grid; gap: 16px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
 .field { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 7px; }
-.field-label { color: var(--ink); font-size: var(--text-label); font-weight: 700; }
+.field-label { color: var(--ink); font-size: var(--text-label); font-weight: 600; }
 .field-label small { color: var(--hint); font-size: 12px; font-weight: 400; }
 .field input:not([type="checkbox"]), .field select, .field textarea {
   width: 100%; min-height: var(--control-height); padding: 0 13px;
@@ -42,52 +54,67 @@
 .form-message.success { color: var(--green); }
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .form-details { display: grid; gap: 14px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--radius-button); }
-.form-details summary { color: var(--button-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 700; }
+.form-details summary { color: var(--button-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 600; }
 
-/* Panel (mobile ui/Panel) */
-.panel { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; padding: var(--panel-pad); border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--paper); }
+/* Panel (mobile ui/Panel): borderless paper on a hairline ring and a soft shadow. The transparent outline
+   becomes the edge in forced colours, which drop box-shadow. */
+.panel {
+  display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; padding: var(--panel-pad);
+  border: 0; border-radius: var(--radius-panel); background: var(--paper); box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-raised); outline: 1px solid transparent; outline-offset: -1px;
+}
 .panel-note { background: var(--note); }
+/* A panel inside a panel (an error panel in a tab, say) is a grouped inset: the grey fill on the outer
+   paper, with no second ring or shadow. A note-toned panel keeps its tint. */
+.panel .panel { box-shadow: none; }
+.panel .panel:not(.panel-note) { background: var(--fill); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .panel-heading-copy { min-width: 0; }
-.panel-heading h2 { font-size: var(--text-panel-title); font-weight: 700; letter-spacing: -.2px; }
+.panel-heading h2 { font-size: var(--text-panel-title); font-weight: 600; letter-spacing: var(--track-panel); line-height: var(--leading-card); }
 .panel-subtitle { margin-top: 4px; color: var(--intro); font-size: var(--text-meta); line-height: 1.45; }
 
 /* Status pill (mobile ui/StatusPill) */
-.status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--radius-pill); background: var(--tone-positive-bg); color: var(--tone-positive); font-size: var(--text-micro); font-weight: 700; line-height: 1.3; white-space: nowrap; }
+.status { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: var(--radius-pill); background: var(--tone-positive-bg); color: var(--tone-positive); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-micro); line-height: 1.3; white-space: nowrap; }
 .status::before { width: 5px; height: 5px; flex: none; border-radius: 50%; background: currentColor; content: ""; }
 .status.pending { background: var(--tone-pending-bg); color: var(--tone-pending); }
 .status.blocked { background: var(--tone-blocked-bg); color: var(--tone-blocked); }
 .status.neutral { background: var(--tone-neutral-bg); color: var(--tone-neutral); }
 
 /* Date tile (mobile ui/DateTile) */
-.date-tile { display: grid; width: 48px; height: 50px; flex: none; place-content: center; border-radius: 6px; background: var(--date-tile); color: var(--date-tile-ink); text-align: center; }
+.date-tile { display: grid; width: 48px; height: 50px; flex: none; place-content: center; border-radius: var(--radius-thumb); background: var(--date-tile); color: var(--date-tile-ink); text-align: center; }
 .date-tile b { font-size: 17px; line-height: 1.1; }
-.date-tile span { margin-top: 2px; font-size: var(--text-micro); font-weight: 800; letter-spacing: .5px; }
+.date-tile span { margin-top: 2px; font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); }
 
-/* Event card (mobile EventCard) */
-.event-card { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-panel); background: var(--paper); transition: border-color .18s; }
-@media (hover: hover) { .event-card:hover { border-color: var(--card-hover-line); } }
+/* Event card (mobile EventCard): a borderless paper card like the panels. A linked card deepens its shadow on
+   hover without moving, and presses down slightly on pointer-down. The art inherits the card's corners. */
+.event-card {
+  display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 0; border-radius: var(--radius-panel); background: var(--paper);
+  box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-raised); outline: 1px solid transparent; outline-offset: -1px;
+  transition: transform var(--dur-press) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
 .event-card-art { display: grid; aspect-ratio: 2 / 1; place-items: center; overflow: hidden; background: linear-gradient(135deg, var(--art-0)); color: var(--art-ink); }
 .event-card-art.art-1 { background: linear-gradient(135deg, var(--art-1)); }
 .event-card-art.art-2 { background: linear-gradient(135deg, var(--art-2)); }
 .event-card-art.art-3 { background: linear-gradient(135deg, var(--art-3)); }
 .event-card-art { position: relative; }
 .event-card-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.event-card-art span { display: grid; width: 76px; height: 76px; place-items: center; border: 1px solid var(--art-ring); border-radius: 50%; font-family: var(--font-serif); font-size: 37px; }
+.event-card-art span { display: grid; width: 76px; height: 76px; place-items: center; border: 1px solid var(--art-ring); border-radius: 50%; font-family: var(--font-display); font-size: 37px; font-weight: 600; letter-spacing: var(--track-title); line-height: var(--leading-title); }
 .event-card-body { display: flex; flex: 1; gap: 12px; padding: 14px; }
 .event-card-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
-.event-card h3 { font-family: var(--font-serif); font-size: var(--text-card-title); font-weight: 400; line-height: 25px; overflow-wrap: anywhere; }
+.event-card h3 { font-family: var(--font-display); font-size: var(--text-card-title); font-weight: 600; letter-spacing: var(--track-card); line-height: var(--leading-card); hyphens: auto; overflow-wrap: anywhere; }
 .event-card h3 a { color: inherit; text-decoration: none; }
 @media (hover: hover) { .event-card h3 a:hover { text-decoration: underline; } }
 .event-card-meta { color: var(--meta); font-size: var(--text-meta); line-height: 18px; }
 .event-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; }
 .event-card-linked { position: relative; }
 .event-card-linked h3 a::after { content: ""; position: absolute; inset: 0; }
-@media (hover: hover) { .event-card-linked:hover { border-color: var(--hover-line); } }
-@media (hover: hover) { .event-card-linked:hover h3 a { text-decoration: underline; } }
+@media (hover: hover) {
+  .event-card-linked:hover { box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-lift); }
+  .event-card-linked:hover h3 a { text-decoration: none; }
+}
+.event-card-linked:active { transform: scale(.98); }
 /* Same ring as the global :focus-visible, drawn around the card; without :has() the link keeps its own. */
 @supports selector(:has(*)) {
-  .event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper); }
+  .event-card-linked:has(h3 a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; box-shadow: 0 0 0 2px var(--paper), var(--shadow-raised); }
   .event-card-linked h3 a:focus-visible { outline: none; box-shadow: none; }
 }
 .event-cue { color: var(--green); font-size: var(--text-meta); font-weight: 700; }
@@ -99,9 +126,9 @@
 
 /* List rows */
 .list { display: grid; }
-.list-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line-soft); }
-.list-row:first-child { padding-top: 0; border-top: 0; }
-.row-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 8px; background: var(--row-icon); color: var(--green); font-size: 13px; font-weight: 800; }
+.list-row { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 0; }
+.list-row:first-child { padding-top: 0; }
+.row-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: var(--radius-thumb); background: var(--row-icon); color: var(--green); font-size: 13px; font-weight: 800; }
 .list-row-info { display: grid; min-width: 0; gap: 3px; }
 .list-row-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 15px; overflow-wrap: anywhere; }
 .list-row-meta { color: var(--meta); font-size: var(--text-meta); line-height: 1.45; overflow-wrap: anywhere; }
@@ -109,6 +136,43 @@
 .list-row-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
 .list-row-extra { grid-column: 1 / -1; }
 .order-note { color: var(--meta); font-size: 12px; }
+
+/* Grouped lists, inset-grouped like iOS: the rows share one paper surface (a panel, or the .row-grid container
+   below) and are divided by hairlines that start where the row's content starts and run to the trailing edge.
+   Rows draw no borders of their own. */
+.list-row + .list-row::before, .card-list > .event-card + .event-card::before, .row-grid > .event-card + .event-card::before {
+  position: absolute; top: 0; left: 0; right: 0; border-top: 0.5px solid var(--separator); content: ""; pointer-events: none;
+}
+/* Event rows inside a panel (organizer workspace): the panel is the surface, so the rows are flat and flush with it. */
+.card-list > .event-card { position: relative; overflow: visible; border-radius: 0; background: transparent; box-shadow: none; outline: 0; }
+.card-list > .event-card .event-card-body { padding: 14px 0; }
+.card-list > .event-card:first-child .event-card-body { padding-top: 0; }
+.card-list > .event-card:last-child .event-card-body { padding-bottom: 0; }
+.card-list > .event-card .event-card-extra { padding: 0 0 14px; }
+/* Row titles are list headlines (17px), smaller than a card title, so long words fit a narrow row. */
+.row-grid > .event-card h3, .card-list > .event-card h3 { font-size: var(--text-panel-title); letter-spacing: var(--track-panel); }
+/* The skeleton title line matches that headline's 21px line box. */
+.row-grid .skeleton-title { height: 13px; }
+/* Tickets and orders on the page: one raised paper container holding the rows. */
+/* Capped so a row's trailing actions stay near its title on a wide screen. */
+.event-grid.row-grid {
+  max-width: 780px; grid-template-columns: minmax(0, 1fr); gap: 0; border-radius: var(--radius-panel); background: var(--paper);
+  box-shadow: 0 0 0 0.5px var(--separator), var(--shadow-raised); outline: 1px solid transparent; outline-offset: -1px;
+}
+.row-grid > .event-card { position: relative; overflow: visible; border-radius: 0; background: transparent; box-shadow: none; outline: 0; transition: background-color var(--dur-fast) var(--ease-out); }
+.row-grid > .event-card + .event-card::before { left: 14px; }
+/* The highlight of the first and last rows follows the container's corners. */
+.row-grid > .event-card:first-child { border-top-left-radius: var(--radius-panel); border-top-right-radius: var(--radius-panel); }
+.row-grid > .event-card:last-child { border-bottom-left-radius: var(--radius-panel); border-bottom-right-radius: var(--radius-panel); }
+/* A linked row highlights like a table cell instead of lifting or scaling, and its focus ring stays inside the group. */
+@media (hover: hover) {
+  .row-grid > .event-card-linked:hover { background: var(--hover-surface); box-shadow: none; }
+}
+/* The highlight lights at once on pointer-down and fades out over the row's transition on release. */
+.row-grid > .event-card-linked:active { background: var(--hover-surface); transform: none; transition-duration: 0s; }
+@supports selector(:has(*)) {
+  .row-grid > .event-card-linked:has(h3 a:focus-visible) { outline-offset: -3px; box-shadow: none; }
+}
 
 /* Fact list */
 .fact-list { display: grid; gap: 12px; margin: 0; padding: 0; color: var(--body-soft); font-size: var(--text-body-sm); line-height: 1.5; list-style: none; }
@@ -120,10 +184,9 @@
 .skeleton-shape, .skeleton-art, .skeleton-tile { --shimmer-highlight: var(--canvas); position: relative; overflow: hidden; background-color: var(--line-soft); }
 .skeleton-shape::after, .skeleton-art::after, .skeleton-tile::after { content: ""; position: absolute; inset: 0; box-sizing: border-box; padding: inherit; background-clip: content-box; background-image: linear-gradient(90deg, transparent, var(--shimmer-highlight), transparent); animation: shimmer 1.6s ease-in-out infinite; will-change: transform; }
 /* Shapes carry padding to match the loaded line boxes; the overlay inherits it and paints only its content box, in every engine. */
-.skeleton-shape { display: block; box-sizing: content-box; border-radius: 4px; background-clip: content-box; }
+.skeleton-shape { display: block; box-sizing: content-box; border-radius: var(--radius-line); background-clip: content-box; }
 .skeleton-art { aspect-ratio: 2 / 1; }
-.skeleton-tile { width: 48px; height: 50px; flex: none; border-radius: 6px; }
-@media (hover: hover) { .skeleton-card:hover { border-color: var(--line); } }
+.skeleton-tile { width: 48px; height: 50px; flex: none; border-radius: var(--radius-thumb); }
 /* Line heights below add up to the loaded text's line boxes (16.5px eyebrow, 25px titles, 18px meta, 31px footer). */
 .skeleton-eyebrow { width: 38%; height: 11px; padding-block: 2.75px; }
 .skeleton-title { width: 82%; height: 17px; padding-block: 4px; }
@@ -144,8 +207,8 @@
 .skeleton-short { width: 55%; }
 /* A reload keeps the previous cards in place: dimmed and not clickable until the new ones arrive.
    The dim starts after a short delay, so an answer that comes back at once never flashes; it eases back in on the way out. */
-.event-grid { transition: opacity .2s ease; }
-.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity .2s ease .15s; }
+.event-grid { transition: opacity var(--dur-base) var(--ease-out); }
+.event-grid[aria-busy="true"] { opacity: .5; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out) .15s; }
 
 /* Loading, error, empty (mobile ui/States) */
 .loading-state { display: flex; min-height: 150px; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: var(--text-body-sm); }
@@ -159,10 +222,14 @@
 .empty-wide { grid-column: 1 / -1; padding: 32px 16px; border: 1px dashed var(--line); border-radius: var(--radius-panel); }
 
 /* Tabs */
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 9px; background: var(--tab-track); }
-.tab { min-height: var(--control-height-sm); flex: none; padding: 0 16px; border: 0; border-radius: var(--radius-button); background: transparent; color: var(--tab-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 600; transition: transform .12s ease-out; }
+/* A segmented control: a grey track, and the selected segment is a raised paper thumb. */
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: var(--radius-segment); background: var(--tab-track); }
+.tab {
+  min-height: var(--control-height-sm); flex: none; padding: 0 16px; border: 0; border-radius: var(--radius-thumb); background: transparent; color: var(--tab-ink); cursor: pointer; font-size: var(--text-body-sm); font-weight: 500;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
 .tab:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
-.tab.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 700; }
+.tab.active { background: var(--paper); box-shadow: var(--shadow-raised); color: var(--ink); font-weight: 600; }
 .tabs-fill { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; }
 .tab:focus-visible { outline-offset: -3px; }
 .tabs-secondary { padding: 0 4px; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
@@ -174,15 +241,27 @@
 .table-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
 .data-table th, .data-table td { padding: 11px 10px; border-top: 1px solid var(--line-soft); text-align: left; vertical-align: middle; }
-.data-table th { border-top: 0; color: var(--table-head); font-size: var(--text-micro); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+.data-table th { border-top: 0; color: var(--table-head); font-size: var(--text-micro); font-weight: 600; letter-spacing: var(--track-eyebrow); text-transform: uppercase; white-space: nowrap; }
 
 /* Toast */
-.toast { position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: 14px 18px; border-radius: var(--radius-input); background: var(--green-story); box-shadow: var(--shadow); color: var(--on-green); font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .2s, transform .2s; }
+/* A pill of thick material that rises 8px into place and sinks back the same way. The second radius is
+   half the height of one line (padding plus half a line box): a one-line toast is a pill and a longer
+   message keeps the same round corners instead of turning into a capsule. Without lh, the pill. */
+.toast {
+  --toast-pad-y: 14px;
+  position: fixed; right: max(22px, env(safe-area-inset-right, 0px)); bottom: 22px; z-index: 30; max-width: min(380px, calc(100vw - 32px)); padding: var(--toast-pad-y) 20px;
+  border-radius: var(--radius-pill); border-radius: calc(var(--toast-pad-y) + 0.5lh);
+  background: var(--material-thick); -webkit-backdrop-filter: var(--material-blur); backdrop-filter: var(--material-blur); box-shadow: var(--shadow-menu); outline: 1px solid transparent; outline-offset: -1px;
+  color: var(--ink); font-size: var(--text-body-sm); line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}
 .toast.visible { opacity: 1; transform: translateY(0); }
 
 @media (max-width: 760px) {
   .tabs:not(.tabs-fill) { flex-wrap: nowrap; overflow-x: auto; }
-  .toast { right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: none; }
+  /* A centred pill as wide as its message, not a full-width banner: both insets with auto margins
+     centre it without a transform, which the rise and reduced motion own. */
+  .toast { right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); width: fit-content; max-width: none; margin-inline: auto; }
 }
 /* Above the bottom tab bar, which spans up to 1024px. */
 @media (width < 1025px) {
@@ -196,7 +275,7 @@
 }
 
 /* Planned-contract screens before their API exists */
-.not-available { display: grid; justify-items: start; gap: 8px; padding: 24px; border: 1px dashed var(--line); border-radius: 8px; background: var(--paper); }
+.not-available { display: grid; justify-items: start; gap: 8px; padding: 24px; border: 1px dashed var(--line); border-radius: var(--radius-panel); background: var(--paper); }
 .not-available strong { font-size: 16px; }
 .not-available p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
@@ -209,6 +288,32 @@
 .record-view-row dd .record-view { padding-left: 12px; border-left: 2px solid var(--line-soft); }
 @media (max-width: 640px) {
   .record-view-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+
+/* The toast's material falls back to solid like the rest of the chrome (see layout.css). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .toast { background: var(--material-solid); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .toast { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .toast { background: var(--material-solid); -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid var(--input-line); }
+}
+
+/* More contrast: cards, panels and grouped lists trade the hairline ring for a 1px input-line ring, and the
+   subtle button's grey fill gets an edge. Forced colours drop fills too: the border takes the forced text colour. */
+@media (prefers-contrast: more) {
+  .panel, .event-card, .event-grid.row-grid { box-shadow: 0 0 0 1px var(--input-line), var(--shadow-raised); }
+  @media (hover: hover) {
+    .event-card-linked:hover { box-shadow: 0 0 0 1px var(--input-line), var(--shadow-lift); }
+  }
+  .row-grid > .event-card, .card-list > .event-card { box-shadow: none; }
+  .panel .panel { box-shadow: inset 0 0 0 1px var(--input-line); }
+  .subtle-button { box-shadow: inset 0 0 0 1px var(--input-line); }
+}
+@media (forced-colors: active) {
+  .subtle-button { border: 1px solid; }
 }
 
 @media (prefers-reduced-motion: reduce) {

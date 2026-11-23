@@ -8,6 +8,9 @@ const css = readFileSync("src/styles/tokens.css", "utf8");
 type Rgba = { r: number; g: number; b: number; a: number };
 const declarations = new Map<string, string>();
 for (const [, name, value] of css.matchAll(/(--[\w-]+):\s*([^;]+);/g)) declarations.set(name!, value!.trim());
+// Not a stylesheet token: the darkest content that can scroll under translucent chrome, for worst-case pairs.
+const UNDER_CHROME_WORST = "content-black";
+declarations.set(`--${UNDER_CHROME_WORST}`, "#000000");
 
 function parseColour(value: string, token: string, depth = 0): Rgba {
   if (depth > 8) throw new Error(`Token ${token} aliases too deeply`);
@@ -83,6 +86,7 @@ const TEXT_PAIRS: Pair[] = [
   ["faint", "tone-neutral-bg", ".seat-unavailable"],
   ["placeholder", "paper", "field placeholder"],
   ["placeholder", "raised-surface", ".search-box placeholder"],
+  ["placeholder", "canvas", "field placeholder seen through a field on the page"],
   ["subtitle", "paper", ".auth-subtitle"],
   ["subtitle", "canvas", ".auth-subtitle on the page"],
   ["intro", "paper", ".form-intro"],
@@ -99,9 +103,8 @@ const TEXT_PAIRS: Pair[] = [
   ["button-ink", "paper", ".form-details summary"],
   ["button-ink", "canvas", ".seat-section h4"],
   ["nav-ink", "tab-track", ".admin-nav-link"],
-  ["nav-ink", ["topbar-glass", "canvas"], ".top-tab on the sticky top bar over the page"],
-  ["nav-ink", ["topbar-glass", "paper"], ".top-tab on the sticky top bar over a panel"],
-  ["nav-ink", "sidebar", "phone .tab-bar-link"],
+  ["nav-ink", "paper", "nav text in a panel"],
+  ["nav-ink", "canvas", "nav text on the page"],
   ["green-dark", "active-nav", ".top-tab[aria-current] and active tab-bar link"],
   ["hint", "paper", ".field-label small"],
   ["hint", "canvas", ".account-email"],
@@ -120,15 +123,34 @@ const TEXT_PAIRS: Pair[] = [
   ["timeline-ink", "canvas", ".timeline span on the page"],
   ["note-ink", "note", ".organizer-note p (panel tone note)"],
   ["note-ink", "paper", ".organizer-note p if the panel is plain"],
+  ["note-ink", "canvas", ".organizer-note p outside a panel"],
   ["error", "paper", ".form-message"],
   ["error", "canvas", ".form-message on the page"],
   ["error-title", "paper", ".error-panel strong"],
   ["error-title", "canvas", ".error-panel strong on the page"],
   ["error-text", "paper", ".error-panel p"],
   ["error-text", "canvas", ".error-panel p on the page"],
-  ["danger", "paper", ".danger-button"],
-  ["danger", "canvas", ".danger-button on the page"],
-  ["danger", "danger-surface", ".danger-button:hover"],
+  ["danger", "paper", ".support-pending-file small"],
+  ["danger", "canvas", ".support-pending-file small on the page"],
+  // Danger buttons: the subtle grey fill in the danger colour, at rest and hovered, wherever they sit.
+  ["danger", ["fill", "paper"], ".danger-button in a panel"],
+  ["danger", ["fill", "canvas"], ".danger-button on the page"],
+  ["danger", ["fill", "note"], ".danger-button in a note panel"],
+  ["danger", ["fill-strong", "paper"], ".danger-button:hover in a panel"],
+  ["danger", ["fill-strong", "canvas"], ".danger-button:hover on the page"],
+  ["danger", ["fill-strong", "note"], ".danger-button:hover in a note panel"],
+  ["danger", ["fill", "fill", "paper"], ".danger-button in a panel nested in a panel"],
+  ["danger", ["fill-strong", "fill", "paper"], ".danger-button:hover in a panel nested in a panel"],
+  // A panel nested in a panel (an error panel in a tab) is the grey fill over the outer panel.
+  ["error-title", ["fill", "paper"], ".panel .error-panel strong"],
+  ["error-text", ["fill", "paper"], ".panel .error-panel p"],
+  ["ink", ["fill", "paper"], "text in a nested panel"],
+  ["intro", ["fill", "paper"], ".panel-subtitle in a nested panel"],
+  ["green-dark", ["fill", "fill", "paper"], ".subtle-button in a nested panel"],
+  ["green-dark", ["fill-strong", "fill", "paper"], ".subtle-button:hover in a nested panel"],
+  // The language select on sign-in: the subtle fill on the sign-in panel.
+  ["ink", ["fill", "paper"], ".auth-box .language-switcher select"],
+  ["ink", ["fill-strong", "paper"], ".auth-box .language-switcher select:hover"],
   ["tone-positive", "tone-positive-bg", "positive status pill"],
   ["tone-pending", "tone-pending-bg", "pending status pill"],
   ["tone-blocked", "tone-blocked-bg", "blocked status pill"],
@@ -157,8 +179,53 @@ const TEXT_PAIRS: Pair[] = [
   ["paper", "green", ".primary-button"],
   ["on-green", "green", ".primary-button, .skip-link, .brand-mark"],
   ["on-green", "green-dark", ".primary-button:hover"],
-  ["on-green", "green-story", ".toast"],
+  // Subtle buttons: dark green on the translucent grey fill, at rest and hovered, wherever they sit.
+  ["green-dark", ["fill", "paper"], ".subtle-button in a panel"],
+  ["green-dark", ["fill", "canvas"], ".subtle-button on the page"],
+  ["green-dark", ["fill", "note"], ".subtle-button in a note panel"],
+  ["green-dark", ["fill-strong", "paper"], ".subtle-button:hover in a panel"],
+  ["green-dark", ["fill-strong", "canvas"], ".subtle-button:hover on the page"],
+  ["green-dark", ["fill-strong", "note"], ".subtle-button:hover in a note panel"],
+  // A linked row of a grouped list (tickets, orders) while hovered or pressed.
+  ["muted", "hover-surface", ".eyebrow in a highlighted row"],
+  ["price-ink", "hover-surface", ".price in a highlighted row"],
+  ["ink", "hover-surface", "titles and offers in a highlighted row"],
 ];
+
+// Apple-style neutrals and materials: every text role is checked on the solid chrome fallback and on
+// the translucent chrome laid over the page.
+const ROLE_TEXT = ["ink", "muted", "faint", "subtitle", "meta", "body-soft", "intro", "nav-ink", "button-ink", "hint", "tab-ink", "price-ink", "timeline-ink", "note-ink", "placeholder"];
+for (const text of ROLE_TEXT) {
+  TEXT_PAIRS.push([text, "material-solid", "solid chrome fallback"]);
+  TEXT_PAIRS.push([text, ["material-chrome", "canvas"], "translucent chrome over the page"]);
+}
+// Text drawn straight on the chrome materials: the tab bar and top tab labels, the selected tab bar
+// tint, the brand and sticky offer, and the avatar menu and toast on the thick material. Each is checked
+// on the solid fallback, over the page, over a panel, and over black content scrolled under the chrome
+// (the worst case: these are dark inks, so a darker backdrop only lowers their contrast).
+const UNDER_CHROME = ["canvas", "paper", UNDER_CHROME_WORST];
+const ON_CHROME: Array<[string, string]> = [
+  ["chrome-label", ".tab-bar-link and .top-tab"],
+  ["green-dark", ".tab-bar-link[aria-current]"],
+  ["ink", ".brand and .get-tickets-offer"],
+];
+const ON_THICK: Array<[string, string]> = [
+  ["ink", ".avatar-menu-panel and .toast"],
+  ["meta-on-thick", ".avatar-menu-head span"],
+];
+for (const [text, where] of ON_CHROME) {
+  TEXT_PAIRS.push([text, "material-solid", `${where} on solid chrome`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push([text, ["material-chrome", under], `${where} on the chrome`]);
+}
+// The top bar's language select: ink on the subtle fill, at rest and hovered, on every chrome backdrop.
+for (const fill of ["fill", "fill-strong"]) {
+  TEXT_PAIRS.push(["ink", [fill, "material-solid"], `.topbar .language-switcher select (${fill}) on solid chrome`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push(["ink", [fill, "material-chrome", under], `.topbar .language-switcher select (${fill}) on the chrome`]);
+}
+for (const [text, where] of ON_THICK) {
+  TEXT_PAIRS.push([text, "material-solid", `${where} on the solid fallback`]);
+  for (const under of UNDER_CHROME) TEXT_PAIRS.push([text, ["material-thick", under], `${where} on the thick material`]);
+}
 
 // Sign-in story panel: the ticket card is --glass laid over the panel and over the ::after art, so
 // text inside it is tested on each of those blended backgrounds; copy outside the card sits on
@@ -190,6 +257,8 @@ describe("WCAG AA colour tokens", () => {
     ["focus", "canvas", "focus ring on the page"],
     ["focus", "paper", "focus ring in a panel"],
     ["focus", "tab-track", "focus ring on a tab"],
+    ["input-line", "canvas", "field outline on the page"],
+    ["focus", "material-solid", "focus ring on solid chrome"],
   ] as const)("boundary: %s on %s (%s)", (token, surface, _where) => {
     expect(contrast(token, surface)).toBeGreaterThanOrEqual(3);
   });
@@ -200,6 +269,53 @@ describe("WCAG AA colour tokens", () => {
     ["note", "busy button in a note panel"],
   ] as const)("boundary: focus ring at .75 alpha on %s (%s)", (surface, _where) => {
     expect(contrast("focus", surface, 0.75)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("declares the type, shape, depth, motion and material tokens", () => {
+    const required = [
+      "font-display", "track-title", "track-card", "track-panel", "track-body", "track-micro", "track-eyebrow",
+      "leading-title", "leading-card", "leading-body", "fill", "fill-strong", "separator",
+      "radius-menu", "radius-segment", "radius-thumb", "shadow-lift",
+      "dur-press", "dur-fast", "dur-base", "dur-spring", "ease-out", "ease-in-out", "ease-spring",
+      "material-chrome", "material-thick", "material-solid", "material-blur", "material-edge",
+    ];
+    for (const token of required) expect(declarations.has(`--${token}`), token).toBe(true);
+    expect(declarations.get("--radius-pill")).toBe("999px");
+    expect(declarations.get("--text-panel-title")).toBe("1.0625rem");
+  });
+
+  it("uses the system font stacks", () => {
+    expect(declarations.get("--font-sans")).toMatch(/^system-ui, -apple-system/);
+    expect(declarations.get("--font-display")).toMatch(/^-apple-system, BlinkMacSystemFont, "SF Pro Display"/);
+  });
+
+  it("--ease-spring samples the critically damped step response and never overshoots", () => {
+    const points = (declarations.get("--ease-spring") ?? "").match(/^linear\(([^)]*)\)$/)?.[1]?.split(",").map((part) => Number(part.trim()));
+    expect(points, "--ease-spring must be linear(...)").toBeDefined();
+    // x(t) = 1 - (1 + w*t) * e^(-w*t), w = 2*pi / 0.35s, at 20 even steps over --dur-spring (0.42s).
+    const omega = (2 * Math.PI) / 0.35;
+    const step = (t: number) => 1 - (1 + omega * t) * Math.exp(-omega * t);
+    expect(points).toHaveLength(20);
+    points!.forEach((point, i) => {
+      const t = (i * 0.42) / 19;
+      // The last stop is pinned to 1 so the motion ends exactly at rest.
+      if (i === 19) expect(point).toBe(1);
+      else expect(Math.abs(point - step(t)), `point ${i} (t=${t.toFixed(4)}s)`).toBeLessThanOrEqual(0.001);
+    });
+    for (let i = 1; i < points!.length; i += 1) {
+      expect(points![i]).toBeGreaterThanOrEqual(points![i - 1]!);
+      expect(points![i]).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("the neutral pill stays visible on a highlighted row", () => {
+    expect(colourOf("tone-neutral-bg")).not.toEqual(colourOf("hover-surface"));
+  });
+
+  it.each(["disabled-surface", "spinner-track", "tone-neutral-bg"])("--%s is a cool neutral grey (equal red and green, blue at least as high)", (token) => {
+    const { r, g, b } = colourOf(token);
+    expect(r, token).toBe(g);
+    expect(b, token).toBeGreaterThanOrEqual(r);
   });
 
   it("parses 8-digit hex and comma-separated rgba()", () => {

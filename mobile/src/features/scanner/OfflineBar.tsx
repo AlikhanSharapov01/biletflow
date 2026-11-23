@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { AssignedEvent } from "@/api/types/scanner";
 import { TextButton } from "@/components/ui";
 import type { OfflineScanning } from "@/features/scanner/useOfflineScanning";
-import { fonts } from "@/theme";
+import { fonts, colors } from "@/theme";
 import { formatEventMoment } from "@/utils/eventTime";
 import { t, useLocale } from "@/i18n";
 
@@ -49,12 +49,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   line: {
-    color: "#d5e2d5",
+    color: colors.storySoft,
     fontFamily: fonts.sans,
     fontSize: 13,
   },
   pending: {
-    color: "#fff",
+    color: colors.onGreen,
     fontFamily: fonts.sans,
     fontSize: 14,
     fontWeight: "700",

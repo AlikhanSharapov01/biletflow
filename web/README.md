@@ -160,8 +160,9 @@ src/
   hooks/                useRequest (load with loading/error/reload), useCountdown,
                         usePublicSettings (platform limits from /settings/public)
   utils/                Formatting (dates, money, seats) and status → pill tone
-  styles/               tokens.css (colours, type, spacing), base, layout, components,
-                        and one stylesheet per feature; index.css imports them in order
+  styles/               tokens.css (colours, type with tracking and leading, spacing, radii,
+                        shadows, motion and materials), base, layout, components, and one
+                        stylesheet per feature; index.css imports them in order
 translations/           core.tsv (shared web/mobile strings) and the audit's reviewed exceptions
 scripts/                build-locales.mjs and audit-strings.mjs
 tests/helpers/          Shared test fixtures
@@ -191,8 +192,20 @@ sub-folders (`details/` for the image gallery, `analytics/`, `finance/` for payo
 6. **Translate every visible string.** Add the key with English, Russian and Kazakh wording to
    `translations/core.tsv`, run `npm run translations:build`, and render it with `t(key)` in a
    component that calls `useLocale()`. See [Localization](#localization).
-7. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours
-   or pixel font sizes. Add feature styles to that feature's stylesheet.
+7. **Style with tokens.** Use the CSS variables in `styles/tokens.css`; do not add new hex colours,
+   pixel font sizes or pixel radii. The tokens carry the Apple-style system: the system font stacks
+   with size-specific tracking and leading (`--track-*`, `--leading-*`), radii (`--radius-*`), depth
+   (`--shadow-raised` for cards, panels and grouped lists, `--shadow-lift` on hover), motion
+   (`--dur-press` for pointer-down feedback, `--ease-out`, the overshoot-free `--ease-spring`) and
+   the translucent chrome materials (`--material-*`). Buttons change colour on hover and scale on
+   press, never lift; danger buttons and the language select share the subtle button's grey
+   `--fill`; every transition duration is a `--dur-*` token. Cards and panels are borderless with a
+   hairline `--separator` ring, and a panel nested in a panel is a plain `--fill` inset; lists are
+   grouped on one surface with inset hairlines. Without `backdrop-filter`, with
+   `prefers-reduced-transparency: reduce` or with `prefers-contrast: more`, the materials turn solid
+   (`--material-solid`), and more contrast also draws a 1px `--input-line` edge; reduced motion
+   turns movement into cross-fades. `styles/*.test.ts` check contrast, colour and radius literals,
+   materials and these component rules. Add feature styles to that feature's stylesheet.
 8. **Register routes** in `app/routes.tsx` (or the feature's `routes.tsx`), and add primary
    sections to `components/layout/navigation.ts`. Admin and organizer pages load on demand:
    wrap them with `lazyPage(() => import("./Page"), (m) => m.Page)` from

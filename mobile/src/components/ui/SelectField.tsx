@@ -3,7 +3,7 @@ import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { fieldStyles } from "@/components/ui/TextField";
-import { colors, fonts } from "@/theme";
+import { colors, fonts, overlays, radii } from "@/theme";
 import { t, useLocale } from "@/i18n";
 
 export type SelectOption = {
@@ -113,12 +113,12 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(23,39,36,0.35)",
+    backgroundColor: overlays.scrim,
   },
   sheet: {
     maxHeight: "60%",
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
+    borderTopLeftRadius: radii.menu,
+    borderTopRightRadius: radii.menu,
     backgroundColor: colors.paper,
   },
   sheetHeader: {

@@ -9,6 +9,7 @@ import { measure } from "@/features/analytics/measure";
 import { useCountdown } from "@/hooks/useCountdown";
 import { basketIsPaid, initialRecipients, recipientsComplete, recipientsPayload, type RecipientValues } from "../utils/checkout";
 import { t } from "@/i18n";
+import { commitHaptic } from "@/utils/haptics";
 
 // Hold -> recipients -> (paid: simulated payment) -> confirmed order.
 export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile: Profile | null, promo: PromoPreview | null) {
@@ -63,6 +64,7 @@ export function useCheckoutFlow(event: EventView, tickets: TicketType[], profile
 
   const finished = useCallback(
     (confirmed: Order) => {
+      commitHaptic();
       notify(confirmed.payment ? t("checkout.payment_received") : t("checkout.registration_confirmed"));
       setCompleted(confirmed);
       setHold(null);

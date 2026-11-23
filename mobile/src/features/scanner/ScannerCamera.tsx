@@ -2,6 +2,7 @@ import { CameraView, type BarcodeScanningResult } from "expo-camera";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocale } from "@/i18n";
 import { t } from "@/i18n";
+import { colors, overlays, fixed } from "@/theme";
 
 // Live QR camera filling the scan area, with the aiming hint while idle.
 // Render inside CameraPermissionGate.
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
   // normal background so their dark text stays readable.
   camera: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: fixed.black,
   },
   hint: {
     position: "absolute",
@@ -60,16 +61,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: overlays.onDark9,
   },
   findText: {
-    color: "#174a3b",
+    color: colors.greenDark,
     fontSize: 15,
     fontWeight: "700",
   },
   hintText: {
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.6)",
+    color: colors.onGreen,
+    backgroundColor: overlays.shade60,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
