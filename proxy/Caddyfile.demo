@@ -1,0 +1,17 @@
+# Shared demo host: HTTPS on DEMO_HOST with an automatic certificate, HTTP redirected to it.
+# Started by docker-compose.demo.yml; see docs/operations/https.md (#49).
+import common.caddy
+
+# Caddy itself redirects http://DEMO_HOST to HTTPS (308). Any other host name on port 80, such
+# as the local http://localhost:8080 mapping kept from docker-compose.yml, is served as before.
+:80 {
+	import security_headers
+	import routes
+}
+
+https://{$DEMO_HOST} {
+	import security_headers
+	# HTTPS only. No includeSubDomains or preload until the rest of the domain is on HTTPS.
+	header Strict-Transport-Security "max-age=31536000"
+	import routes
+}

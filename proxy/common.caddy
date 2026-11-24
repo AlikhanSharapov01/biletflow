@@ -1,0 +1,33 @@
+# Shared by Caddyfile (local HTTP) and Caddyfile.demo (HTTPS on the demo host). See
+# docs/operations/https.md (#49).
+
+# Security headers on every response. "?" only sets a header the response does not already
+# have, so the API keeps its own stricter Referrer-Policy: no-referrer.
+(security_headers) {
+	header {
+		?Referrer-Policy "strict-origin-when-cross-origin"
+		?X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		-Server
+	}
+}
+
+(routes) {
+	encode zstd gzip
+
+	@backend path /api/* /docs /docs/* /redoc /redoc/* /openapi.json /health/*
+	handle @backend {
+		reverse_proxy api:8000
+	}
+
+	# The web app only. The API docs pages (/docs, /redoc) load Swagger UI and ReDoc from a CDN,
+	# so they do not get this policy. The app has no inline scripts and uses system fonts;
+	# React's inline style attributes need 'unsafe-inline' for styles, campaign QR previews are
+	# blob: images and ticket QR codes are inline SVG.
+	handle {
+		header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -87,7 +87,7 @@ Checked against `main` at `636f512` on 21 November 2026.
 
 | Issue | What is missing |
 |---|---|
-| #49 | HTTPS and security headers: staged in [HTTPS handoff](#https-handoff), not installed. The live proxy configuration is in `proxy/`, outside `web/` |
+| #49 | HTTPS and security headers: installed in `proxy/`; see [HTTPS and security headers](#https-and-security-headers). HTTPS itself waits for a demo host |
 | — | Browser and screen-reader accessibility acceptance (see the [checklist](#accessibility-checklist)) |
 | — | Live GA4 collection and reporting with a configured property (see [GA4](#optional-ga4-traffic-collection)) |
 
@@ -359,8 +359,8 @@ and screen-reader acceptance remain unverified; see
 
 ## What is left to do
 
-- **HTTPS (#49):** install and validate the staged configuration with the operations owner;
-  `proxy/` and the repository-level operations docs belong to `@devops`.
+- **HTTPS (#49):** run `docker-compose.demo.yml` on the demo host once it exists
+  ([guide](../docs/operations/https.md)).
 - **Browser tests:** extend `e2e/` to downloads and the admin portal; add more pages to the
   layout checks.
 - **Translation review:** the Russian and Kazakh wording added for the admin inspection, job
@@ -435,14 +435,14 @@ and at least 3:1 for control borders and focus outlines. The focus ring uses two
 visible on dark and light surfaces. All native `window.confirm` / `window.prompt` calls were
 replaced with one modal dialog implementation. The 18 colour tests and keyboard/dialog tests pass.
 
-## HTTPS handoff
+## HTTPS and security headers
 
-The staged [Caddyfile](operations/Caddyfile.demo) and
-[operations guide](docs/operations/https.md) include HTTPS on `DEMO_HOST`, HSTS on HTTPS only,
-CSP, frame restrictions, referrer policy and MIME sniffing protection. They preserve local HTTP
-on port 8080 and allow same-origin APIs, system fonts, inline SVG and blob QR previews.
-They have not been installed or validated in the running proxy (#49).
-The observed local proxy currently sends none of the four non-HSTS security headers.
+The proxy that serves the built app sends a Content-Security-Policy, `X-Frame-Options: DENY`,
+`Referrer-Policy` and `X-Content-Type-Options` on every page, and HSTS on the HTTPS demo host
+(#49). The configuration is in `../proxy/` and the guide in
+[docs/operations/https.md](../docs/operations/https.md). The app must keep working under that
+policy: no inline scripts and nothing loaded from other hosts (see the guide for why each
+exception exists).
 
 ## Downloads and idempotency
 

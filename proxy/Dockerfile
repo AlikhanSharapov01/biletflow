@@ -10,5 +10,6 @@ RUN npm run build
 
 FROM caddy:2-alpine
 
-COPY proxy/Caddyfile /etc/caddy/Caddyfile
+# Caddyfile (local HTTP) is the default config; Caddyfile.demo is the HTTPS demo host (#49).
+COPY proxy/Caddyfile proxy/Caddyfile.demo proxy/common.caddy /etc/caddy/
 COPY --from=web-build /web/dist /srv
