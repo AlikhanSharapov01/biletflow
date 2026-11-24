@@ -77,5 +77,9 @@
   "{p0}: {p1} {p2}{p3}": "Punctuation joining already-localized content or user data.",
   "· {p0} · {p1}": "Punctuation joining already-localized content or user data.",
   "· {p0}": "Punctuation joining already-localized content or user data.",
-  "− {p0}": "Punctuation joining already-localized content or user data."
+  "− {p0}": "Punctuation joining already-localized content or user data.",
+  "en-US": "BCP 47 locale tag; only reads calendar fields, never shown.",
+  "{p0} ж. {p1} {p2}": "Kazakh date layout (CLDR) joining already-localized month names and numbers.",
+  "{p0} ж. {p1}": "Kazakh date layout (CLDR) joining already-localized month names and numbers.",
+  "{p0} {p1}": "Kazakh date layout (CLDR) joining already-localized month names and numbers."
 }
