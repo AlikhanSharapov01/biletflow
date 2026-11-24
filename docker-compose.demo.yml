@@ -1,0 +1,24 @@
+# HTTPS for the shared demo host (#49). Use it on top of docker-compose.yml:
+#
+#   DEMO_HOST=demo.example.org docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#
+# DEMO_HOST must be a real hostname whose DNS points at this machine, with ports 80 and 443 open,
+# so Caddy can get a certificate. The .env settings for HTTPS (ALLOWED_ORIGINS, FRONTEND_URL,
+# COOKIE_SECURE) are listed in docs/operations/https.md.
+services:
+  proxy:
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.demo", "--adapter", "caddyfile"]
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set DEMO_HOST to the demo hostname, see docs/operations/https.md}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Certificates and the ACME account: keep them, or every restart requests new ones.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

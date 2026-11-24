@@ -90,8 +90,8 @@ Tracked in #125. Done since the 13 November update: #67, #70, #74 (PR #102); #71
    - Web: #107 gallery cover, reorder and delete; #108 analytics and finance on the final
      contracts, with CSV export; #109 admin paid-sales suspension and payment/refund monitoring.
      Open PR #111 covers most of these three, but not the analytics CSV export. Then #110 admin
-     operations search, jobs and deliveries; #112 upload scan status; #49 HTTPS and security
-     headers for the shared demo.
+     operations search, jobs and deliveries; #112 upload scan status; #49 HTTPS on the shared demo
+     host once it exists (headers and configuration are done).
    - Mobile: #115 offline result screen per [decision 0003](../decisions/0003-confirmed-decisions.md);
      #116 admin operations and upload scan status; #53 real iPhone and Android phones. #54
      (installable builds) was closed on 17 November, although #125 still lists the iOS build as

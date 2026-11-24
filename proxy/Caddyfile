@@ -1,14 +1,8 @@
+# Local and CI setup: plain HTTP, published as http://localhost:8080. No HSTS on plain HTTP.
+# The demo host uses Caddyfile.demo instead (docker-compose.demo.yml, docs/operations/https.md).
+import common.caddy
+
 :80 {
-	encode zstd gzip
-
-	@backend path /api/* /docs /docs/* /redoc /redoc/* /openapi.json /health/*
-	handle @backend {
-		reverse_proxy api:8000
-	}
-
-	handle {
-		root * /srv
-		try_files {path} /index.html
-		file_server
-	}
+	import security_headers
+	import routes
 }

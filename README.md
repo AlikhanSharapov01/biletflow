@@ -275,7 +275,7 @@ Done since 13 November: #67, #70, #74 (PR #102); #71, #72, #73, #75, #76, #77, #
      contracts, with CSV export (#108); admin paid-sales suspension and payment/refund
      monitoring (#109). Open PR #111 covers most of these three, but not the analytics CSV export.
      Then admin operations search, jobs and deliveries (#110); upload scan status (#112); HTTPS
-     and security headers for the shared demo (#49).
+     on the shared demo host once it exists (#49: headers and configuration are done).
    - Mobile: offline result screen per [decision 0003](docs/decisions/0003-confirmed-decisions.md)
      (#115); admin operations and upload scan status (#116, open PR #128); real iPhone and Android
      phones (#53).

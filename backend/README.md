@@ -530,8 +530,8 @@ Open backend work, tracked in #125 (see also the
    campaigns, refunds and admin, and list every mismatch (#122).
 
 Also outside the backend code: web and mobile screens for the newest contracts, browser
-end-to-end tests and the acceptance walkthrough (#120, #121), HTTPS and security headers for the
-shared demo (#49), and the provider sandbox once merchant access exists (no live financial
+end-to-end tests and the acceptance walkthrough (#120, #121), HTTPS on the
+shared demo host once it exists (#49: headers and configuration are done), and the provider sandbox once merchant access exists (no live financial
 operation). Refunds are full-order only by design; partial refunds are excluded by the
 requirements.
 
