@@ -463,9 +463,9 @@ Workflows in `../.github/workflows/`:
 | `backup.yml` (*Backup*) | Backup and restore drill of the database and object storage ([backup and restore](../docs/operations/backup.md)) |
 | `validation.yml` (*Validation*) | Full pytest suite with the crash and load harnesses enabled, then three direct load-harness runs (5 and 20 analytics clients on one API process, 20 on two) with their reports in the job summary and as an artifact; started by hand, or on pull requests that touch `tests/crash`, `tests/load` or the workflow |
 
-*Smoke* and *Backup* last succeeded on `main` at `b1b73d0` (PR #102 merged); their runs on
-`cb5a9bd` (PR #104 merged) were cancelled and have not been repeated, since later merges did not
-touch their paths. Rerunning them is part of #117.
+*Smoke* and *Backup* succeed on `main` again (*Smoke* on `8d31ee4`, *Backup* on `d958dfb`, 23-24
+November); the runs cancelled on `cb5a9bd` (PR #104 merged) are superseded. The full rerun after
+#102 and #104, including *Validation*, is recorded in [VALIDATION.md](VALIDATION.md) (#117).
 
 Two harnesses are opt-in and skipped unless their variable is set. Both need a disposable
 PostgreSQL database ending in `_test`:
@@ -516,15 +516,13 @@ collection and reporting still need a GA4 property and credentials.
 Open backend work, tracked in #125 (see also the
 [integration status](../docs/integration/status.md)):
 
-1. Rerun every suite on the current `main` and record it in [VALIDATION.md](VALIDATION.md):
-   full PostgreSQL suite, both opt-in harnesses, the restore drill with SeaweedFS storage, and
-   the cancelled *Smoke* and *Backup* workflows (#117).
-2. Keep check-in fast while analytics runs: admission p95 rose from 312 ms to 743 ms with 20
-   analytics clients on one API process (#118). The setup is described under "With Docker" above;
-   the comparison run is still to be recorded.
-3. Example requests, responses and every error code for the routes added in #104, in
+1. Keep check-in fast while analytics runs: admission p95 rose from 312 ms to 743 ms with 20
+   analytics clients on one API process (#118). The setup is described under "With Docker" above.
+   The CI comparison (24 November, [VALIDATION.md](VALIDATION.md)) showed no gain from a second
+   process on the CI runner; a measurement on the demo host is still needed.
+2. Example requests, responses and every error code for the routes added in #104, in
    `ADMIN_API.md`, `OPERATIONS_API.md`, `SUPPORT_API.md` and `ANALYTICS_API.md` (#119).
-4. Compare the web and mobile API types with the backend schemas for analytics, finance,
+3. Compare the web and mobile API types with the backend schemas for analytics, finance,
    campaigns, refunds and admin, and list every mismatch (#122).
 
 Also outside the backend code: web and mobile screens for the newest contracts, browser

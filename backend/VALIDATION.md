@@ -1,5 +1,64 @@
 # Backend validation
 
+## Full rerun on `main` after #102 and #104 — 24 November 2026
+
+Issue #117. #102 and #104 changed much of the backend after the last full runs (13 November,
+below), and #77 moved file storage to SeaweedFS. Every suite now has a green run on one `main`
+revision, `8d31ee4` (merge of #157). `backend/`, `tools/`, `docker-compose.yml` and the *Backup*
+and *Smoke* workflows are identical at `d958dfb` and `8d31ee4` (`git diff d958dfb 8d31ee4` on
+those paths is empty), so the *Backup* run on `d958dfb` exercises the same backend, scripts and
+Compose stack.
+
+| Suite | Run | Result |
+|---|---|---|
+| Full PostgreSQL suite **with** the process-kill (`RUN_CRASH_TESTS=1`) and load (`RUN_LOAD_TESTS=1`) harnesses, one combined pass | *Validation* [45350078452](https://github.com/AlikhanSharapov01/biletflow/actions/runs/45350078452), started by hand on `8d31ee4`, 24 November | **904 passed, 0 failed, 0 skipped** in 872 s (`uv run pytest -q -rs`, which lists every skip). One existing Starlette/httpx TestClient deprecation warning |
+| Three direct load-harness reports, 3 runs each (below) | same run | All invariants passed in every run; admission p95 target (2 s) met in all three |
+| Restore drill with SeaweedFS storage (#77) | *Backup* [45129767379](https://github.com/AlikhanSharapov01/biletflow/actions/runs/45129767379) on `d958dfb`, 23 November | Success: online backup misses the deleted image; normal backup refuses it and verifies; destroy, restore into a fresh stack, data, bucket marker and pending work back, app writes |
+| *Smoke* (API smoke scripts on the whole Compose stack) | [45342083316](https://github.com/AlikhanSharapov01/biletflow/actions/runs/45342083316) on `8d31ee4`, 24 November | Success |
+| *Backend API* (lint, format, full suite with coverage, opt-in harnesses skipped) | [45342083373](https://github.com/AlikhanSharapov01/biletflow/actions/runs/45342083373) on `8d31ee4`, 24 November | Success |
+
+The *Smoke* and *Backup* runs on `cb5a9bd` (merge of #104) that were cancelled during setup have
+been superseded: both workflows have since succeeded on `main` (`95f7e30`, `d958dfb`, and *Smoke*
+also on `170614c` and `8d31ee4`).
+
+Environment of the *Validation* run: GitHub-hosted `ubuntu-26.04` runner, PostgreSQL 17.12 service
+container, Python 3.12.12 through `uv`. The load harness, the API under test, its worker and
+PostgreSQL all share that one runner.
+
+### Load reports
+
+Each report is the median of 3 runs' p95 (worst run in brackets); 50 checkouts for 40 tickets plus
+10 scanners per run. Scenario A has no analytics clients, scenario B adds the stated number.
+Reports and logs are the run's `load-reports` artifact.
+
+| Report | Admission p95, A | Admission p95, B | Admission p50, A → B | Admission req/s, A → B | Analytics summary p95, B |
+|---|---|---|---|---|---|
+| 5 analytics clients, 1 API process | 1274 ms (1285) | 1165 ms (1353) | 146 → 210 ms | 34.8 → 28.4 | 996 ms |
+| 20 analytics clients, 1 API process | 1209 ms (1404) | 1288 ms (1302) | 154 → 362 ms | 33.8 → 19.5 | 1322 ms |
+| 20 analytics clients, 2 API processes (`--api-workers 2`) | 846 ms (1211) | 1337 ms (1782) | 113 → 243 ms | 40.4 → 19.9 | 997 ms |
+
+Every run: 40 confirmed checkouts and 10 sold out for 40 tickets (no overselling), each ticket
+admitted once (the other scans are `409 already_checked_in`), no 5xx or transport errors, all
+harness invariants passed.
+
+What these numbers do and do not show:
+
+- They are not comparable with the 12 November local figures (312 ms alone, 743 ms with 20
+  analytics clients): those ran on a developer machine, these on a shared GitHub-hosted CI runner, where
+  even scenario A sits near 1.2 s.
+- With 20 analytics clients, the second API process helps the no-analytics case (p95 1209 → 846
+  ms, 33.8 → 40.4 req/s) but not check-in under analytics load (p95 1288 → 1337 ms, 19.5 → 19.9
+  req/s). On this runner the harness, both API processes and PostgreSQL compete for the same CPUs,
+  so an extra process adds no capacity there. Whether `API_WORKERS=2` meets #118's target on the
+  demo host still needs a measurement on that host; this run does not settle #118.
+
+### Not covered
+
+- The restore drill ran on `d958dfb`, not on `8d31ee4` itself; the reasoning is the identical
+  paths above. The *Backup* workflow has no manual trigger, so it runs again with the next change
+  under `backend/`.
+- No browser or device flows (*E2E* and #53 cover those); no host other than the CI runner.
+
 ## Consistent backups — 13 November 2026
 
 Issue #69 (AC-27; BF-22). `tools/backup.sh` used to dump PostgreSQL and then archive the files
