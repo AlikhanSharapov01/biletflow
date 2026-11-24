@@ -255,6 +255,11 @@ def create_app(settings: Settings | None = None):
             )
             if not valid or not user or not user.password_hash:
                 fail()
+            if user.status == "active" and user.email_verified_at is None:
+                # The password is right, so naming the reason reveals nothing to a stranger, and it
+                # lets clients offer to resend the verification email. Every other refusal stays the
+                # generic invalid_credentials.
+                fail("email_not_verified", 403)
             eligible(user)
             if updated_hash:
                 user.password_hash = updated_hash

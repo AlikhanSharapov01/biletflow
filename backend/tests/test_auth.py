@@ -20,12 +20,11 @@ def test_registration_verification_and_secret_storage(client, factory, settings)
     r = client.post(AUTH + "/register", json=payload)
     assert r.status_code == 202
     assert client.post(AUTH + "/register", json=payload).json() == r.json()
-    assert (
-        client.post(
-            AUTH + "/login", json={"email": "person@example.com", "password": PASSWORD}
-        ).status_code
-        == 401
+    unverified = client.post(
+        AUTH + "/login", json={"email": "person@example.com", "password": PASSWORD}
     )
+    assert unverified.status_code == 403
+    assert unverified.json()["detail"]["code"] == "email_not_verified"
     token = latest_token(factory, settings, "person@example.com", "email_verify")
     assert client.post(AUTH + "/verify-email", json={"token": token}).status_code == 200
     assert client.post(AUTH + "/verify-email", json={"token": token}).status_code == 401
@@ -184,6 +183,27 @@ def test_password_reset_single_use_revokes_sessions(client, account, factory, se
         ).status_code
         == 200
     )
+
+
+def test_unverified_login_names_the_reason_only_with_the_right_password(client, factory):
+    email = "pending@example.com"
+    client.post(
+        AUTH + "/register", json={"email": email, "password": PASSWORD, "display_name": "Pending"}
+    )
+    # A wrong password stays generic, so nobody learns that the address has an account.
+    wrong = client.post(AUTH + "/login", json={"email": email, "password": "not-the-password!"})
+    assert wrong.status_code == 401 and wrong.json()["detail"]["code"] == "invalid_credentials"
+    right = client.post(AUTH + "/login", json={"email": email, "password": PASSWORD})
+    assert right.status_code == 403 and right.json()["detail"]["code"] == "email_not_verified"
+    # No session is created for an unverified account.
+    with factory() as db:
+        assert db.scalar(select(func.count(AuthSession.id))) == 0
+    # A suspended account stays generic even with the right password.
+    with factory.begin() as db:
+        db.execute(update(User).where(User.email == email).values(status="suspended"))
+    suspended = client.post(AUTH + "/login", json={"email": email, "password": PASSWORD})
+    assert suspended.status_code == 401
+    assert suspended.json()["detail"]["code"] == "invalid_credentials"
 
 
 def test_expired_challenge_and_resend(client, factory, settings):
