@@ -279,9 +279,8 @@ Done since 13 November: #67, #70, #74 (PR #102); #71, #72, #73, #75, #76, #77, #
    - Mobile: offline result screen per [decision 0003](docs/decisions/0003-confirmed-decisions.md)
      (#115); admin operations and upload scan status (#116, open PR #128); real iPhone and Android
      phones (#53).
-2. **Validation.** Rerun the process-kill and load harnesses and the restore drill on the current
-   `main`, get green *Smoke* and *Backup* runs there, and record the results in
-   `backend/VALIDATION.md` (#117); keep check-in fast while analytics runs (#118); example
+2. **Validation.** Done for #117 on 24 November (`backend/VALIDATION.md`); keep check-in fast
+   while analytics runs, measured on the demo host (#118); example
    requests and errors for the #104 endpoints, which #110 and #116 build on (#119).
 3. **End-to-end and acceptance.** Compare client types with the final contracts (#122); browser
    end-to-end tests with Playwright in CI (#120); walk through AC-01 to AC-28 on the integrated
