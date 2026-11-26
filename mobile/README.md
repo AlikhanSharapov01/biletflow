@@ -30,7 +30,8 @@ Built with Expo SDK 58, React Native 0.88, TypeScript (strict) and expo-router. 
 
 ## Status
 
-Checked against the code on 19 November 2026. Whole-project status:
+Checked against the code on 26 November 2026 (`main` at `ddefdae`). The app is complete: every
+mobile issue in the final tracker (#125) is closed. Whole-project status:
 [integration status](../docs/integration/status.md).
 
 Since 8 November the app has been connected to the final contracts for promo campaigns, refunds,
@@ -38,7 +39,10 @@ analytics, finance (summary and payouts) and the event gallery (#51, PR #97), tr
 PR #98 and #100), given one shared payment panel (#55, PR #99) and installable builds (#54,
 PR #101). Later PRs added moderation notices and the hold time from the settings (PR #105), the
 admin payments, refunds and paid-sales suspension (#113, PR #126), and event covers with the
-analytics CSV export (#114, PR #127). Offline QR scanning came earlier, in PR #59.
+analytics CSV export (#114, PR #127). Offline QR scanning came earlier, in PR #59. After that:
+admin operations and support upload status (#116, PR #128), the offline result that never looks
+like an admission (#115, PR #139), GA4 through the backend contract (#131, PR #141) and the
+translated scanner text (#133, PR #142).
 
 How far each part was checked: the main screens have tests with a mocked API, and PRs #97, #105,
 #126 and #127 compared the real responses from `docker compose up` with the app's types. Checkout and the payment panel,
@@ -68,7 +72,8 @@ upload were checked against the API but not clicked through on screen.
 | Google sign-in | Web only (decision 0001) |
 | Kazakh, Russian and English | Done (#52, #133): the web's catalogs plus app-only text; Account → Language |
 
-Nothing here has been checked on a real phone yet (#53).
+The app has been run on a real Android phone and a real iPhone through Expo Go (#53, closed on
+26 November), including sign-in, scanning tickets at the door and support cases.
 
 ---
 
@@ -390,11 +395,11 @@ Campaign (promo) QR codes are rejected as "Not a ticket". The full contract is i
 
 ## What is left to do
 
-- **Real iPhone and Android checks (#53):** the camera (ticket QR, entry confirmation QR,
-  campaign QR rejected as "Not a ticket"), the share sheet (PDF, calendar, CSV), document picker,
-  clipboard, deep links and sign-in after the app was in the background have been tested with
-  mocks and partly on an Android emulator. Check them on real phones and add the device checklist
-  with results to this README.
+All tracked mobile work is done. What remains is optional:
+
+- **Device checklist (#53):** the app ran on a real Android phone and a real iPhone. A
+  per-device list of what was checked (camera, share sheet, document picker, clipboard, deep
+  links, sign-in after backgrounding) with results can still be added here.
 - **iOS build:** needs the team's Expo and Apple accounts. Run `eas-cli init` and the EAS steps in
   [Run it](#run-it) and [Installable builds](#installable-builds); only a local Android build has
   been made and tested so far.

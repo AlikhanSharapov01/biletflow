@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.exc import DBAPIError
 
 from app.catalog_models import Event, Hold
@@ -245,6 +245,47 @@ def test_scanner_is_assigned_and_attendance_counts(client, demo):
     attendance = get(client, f"/events/{events['meetup']}/analytics", login(client, "organizer"))
     assert attendance["attendance"]["checked_in"] == 1
     assert attendance["attendance"]["not_checked_in_label"] == "not_yet_checked_in"
+
+
+def test_start_adds_a_live_event_once_the_live_meetup_has_closed(client, factory, settings, demo):
+    events = demo["events"]
+    windows = (
+        "starts_at",
+        "ends_at",
+        "registration_opens_at",
+        "registration_closes_at",
+        "admission_opens_at",
+        "admission_closes_at",
+    )
+    with factory.begin() as db:
+        # As if the fixtures were built a day ago: the meetup's admission has closed.
+        db.execute(
+            update(Event)
+            .where(Event.id == UUID(events["meetup"]))
+            .values({name: getattr(Event, name) - timedelta(days=1) for name in windows})
+        )
+
+    assert seed_demo_fixtures(factory, settings) == "live_added"
+    scanner = login(client, "scanner", "scanner")
+    added = {row["id"] for row in get(client, "/scanner/events", scanner)} - {
+        events["concert"],
+        events["meetup"],
+    }
+    assert len(added) == 1
+    live = added.pop()
+    with factory() as db:
+        row = db.get(Event, UUID(live))
+        assert row.admission_opens_at < now() < row.admission_closes_at - timedelta(hours=6)
+    mine = get(client, "/tickets", login(client, "attendee"))
+    tickets = [r for r in mine if r["event_id"] == live]
+    assert [r["status"] for r in tickets] == ["valid", "valid"]
+    counts = get(client, f"/scanner/events/{live}/counts", scanner)
+    assert counts == {"event_id": live, "registered": 2, "admitted": 0}
+
+    # The next start finds an event still admitting people and changes nothing.
+    before = snapshot(factory)
+    assert seed_demo_fixtures(factory, settings) == "present"
+    assert snapshot(factory) == before
 
 
 def test_seed_is_idempotent_and_reset_rebuilds_fresh_dates(client, factory, settings, demo):

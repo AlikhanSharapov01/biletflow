@@ -21,6 +21,7 @@ import argparse
 import re
 import sys
 import warnings
+from contextlib import contextmanager
 from datetime import timedelta
 from graphlib import TopologicalSorter
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -30,7 +31,10 @@ from sqlalchemy.dialects.postgresql import insert
 
 from .catalog_models import (
     Category,
+    Event,
+    EventStaff,
     Layout,
+    Member,
     Organization,
     Seat,
     Section,
@@ -407,17 +411,39 @@ class DemoClient:
         return response.json()
 
 
-def build_demo(factory, settings):
-    """Create every lifecycle example through the public API; return its identifiers."""
+@contextmanager
+def demo_api(factory, settings):
+    """A DemoClient on a private in-process app, open for the duration of the block."""
     with warnings.catch_warnings():
         # The in-process transport is used deliberately; its deprecation notice is noise.
         warnings.simplefilter("ignore")
         from fastapi.testclient import TestClient
 
+    from .main import create_app
+
+    # The operator's own build is not abusive traffic: lift per-caller limits for this
+    # private in-process app only. Everything else uses the given settings unchanged.
+    local = settings.model_copy(
+        deep=True, update={"rate_ip_limit": 10**6, "rate_identity_limit": 10**6}
+    )
+    with TestClient(create_app(local)) as client:
+        yield DemoClient(client, factory, settings)
+
+
+def revoke_demo_sessions(db, api):
+    """Seed sessions were only for building; nobody can reuse their tokens."""
+    db.execute(
+        update(AuthSession)
+        .where(AuthSession.id.in_(api.sessions), AuthSession.revoked_at.is_(None))
+        .values(revoked_at=now())
+    )
+
+
+def build_demo(factory, settings):
+    """Create every lifecycle example through the public API; return its identifiers."""
     from .activation_service import TERMS_VERSION
     from .checkout_expiry import sweep_event
     from .commerce_models import RefundAttempt
-    from .main import create_app
     from .payments_service import dispatch_refund_once, simulation_enabled
     from .security import challenge_value
 
@@ -428,14 +454,7 @@ def build_demo(factory, settings):
 
     upsert_demo_users(factory)
     set_admin(factory, DEMO_USERS["admin"][1], True)
-    # The operator's own build is not abusive traffic: lift per-caller limits for this
-    # private in-process app only. Everything else uses the given settings unchanged.
-    local = settings.model_copy(
-        deep=True, update={"rate_ip_limit": 10**6, "rate_identity_limit": 10**6}
-    )
-    app = create_app(local)
-    with TestClient(app) as client:
-        api = DemoClient(client, factory, settings)
+    with demo_api(factory, settings) as api:
         for key in ("organizer", "attendee", "guest"):
             api.sign_in(key)
         api.sign_in("scanner", "scanner")
@@ -687,7 +706,8 @@ def build_demo(factory, settings):
             "Admission is open; the demo scanner is assigned.",
             current - timedelta(minutes=30),
             50,
-            hours=4,
+            # Long enough that a start right after the build finds it open for LIVE_MIN_LEFT.
+            hours=10,
             category="community",
             refunds=False,
             live=True,
@@ -747,12 +767,7 @@ def build_demo(factory, settings):
             "users": {key: str(seed_id(value[0])) for key, value in DEMO_USERS.items()},
         }
         with factory.begin() as db:
-            # Seed sessions were only for building; nobody can reuse their tokens.
-            db.execute(
-                update(AuthSession)
-                .where(AuthSession.id.in_(api.sessions), AuthSession.revoked_at.is_(None))
-                .values(revoked_at=now())
-            )
+            revoke_demo_sessions(db, api)
             db.add(
                 AuditLog(
                     service_actor=SERVICE_ACTOR,
@@ -768,12 +783,134 @@ def build_demo(factory, settings):
     return ids
 
 
+# The live meetup closes hours after the build, so a later start adds a fresh event with
+# admission open whenever no assigned one has at least LIVE_MIN_LEFT to go: after any start,
+# the demo scanner can check people in for at least that long.
+LIVE_TITLE = "BiletFlow Demo Check-in (live now)"
+LIVE_HOURS = 12
+LIVE_MIN_LEFT = timedelta(hours=6)
+LIVE_TICKETS = 2
+
+
+def scanner_member_id(db, org):
+    return db.scalar(
+        select(Member.id).where(
+            Member.organization_id == org,
+            Member.user_id == seed_id(DEMO_USERS["scanner"][0]),
+            Member.status == "active",
+        )
+    )
+
+
+def live_event_open(factory, org):
+    """Whether the demo scanner is assigned to a published event admitting people for a while."""
+    current = now()
+    with factory() as db:
+        found = db.scalar(
+            select(Event.id)
+            .join(EventStaff, EventStaff.event_id == Event.id)
+            .where(
+                Event.organization_id == org,
+                Event.publication_state == "published",
+                Event.moderation_state == "normal",
+                Event.admission_opens_at <= current,
+                Event.admission_closes_at >= current + LIVE_MIN_LEFT,
+                EventStaff.member_id == scanner_member_id(db, org),
+                EventStaff.revoked_at.is_(None),
+            )
+            .limit(1)
+        )
+    return found is not None
+
+
+def add_live_event(factory, settings, org):
+    """Add a free event admitting people now, with the scanner assigned and unused attendee
+    tickets, through the public API like the rest of the fixtures. Returns its id."""
+    ensure_demo_environment(settings)
+    with factory() as db:
+        member = scanner_member_id(db, org)
+    if member is None:
+        raise DemoBuildError("The demo scanner is no longer a member of the demo organization")
+    current = now()
+    starts = current - timedelta(minutes=30)
+    ends = starts + timedelta(hours=LIVE_HOURS)
+    closes = ends - timedelta(minutes=30)
+    with demo_api(factory, settings) as api:
+        for key in ("organizer", "attendee"):
+            api.sign_in(key)
+        event_id = api.call(
+            "POST",
+            f"/organizations/{org}/events",
+            "organizer",
+            {
+                "category_id": str(seed_id("category-community")),
+                "venue_id": str(seed_id("venue-campus")),
+                "title": LIVE_TITLE,
+                "description": "Admission is open; the demo scanner is assigned. "
+                "Fictional demonstration event.",
+                "capacity": 100,
+                "visibility": "public",
+                "starts_at": starts.isoformat(),
+                "ends_at": ends.isoformat(),
+                "registration_opens_at": (current - timedelta(days=1)).isoformat(),
+                "registration_closes_at": closes.isoformat(),
+                "admission_opens_at": (starts - timedelta(hours=1)).isoformat(),
+                "admission_closes_at": ends.isoformat(),
+                "refund_allowed": False,
+                "refund_cutoff_at": None,
+            },
+        )["id"]
+        entry = api.call(
+            "POST",
+            f"/events/{event_id}/ticket-types",
+            "organizer",
+            {
+                "name": "Free entry",
+                "description": "Demonstration ticket; no real money moves.",
+                "kind": "free",
+                "price_minor": 0,
+                "quantity_limit": 100,
+                "per_order_limit": 5,
+                "sales_open_at": (current - timedelta(days=1)).isoformat(),
+                "sales_close_at": closes.isoformat(),
+            },
+        )["id"]
+        api.call("POST", f"/events/{event_id}/publish", "organizer")
+        api.call(
+            "PUT",
+            f"/events/{event_id}/staff",
+            "organizer",
+            {"member_id": str(member), "capabilities": ["scan", "reverse_checkin"]},
+        )
+        # Separate orders, so every ticket belongs to the attendee (a multi-ticket order
+        # would name a friend as the extra recipient).
+        _, email, name = DEMO_USERS["attendee"]
+        for _ in range(LIVE_TICKETS):
+            held = api.call(
+                "POST",
+                f"/events/{event_id}/holds",
+                "attendee",
+                {"items": [{"ticket_type_id": entry, "quantity": 1}]},
+            )
+            allocation = held["allocations"][0]["id"]
+            api.call(
+                "POST",
+                f"/holds/{held['id']}/confirm",
+                "attendee",
+                {"recipients": [{"allocation_id": allocation, "name": name, "email": email}]},
+            )
+        with factory.begin() as db:
+            revoke_demo_sessions(db, api)
+    return event_id
+
+
 def seed_demo_fixtures(factory, settings):
     """Build the demo fixtures when absent; never deletes. Returns the resulting status.
 
     'skipped' in production, 'built' after a build, 'present' when a complete build exists,
-    and 'incomplete' when demo-owned rows exist without a complete build (an interrupted run
-    or an older seed): those need an explicit reset.
+    'live_added' when it exists but no assigned event was still admitting people, so a fresh
+    live event was added, and 'incomplete' when demo-owned rows exist without a complete build
+    (an interrupted run or an older seed): those need an explicit reset.
     """
     if settings.environment == "production":
         return "skipped"
@@ -781,13 +918,23 @@ def seed_demo_fixtures(factory, settings):
     if status == "absent":
         build_demo(factory, settings)
         return "built"
-    return "present" if status == "ready" else "incomplete"
+    if status != "ready":
+        return "incomplete"
+    org = demo_fixtures(factory)["organization_id"]
+    if live_event_open(factory, org):
+        return "present"
+    add_live_event(factory, settings, org)
+    return "live_added"
 
 
 MESSAGES = {
     "skipped": "Demo fixtures skipped: production environment.",
     "built": "Demo fixtures built.",
     "present": "Demo fixtures already present; reset to refresh their dates.",
+    "live_added": (
+        f"Demo fixtures already present; added '{LIVE_TITLE}' with admission open for "
+        f"{LIVE_HOURS} hours. Reset to refresh the other dates."
+    ),
     "incomplete": (
         "Demo fixtures are incomplete or from an older seed; run "
         "'python -m app.seed --reset --yes-reset-demo' to rebuild them."

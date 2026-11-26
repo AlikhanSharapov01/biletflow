@@ -45,7 +45,8 @@ def main():
     try:
         seed_catalog(factory)
         try:
-            # Builds the demo fixtures only when absent, so restarts keep demo activity.
+            # Builds the demo fixtures only when absent, so restarts keep demo activity. When
+            # the live event has closed, a start only adds a fresh one for check-in.
             print(MESSAGES[seed_demo_fixtures(factory, settings)])
         except (DemoRefused, DemoBuildError) as error:
             # Demo data is optional: the stack still starts, and the message says why.
