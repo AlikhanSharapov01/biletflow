@@ -1,22 +1,24 @@
 # Integration status
 
 Whole-project status per requirement area (BF-01 to BF-22 in
-[the backend requirements](../BiletFlow_Backend_Requirements.md)), with the remaining work grouped
-by issue. The tracker is #125, which replaces the MVP checklist #58 and the audit tracker #85.
+[the backend requirements](../BiletFlow_Backend_Requirements.md)). The tracker is #125, which
+replaces the MVP checklist #58 and the audit tracker #85.
 
-- **Baseline:** `main` at `ad5b53c` (merge of PR #127), 19 November 2026. Merged since the
-  13 November update: PR #102 (#67, #70, #74), PR #104 (the `dauka-backend` branch: #71, #72,
-  #73, #75, #76, #77, #78, #81), PR #105 (mobile: moderation notices open the organizer's event,
-  hold time read from settings), PR #126 (mobile admin commerce, #113) and PR #127 (mobile event
-  covers and analytics CSV export, #114). Web PR #111 (most of #107, #108 and #109) is open, not
-  merged; nothing under `web/` has changed on `main` since 12 November.
-- **Sources checked:** `backend/app/**`, `web/src/api/**`, `mobile/src/api/**` and their feature
-  screens, `backend/VALIDATION.md`, the `*_API.md` contracts, `docker-compose.yml`,
-  `.github/workflows/`, merged PRs, open PR #111, open issues #107–#125 and the GitHub Actions
-  runs on `main`.
-- Anything not checked against code, tests or a CI run is marked **not verified**.
-- **Acceptance walkthrough** (AC-01 to AC-28, 20 November 2026): [acceptance.md](acceptance.md).
-  **Client types against the final contracts:** [client-contract-check.md](client-contract-check.md).
+- **Result:** every requirement area is built in the backend and integrated in both clients, and
+  every issue in #125 is closed. The project is ready to demonstrate.
+- **Baseline:** `main` at `ddefdae` (merge of PR #160), 24 November 2026; checked on 26 November.
+  Merged since the 19 November update: web PRs #111 and #145 (#107 to #110, #112, #132) and #143
+  (GA4, #131); mobile PRs #128 (#116), #139 (#115), #141 (GA4, #131) and #142 (#133); PR #144
+  (client contract check #122, Playwright end-to-end tests #120, acceptance walkthrough #121);
+  PRs #146 and #159 (validation rerun, #117); PR #147 (API examples, #119); PR #148 (several API
+  workers, #118); the web and mobile UX passes, PRs #149 to #158; PR #160 (security headers and
+  HTTPS for the demo host, #49).
+- **Sources checked:** merged PRs, the closed issues in #125, `backend/VALIDATION.md`,
+  [acceptance.md](acceptance.md), [client-contract-check.md](client-contract-check.md) and the
+  GitHub Actions runs on `main`.
+- **Real phones (#53):** the mobile app was run on a real Android phone and a real iPhone through
+  Expo Go, including sign-in, door scanning and support cases. A per-screen device log is not
+  recorded here.
 
 ## What the columns mean
 
@@ -36,85 +38,61 @@ exists, but it is not done until the end-to-end journey is integrated and verifi
 
 | Evidence | Result | What it does not prove |
 |---|---|---|
-| Backend PostgreSQL suite (*Backend API* workflow, PostgreSQL 17) | The workflow runs the whole suite on every push. On `ad5b53c`: **863 passed, 0 failed, 11 skipped** (the 10 opt-in process-kill cases and the opt-in load test); the same counts on `207cbde` and `cb5a9bd`, the merge of #104. On 24 November the *Validation* workflow ran it once on `8d31ee4` with both opt-in harnesses enabled: **904 passed, 0 failed, 0 skipped** ([VALIDATION.md](../../backend/VALIDATION.md), #117) | Client flows; the opt-in harnesses; the Compose services (Caddy, SeaweedFS, ClamAV) |
-| Process-kill harness (`backend/tests/crash/`, opt-in `RUN_CRASH_TESTS=1`) | 10 scenarios: API/worker killed or frozen at commit, storage and SMTP boundaries; no duplicated orders, tickets, refunds, finance rows or files (#83, extended by #65 and #68). Rerun on `main` (`8d31ee4`) on 24 November in the combined *Validation* run, with SeaweedFS-era code: all passed (#117) | Docker restart policy, power loss, the S3 storage path |
-| Load harness (`backend/tests/load/`, opt-in `RUN_LOAD_TESTS=1`) | 50 checkouts for 40 tickets plus 10 scanners: admission p95 312 ms alone, 453 ms with 5 analytics clients, 743 ms with 20 (target 2 s); no overselling or duplicate admission (#80). Rerun on `main` (`8d31ee4`) on 24 November on a GitHub-hosted CI runner: invariants passed and the 2 s target was met in every report, but absolute times are higher there (admission p95 about 1.2 s even without analytics; see [VALIDATION.md](../../backend/VALIDATION.md)). Reducing the analytics effect is #118; a second API process did not help on that runner | Docker/Caddy, separate client machine, soak; the baseline is still a proposal, which decision 0003 does not cover |
-| GitHub Actions on `main` | On `8d31ee4` (24 November): *Backend API*, *Smoke* and *Validation* succeeded. *Backup* last ran on `d958dfb` (23 November) and succeeded; `backend/`, `tools/` and Compose are unchanged since. The *Smoke* and *Backup* runs cancelled on `cb5a9bd` (merge of #104) are superseded (#117) | Browser or device behaviour |
-| *Smoke* workflow (`tools/smoke_*.py`, API only) | Free registration and admission, duplicate and forged-QR rejection, paid activation and payment, campaign link/discount/report, refund | Any screen. #48 was closed on this API-level smoke; there is no browser (Playwright) suite in the repository (#120) |
-| *Backup* workflow | Writers stopped during backup; an online backup that loses an image is detected; restore into a fresh stack checks orders, tickets, linked PDFs/images/attachments, audit, outbox keys and pending work (#69). Since #104 it backs up the whole SeaweedFS bucket and waits for ClamAV before linking an attachment; that version passed on `main` on 22 and 23 November (`95f7e30`, `d958dfb`) | Object storage outside the Compose host |
-| *Web* workflow (last run on `main`: `4ed9078`, 12 November) and *Mobile app* workflow (`ad5b53c`) | Typecheck, unit tests, web build | End-to-end use against the API |
-
-The combined rerun after #102/#104 (#117) is recorded in [VALIDATION.md](../../backend/VALIDATION.md):
-the full suite with both harnesses and *Smoke* on `8d31ee4`, and the restore drill on `d958dfb`,
-whose backend, scripts and Compose files are identical.
+| Backend PostgreSQL suite with the opt-in harnesses (*Validation* workflow) | On `8d31ee4`, 24 November: **904 passed, 0 failed, 0 skipped**, including the process-kill and load harnesses ([VALIDATION.md](../../backend/VALIDATION.md), #117) | Client flows |
+| Process-kill harness (`backend/tests/crash/`) | 10 scenarios: API/worker killed or frozen at commit, storage and SMTP boundaries; no duplicated orders, tickets, refunds, finance rows or files. All passed in the 24 November run | Power loss; object storage outside the Compose host |
+| Load harness (`backend/tests/load/`) | 50 checkouts for 40 tickets plus 10 scanners: no overselling or duplicate admission, and the 2 s admission p95 target met in every report, with and without analytics load (#118) | A separate client machine, soak tests |
+| GitHub Actions on `main` | On `ddefdae`: *Backend API*, *Web*, *E2E*, *Smoke* and *Backup* succeeded. *Mobile app* last ran on `8d31ee4` (24 November) and succeeded | Device behaviour |
+| *E2E* workflow (Playwright, #120) | Four browser journeys: free registration to admission, paid checkout with a failed and a retried payment, Campaign QR link to a discounted order, attendee refund request to organizer refund | Web screens outside these journeys |
+| *Smoke* workflow (`tools/smoke_*.py`, API) | Free registration and admission, duplicate and forged-QR rejection, paid activation and payment, campaign link/discount/report, refund | Any screen |
+| *Backup* workflow | Backup and restore of the database and the whole SeaweedFS bucket into a fresh stack, with order, ticket, file, audit and job checks (#69, #77) | Object storage outside the Compose host |
+| Acceptance walkthrough AC-01 to AC-28 (#121) | **21 pass, 7 partial, 0 fail**, 20 November ([acceptance.md](acceptance.md)). Partial: the part that can run automatically passed; the rest needs hardware or timing a live run cannot produce | The walkthrough drives the API and the four browser journeys, not the mobile app |
+| Client types against the final contracts (#122) | Checked for web and mobile ([client-contract-check.md](client-contract-check.md)) | Runtime behaviour |
 
 ## Status matrix
 
-Legend: **Yes**, **Partial**, **No**, **n/a** (not part of that client), **not verified**.
-Real devices (#53), browser end-to-end tests (#120) and the acceptance walkthrough (#121) apply
-to every row; the last column lists them only where a row depends on them specifically.
+Every area is API-complete and merged. The acceptance column names the criteria from
+[acceptance.md](acceptance.md); "partial" means the automatic part passed and the rest needs
+hardware or timing (see that file).
 
-| Area | API complete | Merged | Web integrated | Mobile integrated | Acceptance verified | Open issues |
-|---|---|---|---|---|---|---|
-| BF-01 Accounts and sessions | Yes | Early `main` (issue #3) | Yes | Yes (Google sign-in is web only, by decision 0001) | API smoke covers register/verify/sign-in; client journeys not verified | — |
-| BF-02 Organizations and staff | Yes | Early `main` (issue #4) | Yes | Yes | API smoke covers staff scan grant; rest not verified | — |
-| BF-03 Events, discovery, images | Yes (image delete failed with 503 in the Compose stack until #95 granted the app role DELETE on `event_media`); images stored in SeaweedFS since #104 (#77) | Early `main` (issue #4); images #64, #95; storage #104 | Partial: upload only; order, cover, delete and covers on Discover and the event page not wired (in open PR #111) | Yes: gallery upload, cover and delete; the cover is shown on Discover cards and the event page (#114, PR #127; image download checked by script against the Compose stack; on-screen check not verified) | Not verified | #107 |
-| BF-04 Venues and seating | Yes | Early `main` (issue #4); holds #25 | Yes | Yes | Backend concurrency tests only | — |
-| BF-05 Ticket types and holds | Yes: hold length is the platform setting in force when the hold is created (#70); at most 3 active holds per account | #25, #64 (counters), #102 (#70) | Yes; organizer counters not verified. The checkout hint still says "10 minutes" in all three languages instead of reading the setting | Yes: hold time read from `/settings/public` (PR #105); organizer counters not verified | Backend tests; load harness shows no overselling (#89) | — (hint: no issue) |
-| BF-06 Paid-sales activation | Yes: activation fee is the platform setting in force when the activation starts (#70) | #25, #102 (#70) | Yes (fee shown from the activation record) | Yes (same) | API smoke | — |
-| BF-07 Checkout and free registration | Yes | #16, #25, #61 (promo) | Yes, including promo and zero-total | Yes, including promo and zero-total; not verified on a device | API smoke | — |
-| BF-08 Payments (simulated) | Yes: stale refund results are ignored, unprocessable provider events are quarantined, request keys are stable (#93) | #25, #93 | Yes | Yes | API smoke; AC-07/08 backend tests and process-kill harness | — |
-| BF-09 Campaigns and campaign QR | Yes: the report uses the analytics definitions and adds `pending_refunds_minor` and `definitions` (#67); fulfilment revalidation (#91) | #61, #91, #102 (#67) | Yes (PR #63); the two fields added by #67 are not shown | Yes: list, create, edit, disable, QR, report; the fields added by #67 are not shown; not verified on a device | API smoke; reconciliation in backend tests only | #122 |
-| BF-10 Tickets, PDF, delivery | Yes: committed PDFs kept, abandoned writes swept (#94); bundled Unicode font for Kazakh/Russian (#92); stored in SeaweedFS since #104 | #16, #24, #92, #94, #104 (#77) | Yes | Yes (PDF via share sheet) | Backend and process-kill tests (rerun with S3 storage on 24 November, #117); client journeys not verified | #117 |
-| BF-11 Online admission | Yes | #18, #24 | n/a (check-in history and CSV only) | Yes | API smoke; p95 under 2 s with and without analytics load, locally (#89) and on `main` in CI on 24 November (#117) | #118 |
-| BF-12 Offline verification and sync | Yes; sync rules confirmed in [decision 0003](../decisions/0003-confirmed-decisions.md) | #24 | n/a | Partial: QR offline scanning (PR #59), but a passing offline scan shows "Accepted offline" in the admitted style, which decision 0003 does not allow | Not verified on devices | #115, #53 |
-| BF-13 Refunds and cancellations (full-order only) | Yes (retry fix in #93) | #61, #93 | Yes (PR #63) | Yes: attendee request and cancel, organizer refund and ticket cancel; not verified on a device | API smoke | #122 |
-| BF-14 Finance and simulated payouts | Yes: processing rate taken from the platform setting when the hold is created (#70); simulated payouts | #64, #102 (#70) | Partial: summary on the planned contract with the "not available yet" fallback; payouts not wired (in open PR #111) | Yes: summary, payout request and simulator steps; types match `FINANCE_API.md` (checked by script against the Compose stack, PR #127); not verified on a device | Not verified | #108, #122 |
-| BF-15 Notifications | Yes: moderation notices to affected users (#74); admin list and bounded retry of exhausted deliveries (#73) | #24, #61, #64, #102 (#74), #104 (#73) | Partial: inbox works, but moderation notices fall back to the public event page and account notices have no link (fixed in open PR #111, no issue); delivery admin view not wired | Yes: inbox; moderation notices open the organizer event (PR #105); admin jobs and deliveries with retry (#116, PR #128, retry seen on the emulator) | Not verified | #110 |
-| BF-16 Support and attachments | Yes: content checked against the declared type, ClamAV scan with fail-closed quarantine and worker re-scan (#75); interrupted and abandoned uploads recovered (#76); ClamAV runs in Compose | #24, #104 (#75, #76) | Partial: upload and download; scan state (checking, ready, blocked) not shown | Yes: upload and download, with scan state (Checking file… then Ready or Blocked, polled; #116, PR #128, seen on the emulator with ClamAV stopped and restarted); the same change fixes uploads from Android being refused with 415; document picker not tested on a physical device | Restore drill in PR #104 links an attachment after ClamAV is healthy; client journeys not verified | #112, #53 |
-| BF-17 Calendar | Yes | #24 | Yes | Yes | Not verified | — |
-| BF-18 Organizer analytics | Yes: CSV export with the report's filters (#81); campaign report reconciled (#67) | #64, #102 (#67), #104 (#81) | Partial: planned contract with the "not available yet" fallback; no CSV export. Open PR #111 moves to the final types but has no CSV export | Yes, with CSV export through the share sheet (#114, PR #127); types match `ANALYTICS_API.md` (checked by script against the Compose stack); on-screen check not verified | Not verified; analytics load measured only before #102/#104 | #108, #118, #122 |
-| BF-19 GA4 | Yes, optional and off by default (`GA4_ENABLED=false`): organization connection, measurement endpoint, worker export of purchases and refunds, cached traffic report (#71); deterministic tests in the CI suite; live property not verified | #104 (#71) | Partial: consent-aware page views sent straight to GA4 from the browser (`web/README.md`); does not post the measurement contract or show the traffic report | No | No | — (client part: no issue) |
-| BF-20 History, duplication, audit | Yes: request and job correlation IDs (`X-Request-ID`) carried into audit rows and outbox jobs (#78) | Early `main`, #24, #64 (filters), #104 (#78) | Yes | Yes | Not verified | — |
-| BF-21 Administration | Yes: settings applied to new commerce operations (#70); moderation notices (#74); search across support cases, orders, activations, campaigns and sync conflicts with read-only detail (#72); jobs and deliveries with bounded retry (#73) | #24, #64 (commerce monitoring), #102 (#70, #74), #104 (#72, #73) | Partial: users, events, orders and tickets search, moderation, reports, settings and exports; paid-sales suspension and payment/refund lists not wired (in open PR #111); operations search and jobs/deliveries not wired | Yes: paid-sales suspend/reinstate and payment, failed-payment and refund lists with CSV export (#113, PR #126); inspection with read-only details and jobs/deliveries with retry (#116, PR #128); checked by script against the Compose stack, retry seen on the emulator | Not verified | #109, #110, #119, #122 |
-| BF-22 Operations and integration | Yes: private S3-compatible storage on SeaweedFS with whole-bucket backup (#77); ClamAV service; correlation IDs, redacted structured logs and in-process metrics (#78) | #59 (issue #57), #60 (issue #56), #87–#89, #95, #104 (#77, #78) | n/a | n/a | Restore drill with SeaweedFS and smoke passed only in PR #104's runs, not on `main`; process-kill and load harnesses not rerun with S3 storage; HTTPS not verified | #49, #117, #118 |
-| SRS 7 Localization (kk/ru/en) | Yes (#43) | #64 | Yes (#46, PR #63) | Yes (#52): web catalogs plus app-only text; not verified on a device | Not verified | #53 |
+| Area | Web integrated | Mobile integrated | Acceptance |
+|---|---|---|---|
+| BF-01 Accounts and sessions | Yes | Yes (Google sign-in is web only, by decision 0001) | AC-01 pass |
+| BF-02 Organizations and staff | Yes | Yes | AC-18 pass |
+| BF-03 Events, discovery, images | Yes: upload, cover, reorder and delete (#107) | Yes: upload, cover and delete; covers on Discover and the event page (#114) | AC-01 pass |
+| BF-04 Venues and seating | Yes | Yes | AC-05 pass |
+| BF-05 Ticket types and holds | Yes (the checkout hint shows the default 10-minute hold rather than reading the setting) | Yes: hold time read from `/settings/public` | AC-05 pass; AC-06 partial |
+| BF-06 Paid-sales activation | Yes | Yes | AC-03 pass (API and browser); AC-04 pass |
+| BF-07 Checkout and free registration | Yes, including promo and zero-total | Yes, including promo and zero-total | AC-02 pass (API and browser) |
+| BF-08 Payments (simulated) | Yes | Yes | AC-07 pass (API and browser); AC-08 partial |
+| BF-09 Campaigns and campaign QR | Yes | Yes: list, create, edit, disable, QR, report | AC-09 pass; AC-10 pass (API and browser) |
+| BF-10 Tickets, PDF, delivery | Yes | Yes (PDF via share sheet) | AC-19 pass; AC-11 partial |
+| BF-11 Online admission | n/a (check-in history and CSV) | Yes; used on real phones (#53) | AC-12, AC-13, AC-14 pass |
+| BF-12 Offline verification and sync | n/a | Yes: a passing offline scan reads "Looks valid – connect to confirm entry" and never looks like an admission (#115, decision 0003) | AC-21 partial |
+| BF-13 Refunds and cancellations (full-order only) | Yes | Yes | AC-15 pass (API and browser); AC-16, AC-17 pass |
+| BF-14 Finance and simulated payouts | Yes, with payouts (#108, #132) | Yes, with payouts | AC-23 pass; AC-28 partial |
+| BF-15 Notifications | Yes, including moderation and account notice links and the delivery admin (#110) | Yes, including admin jobs and deliveries with retry (#116) | AC-26 pass |
+| BF-16 Support and attachments | Yes, with scan state (#112) | Yes, with scan state (#116); used on real phones (#53) | AC-20 partial |
+| BF-17 Calendar | Yes | Yes | AC-22 pass |
+| BF-18 Organizer analytics | Yes, with CSV export (#108) | Yes, with CSV export (#114) | AC-23 pass |
+| BF-19 GA4 (optional, off by default) | Yes, through the backend contract (#131) | Yes, through the backend contract (#131) | AC-24 pass |
+| BF-20 History, duplication, audit | Yes | Yes | AC-25 pass |
+| BF-21 Administration | Yes: commerce (#109) and operations, jobs and deliveries (#110) | Yes: commerce (#113) and operations, jobs and deliveries (#116) | AC-28 partial |
+| BF-22 Operations and integration | n/a | n/a | AC-26 pass; AC-27 partial (run by the *Backup* workflow). HTTPS is configured for a shared demo host (#49), which does not exist yet |
+| SRS 7 Localization (kk/ru/en) | Yes | Yes (#52, #133) | Not an AC; both clients ship all three languages |
 
 ## Remaining work
 
-Tracked in #125. Done since the 13 November update: #67, #70, #74 (PR #102); #71, #72, #73,
-#75, #76, #77, #78, #81 (PR #104); mobile moderation notices and hold time (PR #105); #113
-(PR #126); #114 (PR #127). No date is attached to any of the steps below.
+None tracked: every issue in #125 is closed. Optional follow-ups, none of which blocks the
+demonstration:
 
-1. **Clients.** These can start now; recheck them if #119 or #122 changes a contract.
-   - Web: #107 gallery cover, reorder and delete; #108 analytics and finance on the final
-     contracts, with CSV export; #109 admin paid-sales suspension and payment/refund monitoring.
-     Open PR #111 covers most of these three, but not the analytics CSV export. Then #110 admin
-     operations search, jobs and deliveries; #112 upload scan status; #49 HTTPS on the shared demo
-     host once it exists (headers and configuration are done).
-   - Mobile: #115 offline result screen per [decision 0003](../decisions/0003-confirmed-decisions.md);
-     #116 admin operations and upload scan status; #53 real iPhone and Android phones. #54
-     (installable builds) was closed on 17 November, although #125 still lists the iOS build as
-     left.
-2. **Validation.** #117 is done (24 November, see [VALIDATION.md](../../backend/VALIDATION.md));
-   #118 keep check-in fast while analytics runs, which still needs a measurement on the demo
-   host; #119 example requests
-   and errors for the #104 endpoints, which #110 and #116 build on.
-3. **End-to-end and acceptance.** #122 compare client types with the final contracts; #120
-   browser end-to-end tests with Playwright in CI; #121 walk through AC-01 to AC-28 on the
-   integrated stack, with results in `docs/integration/acceptance.md` linked from here. These
-   need steps 1 and 2.
-4. **Owner.** #123 open decisions (answered by decision 0003); #124 this report and the README.
-
-Not yet in any issue:
-
-- BF-19 clients: no client posts the measurement contract (`POST /api/v1/analytics/measurements`)
-  or shows the organizer GA4 connection and traffic report. The web sends page views to GA4
-  directly; the mobile app sends nothing.
-- Web checkout hold hint: "10 minutes" is fixed text in kk/ru/en, while the hold length is now a
-  platform setting. The mobile app reads it since PR #105; open PR #111 does not change the web
-  text.
-- Web moderation and account notice links: fixed in open PR #111, but none of #107–#112 lists them.
+- The 7 partial acceptance criteria (AC-06, AC-08, AC-11, AC-20, AC-21, AC-27, AC-28) need a
+  printer, a second offline device or clock-based timing to run end to end.
+- A per-device checklist for the real-phone checks (#53) in `mobile/README.md`.
+- An iOS build through EAS, which needs the team's Expo and Apple accounts (Expo Go works today).
+- Calendar options on the order and ticket screens; server-side check-in history filters
+  (clients show the newest 100 entries); a `randomUUID` fallback for the web app on plain HTTP;
+  the web hold hint reading the setting; a backend design-rationale document; encryption at rest
+  (a team decision).
 
 Conditional, not blocking: payment-provider sandbox (merchant access) and live GA4 data
 (property credentials).
@@ -130,4 +108,4 @@ the full-order refund was built, which matches the baseline.
 The questions in [decision 0002](../decisions/0002-decisions-to-confirm.md) were answered in
 [decision 0003](../decisions/0003-confirmed-decisions.md): an offline result needs online
 confirmation before entry, the current sync rules stay, and all proposed defaults are confirmed.
-The one consequence for the code is #115, which changes the mobile offline result screen.
+The one consequence for the code, the mobile offline result screen (#115), was merged in PR #139.

@@ -21,7 +21,7 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 5. [First steps after starting](#first-steps-after-starting)
 6. [Demo data](#demo-data)
 7. [Working on one part](#working-on-one-part)
-8. [What is left to do](#what-is-left-to-do)
+8. [Known limitations](#known-limitations)
 9. [How we work](#how-we-work)
 10. [Documentation map](#documentation-map)
 
@@ -29,54 +29,41 @@ decisions in [`docs/BiletFlow_Backend_Requirements.md`](docs/BiletFlow_Backend_R
 
 ## Project status
 
-As of `main` at `ad5b53c` (19 November 2026), after PRs #102, #104, #105, #126 and #127. The
-detailed, per-requirement view is in [`docs/integration/status.md`](docs/integration/status.md).
-It keeps four states apart: the API is complete, it is merged, each client is integrated, and the
-journey is acceptance-verified.
+**Complete and ready to demonstrate.** As of `main` at `ddefdae` (24 November 2026), every MVP
+feature (BF-01 to BF-22) is built in the backend and integrated in both the web app and the
+mobile app, and every issue in the final tracker (#125) is closed. CI on `ddefdae` is green:
+*Backend API*, *Web*, *E2E*, *Smoke* and *Backup*. The per-requirement view is in
+[`docs/integration/status.md`](docs/integration/status.md).
 
-Progress is an estimate per part, judged by the
-[definition of done](docs/BiletFlow_Backend_Requirements.md#12-definition-of-done-and-remaining-external-dependencies)
-(requirements §12): a feature counts as done only when it is integrated in both clients and
-verified, so an API without screens, or screens without end-to-end proof, counts only partly.
-
-| Part | State | Progress | Summary |
-|---|---|---|---|
-| Backend (`backend/`) | API-complete for every MVP feature (BF-01 to BF-22) | ~97% | Accounts, events and images, seating, free and simulated paid checkout, promo campaigns and Campaign QR, full-order refunds and cancellations, QR tickets and PDFs, online and offline admission, support with malware scanning, notifications (kk/ru/en), calendar, analytics with CSV export, simulated finance and payouts, platform administration, and optional GA4 (off by default). Since PRs #102 and #104 it also applies the admin platform settings to new holds and activations, sends moderation notices, searches operations data and retries exhausted jobs and deliveries, and carries request IDs into audit and outbox rows. CI runs the whole suite: 863 passed. Left: keep check-in fast while analytics runs (#118), example requests and errors for the new endpoints (#119), compare client types with the final contracts (#122). |
-| Database (`backend/migrations/`) | Current | ~97% | 21 migrations, 69 tables (through `0021_job_correlation`); every CI run applies all of them to a fresh PostgreSQL 17. The last recorded schema inventory is at `0016_image_cleanup` (66 tables); a new one is part of the rerun in #117. |
-| Web (`web/`) | Integrated except the newest contracts | ~80% | Accounts, events, seating, checkout with promo codes, tickets, refunds, campaigns, calendar, support, notifications and most of the admin area use the final contracts; Kazakh/Russian/English interface. Missing: gallery cover, reorder and delete (#107); analytics and finance on the final contracts, with CSV export (#108); admin paid-sales suspension and payment/refund monitoring (#109) — most of these three is in open PR #111; admin operations search, jobs and deliveries (#110); upload scan status (#112). Nothing under `web/` has changed on `main` since 12 November. |
-| Mobile app (`mobile/`) | Full app + scanner, nearly integrated | ~88% | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)), including offline QR scanning, admin payments, refunds and paid-sales suspension (#113), event covers and analytics CSV export (#114). Missing: admin operations and upload scan status (#116, open PR #128). The offline result screen must stop showing "Accepted offline" in the admitted style and ask the scanner to connect and confirm ([decision 0003](docs/decisions/0003-confirmed-decisions.md), #115). Not yet tried on real phones (#53). |
-| Environment | Local demo works | ~85% | Docker Compose with health checks and restart policies; a private S3-compatible bucket (SeaweedFS) for images, ticket PDFs and attachments; ClamAV scanning of support attachments; demo data with a guarded reset; [backup and restore](docs/operations/backup.md) of the database and the whole bucket, checked by a restore drill. No HTTPS yet (#49). |
-| Tests and CI | Backend strong, no browser/device end-to-end | ~75% | Backend: 623 test functions in 59 files, 863 cases passed in CI on PostgreSQL 17 (11 opt-in cases skipped). Web: 391 tests in 55 files. Mobile: 238 tests in 59 files. Opt-in harnesses: process-kill recovery (10 scenarios) and load (50 checkouts, 10 scanners), both last run on 13 November. CI also has *Smoke* (API flows) and *Backup* (backup and restore drill) workflows; they passed in PR #104 but have not had a green run on `main` since (#117). No browser end-to-end tests (#120), acceptance walkthrough (#121) or real-device tests (#53) yet. |
-| **Whole project** | All features built in the API; clients and proof catching up | **~87%** | What is left is mostly web integration, two mobile items, HTTPS, and showing the journeys working end to end. See [What is left to do](#what-is-left-to-do). |
-
-No SRS journey is acceptance-verified end to end on either client yet. API smoke tests cover
-free registration and admission, paid checkout, campaign discounts and refunds at the API level
-only. Recorded test evidence is in [`backend/VALIDATION.md`](backend/VALIDATION.md); its last
-local run is from 13 November, before #102 and #104.
+| Part | State | Summary |
+|---|---|---|
+| Backend (`backend/`) | Done | Accounts, events and images, seating, free and simulated paid checkout, promo campaigns and Campaign QR, full-order refunds and cancellations, QR tickets and PDFs, online and offline admission, support with malware scanning, notifications (kk/ru/en), calendar, analytics with CSV export, simulated finance and payouts, platform administration (settings, moderation, operations search, jobs and deliveries), and optional GA4 (off by default). Check-in stays fast while analytics runs (#118), and the API docs have example requests and errors (#119). |
+| Database (`backend/migrations/`) | Done | 21 migrations through `0021_job_correlation`; every CI run applies all of them to a fresh PostgreSQL 17. |
+| Web (`web/`) | Done | Every area on the final contracts, including the event gallery (#107), analytics and finance with CSV export and payouts (#108, #132), admin commerce and operations (#109, #110), upload scan status (#112) and GA4 (#131); Kazakh/Russian/English interface. |
+| Mobile app (`mobile/`) | Done | Every web feature plus the scanner ([decision 0001](docs/decisions/0001-mobile-app-full-scope.md)): online and offline QR scanning with the offline result per [decision 0003](docs/decisions/0003-confirmed-decisions.md) (#115), admin commerce and operations (#113, #116), event covers and analytics CSV export (#114), translated scanner text (#133), installable builds (#54) and real-phone checks (#53). |
+| Environment | Done | Docker Compose with health checks and restart policies; a private S3-compatible bucket (SeaweedFS) for images, ticket PDFs and attachments; ClamAV scanning of support attachments; demo data with a guarded reset and an event always open for check-in; [backup and restore](docs/operations/backup.md) checked by a restore drill; HTTPS and security headers for a shared demo host (#49). |
+| Tests and CI | Done | Backend: **904 passed, 0 failed, 0 skipped** with the process-kill and load harnesses on 24 November ([`backend/VALIDATION.md`](backend/VALIDATION.md), #117). Browser end-to-end tests with Playwright in CI (#120). Acceptance walkthrough AC-01 to AC-28: **21 pass, 7 partial, 0 fail** ([acceptance.md](docs/integration/acceptance.md), #121). Client types checked against the final contracts (#122). |
 
 ### Feature progress against the SRS
-
-"Done" means the backend or client on `main` uses the final contract for that area. It does not
-mean acceptance-verified: no journey is yet (#121), and nothing has been tried on real phones (#53).
 
 | SRS area | Backend | Web | Mobile |
 |---|---|---|---|
 | 4.1 Accounts, verification, password reset, Google sign-in | Done | Done | Done (Google is web only) |
-| 4.2 Events: create, edit, publish, duplicate, cancel, visibility, images | Done | Done; gallery cover, reorder and delete missing (#107) | Done (upload, cover, delete) |
-| 4.3 Ticket types and inventory | Done (hold length from platform settings) | Done (hold hint still fixed at "10 minutes") | Done |
+| 4.2 Events: create, edit, publish, duplicate, cancel, visibility, images | Done | Done | Done |
+| 4.3 Ticket types and inventory | Done (hold length from platform settings) | Done | Done |
 | 4.3.1 Assigned seating (bonus) | Done | Done | Done |
 | 4.4 Free registration | Done | Done | Done |
 | 4.5 Paid-sales activation (simulated) | Done (fee from platform settings) | Done | Done |
-| 4.6 Checkout, payments and finance (simulated) | Done, with simulated payouts | Checkout done; finance on the planned contract, payouts missing (#108) | Done, with payouts |
+| 4.6 Checkout, payments and finance (simulated) | Done, with simulated payouts | Done, with payouts | Done, with payouts |
 | 4.7 Digital tickets, PDF, email delivery | Done (Kazakh/Russian PDF text) | Done | Done (PDF via share sheet) |
-| 4.8 Scanner check-in, online and offline | Done | Check-in history + CSV | Online done; offline result screen to change (#115) |
+| 4.8 Scanner check-in, online and offline | Done | Check-in history + CSV | Done, online and offline |
 | 4.9 Orders, cancellations, full-order refunds | Done | Done | Done |
-| 4.10 Notifications | Done (incl. moderation notices) | Inbox done; delivery admin missing (#110) | Inbox done; delivery admin missing (#116) |
+| 4.10 Notifications | Done (incl. moderation notices) | Done | Done |
 | 4.11 Calendar export (bonus) | Done | Done | Done |
-| 4.12 Platform administration | Done (settings, moderation, operations search, jobs and deliveries) | Partial: commerce (#109) and operations (#110) missing | Commerce done; operations missing (#116) |
-| 4.13 Support cases | Done (ClamAV scan, quarantine) | Done; scan status not shown (#112) | Done; scan status not shown (#116) |
-| 4.14 Promo codes and Campaign QR | Done | Done; new report fields not shown (#122) | Done; new report fields not shown (#122) |
-| 4.15 Organizer analytics (GA4 optional) | Done, with CSV export; GA4 off by default | Planned contract, no CSV (#108); GA4 page views only | Done, with CSV export; no GA4 |
+| 4.12 Platform administration | Done | Done | Done |
+| 4.13 Support cases | Done (ClamAV scan, quarantine) | Done, with scan status | Done, with scan status |
+| 4.14 Promo codes and Campaign QR | Done | Done | Done |
+| 4.15 Organizer analytics (GA4 optional) | Done, with CSV export; GA4 off by default | Done, with CSV export | Done, with CSV export |
 | 4.16 Event history and audit trail | Done (with request IDs) | Done | Done |
 | 7 Localization (Kazakh, Russian, English) | Done | Done | Done |
 
@@ -237,6 +224,11 @@ with any of these accounts (password `BiletFlow-demo-2026`, development only):
 | `demo-scanner@example.com` | Scan in the mobile app (assigned to the concert and the live meetup) |
 | `demo-admin@example.com` | Use the Admin tab |
 
+Something to scan is always there: every `docker compose up -d` makes sure the scanner has an
+event admitting people for at least 6 more hours. When the live meetup has closed, the start adds
+a *Demo Check-in (live now)* event with two unused tickets for `demo-attendee` and keeps
+everything else.
+
 Dates are relative to the build, so refresh them (and discard changes made inside the demo
 workspace) with an explicit reset. It never runs in production and touches nothing outside the
 demo workspace:
@@ -264,41 +256,23 @@ is run from inside each part's folder.
 
 ---
 
-## What is left to do
+## Known limitations
 
-Tracked in #125, grouped as in the [integration status](docs/integration/status.md#remaining-work).
-Done since 13 November: #67, #70, #74 (PR #102); #71, #72, #73, #75, #76, #77, #78, #81
-(PR #104); mobile moderation notices and hold time (PR #105); #113 (PR #126); #114 (PR #127).
+All tracked work is done (#125). These are deliberate scope limits or small follow-ups, none of
+which blocks the demonstration:
 
-1. **Clients.** These can start now; recheck them if #119 or #122 changes a contract.
-   - Web: gallery cover, reorder and delete (#107); analytics and finance on the final
-     contracts, with CSV export (#108); admin paid-sales suspension and payment/refund
-     monitoring (#109). Open PR #111 covers most of these three, but not the analytics CSV export.
-     Then admin operations search, jobs and deliveries (#110); upload scan status (#112); HTTPS
-     on the shared demo host once it exists (#49: headers and configuration are done).
-   - Mobile: offline result screen per [decision 0003](docs/decisions/0003-confirmed-decisions.md)
-     (#115); admin operations and upload scan status (#116, open PR #128); real iPhone and Android
-     phones (#53).
-2. **Validation.** Done for #117 on 24 November (`backend/VALIDATION.md`); keep check-in fast
-   while analytics runs, measured on the demo host (#118); example
-   requests and errors for the #104 endpoints, which #110 and #116 build on (#119).
-3. **End-to-end and acceptance.** Compare client types with the final contracts (#122); browser
-   end-to-end tests with Playwright in CI (#120); walk through AC-01 to AC-28 on the integrated
-   stack and record the results (#121). These need steps 1 and 2.
-4. **Owner.** Confirm the open decisions (#123, answered by decision 0003); keep this README and
-   the status report current (#124).
-
-Not yet in any issue: no client posts GA4 measurements or shows the organizer GA4 connection and
-traffic report; the web checkout still says "10 minutes" instead of reading the hold length
-setting; the web links for moderation and account notices (fixed in open PR #111).
-
-Conditional, not blocking: a payment-provider sandbox (needs merchant access) and live GA4 data
-(needs property credentials).
-
-[Decision 0003](docs/decisions/0003-confirmed-decisions.md) answers the questions in
-[decision 0002](docs/decisions/0002-decisions-to-confirm.md): an offline scan never lets someone in
-without online confirmation, the current sync rules stay, and the defaults the code uses are now
-confirmed product rules. Refunds stay full-order only; partial refunds are out of scope.
+- **Acceptance:** 7 of the 28 criteria are *partial*: the part that can be run automatically
+  passes, and the rest needs hardware or timing a live run cannot produce, such as scanning a
+  printed PDF or a hold expiring. Details in [acceptance.md](docs/integration/acceptance.md).
+- **Simulated by design:** payments and payouts use the built-in simulator; a payment-provider
+  sandbox needs merchant access, and live GA4 data needs property credentials.
+- **Offline entry:** an offline scan only says "looks valid, connect to confirm"; entry is
+  admitted by the server after sync ([decision 0003](docs/decisions/0003-confirmed-decisions.md)).
+  Refunds stay full-order only; partial refunds are out of scope.
+- **Small follow-ups:** calendar options on the order and ticket screens; server-side filters for
+  check-in history (clients show the newest 100 entries); a `randomUUID` fallback for the web app
+  on plain HTTP; the web checkout hint shows the default 10-minute hold rather than reading the
+  setting; a backend design-rationale document; encryption at rest (a team decision).
 
 ---
 

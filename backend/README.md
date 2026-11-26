@@ -414,7 +414,7 @@ Accounts (password `BiletFlow-demo-2026` for all, fictional, development only):
 | Email | Role |
 |---|---|
 | `demo-organizer@example.com` | Owner of *BiletFlow Demo Productions* |
-| `demo-scanner@example.com` | Member with `scan` and `reverse_checkin` on the concert and the meetup |
+| `demo-scanner@example.com` | Member with `scan` and `reverse_checkin` on the concert, the meetup and any live check-in event |
 | `demo-attendee@example.com` | Attendee with most orders; invited to the private event |
 | `demo-guest@example.com` | Second attendee |
 | `demo-admin@example.com` | Platform admin |
@@ -429,9 +429,13 @@ Events and what they demonstrate (prices in KZT):
 | Demo Meetup (live now) | Free event in progress, admission open: one ticket checked in, one not yet |
 | Demo Private Workshop (+10 days) | Private event, hidden from the catalog, attendee has access and a ticket |
 | Demo Festival (cancelled, +45 days) | Event cancelled after a free registration; ticket and order cancelled |
+| Demo Check-in (live now) | Added by a later start (below): free, admission open for 12 hours, scanner assigned, two unused attendee tickets |
 
-The three paid events each paid the KZT 5,000 simulated activation fee. The live meetup ends a
-few hours after the build; rebuild to get fresh dates. The identifiers of the current build are
+The three paid events each paid the KZT 5,000 simulated activation fee. The live meetup ends 10
+hours after the build. Every later start (`docker compose up -d`, which runs `app.bootstrap`)
+checks that the demo scanner has an event admitting people for at least 6 more hours; when it
+has none, the start adds a *Demo Check-in (live now)* event and changes nothing else, so demo
+activity is kept. Reset to get fresh dates for the other events. The identifiers of the current build are
 in the `demo.fixtures_built` audit row of the demo organization (`app.seed.demo_fixtures()`).
 
 ---
